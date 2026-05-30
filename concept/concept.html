@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Концепция MVP: Контекст-Английский</title>
+        <style>
+            :root {
+                --shark: #1d1d1f;
+                --science-blue: #0066cc;
+                --athens-gray: #f5f5f7;
+                --border-color: #d2d2d7;
+                --white: #ffffff;
+                --text-muted: #86868b;
+                --error-red: #ff3b30;
+                --success-green: #34c759;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Helvetica, Arial, sans-serif;
+                background-color: var(--athens-gray);
+                color: var(--shark);
+                line-height: 1.6;
+                margin: 0;
+                padding: 40px 20px;
+            }
+
+            .container {
+                max-width: 850px;
+                margin: 0 auto;
+            }
+
+            header {
+                margin-bottom: 40px;
+                border-bottom: 1px solid var(--border-color);
+                padding-bottom: 20px;
+            }
+
+            h1 {
+                font-size: 36px;
+                font-weight: 700;
+                letter-spacing: -0.5px;
+                margin: 0 0 10px 0;
+            }
+
+            .subtitle {
+                color: var(--text-muted);
+                font-size: 18px;
+                margin: 0;
+            }
+
+            .card {
+                background: var(--white);
+                border-radius: 12px;
+                padding: 28px;
+                margin-bottom: 24px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            }
+
+            h2 {
+                font-size: 22px;
+                font-weight: 600;
+                margin-top: 0;
+                margin-bottom: 18px;
+                border-bottom: 1px solid var(--athens-gray);
+                padding-bottom: 8px;
+            }
+
+            p {
+                margin-top: 0;
+                margin-bottom: 16px;
+            }
+
+            .highlight-box {
+                background-color: #f2f7fd;
+                border-left: 4px solid var(--science-blue);
+                padding: 16px;
+                border-radius: 0 8px 8px 0;
+                margin-bottom: 20px;
+                font-size: 16px;
+            }
+
+            /* Блок Проблема / Решение */
+            .pain-point {
+                margin-bottom: 24px;
+                padding-bottom: 16px;
+                border-bottom: 1px dashed var(--border-color);
+            }
+            .pain-point:last-child {
+                border-bottom: none;
+                margin-bottom: 0;
+                padding-bottom: 0;
+            }
+            .text-problem {
+                color: var(--error-red);
+                font-weight: 600;
+                margin-bottom: 6px;
+            }
+            .text-solution {
+                color: var(--success-green);
+                font-weight: 600;
+                margin-bottom: 6px;
+            }
+
+            /* Интерактивный список фич */
+            details {
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                margin-bottom: 12px;
+                background: var(--athens-gray);
+                transition: all 0.2s ease;
+            }
+
+            details[open] {
+                background: var(--white);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            }
+
+            summary {
+                padding: 14px 16px;
+                font-weight: 600;
+                cursor: pointer;
+                outline: none;
+                user-select: none;
+                color: var(--science-blue);
+            }
+
+            .details-content {
+                padding: 16px;
+                border-top: 1px solid var(--border-color);
+            }
+
+            /* Таблица */
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 12px;
+            }
+
+            th,
+            td {
+                text-align: left;
+                padding: 12px;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            th {
+                background-color: var(--athens-gray);
+                font-weight: 600;
+            }
+
+            .badge {
+                display: inline-block;
+                background: var(--athens-gray);
+                color: var(--text-muted);
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 600;
+                margin-right: 6px;
+            }
+
+            .flow-step {
+                display: flex;
+                align-items: center;
+                margin-bottom: 12px;
+            }
+
+            .flow-number {
+                background: var(--science-blue);
+                color: var(--white);
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: bold;
+                margin-right: 12px;
+                flex-shrink: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1>Проект «Контекст-Английский»</h1>
+                <p class="subtitle">
+                    Интерактивное техническое задание для разработки MVP
+                </p>
+            </header>
+
+            <div class="card">
+                <h2>1. Основная суть приложения</h2>
+                <p>
+                    <strong>«Контекст-Английский»</strong> — это мобильное
+                    приложение для изучения иностранных слов, где главным
+                    элементом обучения является
+                    <strong
+                        >контекстуальное закрепление материала в тот же
+                        день</strong
+                    >.
+                </p>
+                <div class="highlight-box">
+                    <strong>Фундаментальная идея:</strong> Пользователь не
+                    просто заучивает изолированные слова по карточкам, а в конце
+                    каждого учебного цикла получает уникальный, сгенерированный
+                    нейросетью связный текст (100–150 слов). Этот текст пишется
+                    под выбранные интересы пользователя, строго соответствует
+                    его уровню грамматики и
+                    <em>обязательно интегрирует в себя все новые слова</em>,
+                    которые человек изучил именно сегодня.
+                </div>
+                <p>
+                    Продукт превращает рутинную зубрежку в увлекательное
+                    микро-чтение, давая мозгу сигнал: «Эти слова реальны, они
+                    используются в живой речи прямо сейчас».
+                </p>
+            </div>
+
+            <div class="card">
+                <h2>2. Какие проблемы пользователей решает продукт?</h2>
+
+                <div class="pain-point">
+                    <div class="text-problem">
+                        ❌ Проблема №1: Иллюзия знания (Пассивный словарный
+                        запас)
+                    </div>
+                    <p>
+                        В существующих приложениях (Duolingo, Lingualeo) тесты
+                        построены на механическом угадывании слов из вариантов
+                        ответа. Мозг запоминает визуальное расположение кнопок
+                        или картинок. В реальной жизни пользователь открывает
+                        статью или включает сериал и понимает, что не помнит эти
+                        слова в связном тексте.
+                    </p>
+                    <div class="text-solution">✅ Как решает наш проект:</div>
+                    <p>
+                        «Текст Дня» заставляет мозг переключиться из режима
+                        пассивного узнавания в режим активного контекстуального
+                        понимания. Видя выученное слово внутри живого
+                        предложения, пользователь формирует прочные нейронные
+                        связи.
+                    </p>
+                </div>
+
+                <div class="pain-point">
+                    <div class="text-problem">
+                        ❌ Проблема №2: Синтетический и абстрактный контекст
+                    </div>
+                    <p>
+                        Учебники и приложения грешат оторванными от жизни
+                        фразами (например: <em>«Сова ест мое яблоко»</em>).
+                        Пользователям скучно учить то, что они никогда не скажут
+                        коллеге на работе, не напишут в Твиттере и не встретят в
+                        путешествии.
+                    </p>
+                    <div class="text-solution">✅ Как решает наш проект:</div>
+                    <p>
+                        Благодаря персонализированной генерации, пользователь сам выбирает
+                        тему текста (Бизнес, IT, Детектив, Бытовой диалог).
+                        Новые слова упаковываются в актуальный, интересный
+                        именно ему контекст, симулирующий реальные жизненные
+                        ситуации.
+                    </p>
+                </div>
+
+                <div class="pain-point">
+                    <div class="text-problem">
+                        ❌ Проблема №3: Рутина, скука и выгорание (Эффект Anki)
+                    </div>
+                    <p>
+                        Метод интервального повторения по карточкам эффективен,
+                        но монотонен. Если пропустить 2-3 дня, пользователя
+                        встречает лавина из 150-200 карточек на повторение. Это
+                        вызывает стресс, и приложение просто удаляется.
+                    </p>
+                    <div class="text-solution">✅ Как решает наш проект:</div>
+                    <p>
+                        Финальный текст — это микро-рассказ всего на 1.5 минуты
+                        чтения. Он выступает в роли «финального босса» дня,
+                        прохождение которого дает быстрый дофамин и ощущение
+                        реального прогресса («Я прочитал и понял целый текст!»).
+                    </p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>3. Ежедневный User Flow пользователя</h2>
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <strong>Изучение:</strong> Пользователь запоминает пачку из
+                    5–7 новых слов.
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <strong>Кастомизация:</strong> Выбирает жанр или сеттинг для
+                    текста (например, «Разговор на собеседовании»).
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <strong>Погружение:</strong> ИИ генерирует историю.
+                    Пользователь читает её, слушает нативную озвучку и тапает на
+                    незнакомые слова для перевода.
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <strong>Контроль:</strong> Проходит мини-квиз на понимание
+                    сюжета и, если нужно, просит ИИ объяснить сложную
+                    грамматику.
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <strong>Завершение:</strong> Получает фиксацию прогресса и
+                    закрывает день.
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>4. Функциональные фичи MVP (Кликни для деталей)</h2>
+
+                <details>
+                    <summary>
+                        Фича А: Персонализированная генерация текста
+                    </summary>
+                    <div class="details-content">
+                        <strong>Объем:</strong> Строго 100–150 слов.<br />
+                        <strong>Логика:</strong> Бесшовное внедрение новых слов
+                        в текст без искусственного усложнения общей грамматики
+                        (строго под уровень пользователя).
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Фича Б: Персонализация тем (Жанры)</summary>
+                    <div class="details-content">
+                        Выбор сеттинга перед генерацией. Стартовый пак:
+                        <ul>
+                            <li>Повседневность (Daily Life)</li>
+                            <li>Бизнес / Работа (Work & IT)</li>
+                            <li>Путешествия (Travel)</li>
+                            <li>Короткий рассказ (Детектив / Фэнтези)</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>
+                        Фича В: Быстрый перевод по тапу (Inline Translation)
+                    </summary>
+                    <div class="details-content">
+                        Каждое слово в тексте можно открыть касанием. Пользователь сразу видит
+                        короткую подсказку с переводом и транскрипцией.
+                        <strong>Контекстная точность:</strong> Для заучиваемых слов перевод и транскрипция соответствуют именно тому смыслу, в котором слово используется в текущем рассказе.
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Фича Г: Аудио-ассистент</summary>
+                    <div class="details-content">
+                        Пользователь может прослушать рассказ прямо в приложении.
+                        <strong>Синхронизация чтения (Караоке-эффект):</strong> Текст воспроизводится последовательно, предложение за предложением. Текущее читаемое предложение ярко подсвечивается на экране, а остальные слегка затеняются.
+                    </div>
+                </details>
+
+                <details>
+                    <summary>
+                        Фича Д: Объяснение конструкций (Grammar Helper)
+                    </summary>
+                    <div class="details-content">
+                        Выделение или долгий тап по предложению вызывает окно с
+                        простым разбором грамматики от ИИ (например, объяснение
+                        почему здесь стоит именно это время).
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Фича Е: Мини-квиз (Comprehension Check)</summary>
+                    <div class="details-content">
+                        1–2 коротких вопроса с вариантами ответа по сюжету текста,
+                        проверяющие реальное понимание прочитанного контента.
+                    </div>
+                </details>
+            </div>
+
+            <div class="card">
+                <h2>5. Двухэтапный контроль грамматики</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Этап</th>
+                            <th>Роль</th>
+                            <th>Зона ответственности</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Создание</strong></td>
+                            <td>Черновик</td>
+                            <td>
+                                Создает креативный текст на основе слов, жанра и
+                                заданного уровня (например, А2).
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Проверка</strong></td>
+                            <td>Редактура</td>
+                            <td>
+                                Анализирует текст. Вычищает сложные конструкции
+                                (стоп-слова, времена выше уровня пользователя) и
+                                неточности и неестественные формулировки.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>6. Отложено в бэклог (Версия 2.0)</h2>
+                <span class="badge"
+                    >Автоматический тест на уровень грамматики</span
+                >
+                <span class="badge"
+                    >Сохранение сторонних слов из текста в личный словарь</span
+                >
+            </div>
+        </div>
+    </body>
+</html>
