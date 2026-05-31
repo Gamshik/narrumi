@@ -1,18 +1,53 @@
+import type { ReactElement } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { AppStyles } from '../types';
 
-export function HomeScreen({ styles }: { readonly styles: AppStyles }) {
+// HomeScreenProps carries the shared themed style sheet into the home dashboard.
+type HomeScreenProps = {
+  // styles is the app-level StyleSheet contract generated from current theme colors.
+  readonly styles: AppStyles;
+  // onStartDailySession opens the local card practice flow.
+  readonly onStartDailySession: () => void;
+};
+
+// ActionRowProps describes one home action without implying implemented navigation.
+type ActionRowProps = {
+  // accent selects the approved design-system color for the action icon.
+  readonly accent: 'blue' | 'orange' | 'purple';
+  // icon is the compact glyph text shown before the action title.
+  readonly icon: string;
+  // styles is the shared themed style sheet used by presentation components.
+  readonly styles: AppStyles;
+  // subtitle explains current availability without fake progress data.
+  readonly subtitle: string;
+  // title is the visible action label.
+  readonly title: string;
+  // onPress is optional because several MVP actions are placeholders only.
+  readonly onPress?: () => void;
+};
+
+// HomeScreen renders the main dashboard shell without mock counters or dictionary shortcuts.
+export function HomeScreen({
+  styles,
+  onStartDailySession,
+}: HomeScreenProps): ReactElement {
   return (
     <ScrollView contentContainerStyle={styles.screenContent}>
       <HomeHeader styles={styles} />
       <GoalCard styles={styles} />
-      <PracticeActions styles={styles} />
+      <PracticeActions
+        styles={styles}
+        onStartDailySession={onStartDailySession}
+      />
     </ScrollView>
   );
 }
 
-function HomeHeader({ styles }: { readonly styles: AppStyles }) {
+// HomeHeader owns the app title and avatar placement on the home screen.
+function HomeHeader({
+  styles,
+}: Pick<HomeScreenProps, 'styles'>): ReactElement {
   return (
     <View style={styles.homeHeader}>
       <Text style={styles.largeTitle}>Context-English</Text>
@@ -23,7 +58,8 @@ function HomeHeader({ styles }: { readonly styles: AppStyles }) {
   );
 }
 
-function GoalCard({ styles }: { readonly styles: AppStyles }) {
+// GoalCard reserves the learning goal area until real card progress is connected.
+function GoalCard({ styles }: Pick<HomeScreenProps, 'styles'>): ReactElement {
   return (
     <View style={styles.goalCard}>
       <View style={styles.flex}>
@@ -36,11 +72,11 @@ function GoalCard({ styles }: { readonly styles: AppStyles }) {
   );
 }
 
+// PracticeActions shows product entry points without fabricated user state.
 function PracticeActions({
   styles,
-}: {
-  readonly styles: AppStyles;
-}) {
+  onStartDailySession,
+}: HomeScreenProps): ReactElement {
   return (
     <>
       <Text style={styles.sectionLabel}>TODAY&apos;S PRACTICE</Text>
@@ -48,9 +84,10 @@ function PracticeActions({
         <ActionRow
           accent="blue"
           icon="Aa"
-          subtitle="Card practice will use the local vocabulary catalog."
+          subtitle="Start flashcards and save progress on this device."
           styles={styles}
           title="Study Cards"
+          onPress={onStartDailySession}
         />
         <ActionRow
           accent="purple"
@@ -62,7 +99,7 @@ function PracticeActions({
         <ActionRow
           accent="orange"
           icon="T"
-          subtitle="Requires online story generation."
+          subtitle="Choose a genre after local practice; generation stays gated offline."
           styles={styles}
           title="Text of the Day"
         />
@@ -71,6 +108,7 @@ function PracticeActions({
   );
 }
 
+// ActionRow renders a single dashboard action row with optional interaction.
 function ActionRow({
   accent,
   icon,
@@ -78,14 +116,7 @@ function ActionRow({
   subtitle,
   title,
   onPress,
-}: {
-  readonly accent: 'blue' | 'orange' | 'purple';
-  readonly icon: string;
-  readonly styles: AppStyles;
-  readonly subtitle: string;
-  readonly title: string;
-  readonly onPress?: () => void;
-}) {
+}: ActionRowProps): ReactElement {
   return (
     <Pressable
       disabled={!onPress}

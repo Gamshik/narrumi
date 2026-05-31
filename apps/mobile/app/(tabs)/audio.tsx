@@ -1,8 +1,10 @@
+import type { ReactElement } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { RouteScreen, useAppStyles } from '@presentation/app';
 
-export default function AudioRoute() {
+// Route contract: keeps the future audio feature visible without fake playback data.
+export default function AudioRoute(): ReactElement {
   const { isDark, styles } = useAppStyles();
 
   return (

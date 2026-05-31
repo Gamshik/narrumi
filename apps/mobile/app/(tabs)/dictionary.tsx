@@ -1,8 +1,10 @@
 import { useRouter } from 'expo-router';
+import type { ReactElement } from 'react';
 
 import { DictionaryScreen, RouteScreen, useAppStyles } from '@presentation/app';
 
-export default function DictionaryRoute() {
+// Route contract: bridges dictionary row selection to the native details sheet route.
+export default function DictionaryRoute(): ReactElement {
   const router = useRouter();
   const { isDark, styles } = useAppStyles();
 

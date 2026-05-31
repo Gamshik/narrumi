@@ -2,7 +2,8 @@ import { StyleSheet } from "react-native";
 
 import type { AppColors } from "@presentation/theme/tokens";
 
-export function createStyles(colors: AppColors) {
+// createAppStylesImpl keeps the exact StyleSheet key contract inferred in one place.
+function createAppStylesImpl(colors: AppColors) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: colors.backgroundPrimary },
     flex: { flex: 1 },
@@ -102,6 +103,20 @@ export function createStyles(colors: AppColors) {
     },
     cefrSegmentedControl: { height: 38 },
     settingMeter: { gap: 10 },
+    stepperRow: { flexDirection: "row", gap: 10 },
+    stepperButton: {
+      flex: 1,
+      minHeight: 38,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 12,
+      backgroundColor: colors.backgroundTertiary,
+    },
+    stepperButtonText: {
+      color: colors.labelPrimary,
+      fontSize: 19,
+      fontWeight: "800",
+    },
     meterTrack: {
       height: 6,
       overflow: "hidden",
@@ -112,6 +127,85 @@ export function createStyles(colors: AppColors) {
       height: 6,
       borderRadius: 3,
       backgroundColor: colors.systemBlue,
+    },
+    choiceRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    goalChoice: {
+      minWidth: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      backgroundColor: colors.backgroundTertiary,
+    },
+    activeGoalChoice: { backgroundColor: colors.systemBlue },
+    goalChoiceText: {
+      color: colors.labelPrimary,
+      fontSize: 15,
+      fontWeight: "800",
+    },
+    activeGoalChoiceText: { color: "#ffffff" },
+    practiceCard: {
+      gap: 12,
+      padding: 18,
+      borderRadius: 24,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    practiceWord: {
+      color: colors.labelPrimary,
+      fontSize: 34,
+      fontWeight: "800",
+      letterSpacing: -0.8,
+    },
+    practiceActions: { flexDirection: "row", gap: 10 },
+    primaryButton: {
+      minHeight: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      backgroundColor: colors.systemBlue,
+    },
+    primaryButtonText: {
+      color: "#ffffff",
+      fontSize: 15,
+      fontWeight: "800",
+    },
+    secondaryButton: {
+      flex: 1,
+      minHeight: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      backgroundColor: colors.backgroundTertiary,
+    },
+    secondaryButtonText: {
+      color: colors.labelPrimary,
+      fontSize: 15,
+      fontWeight: "800",
+    },
+    disabledControl: { opacity: 0.55 },
+    genreRow: {
+      minHeight: 54,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      backgroundColor: colors.backgroundTertiary,
+    },
+    activeGenreRow: { backgroundColor: `${colors.systemBlue}1f` },
+    offlineNotice: {
+      gap: 6,
+      marginTop: 14,
+      padding: 14,
+      borderRadius: 16,
+      backgroundColor: `${colors.systemOrange}1f`,
     },
     dictionaryScreen: { flex: 1, paddingTop: 14 },
     dictionaryHeader: {
@@ -260,4 +354,12 @@ export function createStyles(colors: AppColors) {
     detailsText: { color: colors.labelPrimary, fontSize: 15, lineHeight: 24 },
     exampleText: { color: colors.labelPrimary, fontSize: 15, lineHeight: 23 },
   });
+}
+
+// AppStyleSheet is the exact style-key contract consumed by presentation components.
+export type AppStyleSheet = ReturnType<typeof createAppStylesImpl>;
+
+// createStyles builds the themed StyleSheet consumed through the AppStyles contract.
+export function createStyles(colors: AppColors): AppStyleSheet {
+  return createAppStylesImpl(colors);
 }

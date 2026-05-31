@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactElement } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   FlatList,
   Pressable,
@@ -8,39 +10,157 @@ import {
   View,
 } from 'react-native';
 
-import { createBrowseVocabulary } from '@application/index';
-import { cefrLevels, type VocabularyItem } from '@domain/index';
-import { BundledOxfordVocabularyCatalog } from '@infrastructure/index';
+import {
+  cefrLevels,
+  type LearnedWordProgress,
+  type VocabularyItem,
+} from '@domain/index';
 
+import { localAppServices } from '../services/localAppServices';
 import { LevelBadge } from '../shared';
 import type { AppStyles, LevelFilter } from '../types';
 
-const catalog = new BundledOxfordVocabularyCatalog();
-const browseVocabulary = createBrowseVocabulary(catalog);
+// levelFilters keeps the visual CEFR selector aligned with the domain levels.
 const levelFilters: readonly LevelFilter[] = ['ALL', ...cefrLevels];
-const queueFilters = ['All', 'Unseen', 'Study', 'Mastered'] as const;
+// queueFilters are local progress-state filters for the bundled dictionary.
+const queueFilters = [
+  'All',
+  'Unseen',
+  'Skipped',
+  'Learning',
+  'Review',
+  'Mastered',
+] as const;
+// QueueFilter is the selected visual state filter shown above the dictionary list.
+type QueueFilter = (typeof queueFilters)[number];
+
+// DictionaryScreenProps defines the dictionary list screen dependencies.
+type DictionaryScreenProps = {
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // onSelectWord opens native details for the selected domain item.
+  readonly onSelectWord: (word: VocabularyItem) => void;
+};
+
+// StyledViewProps is used by small static dictionary subcomponents.
+type StyledViewProps = {
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+};
+
+// SearchBarProps defines controlled search input state for local vocabulary lookup.
+type SearchBarProps = {
+  // search is the current text used to filter local vocabulary.
+  readonly search: string;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // onChangeSearch updates the dictionary query text.
+  readonly onChangeSearch: (search: string) => void;
+};
+
+// LevelFiltersProps defines CEFR selector state for the dictionary catalog.
+type LevelFiltersProps = {
+  // level is the active CEFR filter or ALL for the full catalog.
+  readonly level: LevelFilter;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // onChangeLevel applies a new CEFR filter.
+  readonly onChangeLevel: (level: LevelFilter) => void;
+};
+
+// QueueFiltersProps defines the visual card-state selector contract.
+type QueueFiltersProps = {
+  // selectedFilter is the active visual state bucket.
+  readonly selectedFilter: QueueFilter;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // onChangeFilter updates the visual card-state selection.
+  readonly onChangeFilter: (filter: QueueFilter) => void;
+};
+
+// DictionaryContentProps defines the loaded/error/list states for catalog results.
+type DictionaryContentProps = {
+  // errorMessage is shown when the bundled catalog cannot be read.
+  readonly errorMessage: string | undefined;
+  // isLoading distinguishes initial catalog loading from an empty result.
+  readonly isLoading: boolean;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // words are normalized vocabulary items returned by the use case.
+  readonly words: readonly VocabularyItem[];
+  // onSelectWord opens details for a selected row.
+  readonly onSelectWord: (word: VocabularyItem) => void;
+};
+
+// ProgressByWordId maps vocabulary ids to local practice records.
+type ProgressByWordId = ReadonlyMap<string, LearnedWordProgress>;
+
+// StateMessageProps defines a compact empty/error state.
+type StateMessageProps = {
+  // message is the primary user-facing state text.
+  readonly message: string;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+};
+
+// DictionaryWordRowProps defines one tappable dictionary catalog row.
+type DictionaryWordRowProps = {
+  // onPress selects the row for native details.
+  readonly onPress: () => void;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // word is the normalized vocabulary item displayed by the row.
+  readonly word: VocabularyItem;
+};
 
 export function DictionaryScreen({
   styles,
   onSelectWord,
-}: {
-  readonly styles: AppStyles;
-  readonly onSelectWord: (word: VocabularyItem) => void;
-}) {
+}: DictionaryScreenProps): ReactElement {
   const [level, setLevel] = useState<LevelFilter>('ALL');
-  const [queueFilter, setQueueFilter] = useState<(typeof queueFilters)[number]>('All');
+  const [queueFilter, setQueueFilter] = useState<QueueFilter>('All');
   const [search, setSearch] = useState('');
   const [words, setWords] = useState<readonly VocabularyItem[]>([]);
+  const [progressByWordId, setProgressByWordId] = useState<ProgressByWordId>(
+    new Map(),
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>();
 
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      void localAppServices.loadWordProgress
+        .execute()
+        .then(({ progress }) => {
+          if (isActive) {
+            setProgressByWordId(
+              new Map(progress.map((item) => [item.wordId, item])),
+            );
+          }
+        })
+        .catch(() => {
+          if (isActive) {
+            setErrorMessage('Local word progress could not be loaded.');
+          }
+        });
+
+      return () => {
+        isActive = false;
+      };
+    }, []),
+  );
+
   useEffect(() => {
+    // Filters can change while the catalog promise is resolving; ignore stale
+    // responses so older searches do not overwrite the latest list.
     let isActive = true;
 
     setIsLoading(true);
     setErrorMessage(undefined);
 
-    void browseVocabulary
+    void localAppServices.browseVocabulary
       .execute({
         ...(level === 'ALL' ? {} : { level }),
         ...(search.trim() ? { search } : {}),
@@ -66,6 +186,11 @@ export function DictionaryScreen({
     };
   }, [level, search]);
 
+  const filteredWords = useMemo(
+    () => filterWordsByProgress(words, queueFilter, progressByWordId),
+    [progressByWordId, queueFilter, words],
+  );
+
   return (
     <View style={styles.dictionaryScreen}>
       <DictionaryHeader styles={styles} />
@@ -77,20 +202,23 @@ export function DictionaryScreen({
         onChangeFilter={setQueueFilter}
       />
       <Text style={styles.counterText}>
-        {isLoading ? 'Loading local catalog...' : `${words.length} words available`}
+        {isLoading
+          ? 'Loading local catalog...'
+          : `${filteredWords.length} words available`}
       </Text>
       <DictionaryContent
         errorMessage={errorMessage}
         isLoading={isLoading}
         styles={styles}
-        words={words}
+        words={filteredWords}
         onSelectWord={onSelectWord}
       />
     </View>
   );
 }
 
-function DictionaryHeader({ styles }: { readonly styles: AppStyles }) {
+// DictionaryHeader renders the screen title without Oxford-specific marketing text.
+function DictionaryHeader({ styles }: StyledViewProps): ReactElement {
   return (
     <View style={styles.dictionaryHeader}>
       <Text style={styles.largeTitle}>Dictionary</Text>
@@ -98,15 +226,12 @@ function DictionaryHeader({ styles }: { readonly styles: AppStyles }) {
   );
 }
 
+// SearchBar renders a controlled local search field for bundled vocabulary.
 function SearchBar({
   search,
   styles,
   onChangeSearch,
-}: {
-  readonly search: string;
-  readonly styles: AppStyles;
-  readonly onChangeSearch: (search: string) => void;
-}) {
+}: SearchBarProps): ReactElement {
   return (
     <View style={styles.searchBar}>
       <Text style={styles.searchIcon}>⌕</Text>
@@ -128,15 +253,12 @@ function SearchBar({
   );
 }
 
+// LevelFilters renders the horizontal CEFR filter selector.
 function LevelFilters({
   level,
   styles,
   onChangeLevel,
-}: {
-  readonly level: LevelFilter;
-  readonly styles: AppStyles;
-  readonly onChangeLevel: (level: LevelFilter) => void;
-}) {
+}: LevelFiltersProps): ReactElement {
   return (
     <View style={styles.filterViewport}>
       <ScrollView
@@ -169,15 +291,12 @@ function LevelFilters({
   );
 }
 
+// QueueFilters renders local card-state filters backed by AsyncStorage progress.
 function QueueFilters({
   selectedFilter,
   styles,
   onChangeFilter,
-}: {
-  readonly selectedFilter: (typeof queueFilters)[number];
-  readonly styles: AppStyles;
-  readonly onChangeFilter: (filter: (typeof queueFilters)[number]) => void;
-}) {
+}: QueueFiltersProps): ReactElement {
   return (
     <View style={styles.queueFilterBar}>
       {queueFilters.map((filter) => (
@@ -203,19 +322,47 @@ function QueueFilters({
   );
 }
 
+// filterWordsByProgress applies dictionary stage filters from local practice state.
+function filterWordsByProgress(
+  words: readonly VocabularyItem[],
+  queueFilter: QueueFilter,
+  progressByWordId: ProgressByWordId,
+): readonly VocabularyItem[] {
+  if (queueFilter === 'All') {
+    return words;
+  }
+
+  return words.filter((word) => {
+    const progress = progressByWordId.get(word.id);
+
+    if (queueFilter === 'Unseen') {
+      return progress === undefined;
+    }
+
+    if (queueFilter === 'Skipped') {
+      return progress?.status === 'skipped';
+    }
+
+    if (queueFilter === 'Learning') {
+      return progress?.status === 'learning';
+    }
+
+    if (queueFilter === 'Review') {
+      return progress?.status === 'in-review';
+    }
+
+    return progress?.status === 'mastered';
+  });
+}
+
+// DictionaryContent selects the correct list, empty, or error state.
 function DictionaryContent({
   errorMessage,
   isLoading,
   styles,
   words,
   onSelectWord,
-}: {
-  readonly errorMessage: string | undefined;
-  readonly isLoading: boolean;
-  readonly styles: AppStyles;
-  readonly words: readonly VocabularyItem[];
-  readonly onSelectWord: (word: VocabularyItem) => void;
-}) {
+}: DictionaryContentProps): ReactElement {
   if (errorMessage) {
     return <StateMessage message={errorMessage} styles={styles} />;
   }
@@ -242,13 +389,11 @@ function DictionaryContent({
   );
 }
 
+// StateMessage renders a compact fallback for empty and failed dictionary states.
 function StateMessage({
   message,
   styles,
-}: {
-  readonly message: string;
-  readonly styles: AppStyles;
-}) {
+}: StateMessageProps): ReactElement {
   return (
     <View style={styles.stateMessage}>
       <Text style={styles.stateMessageTitle}>{message}</Text>
@@ -257,15 +402,12 @@ function StateMessage({
   );
 }
 
+// DictionaryWordRow renders a dictionary-specific row, separate from future study cards.
 function DictionaryWordRow({
   onPress,
   styles,
   word,
-}: {
-  readonly onPress: () => void;
-  readonly styles: AppStyles;
-  readonly word: VocabularyItem;
-}) {
+}: DictionaryWordRowProps): ReactElement {
   return (
     <Pressable
       onPress={onPress}
