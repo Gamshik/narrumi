@@ -10,12 +10,13 @@ Read the relevant artifacts before implementation:
 
 | Artifact | Role |
 | --- | --- |
-| `concept/prd_concept_mvp.md` | Canonical product scope: core loop, user flow, MVP features, AI payload, two-agent generation pipeline, and explicit out-of-scope items. |
+| `concept/prd_concept_mvp.md` | Canonical product scope: core loop, user flow, MVP features, learning rules, review cycle, grammar quality control, and explicit out-of-scope items. |
 | `concept/concept.html` | Supporting product reference: detailed explanation of the learning problem, expected user experience, and MVP behavior. It clarifies intent but must not expand the PRD scope. |
 | `stack/tech_stack_mvp.md` | Canonical technical architecture and constraints: React Native with Expo Managed Workflow, TypeScript, Supabase, Edge Functions, OpenRouter, Vercel AI SDK, RLS, and `expo-speech`. |
 | `architecture/architecture_for_ai.md` | Canonical implementation architecture contract for AI agents: Clean Architecture boundaries, dependency direction, domain model, use cases, ports, offline-first sync, Edge Function responsibilities, error policy, and trust boundaries. |
 | `architecture/architecture_for_developer.html` | Supporting architecture reference for developers: visual explanation of layers, flows, ports, offline behavior, AI boundary, and non-negotiable rules. It clarifies `architecture_for_ai.md` but must not override it. |
 | `design/design_system.html` | Canonical visual and interaction reference: colors, typography, themes, controls, states, story reader, genre selection, audio controls, inline translation, grammar sheet, quiz feedback, and navigation. Reproduce the design in React Native; do not copy browser-only implementation details blindly. |
+| `design/design_system_guidelines.md` | Mandatory design rules for UI work when there is no exact layout or screen-level specification. Read before any free-form layout or visual decision. |
 | `words/oxford-5000.json` | Bundled local vocabulary source for offline word lists, flashcards, and non-LLM dictionary lookups. Treat as read-only seed data shipped with the app. |
 
 ## Compliance Rules
@@ -26,11 +27,7 @@ Read the relevant artifacts before implementation:
 - Do not implement backlog items unless explicitly requested.
 - Do not silently resolve contradictions between artifacts. State the conflict and ask for clarification.
 - Keep artifact files aligned when an approved product, architecture, or design decision changes their documented behavior.
-- Treat the MVP as a hybrid offline/online app:
-  - Oxford 5000 vocabulary browsing, flashcards, local word-learning state, and simple local practice must work without internet.
-  - LLM story generation, LLM grammar explanations, and cloud sync require internet and must go through Supabase Edge Functions.
-  - When offline, write user progress locally first and queue it for later sync instead of failing the learning flow.
-  - When online, keep the local progress store and Supabase user progress aligned with deterministic conflict handling.
+- Preserve the hybrid offline/online behavior, card-learning rules, review cycle rules, and sync rules defined in the PRD, stack, and architecture artifacts. Do not redefine those rules in code from memory.
 
 ## Engineering Standards
 
@@ -40,48 +37,40 @@ Read the relevant artifacts before implementation:
 - Keep modules and components focused on one responsibility. Prefer explicit names and small reusable units.
 - Handle loading, empty, success, and error states deliberately.
 - Preserve accessibility, responsive layout, light/dark theme behavior, and iOS-friendly interaction patterns from the design reference.
+- Before implementing any free-form UI or layout without exact screen-level instructions, read `design/design_system_guidelines.md` and follow its rules.
 - Never hardcode secrets. Keep LLM calls, prompts, provider settings, and validation logic inside Supabase Edge Functions.
 - Keep Supabase access protected by Row Level Security. Treat all client input and AI output as untrusted.
 - Use Expo Managed Workflow only. Do not modify or introduce native `ios/` or `android/` code.
 - Do not fetch the Oxford 5000 seed list from the network at runtime. Bundle it with the app and load it through the React Native/Expo asset or module system.
 - Keep offline status visible in user-facing flows that require the server. For example, the Text of the Day generation screen must show that generation will be available once the device is online.
 
-## Architecture Rules
+## Mandatory Code Rules
 
-- Follow `architecture/architecture_for_ai.md` as the implementation architecture contract.
-- Use a pragmatic Clean Architecture variant: `Presentation -> Application -> Domain <- Infrastructure`.
-- Preserve dependency direction:
-  - Domain depends on nothing app-specific.
-  - Application depends on Domain abstractions and plain typed use-case inputs/outputs.
-  - Presentation depends on Application contracts and view models.
-  - Infrastructure implements ports and is the only mobile layer that talks to SDKs.
-- Keep React Native screens and components thin. They render state, forward user intent, and show loading, empty, offline, success, and error states.
-- Do not let UI components call Supabase tables, Edge Functions, AsyncStorage, Expo Speech, network status APIs, or Oxford JSON parsing directly.
-- Put business flow logic in application use cases. Put SDK details in infrastructure adapters.
-- Define narrow ports for external capabilities such as vocabulary catalog, local progress store, remote progress store, sync queue, story generation, grammar explanation, audio narration, network status, auth session, and clock.
-- Keep Supabase Edge Functions as the AI backend boundary, not a generic replacement for mobile application logic.
-- Validate data at every trust boundary: bundled JSON, local storage, Supabase data, Edge Function input, and LLM output.
-- Model user-facing errors with typed application errors. Never show raw Supabase, OpenRouter, storage, parsing, or SDK errors directly to users.
-- Preserve offline-first progress: local write succeeds first, UI updates from local state, pending sync is recorded, then remote sync runs when online and authenticated.
-- Resolve sync conflicts deterministically with timestamps or operation ordering. Never overwrite newer local offline progress with stale remote data.
-- Do not add repositories, mediators, event buses, CQRS, global service locators, or complex local databases unless an MVP requirement makes them necessary.
+These rules are mandatory for 100% of code changes. Do not consider a task complete while any affected code violates them.
 
-## Code Structure and Style
+- Code must be clean, readable, concise, typed, and maintainable. Do not leave messy, temporary, duplicated, or unclear code.
+- Every file, function, component, hook, type, and module must have one clear responsibility.
+- Split code into focused components and modules as soon as a file starts mixing UI, business logic, data access, types, styles, and helpers.
+- God files are forbidden. Do not create or extend oversized files that centralize unrelated responsibilities.
+- UI must be decomposed into small reusable components. Each reusable UI element must live in its own folder with its component file, style file when styling is non-trivial, types/helpers when needed, and `index.ts` export.
+- Component folders must expose public exports through `index.ts`. Imports from other modules should use these exports instead of deep internal paths.
+- TypeScript path aliases must be configured and used for stable, readable imports once project structure exists. Avoid fragile chains such as `../../../...`.
+- Names must be short enough to read easily and specific enough to explain intent. Avoid both vague names like `data`, `item`, `stuff`, `handleClick2` and excessively long names.
+- Functions must stay small and purposeful. Extract helpers, hooks, services, or use cases when branching, side effects, or repeated logic make a function hard to scan.
+- Types, interfaces, schemas, DTOs, and shared contracts must be extracted from UI files when reused or when they distract from rendering logic.
+- Presentation components must not contain business rules, SDK calls, persistence details, sync logic, or AI prompt/validation logic.
+- Tests are required for non-trivial business logic, data validation, sync/conflict behavior, AI payload handling, critical UI behavior, and every bug fix where a regression test is practical.
+- Do not add tests only for coverage numbers. Tests must protect observable behavior and important contracts.
+- Comments and annotations are mandatory where code performs a non-obvious action, encodes a business constraint, crosses a trust boundary, handles a workaround, or exposes a public contract.
+- Do not comment obvious code. A required comment must explain why the code exists, what rule it protects, or what external constraint it handles.
+- Before completing a task, review the changed code against this section and fix violations immediately.
 
-- Write only clean, readable, concise code that follows current best practices for the selected stack.
-- Keep names clear but not unnecessarily long. Prefer precise domain names over generic names.
-- Avoid god files and oversized components. Split code before a file becomes hard to scan or test.
-- Group code by feature, module, or UI element. Each reusable UI element must live in its own folder.
-- For UI components, keep the component and its styles together. In React Native, use a component `.tsx` file plus a colocated style file when styling is non-trivial. If the project later uses web React, use the same folder pattern with `.tsx` and `.scss`.
-- Extract reusable functions into separate `.ts` or `.tsx` files when that improves readability or reuse.
-- Extract interfaces, types, schemas, and DTOs into dedicated type files when they are shared or make a component harder to read.
-- Add `index.ts` barrel files for folders and modules that expose public exports. Keep imports clean and stable through these exports.
-- Configure TypeScript path aliases early and use them consistently for readable imports. Avoid fragile deep relative imports such as `../../../...`.
-- Keep business logic out of presentation components when it can be isolated in hooks, services, utilities, or Edge Functions.
-- Add tests where they are necessary to protect business logic, data validation, AI payload handling, Supabase access rules, critical UI behavior, and regressions from bug fixes.
-- Prefer focused tests over broad brittle tests. Test observable behavior, not implementation details.
-- Comment only where a decision, constraint, workaround, or non-obvious action needs context. Do not comment obvious code.
-- Add annotations for important types, public function contracts, external API boundaries, and data structures that cross module boundaries.
+## Implementation Routing
+
+- Use `architecture/architecture_for_ai.md` for implementation boundaries, dependency direction, domain model, ports, trust boundaries, sync behavior, and error policy.
+- Use `stack/tech_stack_mvp.md` for approved technologies, runtime constraints, storage choices, and server boundaries.
+- Use `design/design_system.html`, `design/design_system_guidelines.md`, and screen-specific files under `design/*` for visual and interaction decisions.
+- Keep `AGENTS.md` as navigation and operating rules. Do not duplicate detailed product, architecture, stack, or design specifications here unless the rule affects how agents should work across all tasks.
 
 ## Verification
 

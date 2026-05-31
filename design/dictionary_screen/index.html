@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context-English: Offline Dictionary Design Reference</title>
+    <!-- Premium Outfit & Inter Google Fonts for high-fidelity Apple-style typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ==========================================================================
+           1. CSS CUSTOM PROPERTIES (SYSTEM PALETTES - LIGHT & DARK)
+           ========================================================================== */
+        :root {
+            /* System Accent & Semantic Colors */
+            --sys-blue: #007aff;
+            --sys-green: #34c759;
+            --sys-red: #ff3b30;
+            --sys-orange: #ff9500;
+            --sys-purple: #af52de;
+            --sys-gray: #8e8e93;
+            
+            /* Main Dashboard Styles (Light Mode Default) */
+            --db-bg: #f5f5f7;
+            --db-card-bg: #ffffff;
+            --db-text-primary: #1d1d1f;
+            --db-text-secondary: #6e6e73;
+            --db-border: rgba(0, 0, 0, 0.08);
+            
+            /* Simulated Phone Styles (Light Mode) */
+            --phone-bg: #f2f2f7;
+            --phone-card: #ffffff;
+            --phone-card-elevated: #ffffff;
+            --phone-text-primary: #000000;
+            --phone-text-secondary: rgba(60, 60, 67, 0.6);
+            --phone-text-tertiary: rgba(60, 60, 67, 0.35);
+            --phone-separator: rgba(60, 60, 67, 0.12);
+            --phone-border: rgba(0, 0, 0, 0.04);
+            
+            /* Glassmorphism Formulas */
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --glass-shadow: rgba(0, 0, 0, 0.06);
+            
+            /* Constants */
+            --spring-easing: cubic-bezier(0.16, 1, 0.3, 1);
+            --spring-transition: all 0.35s var(--spring-easing);
+        }
+
+        .dark-theme {
+            /* Main Dashboard Styles (Dark Mode) */
+            --db-bg: #0b0b0c;
+            --db-card-bg: #161617;
+            --db-text-primary: #f5f5f7;
+            --db-text-secondary: #86868b;
+            --db-border: rgba(255, 255, 255, 0.08);
+            
+            /* Simulated Phone Styles (Dark Mode) */
+            --phone-bg: #000000;
+            --phone-card: #1c1c1e;
+            --phone-card-elevated: #2c2c2e;
+            --phone-text-primary: #ffffff;
+            --phone-text-secondary: rgba(235, 235, 245, 0.6);
+            --phone-text-tertiary: rgba(235, 235, 245, 0.35);
+            --phone-separator: rgba(84, 84, 86, 0.3);
+            --phone-border: rgba(255, 255, 255, 0.05);
+            
+            /* Glassmorphism Formulas (Dark) */
+            --glass-bg: rgba(28, 28, 30, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: rgba(0, 0, 0, 0.35);
+        }
+
+        /* ==========================================================================
+           2. GLOBAL RESET & TYPOGRAPHY
+           ========================================================================== */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--db-bg);
+            color: var(--db-text-primary);
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* High-fidelity Dashboard Grid Layout */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 40px;
+            max-width: 1380px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        @media (max-width: 1080px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+                gap: 30px;
+                padding: 20px 16px;
+            }
+            .simulator-panel {
+                order: -1; /* Place interactive simulator on top in single-column mobile view */
+            }
+            .sticky-simulator {
+                position: relative !important;
+                top: 0 !important;
+            }
+        }
+
+        /* Responsive iPhone scaling on narrow browser viewports */
+        @media (max-width: 480px) {
+            .iphone-15 {
+                transform: scale(0.88);
+                transform-origin: top center;
+                margin-bottom: -90px;
+            }
+        }
+        @media (max-width: 400px) {
+            .iphone-15 {
+                transform: scale(0.78);
+                transform-origin: top center;
+                margin-bottom: -170px;
+            }
+        }
+
+        /* Header Block */
+        .dashboard-header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--db-border);
+            padding-bottom: 20px;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-title-group h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.02em;
+        }
+
+        .dashboard-title-group p {
+            color: var(--db-text-secondary);
+            margin: 4px 0 0 0;
+            font-size: 14px;
+        }
+
+        /* Top Theme and Controls Block */
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .theme-toggle-btn {
+            background-color: var(--db-card-bg);
+            border: 1px solid var(--db-border);
+            color: var(--db-text-primary);
+            padding: 8px 16px;
+            border-radius: 99px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: var(--spring-transition);
+        }
+
+        .theme-toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* ==========================================================================
+           3. DEVELOPER PROMPT & SPECIFICATION PANEL (LEFT COLUMN)
+           ========================================================================== */
+        .instruction-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-width: 0; /* Prevent grid column stretching from nested content */
+        }
+
+        .prompt-card {
+            background-color: var(--db-card-bg);
+            border-radius: 20px;
+            border: 1px solid var(--db-border);
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .prompt-card h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .prompt-card h2 svg {
+            color: var(--sys-blue);
+        }
+
+        .prompt-card p {
+            font-size: 14px;
+            color: var(--db-text-secondary);
+            margin: 0 0 20px 0;
+            line-height: 1.5;
+        }
+
+        /* Prompt Text Area Box */
+        .prompt-box-wrapper {
+            position: relative;
+            background-color: #1e1e24;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .prompt-box {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            color: #a9b2c3;
+            max-height: 380px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word; /* Force wrap long syntax prompts */
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .prompt-box strong {
+            color: #e5c07b;
+        }
+
+        .prompt-box span.comment {
+            color: #5c6370;
+            font-style: italic;
+        }
+
+        .prompt-box span.string {
+            color: #98c379;
+        }
+
+        .prompt-box span.keyword {
+            color: #c678dd;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background-color: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: var(--spring-transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(4px);
+        }
+
+        .copy-btn:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Key Highlights of MVP Architecture */
+        .spec-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .spec-item {
+            display: flex;
+            gap: 12px;
+            font-size: 13.5px;
+            line-height: 1.45;
+        }
+
+        .spec-icon {
+            color: var(--sys-green);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .spec-content strong {
+            color: var(--db-text-primary);
+        }
+
+        .spec-content p {
+            margin: 2px 0 0 0;
+            font-size: 12.5px;
+            color: var(--db-text-secondary);
+        }
+
+        /* ==========================================================================
+           4. SIMULATOR PANEL (RIGHT COLUMN)
+           ========================================================================== */
+        .simulator-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 0; /* Prevent horizontal stretching issues */
+        }
+
+        .sticky-simulator {
+            position: sticky;
+            top: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+        }
+
+        /* Apple iPhone 15 Pro Frame Spec */
+        .iphone-15 {
+            position: relative;
+            width: 375px;
+            height: 780px;
+            background-color: #1e1e1e;
+            border-radius: 50px;
+            border: 11px solid #333336;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.22), inset 0 0 4px rgba(255,255,255,0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .dark-theme .iphone-15 {
+            border-color: #242426;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.65), inset 0 0 4px rgba(255,255,255,0.06);
+        }
+
+        /* iPhone Dynamic Island Mock */
+        .dynamic-island {
+            position: absolute;
+            top: 13px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 110px;
+            height: 28px;
+            background-color: #000000;
+            border-radius: 20px;
+            z-index: 1000;
+            transition: var(--spring-transition);
+            box-shadow: 0 0 2px rgba(255,255,255,0.1);
+        }
+
+        /* Simulated Mobile Screen Viewport */
+        .iphone-screen {
+            flex: 1;
+            background-color: var(--phone-bg);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            padding-top: 48px; /* Safe Area Top */
+            padding-bottom: 24px; /* Safe Area Bottom */
+            transition: background-color 0.3s ease;
+        }
+
+        /* iPhone Status Bar Layout */
+        .status-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            padding: 13px 24px 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--phone-text-primary);
+            z-index: 999;
+            pointer-events: none;
+            transition: color 0.3s ease;
+        }
+
+        .status-icons {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        /* Bottom Home Indicator */
+        .home-indicator {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 5px;
+            background-color: var(--phone-text-primary);
+            border-radius: 99px;
+            opacity: 0.3;
+            z-index: 1000;
+            pointer-events: none;
+            transition: background-color 0.3s ease;
+        }
+
+        /* ==========================================================================
+           5. SIMULATED APPLICATION SCREENS (DICTIONARY SCREEN - REFINED STATUSES)
+           ========================================================================== */
+        .screen-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            scrollbar-width: none;
+            padding: 16px 16px 96px 16px; /* Space for capsule floating nav */
+        }
+
+        .screen-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Application Header Block */
+        .app-header {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .app-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .app-title-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-category {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--sys-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .app-main-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--phone-text-primary);
+            letter-spacing: -0.02em;
+            margin: 0;
+        }
+
+        .offline-status-badge {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--sys-green);
+            background-color: rgba(52, 199, 89, 0.12);
+            padding: 3px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        /* Search input Bar matching iOS specs */
+        .search-bar-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-bar-input {
+            width: 100%;
+            background-color: rgba(120, 120, 128, 0.08);
+            border: none;
+            border-radius: 10px;
+            padding: 9px 12px 9px 34px;
+            font-size: 14px;
+            color: var(--phone-text-primary);
+            outline: none;
+            font-family: inherit;
+            transition: var(--spring-transition);
+        }
+
+        .search-bar-input::placeholder {
+            color: var(--phone-text-tertiary);
+        }
+
+        .search-bar-input:focus {
+            background-color: rgba(120, 120, 128, 0.14);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            color: var(--phone-text-secondary);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-clear-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--phone-text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            display: none;
+            align-items: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        /* Horizontal Scrolling CEFR Filters */
+        .cefr-scroll-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            margin: 12px -16px 12px -16px;
+            padding: 0 16px;
+        }
+
+        .cefr-scroll-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .cefr-filter-pill {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-border);
+            color: var(--phone-text-secondary);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.005);
+            transition: var(--spring-transition);
+        }
+
+        .cefr-filter-pill:active {
+            transform: scale(0.95);
+        }
+
+        .cefr-filter-pill.active {
+            background-color: var(--sys-blue);
+            color: #ffffff;
+            border-color: var(--sys-blue);
+            box-shadow: 0 4px 10px rgba(0, 122, 255, 0.22);
+        }
+
+        /* Segmented Controller for Queue filter matching detailed explicit states */
+        .segmented-filter-bar {
+            background-color: rgba(120, 120, 128, 0.08);
+            border-radius: 8px;
+            padding: 2px;
+            display: flex;
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .segment-option {
+            flex: 1;
+            text-align: center;
+            padding: 6px 0;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--phone-text-secondary);
+            cursor: pointer;
+            z-index: 2;
+            transition: color 0.2s ease;
+        }
+
+        .segment-option.active {
+            color: var(--phone-text-primary);
+        }
+
+        .segment-slider-bg {
+            position: absolute;
+            top: 2px;
+            bottom: 2px;
+            left: 2px;
+            width: calc(25% - 2px);
+            background-color: var(--phone-card);
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            z-index: 1;
+            transition: transform 0.25s var(--spring-easing);
+        }
+
+        /* Dynamic Catalog Stats */
+        .catalog-counter-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 0 4px;
+        }
+
+        .catalog-counter-text {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--phone-text-secondary);
+        }
+
+        /* Dictionary Word List */
+        .word-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .word-item {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-border);
+            border-radius: 14px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.005);
+            transition: var(--spring-transition);
+            cursor: pointer;
+        }
+
+        .word-item:active {
+            transform: scale(0.97);
+        }
+
+        .word-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .word-header-row {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .word-spelling {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--phone-text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .word-pos {
+            font-size: 11px;
+            font-style: italic;
+            color: var(--phone-text-secondary);
+        }
+
+        .word-ipa-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .word-ipa {
+            font-size: 11.5px;
+            font-family: monospace;
+            color: var(--sys-orange);
+            font-weight: 500;
+        }
+
+        .word-translation {
+            font-size: 12.5px;
+            color: var(--phone-text-secondary);
+            font-weight: 500;
+            margin-top: 1px;
+        }
+
+        .word-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Explicit Status Tag Badges */
+        .status-tag {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .status-unseen { background-color: rgba(142, 142, 147, 0.08); color: var(--sys-gray); }
+        .status-skipped { background-color: rgba(142, 142, 147, 0.05); color: var(--phone-text-tertiary); border: 1px dashed var(--phone-separator); }
+        .status-learning { background-color: rgba(0, 122, 255, 0.08); color: var(--sys-blue); }
+        .status-in_review { background-color: rgba(175, 82, 222, 0.08); color: var(--sys-purple); }
+        .status-mastered { background-color: rgba(52, 199, 89, 0.08); color: var(--sys-green); }
+
+        .cefr-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.01em;
+        }
+
+        .cefr-a1 { background-color: rgba(52, 199, 89, 0.12); color: var(--sys-green); }
+        .cefr-a2 { background-color: rgba(0, 122, 255, 0.12); color: var(--sys-blue); }
+        .cefr-b1 { background-color: rgba(255, 149, 0, 0.12); color: var(--sys-orange); }
+        .cefr-b2 { background-color: rgba(175, 82, 222, 0.12); color: var(--sys-purple); }
+        .cefr-c1 { background-color: rgba(255, 59, 48, 0.12); color: var(--sys-red); }
+
+        /* Floating Capsule Navigation Bar */
+        .simulator-nav {
+            position: absolute;
+            bottom: 20px;
+            left: 16px;
+            right: 16px;
+            background-color: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 99px;
+            height: 62px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 8px;
+            box-shadow: var(--glass-shadow) 0 8px 32px;
+            z-index: 900;
+            transition: var(--spring-transition);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            color: var(--phone-text-secondary);
+            font-size: 9px;
+            font-weight: 500;
+            cursor: pointer;
+            flex: 1;
+            height: 48px;
+            border-radius: 99px;
+            transition: var(--spring-transition);
+        }
+
+        .nav-icon-wrapper {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--spring-transition);
+        }
+
+        .nav-item.active {
+            color: var(--sys-blue);
+            font-weight: 600;
+        }
+
+        .nav-item.active .nav-icon-wrapper {
+            background-color: rgba(0, 122, 255, 0.1);
+            color: var(--sys-blue);
+            transform: scale(1.05);
+        }
+
+        .dark-theme .nav-item.active .nav-icon-wrapper {
+            background-color: rgba(10, 132, 255, 0.16);
+            color: var(--sys-blue);
+        }
+
+        .nav-item svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2.2;
+            transition: var(--spring-transition);
+        }
+
+        .nav-item:active .nav-icon-wrapper {
+            transform: scale(0.9);
+        }
+
+        /* Elegant Bottom Action Sheet Drawer (Liquidglass Thick) */
+        .word-drawer-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.25);
+            z-index: 1100;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .word-drawer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--phone-card);
+            border-radius: 24px 24px 0 0;
+            border-top: 1px solid var(--glass-border);
+            padding: 16px 20px 32px 20px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.12);
+            z-index: 1200;
+            transform: translateY(100%);
+            transition: var(--spring-transition);
+            max-height: 85%; /* Prevent drawer from expanding off-screen */
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .word-drawer::-webkit-scrollbar {
+            display: none;
+        }
+
+        .word-drawer-overlay.active {
+            display: block;
+        }
+
+        .word-drawer-overlay.active .word-drawer {
+            transform: translateY(0);
+        }
+
+        .drawer-handle {
+            width: 36px;
+            height: 5px;
+            background-color: var(--phone-text-tertiary);
+            border-radius: 99px;
+            margin: 0 auto 16px auto;
+            opacity: 0.6;
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .drawer-title-word {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--phone-text-primary);
+        }
+
+        .drawer-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 2px;
+        }
+
+        .drawer-phonetics {
+            font-size: 13px;
+            font-family: monospace;
+            color: var(--sys-orange);
+            font-weight: 600;
+        }
+
+        .drawer-tts-btn {
+            background: none;
+            border: none;
+            color: var(--sys-blue);
+            cursor: pointer;
+            padding: 4px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .drawer-close {
+            background-color: rgba(120, 120, 128, 0.12);
+            border: none;
+            color: var(--phone-text-primary);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .drawer-divider {
+            height: 1px;
+            background-color: var(--phone-separator);
+            margin: 10px 0;
+        }
+
+        .drawer-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--phone-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .drawer-translation {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--phone-text-primary);
+            margin: 0 0 10px 0;
+        }
+
+        .drawer-definition {
+            font-size: 13px;
+            color: var(--phone-text-secondary);
+            line-height: 1.5;
+            margin: 0 0 10px 0;
+        }
+
+        .drawer-example-card {
+            background-color: var(--phone-bg);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13px;
+            line-height: 1.45;
+            color: var(--phone-text-primary);
+            border-left: 2px solid var(--sys-blue);
+            margin-bottom: 16px;
+        }
+
+        /* Large Drawer State Control drop selector specs */
+        .drawer-state-controller {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .drawer-state-badge-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .state-options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .state-select-btn {
+            background-color: rgba(120, 120, 128, 0.08);
+            border: 1px solid transparent;
+            color: var(--phone-text-primary);
+            border-radius: 10px;
+            padding: 8px;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: var(--spring-transition);
+        }
+
+        .state-select-btn:active {
+            transform: scale(0.96);
+        }
+
+        .state-select-btn.active {
+            background-color: rgba(0, 122, 255, 0.08);
+            border-color: rgba(0, 122, 255, 0.15);
+            color: var(--sys-blue);
+        }
+
+        .state-select-btn.active.skipped-btn {
+            background-color: rgba(142, 142, 147, 0.08);
+            border-color: rgba(142, 142, 147, 0.15);
+            color: var(--sys-gray);
+        }
+
+        .state-select-btn.active.mastered-btn {
+            background-color: rgba(52, 199, 89, 0.08);
+            border-color: rgba(52, 199, 89, 0.15);
+            color: var(--sys-green);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <!-- HEADER BLOCK -->
+        <header class="dashboard-header">
+            <div class="dashboard-title-group">
+                <h1>Context-English MVP Design</h1>
+                <p>Interactive dictionary screen sandbox & local Oxford database prompt</p>
+            </div>
+            <div class="header-controls">
+                <button class="theme-toggle-btn" onclick="toggleTheme()">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                    <span>Toggle Theme</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- LEFT COLUMN: SCREEN DESIGN NOTES -->
+        <section class="instruction-panel">
+            <div class="prompt-card">
+                <h2>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                        <path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Dictionary Screen Design Notes
+                </h2>
+                <p>Reference notes for the offline dictionary catalog, explicit word states, filters, and details drawer.</p>
+                
+                <div class="prompt-box-wrapper">
+                    <pre class="prompt-box" id="ai-prompt-text">
+<strong>1. VOCABULARY STATUS MODELS:</strong>
+Show each word with one of these explicit state tags:
+- <code>UNSEEN</code>: Word has never been presented in a card practice session.
+- <code>SKIPPED</code>: User swiped LEFT on new card. User already knows the word; it is not learned.
+- <code>LEARNING</code>: User swiped RIGHT on new card. Added to active daily study queue.
+- <code>IN_REVIEW</code>: Same-day learning card swiped LEFT. Marked learned, enters scheduled repetitions (e.g. tracking cycle: 1 to configured max).
+- <code>MASTERED</code>: Word completed all repetitions successfully and is omitted from regular review.
+
+<strong>2. COMPONENT PRESENTATION & SEARCH:</strong>
+- <strong>iOS Search Bar:</strong> Magnifying glass search bar for word and translation lookup.
+- <strong>CEFR scroll bar:</strong> [All | A1 | A2 | B1 | B2 | C1] horizontal scroll bar selector matching colored tags.
+- <strong>Segmented Status control:</strong> Custom Segmented Control [All | Unseen | Study Queue (Learning/In Review) | Mastered] with sliding highlight.
+- <strong>Dynamic List cells:</strong> Shows word spelling, POS italic label, IPA transcription, translation, CEFR badge, and dynamic Status Tag (e.g. "Review Cycle 2/5", "Learning", "Skipped", "Unseen").
+
+<strong>3. PHYSICAL WORD INTERACTIONS:</strong>
+- Tapping a cell scales down to 0.97 and slides up a frosted Liquidglass Bottom Sheet.
+- <strong>Pronunciation control:</strong> Tapping speaker icon plays the word pronunciation.
+- <strong>State display:</strong> The Bottom Sheet can show the current state and next action hint, but the main learning flow remains the swipe card session.
+</pre>
+                </div>
+            </div>
+
+            <!-- KEY MVP ARCHITECTURE SPECS -->
+            <div class="prompt-card">
+                <h2>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                    </svg>
+                    State Transitions Logic
+                </h2>
+                <div class="spec-list">
+                    <div class="spec-item">
+                        <svg class="spec-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                            <path d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <div class="spec-content">
+                            <strong>Local DB Schema Rules:</strong>
+                            <p>Show status, review cycle, and next review time clearly without exposing storage details in the interface.</p>
+                        </div>
+                    </div>
+                    <div class="spec-item">
+                        <svg class="spec-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                            <path d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <div class="spec-content">
+                            <strong>Sync Conflict Resolutions:</strong>
+                            <p>Never overwrite newer local progression with stale remote records. Background synchronization resolve rules compare timestamps deterministically.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: INTERACTIVE IPHONE 15 PRO SIMULATOR -->
+        <section class="simulator-panel">
+            <div class="sticky-simulator">
+                
+                <div class="iphone-15">
+                    <!-- Dynamic Island overlay -->
+                    <div class="dynamic-island"></div>
+                    
+                    <div class="iphone-screen" id="iphone-screen">
+                        
+                        <!-- Simulated Status Bar -->
+                        <div class="status-bar">
+                            <span id="statusBarTime">09:41</span>
+                            <div class="status-icons">
+                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.07 19.57 10.47 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                                <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.58l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            </div>
+                        </div>
+
+                        <!-- Home Indicator Safe Area Bottom -->
+                        <div class="home-indicator"></div>
+
+                        <!-- Floating Capsule Tab Bar (Apple / Expo style) -->
+                        <nav class="simulator-nav">
+                            <div class="nav-item" onclick="alert('Main Screen with Concise Card swiping logic is in separate folder. Home tab simulated!')">
+                                <div class="nav-icon-wrapper">
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                                </div>
+                                <span>Home</span>
+                            </div>
+                            <div class="nav-item active">
+                                <div class="nav-icon-wrapper">
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                                </div>
+                                <span>Dictionary</span>
+                            </div>
+                            <div class="nav-item" onclick="alert('Story Reader Context: Active session cached offline')">
+                                <div class="nav-icon-wrapper">
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                </div>
+                                <span>Audio</span>
+                            </div>
+                            <div class="nav-item" onclick="alert('Settings parameters are in the Main Screen settings tab simulator!')">
+                                <div class="nav-icon-wrapper">
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                </div>
+                                <span>Settings</span>
+                            </div>
+                        </nav>
+
+                        <!-- APP SCREEN SCROLL CONTENT -->
+                        <div class="screen-container">
+                            
+                            <!-- App Header -->
+                            <div class="app-header">
+                                <div class="app-title-row">
+                                    <div class="app-title-group">
+                                        <span class="app-category">Oxford 5000</span>
+                                        <h2 class="app-main-title">Dictionary</h2>
+                                    </div>
+                                    <span class="offline-status-badge">Offline</span>
+                                </div>
+                            </div>
+
+                            <!-- iOS Search Bar -->
+                            <div class="search-bar-container">
+                                <div class="search-icon">
+                                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                </div>
+                                <input type="text" class="search-bar-input" id="searchInput" placeholder="Search vocabulary..." oninput="handleSearch()">
+                                <button class="search-clear-btn" id="searchClear" onclick="clearSearch()">✕</button>
+                            </div>
+
+                            <!-- CEFR Horizontal Pill Filters -->
+                            <div class="cefr-scroll-row">
+                                <div class="cefr-filter-pill active" onclick="filterCEFR(this, 'ALL')">All levels</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'A1')">A1</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'A2')">A2</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'B1')">B1</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'B2')">B2</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'C1')">C1</div>
+                            </div>
+
+                            <!-- Segmented Practice Controller (Unifying card rules statuses) -->
+                            <div class="segmented-filter-bar">
+                                <div class="segment-slider-bg" id="segmentSlider"></div>
+                                <div class="segment-option active" onclick="changeSegment(0, 'ALL')">All</div>
+                                <div class="segment-option" onclick="changeSegment(1, 'UNSEEN')">Unseen</div>
+                                <div class="segment-option" onclick="changeSegment(2, 'STUDY')">Study</div>
+                                <div class="segment-option" onclick="changeSegment(3, 'MASTERED')">Mastered</div>
+                            </div>
+
+                            <!-- Dynamic Counter -->
+                            <div class="catalog-counter-row">
+                                <span class="catalog-counter-text" id="catalogCounter">Showing 20 of 20 words</span>
+                            </div>
+
+                            <!-- Word List Container -->
+                            <div class="word-list" id="wordList">
+                                <!-- Populated dynamically by script -->
+                            </div>
+
+                        </div> <!-- End Screen Container -->
+
+                        <!-- Simulating Bottom Action Sheet Drawer (Liquidglass Thick) -->
+                        <div class="word-drawer-overlay" id="drawerOverlay" onclick="closeDrawer()">
+                            <div class="word-drawer" onclick="event.stopPropagation()">
+                                <div class="drawer-handle"></div>
+                                <div class="drawer-header">
+                                    <div>
+                                        <span class="drawer-title-word" id="drWord">verify</span>
+                                        <div class="drawer-meta-row">
+                                            <span class="drawer-phonetics" id="drIpa">/ˈver.ɪ.faɪ/</span>
+                                            <button class="drawer-tts-btn" onclick="speakDrawerWord()">
+                                                <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+                                </div>
+
+                                <div class="drawer-divider"></div>
+                                
+                                <span class="drawer-section-label">Context Translation</span>
+                                <p class="drawer-translation" id="drTranslation">подтверждать / верифицировать</p>
+
+                                <span class="drawer-section-label">English Definition</span>
+                                <p class="drawer-definition" id="drDefinition">To prove that something is true, correct, or accurate.</p>
+
+                                <span class="drawer-section-label">Story Usage Example</span>
+                                <div class="drawer-example-card" id="drExample">
+                                    The teacher had to verify the credentials of the students.
+                                </div>
+
+                                <div class="drawer-divider"></div>
+
+                                <!-- Real explicit State override control grids -->
+                                <div class="drawer-state-controller">
+                                    <div class="drawer-state-badge-row">
+                                        <span class="drawer-section-label" style="margin-bottom: 0;">Change Progress State:</span>
+                                        <span class="status-tag status-unseen" id="drStatusBadge">UNSEEN</span>
+                                    </div>
+                                    <div class="state-options-grid">
+                                        <button class="state-select-btn" id="btnOptUnseen" onclick="overrideWordState('UNSEEN')">Unseen</button>
+                                        <button class="state-select-btn skipped-btn" id="btnOptSkipped" onclick="overrideWordState('SKIPPED')">Skipped</button>
+                                        <button class="state-select-btn" id="btnOptLearning" onclick="overrideWordState('LEARNING')">Learn Card</button>
+                                        <button class="state-select-btn" id="btnOptReview" onclick="overrideWordState('IN_REVIEW')">In Review</button>
+                                        <button class="state-select-btn mastered-btn" id="btnOptMastered" style="grid-column: 1 / -1;" onclick="overrideWordState('MASTERED')">Mark Mastered</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div> <!-- End iPhone Screen -->
+                </div> <!-- End iPhone 15 Frame -->
+                
+            </div>
+        </section>
+    </div>
+
+    <!-- ==========================================================================
+       6. INTERACTIVE APP STATE CONTROLLER (JAVASCRIPT)
+       ========================================================================== */ -->
+    <script>
+        // High fidelity mock databases mapped to detailed MVP card progress guidelines
+        const mockOxfordWords = [
+            { id: 0, word: "abandon", type: "verb", level: "B2", ipa: "/əˈbændən/", translation: "оставлять, бросать", definition: "To leave somebody or something, especially when you should stay.", example: "The baby had been abandoned by its mother.", queueState: "UNSEEN", cycle: 0 },
+            { id: 1, word: "ability", type: "noun", level: "A2", ipa: "/əˈbɪləti/", translation: "способность, умение", definition: "The physical or mental power or skill needed to do something.", example: "Students must demonstrate the ability to understand simple texts.", queueState: "LEARNING", cycle: 0 },
+            { id: 2, word: "able", type: "adjective", level: "A2", ipa: "/ˈeɪbl/", translation: "способный (что-то сделать)", definition: "Having the necessary power, skill, time, or opportunity to do something.", example: "You must be able to speak French for this job.", queueState: "SKIPPED", cycle: 0 },
+            { id: 3, word: "abolish", type: "verb", level: "C1", ipa: "/əˈbɑːlɪʃ/", translation: "упразднять, отменять", definition: "To formally put an end to a system, practice, or institution.", example: "This tax should be abolished as soon as possible.", queueState: "UNSEEN", cycle: 0 },
+            { id: 4, word: "academic", type: "noun", level: "B2", ipa: "/ˌækəˈdemɪk/", translation: "академик, преподаватель", definition: "A person who teaches or does research at a university.", example: "There is much debate among academics about this grammar issue.", queueState: "MASTERED", cycle: 5 },
+            { id: 5, word: "accent", type: "noun", level: "B2", ipa: "/ˈæksənt/", translation: "акцент, произношение", definition: "A distinctive way of pronouncing a language, especially associated with a country.", example: "She spoke English with a beautiful Irish accent.", queueState: "UNSEEN", cycle: 0 },
+            { id: 6, word: "accept", type: "verb", level: "A2", ipa: "/əkˈsept/", translation: "принимать, соглашаться", definition: "To agree to receive or take something offered.", example: "She decided not to accept the job offer because of the distance.", queueState: "IN_REVIEW", cycle: 1 },
+            { id: 7, word: "busy", type: "adjective", level: "A1", ipa: "/ˈbɪzi/", translation: "занятой", definition: "Having a great deal to do; keeping occupied.", example: "I am too busy at work to learn English today.", queueState: "MASTERED", cycle: 5 },
+            { id: 8, word: "creative", type: "adjective", level: "A2", ipa: "/kriˈeɪtɪv/", translation: "творческий, креативный", definition: "Involving the use of imagination or original ideas to create something.", example: "Writing stories is a very creative process.", queueState: "UNSEEN", cycle: 0 },
+            { id: 9, word: "decide", type: "verb", level: "A1", ipa: "/dɪˈsaɪd/", translation: "решать, принимать решение", definition: "To choose something after thinking about several possibilities.", example: "We must decide which language app is best for us.", queueState: "MASTERED", cycle: 5 },
+            { id: 10, word: "efficient", type: "adjective", level: "B1", ipa: "/ɪˈfɪʃnt/", translation: "эффективный, действенный", definition: "Working in a well-organized and competent way without wasting time.", example: "Learning in context is the most efficient way to study vocabulary.", queueState: "LEARNING", cycle: 0 },
+            { id: 11, word: "frequent", type: "adjective", level: "B1", ipa: "/ˈfriːkwənt/", translation: "частый", definition: "Occurring or done on many occasions, in many cases, or at short intervals.", example: "Frequent practices will boost your daily streak count.", queueState: "UNSEEN", cycle: 0 },
+            { id: 12, word: "genuine", type: "adjective", level: "B2", ipa: "/ˈdʒen.ju.ɪn/", translation: "подлинный, настоящий", definition: "Real, true, and not fake or artificial.", example: "She showed a genuine interest in intermediate English literature.", queueState: "IN_REVIEW", cycle: 3 },
+            { id: 13, word: "hesitate", type: "verb", level: "B2", ipa: "/ˈhez.ɪ.teɪt/", translation: "колебаться, сомневаться", definition: "To pause before doing something because you are nervous or unsure.", example: "Please do not hesitate to click the audio speaker button.", queueState: "UNSEEN", cycle: 0 },
+            { id: 14, word: "impact", type: "noun", level: "B1", ipa: "/ˈɪmpækt/", translation: "влияние, воздействие", definition: "The powerful effect that something has on a situation or person.", example: "Daily practice has a major impact on fluency.", queueState: "LEARNING", cycle: 0 },
+            { id: 15, word: "justify", type: "verb", level: "B2", ipa: "/ˈdʒʌs.tɪ.faɪ/", translation: "оправдывать, обосновывать", definition: "To show or prove that something is right or reasonable.", example: "You must justify your decisions during structural validation.", queueState: "UNSEEN", cycle: 0 },
+            { id: 16, word: "keen", type: "adjective", level: "B1", ipa: "/kiːn/", translation: "увлекающийся, стремящийся", definition: "Highly developed, sharp, or showing great enthusiasm.", example: "He is a keen learner who reads stories every morning.", queueState: "UNSEEN", cycle: 0 },
+            { id: 17, word: "predict", type: "verb", level: "B1", ipa: "/prɪˈdɪkt/", translation: "предсказывать, прогнозировать", definition: "To say that something will happen in the future.", example: "It is difficult to predict future language trends.", queueState: "IN_REVIEW", cycle: 2 },
+            { id: 18, word: "qualify", type: "verb", level: "B2", ipa: "/ˈkwɒl.ɪ.faɪ/", translation: "квалифицировать, подходить", definition: "To reach the necessary standard or have the necessary skills.", example: "He managed to qualify for the advanced CEFR learning program.", queueState: "UNSEEN", cycle: 0 },
+            { id: 19, word: "reflect", type: "verb", level: "B1", ipa: "/rɪˈflekt/", translation: "отражать, размышлять", definition: "To think carefully about something, or throw back heat/light.", example: "Take a moment to reflect on the sentence structures you learned.", queueState: "UNSEEN", cycle: 0 },
+            { id: 20, word: "verify", type: "verb", level: "B2", ipa: "/ˈver.ɪ.faɪ/", translation: "подтверждать, верифицировать", definition: "To prove that something is true, correct, or accurate.", example: "The teacher had to verify the student credentials.", queueState: "LEARNING", cycle: 0 }
+        ];
+
+        // State filter variables
+        let currentCEFRFilter = 'ALL';
+        let currentSegmentFilter = 'ALL';
+        let searchQuery = '';
+        let activeWordId = null;
+
+        // Theme toggler logic
+        function toggleTheme() {
+            document.body.classList.toggle('dark-theme');
+        }
+
+        // Live Clock inside status bar
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            if (hours < 10) hours = '0' + hours;
+            if (minutes < 10) minutes = '0' + minutes;
+            document.getElementById('statusBarTime').innerText = hours + ':' + minutes;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Search orchestrators
+        function handleSearch() {
+            const input = document.getElementById('searchInput');
+            const clear = document.getElementById('searchClear');
+            searchQuery = input.value.trim().toLowerCase();
+            
+            if (searchQuery.length > 0) {
+                clear.style.display = 'flex';
+            } else {
+                clear.style.display = 'none';
+            }
+            renderWords();
+        }
+
+        function clearSearch() {
+            const input = document.getElementById('searchInput');
+            input.value = '';
+            searchQuery = '';
+            document.getElementById('searchClear').style.display = 'none';
+            renderWords();
+        }
+
+        // Segment selector animator logic
+        function changeSegment(index, filterState) {
+            currentSegmentFilter = filterState;
+            
+            // Slide segmented highlight backings
+            const slider = document.getElementById('segmentSlider');
+            slider.style.transform = `translateX(${index * 100}%)`;
+            
+            // Adjust active styles
+            const options = document.querySelectorAll('.segment-option');
+            options.forEach((opt, idx) => {
+                if (idx === index) {
+                    opt.classList.add('active');
+                } else {
+                    opt.classList.remove('active');
+                }
+            });
+            renderWords();
+        }
+
+        // CEFR dynamic selectors
+        function filterCEFR(pillElement, levelState) {
+            currentCEFRFilter = levelState;
+            
+            const pills = document.querySelectorAll('.cefr-filter-pill');
+            pills.forEach(p => p.classList.remove('active'));
+            pillElement.classList.add('active');
+            renderWords();
+        }
+
+        // Core Renderer engine for the dictionary lists (Displaying explicit states)
+        function renderWords() {
+            const listContainer = document.getElementById('wordList');
+            listContainer.innerHTML = '';
+            
+            // Filter catalog list dynamically
+            const filtered = mockOxfordWords.filter(item => {
+                // 1. Search Query filtering matches spelling or translation
+                const matchesSearch = item.word.toLowerCase().includes(searchQuery) || 
+                                     item.translation.toLowerCase().includes(searchQuery);
+                
+                // 2. CEFR Level filter matching
+                const matchesCEFR = currentCEFRFilter === 'ALL' || item.level === currentCEFRFilter;
+                
+                // 3. Learning queue status filter matching (Unifying UNSEEN, STUDY, MASTERED)
+                let matchesSegment = true;
+                if (currentSegmentFilter === 'UNSEEN') {
+                    matchesSegment = item.queueState === 'UNSEEN' || item.queueState === 'SKIPPED';
+                } else if (currentSegmentFilter === 'STUDY') {
+                    matchesSegment = item.queueState === 'LEARNING' || item.queueState === 'IN_REVIEW';
+                } else if (currentSegmentFilter === 'MASTERED') {
+                    matchesSegment = item.queueState === 'MASTERED';
+                }
+                
+                return matchesSearch && matchesCEFR && matchesSegment;
+            });
+
+            // Update result counter label
+            const counterLabel = document.getElementById('catalogCounter');
+            counterLabel.innerText = `Showing ${filtered.length} of ${mockOxfordWords.length} words`;
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px 10px; color: var(--phone-text-secondary); font-size: 13px;">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="margin-bottom: 8px; opacity: 0.6;"><path d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <div>No vocabulary matches found.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Generate cells displaying card state badges
+            filtered.forEach(item => {
+                const cell = document.createElement('div');
+                cell.className = 'word-item';
+                
+                // Determine explicit state badge content & style class
+                let statusLabel = item.queueState;
+                let statusClass = 'status-unseen';
+                
+                if (item.queueState === 'UNSEEN') {
+                    statusLabel = "Unseen";
+                    statusClass = "status-unseen";
+                } else if (item.queueState === 'SKIPPED') {
+                    statusLabel = "Skipped";
+                    statusClass = "status-skipped";
+                } else if (item.queueState === 'LEARNING') {
+                    statusLabel = "Learning";
+                    statusClass = "status-learning";
+                } else if (item.queueState === 'IN_REVIEW') {
+                    statusLabel = `Review ${item.cycle}/5`;
+                    statusClass = "status-in_review";
+                } else if (item.queueState === 'MASTERED') {
+                    statusLabel = "Mastered";
+                    statusClass = "status-mastered";
+                }
+
+                cell.innerHTML = `
+                    <div class="word-meta" onclick="openDrawer(${item.id})">
+                        <div class="word-header-row">
+                            <span class="word-spelling">${item.word}</span>
+                            <span class="word-pos">${item.type}</span>
+                        </div>
+                        <div class="word-ipa-row">
+                            <span class="word-ipa">${item.ipa}</span>
+                            <span class="word-translation">${item.translation}</span>
+                        </div>
+                    </div>
+                    <div class="word-actions" onclick="openDrawer(${item.id})">
+                        <span class="status-tag ${statusClass}">${statusLabel}</span>
+                        <span class="cefr-badge cefr-${item.level.toLowerCase()}">${item.level}</span>
+                    </div>
+                `;
+                listContainer.appendChild(cell);
+            });
+        }
+
+        // Bottom drawer details manager
+        function openDrawer(id) {
+            const item = mockOxfordWords.find(w => w.id === id);
+            if (!item) return;
+            
+            activeWordId = id;
+            
+            document.getElementById('drWord').innerText = item.word;
+            document.getElementById('drIpa').innerText = item.ipa;
+            document.getElementById('drTranslation').innerText = item.translation;
+            document.getElementById('drDefinition').innerText = item.definition;
+            document.getElementById('drExample').innerHTML = item.example.replace(item.word, `<strong>${item.word}</strong>`);
+
+            // Adjust dynamic states indicator and option selections
+            const badge = document.getElementById('drStatusBadge');
+            badge.innerText = item.queueState;
+            badge.className = "status-tag";
+            
+            if (item.queueState === 'UNSEEN') badge.classList.add('status-unseen');
+            else if (item.queueState === 'SKIPPED') badge.classList.add('status-skipped');
+            else if (item.queueState === 'LEARNING') badge.classList.add('status-learning');
+            else if (item.queueState === 'IN_REVIEW') {
+                badge.innerText = `IN REVIEW (Rep ${item.cycle}/5)`;
+                badge.classList.add('status-in_review');
+            }
+            else if (item.queueState === 'MASTERED') badge.classList.add('status-mastered');
+
+            // Set active class on buttons
+            document.querySelectorAll('.state-select-btn').forEach(btn => btn.classList.remove('active'));
+            if (item.queueState === 'UNSEEN') document.getElementById('btnOptUnseen').classList.add('active');
+            else if (item.queueState === 'SKIPPED') document.getElementById('btnOptSkipped').classList.add('active');
+            else if (item.queueState === 'LEARNING') document.getElementById('btnOptLearning').classList.add('active');
+            else if (item.queueState === 'IN_REVIEW') document.getElementById('btnOptReview').classList.add('active');
+            else if (item.queueState === 'MASTERED') document.getElementById('btnOptMastered').classList.add('active');
+
+            const overlay = document.getElementById('drawerOverlay');
+            overlay.classList.add('active');
+        }
+
+        function closeDrawer() {
+            document.getElementById('drawerOverlay').classList.remove('active');
+            activeWordId = null;
+        }
+
+        // Override word state directly from drawer actions
+        function overrideWordState(newState) {
+            if (activeWordId === null) return;
+            const item = mockOxfordWords.find(w => w.id === activeWordId);
+            if (!item) return;
+
+            item.queueState = newState;
+            if (newState === 'IN_REVIEW') {
+                item.cycle = 1; // start cycle
+            } else if (newState === 'MASTERED') {
+                item.cycle = 5; // complete cycle
+            } else {
+                item.cycle = 0;
+            }
+
+            renderWords();
+            closeDrawer();
+        }
+
+        // Direct Text To Speech call using browser SpeechSynthesis for real offline TTS sound feedback
+        function speakDrawerWord() {
+            const word = document.getElementById('drWord').innerText;
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(word);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.85; // slightly slower for better learning pronunciation
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert("Text-to-speech not supported in this browser.");
+            }
+        }
+
+        // Initialize lists
+        renderWords();
+    </script>
+</body>
+</html>
