@@ -16,9 +16,9 @@
 - **Tooling:** Expo SDK (Managed Workflow).
 - **Development Tool:** Expo Go app for iOS (allows local testing on iPhone from a Windows host without local compilation).
 - **Build System:** EAS (Expo Application Services) remote cloud builds for production `.ipa` compilation.
-- **Strict Rule for AI:** Absolutely NO modifications to native `/ios` or `/android` directories. All native configurations must be handled via `app.json` or Expo Config Plugins.
-- **Bundled Vocabulary:** `words/oxford-5000.json` is shipped with the application bundle as read-only seed data. The app must support browsing word lists, selecting daily words, flashcards, and simple local practice from this file without network access.
-- **Local Progress Store:** User learning progress must be written locally first so the learning flow works offline. Use a lightweight Expo-compatible local store: prefer `@react-native-async-storage/async-storage` for simple MVP key-value progress and sync metadata; move to `expo-sqlite` only if structured querying or larger local history becomes necessary.
+- **Native Project Rule:** Absolutely NO modifications to native `/ios` or `/android` directories. All native configurations must be handled via `app.json` or Expo Config Plugins.
+- **Bundled Vocabulary:** `words/oxford-5000.json` is shipped with the application bundle as read-only seed data. The app must support browsing word lists, card-based word learning, scheduled reviews, and simple local practice from this file without network access.
+- **Local Progress Store:** User learning progress must be written locally first so the learning flow works offline. Use a lightweight Expo-compatible local store: prefer `@react-native-async-storage/async-storage` for MVP key-value progress, daily preferences, review metadata, and sync metadata; move to `expo-sqlite` only if structured querying or larger local history becomes necessary.
 - **Network Awareness:** Use Expo/React Native network status detection to gate server-only actions. Server-only screens must render explicit offline states instead of silently failing.
 
 #### Backend & Database: Supabase (Free Tier)
@@ -68,7 +68,7 @@ All AI interactions must pass through Supabase Edge Functions to protect API sec
 
 The app has two progress layers:
 
-1. **Local progress:** Written immediately on the device for learned words, daily word selection, flashcard state, and offline practice completion.
+1. **Local progress:** Written immediately on the device for card decisions, learned words, review cycle state, daily preferences, flashcard state, and offline practice completion.
 2. **Remote progress:** Synced to Supabase when the device is online and the user is authenticated.
 
 ```text
@@ -84,7 +84,7 @@ The app has two progress layers:
 
 Offline behavior:
 
-- Word browsing, daily word selection, flashcards, local quizzes for individual words, and progress marking continue to work from bundled data and the local progress store.
+- Word browsing, card-based learning, scheduled reviews, local quizzes for individual words, and progress marking continue to work from bundled data and the local progress store.
 - The "Text of the Day" generation action is disabled or replaced with an explicit offline message until connectivity is restored.
 - Local changes are retained with sync metadata such as `updated_at`, dirty flags, or pending operations.
 
@@ -94,7 +94,35 @@ Online behavior:
 - Supabase receives pending local changes in the background or at clear sync points.
 - If local and remote records conflict, resolve deterministically using per-record timestamps or explicit operation ordering. Do not overwrite newer local offline progress with stale remote data.
 
-### 4. Implementation Guidelines for AI Code Generation
+#### Card Learning And Review State
+
+User preferences stored locally and synced when possible:
+
+- Daily new-word goal: **3-20 words**, default **5**.
+- Required successful review cycles for mastery: **2-8 repetitions**, default **5**.
+
+Word progress must be modeled as explicit state, not as a loose boolean:
+
+- **Unseen:** The word has not been presented in a card session.
+- **Skipped:** The user swiped left on a new word because they already know it; it is not added to learning.
+- **Learning:** The user swiped right on a new word; it belongs to today's card session.
+- **In Review:** The user marked the learning word as learned; it is scheduled for review.
+- **Mastered:** The word completed the configured number of successful review cycles and no longer appears in regular review.
+
+Card decisions:
+
+- New word: left = skip as already known; right = add to learning.
+- Same-day learning word: left = mark learned and schedule first review; right = keep learning and allow the word to reappear in the session.
+- Review word: left = remembered, advance one review cycle; right = forgotten, move back one review cycle.
+
+Review scheduling:
+
+- The first review becomes available about 30 minutes after a word is marked learned.
+- Later cycle delays are a product decision to be defined separately.
+- When a forgotten word moves back from cycle `N` to cycle `N-1`, `nextReviewAt` must be based on the delay for cycle `N-1`, not the delay for the failed cycle.
+- A word on the first review cycle that is forgotten remains in review and is rescheduled using the first-cycle delay.
+
+### 4. Implementation Constraints
 When writing code for this project, you MUST strictly adhere to these rules:
 
 * **Language:** Always use TypeScript for both frontend (React Native) and backend (Supabase Edge Functions).

@@ -43,19 +43,23 @@ Keep the domain small and explicit. The MVP domain consists of:
 
 - Learner profile: user id when authenticated, selected CEFR level, learning preferences.
 - Vocabulary item: word, part of speech, CEFR level, phonetics, examples, source id.
-- Daily learning session: selected 5-7 words, selected genre, story state, quiz state, completion state.
-- Learned word progress: local status, review metadata, last update timestamp, dirty/sync metadata.
+- Learning preferences: daily new-word goal, required successful review cycles for mastery.
+- Daily learning session: card queue, today's learning words, selected genre, story state, quiz state, completion state.
+- Learned word progress: local status, review cycle, next review timestamp, last update timestamp, dirty/sync metadata.
 - Generated story: 100-150 words, sentence list, target word annotations, context-aware translations, quiz questions.
 - Grammar explanation: sentence input and concise explanation output.
 - Connectivity state: online/offline capability used to gate server-only actions.
 
 Domain objects should encode invariants where practical:
 
-- A daily target word set contains 5-7 words.
+- Daily new-word goal is bounded from 3 to 20 words, with 5 as the default.
+- Required successful review cycles for mastery are bounded from 2 to 8, with 5 as the default.
 - A generated story belongs to a CEFR level and selected genre.
 - Story text shown to the user has already passed the Writer -> Validator pipeline.
 - Progress changes are persisted locally before remote sync is attempted.
 - LLM outputs are untrusted until validated.
+- Card decisions follow the product rules: new card left = skip, new card right = add to learning; learning card left = learned and schedule review, learning card right = continue learning; review card left = advance cycle, review card right = return to previous cycle.
+- A forgotten review word uses the delay of the cycle it returns to when computing its next review timestamp.
 
 ## Application Layer
 
@@ -66,8 +70,11 @@ Required MVP use cases:
 - Load bundled vocabulary and build local indexes.
 - Browse/filter vocabulary by CEFR level and learning status.
 - Start or resume a daily learning session.
-- Select 5-7 daily words.
-- Mark word practice progress locally.
+- Load and update learning preferences.
+- Present new-word, same-day learning, and review cards.
+- Apply card decisions locally.
+- Mark words as skipped, learning, in review, or mastered.
+- Schedule review availability for learned and forgotten words.
 - Select text genre.
 - Generate Text of the Day through an Edge Function when online.
 - Open inline translation for any story word.
@@ -162,6 +169,7 @@ Offline rules:
 
 - Vocabulary browsing works from bundled Oxford 5000 data.
 - Flashcards and simple local practice work from local state.
+- Card learning and scheduled reviews work from local state.
 - Word progress is written locally first.
 - Pending changes are retained in a sync queue.
 - Story generation and grammar explanations show explicit offline states.
@@ -183,8 +191,11 @@ Online rules:
 Open app
   -> load local vocabulary index
   -> load local progress
-  -> choose/resume 5-7 daily words
-  -> practice words locally
+  -> load learning preferences
+  -> start/resume card session
+  -> present new, learning, and due review cards
+  -> apply swipe decisions locally
+  -> schedule learned and forgotten words for review
   -> persist progress locally
   -> choose genre
   -> if online: call story generation Edge Function
