@@ -61,7 +61,11 @@ These rules are mandatory for 100% of code changes. Do not consider a task compl
 - Presentation components must not contain business rules, SDK calls, persistence details, sync logic, or AI prompt/validation logic.
 - Tests are required for non-trivial business logic, data validation, sync/conflict behavior, AI payload handling, critical UI behavior, and every bug fix where a regression test is practical.
 - Do not add tests only for coverage numbers. Tests must protect observable behavior and important contracts.
-- Comments and annotations are mandatory where code performs a non-obvious action, encodes a business constraint, crosses a trust boundary, handles a workaround, or exposes a public contract.
+- Explicit TypeScript annotations are mandatory for all functions, components, hooks, parameters, return values, exported constants, public module contracts, shared types, DTOs, schemas, and important intermediate values where inference does not make the contract immediately obvious.
+- Every explicit TypeScript annotation must be accompanied by an English comment that explains the annotated contract, responsibility, or value meaning.
+- Do not rely on implicit `any`, broad inferred object shapes, or unclear inferred return types. Make contracts visible in code.
+- Comments are mandatory during development for every annotated contract and wherever code performs a non-obvious action, encodes a business constraint, crosses a trust boundary, handles a workaround, or exposes a public contract.
+- All code comments and TypeScript annotations must be written in English.
 - Do not comment obvious code. A required comment must explain why the code exists, what rule it protects, or what external constraint it handles.
 - Before completing a task, review the changed code against this section and fix violations immediately.
 
