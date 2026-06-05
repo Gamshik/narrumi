@@ -1,21 +1,21 @@
 import {
   createBrowseVocabulary,
   createLoadLearningPreferences,
-  createLoadWordProgress,
-  createMarkWordPracticeProgress,
-  createStartOrResumeDailySession,
-  createUpdateDailySession,
+  createLoadLearningSignals,
+  createRecordLearningSignal,
+  createStartOrResumeTodaysWordSet,
   createUpdateLearningPreferences,
+  createUpdateWordSet,
 } from '@application/index';
 import {
-  AsyncStorageLocalProgressStore,
+  AsyncStorageLocalSeriesStore,
   BundledOxfordVocabularyCatalog,
   LocalOnlyNetworkStatus,
   SystemClock,
 } from '@infrastructure/index';
 
-// localProgressStore is the single app-local adapter for AsyncStorage progress keys.
-const localProgressStore = new AsyncStorageLocalProgressStore();
+// localSeriesStore is the single app-local adapter for offline series records.
+const localSeriesStore = new AsyncStorageLocalSeriesStore();
 // vocabularyCatalog is shared so the bundled Oxford seed is parsed once.
 const vocabularyCatalog = new BundledOxfordVocabularyCatalog();
 // systemClock provides production time to local-first use cases.
@@ -27,23 +27,23 @@ const networkStatus = new LocalOnlyNetworkStatus();
 export const localAppServices = {
   browseVocabulary: createBrowseVocabulary(vocabularyCatalog),
   loadLearningPreferences: createLoadLearningPreferences(
-    localProgressStore,
+    localSeriesStore,
     systemClock,
   ),
-  loadWordProgress: createLoadWordProgress(localProgressStore),
-  markWordPracticeProgress: createMarkWordPracticeProgress(
-    localProgressStore,
+  loadLearningSignals: createLoadLearningSignals(localSeriesStore),
+  recordLearningSignal: createRecordLearningSignal(
+    localSeriesStore,
     systemClock,
   ),
   networkStatus,
-  startDailySession: createStartOrResumeDailySession(
-    localProgressStore,
+  startTodaysWordSet: createStartOrResumeTodaysWordSet(
+    localSeriesStore,
     vocabularyCatalog,
     systemClock,
   ),
-  updateDailySession: createUpdateDailySession(localProgressStore, systemClock),
   updateLearningPreferences: createUpdateLearningPreferences(
-    localProgressStore,
+    localSeriesStore,
     systemClock,
   ),
+  updateWordSet: createUpdateWordSet(localSeriesStore, systemClock),
 } as const;

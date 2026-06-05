@@ -1,40 +1,47 @@
-// DEFAULT_DAILY_WORD_GOAL is the product default for new words per day.
-export const DEFAULT_DAILY_WORD_GOAL = 5;
+import type { CefrLevel } from './cefrLevel';
+import type { LearningGenre } from './learningGenre';
+import type { SyncMetadata } from './syncMetadata';
 
-// MIN_DAILY_WORD_GOAL is the lower product bound for daily new words.
-export const MIN_DAILY_WORD_GOAL = 3;
+// DEFAULT_STORY_WORD_GOAL is the default number of Story Words proposed for an episode.
+export const DEFAULT_STORY_WORD_GOAL = 5;
 
-// MAX_DAILY_WORD_GOAL is the upper product bound for daily new words.
-export const MAX_DAILY_WORD_GOAL = 20;
+// MIN_STORY_WORD_GOAL is the lower product bound for automatic Story Word picks.
+export const MIN_STORY_WORD_GOAL = 0;
 
-// DEFAULT_REQUIRED_REVIEW_CYCLES is the product default for mastery.
-export const DEFAULT_REQUIRED_REVIEW_CYCLES = 5;
+// MAX_STORY_WORD_GOAL is the upper product bound before difficulty warnings apply.
+export const MAX_STORY_WORD_GOAL = 12;
 
-// MIN_REQUIRED_REVIEW_CYCLES is the lower product bound for mastery repetitions.
-export const MIN_REQUIRED_REVIEW_CYCLES = 2;
+// DEFAULT_EPISODE_WORD_COUNT is the MVP target length for generated episodes.
+export const DEFAULT_EPISODE_WORD_COUNT = 140;
 
-// MAX_REQUIRED_REVIEW_CYCLES is the upper product bound for mastery repetitions.
-export const MAX_REQUIRED_REVIEW_CYCLES = 8;
+// MIN_EPISODE_WORD_COUNT is the lower PRD bound for initial episode content.
+export const MIN_EPISODE_WORD_COUNT = 100;
 
-// LearningPreferences stores the local settings that shape daily card sessions.
+// MAX_EPISODE_WORD_COUNT is the upper PRD bound for initial episode content.
+export const MAX_EPISODE_WORD_COUNT = 180;
+
+// LearningPreferences stores local defaults for series and episode generation.
 export type LearningPreferences = {
-  // dailyWordGoal controls how many unseen words enter a new daily session.
-  readonly dailyWordGoal: number;
-  // requiredReviewCycles controls when an in-review word becomes mastered.
-  readonly requiredReviewCycles: number;
-  // updatedAt is retained for future preference sync conflict resolution.
+  // preferredCefrLevel is the manually selected grammar and vocabulary target.
+  readonly preferredCefrLevel: CefrLevel;
+  // preferredGenre is the default genre offered during series creation.
+  readonly preferredGenre: LearningGenre;
+  // storyWordGoal controls automatic Word Picker suggestions without hard-blocking the user.
+  readonly storyWordGoal: number;
+  // episodeWordCount stores the target 100-180 word episode length.
+  readonly episodeWordCount: number;
+  // updatedAt is retained for future preference sync conflict handling.
   readonly updatedAt: string;
+  // sync stores dirty state for future Supabase reconciliation.
+  readonly sync: SyncMetadata;
 };
 
-// clampDailyWordGoal enforces the product-supported daily goal range.
-export function clampDailyWordGoal(value: number): number {
-  return Math.min(MAX_DAILY_WORD_GOAL, Math.max(MIN_DAILY_WORD_GOAL, value));
+// clampStoryWordGoal enforces automatic suggestion bounds without limiting manual selection.
+export function clampStoryWordGoal(value: number): number {
+  return Math.min(MAX_STORY_WORD_GOAL, Math.max(MIN_STORY_WORD_GOAL, value));
 }
 
-// clampRequiredReviewCycles enforces the product-supported mastery range.
-export function clampRequiredReviewCycles(value: number): number {
-  return Math.min(
-    MAX_REQUIRED_REVIEW_CYCLES,
-    Math.max(MIN_REQUIRED_REVIEW_CYCLES, value),
-  );
+// clampEpisodeWordCount enforces the MVP episode length target range.
+export function clampEpisodeWordCount(value: number): number {
+  return Math.min(MAX_EPISODE_WORD_COUNT, Math.max(MIN_EPISODE_WORD_COUNT, value));
 }

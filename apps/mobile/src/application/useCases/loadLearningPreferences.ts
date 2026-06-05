@@ -1,13 +1,13 @@
-import type { Clock, LocalProgressStore } from '@application/ports';
+import type { Clock, LocalSeriesStore } from '@application/ports';
 import {
-  DEFAULT_DAILY_WORD_GOAL,
-  DEFAULT_REQUIRED_REVIEW_CYCLES,
+  DEFAULT_EPISODE_WORD_COUNT,
+  DEFAULT_STORY_WORD_GOAL,
   type LearningPreferences,
 } from '@domain/index';
 
 // LoadLearningPreferencesResult returns the persisted or default local settings.
 export type LoadLearningPreferencesResult = {
-  // preferences are the local card settings used by daily practice.
+  // preferences are the local series defaults used by Word Picker and episodes.
   readonly preferences: LearningPreferences;
 };
 
@@ -19,7 +19,7 @@ export type LoadLearningPreferences = {
 
 // createLoadLearningPreferences injects storage and time dependencies.
 export function createLoadLearningPreferences(
-  store: LocalProgressStore,
+  store: LocalSeriesStore,
   clock: Clock,
 ): LoadLearningPreferences {
   return {
@@ -32,9 +32,15 @@ export function createLoadLearningPreferences(
 
       const timestamp = clock.now().toISOString();
       const preferences: LearningPreferences = {
-        dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
-        requiredReviewCycles: DEFAULT_REQUIRED_REVIEW_CYCLES,
+        preferredCefrLevel: 'B1',
+        preferredGenre: 'short-fiction',
+        storyWordGoal: DEFAULT_STORY_WORD_GOAL,
+        episodeWordCount: DEFAULT_EPISODE_WORD_COUNT,
         updatedAt: timestamp,
+        sync: {
+          isDirty: true,
+          pendingOperationId: `${timestamp}:preferences:create`,
+        },
       };
 
       await store.savePreferences(preferences);

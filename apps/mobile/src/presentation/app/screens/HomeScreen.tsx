@@ -7,7 +7,7 @@ import type { AppStyles } from '../types';
 type HomeScreenProps = {
   // styles is the app-level StyleSheet contract generated from current theme colors.
   readonly styles: AppStyles;
-  // onStartDailySession opens the local card practice flow.
+  // onStartDailySession opens the local Story Words flow until route names are migrated.
   readonly onStartDailySession: () => void;
 };
 
@@ -58,14 +58,15 @@ function HomeHeader({
   );
 }
 
-// GoalCard reserves the learning goal area until real card progress is connected.
+// GoalCard reserves the series area until the full personal series flow is connected.
 function GoalCard({ styles }: Pick<HomeScreenProps, 'styles'>): ReactElement {
   return (
     <View style={styles.goalCard}>
       <View style={styles.flex}>
-        <Text style={styles.actionTitle}>Today&apos;s Goal</Text>
+        <Text style={styles.actionTitle}>Personal Series</Text>
         <Text style={styles.secondaryText}>
-          Daily learning progress will appear after card practice is connected.
+          Continue a story, choose Story Words, and generate episodes when the
+          backend is connected.
         </Text>
       </View>
     </View>
@@ -79,29 +80,29 @@ function PracticeActions({
 }: HomeScreenProps): ReactElement {
   return (
     <>
-      <Text style={styles.sectionLabel}>TODAY&apos;S PRACTICE</Text>
+      <Text style={styles.sectionLabel}>SERIES FLOW</Text>
       <View style={styles.actionList}>
         <ActionRow
           accent="blue"
           icon="Aa"
-          subtitle="Start flashcards and save progress on this device."
+          subtitle="Choose words that should appear in the next episode."
           styles={styles}
-          title="Study Cards"
+          title="Story Words"
           onPress={onStartDailySession}
         />
         <ActionRow
           accent="purple"
-          icon="R"
-          subtitle="Due words will appear after study progress is saved."
+          icon="S"
+          subtitle="Series creation is the next local-first implementation step."
           styles={styles}
-          title="Reviews"
+          title="My Series"
         />
         <ActionRow
           accent="orange"
-          icon="T"
-          subtitle="Choose a genre after local practice; generation stays gated offline."
+          icon="E"
+          subtitle="AI generation stays gated behind online Edge Functions."
           styles={styles}
-          title="Text of the Day"
+          title="Episodes"
         />
       </View>
     </>

@@ -12,7 +12,7 @@ import {
 
 import {
   cefrLevels,
-  type LearnedWordProgress,
+  type LearningSignal,
   type VocabularyItem,
 } from '@domain/index';
 
@@ -22,16 +22,19 @@ import type { AppStyles, LevelFilter } from '../types';
 
 // levelFilters keeps the visual CEFR selector aligned with the domain levels.
 const levelFilters: readonly LevelFilter[] = ['ALL', ...cefrLevels];
-// queueFilters are local progress-state filters for the bundled dictionary.
+// signalFilters are local learning-signal filters for the bundled dictionary.
 const queueFilters = [
   'All',
-  'Unseen',
-  'Skipped',
-  'Learning',
-  'Review',
-  'Mastered',
+  'No Signals',
+  'Selected',
+  'Translated',
+  'Used',
+  'Corrected',
+  'Pinned',
+  'Later',
+  'Known',
 ] as const;
-// QueueFilter is the selected visual state filter shown above the dictionary list.
+// QueueFilter is the selected visual signal filter shown above the dictionary list.
 type QueueFilter = (typeof queueFilters)[number];
 
 // DictionaryScreenProps defines the dictionary list screen dependencies.
@@ -92,8 +95,8 @@ type DictionaryContentProps = {
   readonly onSelectWord: (word: VocabularyItem) => void;
 };
 
-// ProgressByWordId maps vocabulary ids to local practice records.
-type ProgressByWordId = ReadonlyMap<string, LearnedWordProgress>;
+// SignalsByWordId maps vocabulary ids to local non-punitive learning events.
+type SignalsByWordId = ReadonlyMap<string, readonly LearningSignal[]>;
 
 // StateMessageProps defines a compact empty/error state.
 type StateMessageProps = {
@@ -121,7 +124,7 @@ export function DictionaryScreen({
   const [queueFilter, setQueueFilter] = useState<QueueFilter>('All');
   const [search, setSearch] = useState('');
   const [words, setWords] = useState<readonly VocabularyItem[]>([]);
-  const [progressByWordId, setProgressByWordId] = useState<ProgressByWordId>(
+  const [signalsByWordId, setSignalsByWordId] = useState<SignalsByWordId>(
     new Map(),
   );
   const [isLoading, setIsLoading] = useState(true);
@@ -131,18 +134,16 @@ export function DictionaryScreen({
     useCallback(() => {
       let isActive = true;
 
-      void localAppServices.loadWordProgress
+      void localAppServices.loadLearningSignals
         .execute()
-        .then(({ progress }) => {
+        .then(({ signals }) => {
           if (isActive) {
-            setProgressByWordId(
-              new Map(progress.map((item) => [item.wordId, item])),
-            );
+            setSignalsByWordId(groupSignalsByWordId(signals));
           }
         })
         .catch(() => {
           if (isActive) {
-            setErrorMessage('Local word progress could not be loaded.');
+            setErrorMessage('Local learning signals could not be loaded.');
           }
         });
 
@@ -187,8 +188,8 @@ export function DictionaryScreen({
   }, [level, search]);
 
   const filteredWords = useMemo(
-    () => filterWordsByProgress(words, queueFilter, progressByWordId),
-    [progressByWordId, queueFilter, words],
+    () => filterWordsBySignals(words, queueFilter, signalsByWordId),
+    [signalsByWordId, queueFilter, words],
   );
 
   return (
@@ -291,7 +292,7 @@ function LevelFilters({
   );
 }
 
-// QueueFilters renders local card-state filters backed by AsyncStorage progress.
+// QueueFilters renders local learning-signal filters backed by AsyncStorage.
 function QueueFilters({
   selectedFilter,
   styles,
@@ -322,37 +323,43 @@ function QueueFilters({
   );
 }
 
-// filterWordsByProgress applies dictionary stage filters from local practice state.
-function filterWordsByProgress(
+// filterWordsBySignals applies dictionary filters from local learning signals.
+function filterWordsBySignals(
   words: readonly VocabularyItem[],
   queueFilter: QueueFilter,
-  progressByWordId: ProgressByWordId,
+  signalsByWordId: SignalsByWordId,
 ): readonly VocabularyItem[] {
   if (queueFilter === 'All') {
     return words;
   }
 
   return words.filter((word) => {
-    const progress = progressByWordId.get(word.id);
+    const signals = signalsByWordId.get(word.id) ?? [];
 
-    if (queueFilter === 'Unseen') {
-      return progress === undefined;
+    if (queueFilter === 'No Signals') {
+      return signals.length === 0;
     }
 
-    if (queueFilter === 'Skipped') {
-      return progress?.status === 'skipped';
-    }
-
-    if (queueFilter === 'Learning') {
-      return progress?.status === 'learning';
-    }
-
-    if (queueFilter === 'Review') {
-      return progress?.status === 'in-review';
-    }
-
-    return progress?.status === 'mastered';
+    return signals.some((signal) => signal.kind === toSignalKind(queueFilter));
   });
+}
+
+// groupSignalsByWordId keeps dictionary filtering independent from storage layout.
+function groupSignalsByWordId(
+  signals: readonly LearningSignal[],
+): SignalsByWordId {
+  return signals.reduce<Map<string, readonly LearningSignal[]>>((groups, signal) => {
+    groups.set(signal.wordId, [...(groups.get(signal.wordId) ?? []), signal]);
+
+    return groups;
+  }, new Map());
+}
+
+// toSignalKind maps visual dictionary filters to internal non-punitive events.
+function toSignalKind(
+  queueFilter: Exclude<QueueFilter, 'All' | 'No Signals'>,
+): LearningSignal['kind'] {
+  return queueFilter.toLowerCase() as LearningSignal['kind'];
 }
 
 // DictionaryContent selects the correct list, empty, or error state.

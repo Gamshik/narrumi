@@ -1,4 +1,4 @@
 export * from './clock';
-export * from './localProgressStore';
+export * from './localSeriesStore';
 export * from './networkStatus';
 export * from './vocabularyCatalog';

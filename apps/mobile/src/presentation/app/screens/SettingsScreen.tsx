@@ -4,13 +4,13 @@ import type { ReactElement } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import {
-  DEFAULT_DAILY_WORD_GOAL,
-  DEFAULT_REQUIRED_REVIEW_CYCLES,
+  DEFAULT_EPISODE_WORD_COUNT,
+  DEFAULT_STORY_WORD_GOAL,
   type LearningPreferences,
-  MAX_DAILY_WORD_GOAL,
-  MAX_REQUIRED_REVIEW_CYCLES,
-  MIN_DAILY_WORD_GOAL,
-  MIN_REQUIRED_REVIEW_CYCLES,
+  MAX_EPISODE_WORD_COUNT,
+  MAX_STORY_WORD_GOAL,
+  MIN_EPISODE_WORD_COUNT,
+  MIN_STORY_WORD_GOAL,
 } from '@domain/index';
 
 import { localAppServices } from '../services/localAppServices';
@@ -45,9 +45,15 @@ export function SettingsScreen({
   styles,
 }: SettingsScreenProps): ReactElement {
   const [preferences, setPreferences] = useState<LearningPreferences>({
-    dailyWordGoal: DEFAULT_DAILY_WORD_GOAL,
-    requiredReviewCycles: DEFAULT_REQUIRED_REVIEW_CYCLES,
+    preferredCefrLevel: 'B1',
+    preferredGenre: 'short-fiction',
+    storyWordGoal: DEFAULT_STORY_WORD_GOAL,
+    episodeWordCount: DEFAULT_EPISODE_WORD_COUNT,
     updatedAt: new Date(0).toISOString(),
+    sync: {
+      isDirty: false,
+      pendingOperationId: 'initial-preferences-placeholder',
+    },
   });
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -74,7 +80,7 @@ export function SettingsScreen({
 
   const updatePreferences = async (
     nextPreferences: Partial<
-      Pick<LearningPreferences, 'dailyWordGoal' | 'requiredReviewCycles'>
+      Pick<LearningPreferences, 'storyWordGoal' | 'episodeWordCount'>
     >,
   ): Promise<void> => {
     setErrorMessage(undefined);
@@ -103,7 +109,7 @@ export function SettingsScreen({
 
       <GrammarControl isDark={isDark} styles={styles} />
       <Appearance styles={styles} />
-      <CardGoals
+      <SeriesDefaults
         preferences={preferences}
         styles={styles}
         onUpdatePreferences={updatePreferences}
@@ -166,45 +172,45 @@ function GrammarControl({
   );
 }
 
-// CardGoals edits the local card-learning settings used by Daily Session.
-function CardGoals({
+// SeriesDefaults edits local defaults used by Word Picker and episode generation.
+function SeriesDefaults({
   preferences,
   styles,
   onUpdatePreferences,
 }: SettingsSectionProps & {
-  // preferences are the locally persisted card-learning rules.
+  // preferences are the locally persisted series defaults.
   readonly preferences: LearningPreferences;
   // onUpdatePreferences persists bounded preference updates through the use case.
   readonly onUpdatePreferences: (
     preferences: Partial<
-      Pick<LearningPreferences, 'dailyWordGoal' | 'requiredReviewCycles'>
+      Pick<LearningPreferences, 'storyWordGoal' | 'episodeWordCount'>
     >,
   ) => Promise<void>;
 }): ReactElement {
   return (
     <>
-      <Text style={styles.sectionLabel}>CARD GOALS</Text>
+      <Text style={styles.sectionLabel}>SERIES DEFAULTS</Text>
       <View style={styles.settingsCard}>
         <StepSetting
-          max={MAX_DAILY_WORD_GOAL}
-          min={MIN_DAILY_WORD_GOAL}
-          label="Daily New-Word Goal"
+          max={MAX_STORY_WORD_GOAL}
+          min={MIN_STORY_WORD_GOAL}
+          label="Story Word Suggestions"
           styles={styles}
           suffix="words"
-          value={preferences.dailyWordGoal}
-          onChange={(dailyWordGoal) =>
-            onUpdatePreferences({ dailyWordGoal })
+          value={preferences.storyWordGoal}
+          onChange={(storyWordGoal) =>
+            onUpdatePreferences({ storyWordGoal })
           }
         />
         <StepSetting
-          max={MAX_REQUIRED_REVIEW_CYCLES}
-          min={MIN_REQUIRED_REVIEW_CYCLES}
-          label="Mastery Repetitions"
+          max={MAX_EPISODE_WORD_COUNT}
+          min={MIN_EPISODE_WORD_COUNT}
+          label="Episode Length"
           styles={styles}
-          suffix="cycles"
-          value={preferences.requiredReviewCycles}
-          onChange={(requiredReviewCycles) =>
-            onUpdatePreferences({ requiredReviewCycles })
+          suffix="words"
+          value={preferences.episodeWordCount}
+          onChange={(episodeWordCount) =>
+            onUpdatePreferences({ episodeWordCount })
           }
         />
       </View>
