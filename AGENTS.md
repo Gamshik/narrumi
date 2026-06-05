@@ -10,14 +10,14 @@ Read the relevant artifacts before implementation:
 
 | Artifact | Role |
 | --- | --- |
-| `concept/prd_concept_mvp.md` | Canonical product scope: core loop, user flow, MVP features, learning rules, review cycle, grammar quality control, and explicit out-of-scope items. |
-| `concept/concept.html` | Supporting product reference: detailed explanation of the learning problem, expected user experience, and MVP behavior. It clarifies intent but must not expand the PRD scope. |
-| `stack/tech_stack_mvp.md` | Canonical technical architecture and constraints: React Native with Expo Managed Workflow, TypeScript, Supabase, Edge Functions, OpenRouter, Vercel AI SDK, RLS, and `expo-speech`. |
+| `concept/prd_concept_mvp.md` | Canonical product scope: AI-series core loop, user flow, MVP features, Story Words, Word Picker, series memory, learning signals, AI quality control, and explicit out-of-scope items. |
+| `concept/concept.html` | Supporting product reference for users: detailed explanation of the learning problem, expected AI-series experience, Word Picker behavior, and MVP behavior. It clarifies intent but must not expand the PRD scope. |
+| `stack/tech_stack_mvp.md` | Canonical technical architecture and constraints: React Native with Expo Managed Workflow, TypeScript, Supabase, Edge Functions, OpenRouter, Vercel AI SDK, RLS, local series/episode storage, Word Picker, series memory, and `expo-speech`. |
 | `architecture/architecture_for_ai.md` | Canonical implementation architecture contract for AI agents: Clean Architecture boundaries, dependency direction, domain model, use cases, ports, offline-first sync, Edge Function responsibilities, error policy, and trust boundaries. |
 | `architecture/architecture_for_developer.html` | Supporting architecture reference for developers: visual explanation of layers, flows, ports, offline behavior, AI boundary, and non-negotiable rules. It clarifies `architecture_for_ai.md` but must not override it. |
-| `design/design_system.html` | Canonical visual and interaction reference: colors, typography, themes, controls, states, story reader, genre selection, audio controls, inline translation, grammar sheet, quiz feedback, and navigation. Reproduce the design in React Native; do not copy browser-only implementation details blindly. |
+| `design/design_system.html` | Canonical visual and interaction reference: colors, typography, themes, controls, states, story reader, genre selection, audio controls, inline translation, grammar sheet, quiz feedback, and navigation. Reproduce the design in React Native; do not copy browser-only implementation details blindly. Some screen examples may still reflect the previous card-first concept; when product behavior conflicts, follow the PRD and stack documents first. |
 | `design/design_system_guidelines.md` | Mandatory design rules for UI work when there is no exact layout or screen-level specification. Read before any free-form layout or visual decision. |
-| `words/oxford-5000.json` | Bundled local vocabulary source for offline word lists, flashcards, and non-LLM dictionary lookups. Treat as read-only seed data shipped with the app. |
+| `words/oxford-5000.json` | Bundled local vocabulary source for offline word lists, Word Picker suggestions, Story Words, and non-LLM dictionary lookups. Treat as read-only seed data shipped with the app. |
 
 ## Compliance Rules
 
@@ -27,7 +27,8 @@ Read the relevant artifacts before implementation:
 - Do not implement backlog items unless explicitly requested.
 - Do not silently resolve contradictions between artifacts. State the conflict and ask for clarification.
 - Keep artifact files aligned when an approved product, architecture, or design decision changes their documented behavior.
-- Preserve the hybrid offline/online behavior, card-learning rules, review cycle rules, and sync rules defined in the PRD, stack, and architecture artifacts. Do not redefine those rules in code from memory.
+- Preserve the hybrid offline/online behavior, AI-series flow, Word Picker rules, series memory, learning-signal model, and sync rules defined in the PRD, stack, and architecture artifacts. Do not redefine those rules in code from memory.
+- Do not reintroduce traditional flashcard-first learning, scheduled SRS review queues, review debt, or streak-pressure mechanics as the primary MVP flow unless the user explicitly approves a product-scope change.
 
 ## Engineering Standards
 
@@ -42,7 +43,10 @@ Read the relevant artifacts before implementation:
 - Keep Supabase access protected by Row Level Security. Treat all client input and AI output as untrusted.
 - Use Expo Managed Workflow only. Do not modify or introduce native `ios/` or `android/` code.
 - Do not fetch the Oxford 5000 seed list from the network at runtime. Bundle it with the app and load it through the React Native/Expo asset or module system.
-- Keep offline status visible in user-facing flows that require the server. For example, the Text of the Day generation screen must show that generation will be available once the device is online.
+- Keep offline status visible in user-facing flows that require the server. For example, episode generation, AI continuation, AI correction, and grammar-style explanations must show that they are available only once the device is online.
+- Persist user-created series, episodes, series memory, Story Words, word sets, learning signals, preferences, and sync metadata locally before remote sync.
+- Keep LLM context bounded. Use compact series memory and episode summaries instead of sending unbounded full series history.
+- Do not generate or encourage direct copies of copyrighted story worlds, characters, or plots. Use original stories with similar broad genre or mood when needed.
 
 ## Mandatory Code Rules
 
@@ -75,6 +79,7 @@ These rules are mandatory for 100% of code changes. Do not consider a task compl
 - Use `stack/tech_stack_mvp.md` for approved technologies, runtime constraints, storage choices, and server boundaries.
 - Use `design/design_system.html`, `design/design_system_guidelines.md`, and screen-specific files under `design/*` for visual and interaction decisions.
 - Keep `AGENTS.md` as navigation and operating rules. Do not duplicate detailed product, architecture, stack, or design specifications here unless the rule affects how agents should work across all tasks.
+- Note: `architecture/architecture_for_ai.md` and `architecture/architecture_for_developer.html` may still contain older card/review examples until explicitly updated. When those examples conflict with the current AI-series PRD or stack document, stop and ask for clarification instead of implementing the older behavior.
 
 ## Verification
 

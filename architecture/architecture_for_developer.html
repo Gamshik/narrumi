@@ -3,20 +3,24 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Архитектура Context-English MVP</title>
+        <title>Архитектура Context-English Series MVP</title>
         <style>
             :root {
-                --bg: #f5f5f7;
+                --bg: #f2f2f7;
                 --card: #ffffff;
                 --text: #1d1d1f;
                 --muted: #6e6e73;
-                --line: #d2d2d7;
+                --line: rgba(60, 60, 67, 0.18);
                 --blue: #007aff;
                 --green: #34c759;
                 --orange: #ff9500;
                 --red: #ff3b30;
                 --purple: #af52de;
                 --ink: #0f172a;
+                --soft-blue: rgba(0, 122, 255, 0.1);
+                --soft-green: rgba(52, 199, 89, 0.12);
+                --soft-orange: rgba(255, 149, 0, 0.14);
+                --shadow: 0 12px 35px rgba(0, 0, 0, 0.06);
             }
 
             * {
@@ -31,7 +35,7 @@
                 font-family:
                     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                     Arial, sans-serif;
-                line-height: 1.55;
+                line-height: 1.58;
             }
 
             .container {
@@ -41,28 +45,21 @@
 
             header {
                 margin-bottom: 28px;
-                padding-bottom: 20px;
+                padding-bottom: 22px;
                 border-bottom: 1px solid var(--line);
             }
 
             h1 {
-                margin: 0 0 8px;
-                font-size: clamp(32px, 5vw, 52px);
-                line-height: 1.05;
-                letter-spacing: -0.04em;
-            }
-
-            .subtitle {
-                max-width: 820px;
-                margin: 0;
-                color: var(--muted);
-                font-size: 18px;
+                margin: 0 0 10px;
+                font-size: clamp(34px, 5vw, 56px);
+                line-height: 1.04;
+                letter-spacing: -0.045em;
             }
 
             h2 {
                 margin: 0 0 16px;
                 font-size: 24px;
-                letter-spacing: -0.02em;
+                letter-spacing: -0.025em;
             }
 
             h3 {
@@ -72,6 +69,38 @@
 
             p {
                 margin: 0 0 14px;
+            }
+
+            ul {
+                margin: 0;
+                padding-left: 20px;
+            }
+
+            li {
+                margin-bottom: 8px;
+            }
+
+            code {
+                padding: 2px 6px;
+                border-radius: 7px;
+                background: #f1f5f9;
+                color: #0f172a;
+            }
+
+            .subtitle {
+                max-width: 850px;
+                margin: 0;
+                color: var(--muted);
+                font-size: 18px;
+            }
+
+            .card {
+                background: var(--card);
+                border: 1px solid rgba(0, 0, 0, 0.06);
+                border-radius: 24px;
+                padding: 24px;
+                box-shadow: var(--shadow);
+                margin-bottom: 18px;
             }
 
             .grid {
@@ -87,42 +116,56 @@
                 grid-template-columns: repeat(3, minmax(0, 1fr));
             }
 
-            @media (max-width: 860px) {
+            @media (max-width: 880px) {
                 .grid.two,
                 .grid.three {
                     grid-template-columns: 1fr;
                 }
             }
 
-            .card {
-                background: var(--card);
-                border: 1px solid rgba(0, 0, 0, 0.06);
-                border-radius: 22px;
-                padding: 24px;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-                margin-bottom: 18px;
-            }
-
-            .note {
-                border-left: 4px solid var(--blue);
-                background: #f0f7ff;
-                border-radius: 14px;
-                padding: 16px 18px;
-                margin: 18px 0 0;
-            }
-
             .tag {
                 display: inline-flex;
                 align-items: center;
-                border-radius: 999px;
-                padding: 5px 10px;
                 margin: 0 6px 8px 0;
-                background: #eef2ff;
-                color: #1d4ed8;
+                padding: 5px 10px;
+                border-radius: 999px;
+                background: var(--soft-blue);
+                color: #0957c3;
                 font-size: 12px;
                 font-weight: 700;
-                letter-spacing: 0.02em;
                 text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+
+            .note {
+                margin-top: 18px;
+                padding: 16px 18px;
+                border-left: 4px solid var(--blue);
+                border-radius: 14px;
+                background: #f0f7ff;
+            }
+
+            .warning {
+                border-left-color: var(--orange);
+                background: #fff7ed;
+            }
+
+            .success {
+                border-left-color: var(--green);
+                background: #f0fff4;
+            }
+
+            .danger {
+                border-left-color: var(--red);
+                background: #fff1f2;
+            }
+
+            .split-title {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                flex-wrap: wrap;
             }
 
             .layer-stack {
@@ -131,11 +174,11 @@
             }
 
             .layer {
+                position: relative;
+                overflow: hidden;
                 border-radius: 18px;
                 padding: 18px;
                 color: #fff;
-                position: relative;
-                overflow: hidden;
             }
 
             .layer::after {
@@ -144,8 +187,8 @@
                 inset: 0;
                 background: radial-gradient(
                     circle at top right,
-                    rgba(255, 255, 255, 0.28),
-                    transparent 36%
+                    rgba(255, 255, 255, 0.3),
+                    transparent 38%
                 );
                 pointer-events: none;
             }
@@ -169,15 +212,15 @@
 
             .layer strong {
                 display: block;
-                font-size: 20px;
                 margin-bottom: 4px;
+                font-size: 20px;
             }
 
             .arrow {
                 text-align: center;
                 color: var(--muted);
-                font-weight: 800;
                 font-size: 24px;
+                font-weight: 800;
                 line-height: 1;
             }
 
@@ -187,33 +230,38 @@
             }
 
             .flow {
-                min-width: 860px;
+                min-width: 920px;
                 display: grid;
-                grid-template-columns: repeat(5, 1fr);
+                grid-template-columns: repeat(6, 1fr);
                 align-items: stretch;
                 gap: 12px;
             }
 
-            .flow.long {
+            .flow.seven {
                 grid-template-columns: repeat(7, 1fr);
             }
 
+            .flow.five {
+                grid-template-columns: repeat(5, 1fr);
+            }
+
             .node {
-                border: 1px solid var(--line);
-                border-radius: 16px;
-                padding: 14px;
-                background: #fff;
-                text-align: center;
-                min-height: 96px;
+                position: relative;
+                min-height: 104px;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
+                padding: 14px;
+                border: 1px solid var(--line);
+                border-radius: 18px;
+                background: #fff;
+                text-align: center;
             }
 
             .node strong {
                 display: block;
-                color: var(--ink);
                 margin-bottom: 4px;
+                color: var(--ink);
             }
 
             .node span {
@@ -221,24 +269,58 @@
                 font-size: 13px;
             }
 
-            .connector {
-                position: relative;
-            }
-
             .connector::after {
-                content: "→";
+                content: "->";
                 position: absolute;
                 top: 50%;
-                right: -16px;
+                right: -18px;
                 transform: translateY(-50%);
                 color: var(--blue);
-                font-size: 24px;
                 font-weight: 800;
                 z-index: 2;
             }
 
-            .flow .node:last-child::after {
-                display: none;
+            .entity-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+                gap: 14px;
+            }
+
+            .entity {
+                border: 1px solid var(--line);
+                border-radius: 18px;
+                padding: 16px;
+                background: #fff;
+            }
+
+            .entity h3 {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: var(--blue);
+                flex: none;
+            }
+
+            .dot.green {
+                background: var(--green);
+            }
+
+            .dot.orange {
+                background: var(--orange);
+            }
+
+            .dot.purple {
+                background: var(--purple);
+            }
+
+            .dot.red {
+                background: var(--red);
             }
 
             .port-table {
@@ -258,10 +340,10 @@
 
             .port-table th {
                 background: #f8fafc;
+                color: var(--muted);
                 font-size: 13px;
                 text-transform: uppercase;
                 letter-spacing: 0.04em;
-                color: var(--muted);
             }
 
             .port-table tr:last-child td {
@@ -269,10 +351,10 @@
             }
 
             .principle {
+                border: 1px solid #e5e7eb;
                 border-radius: 18px;
                 padding: 18px;
                 background: #f8fafc;
-                border: 1px solid #e5e7eb;
             }
 
             .principle .letter {
@@ -281,80 +363,58 @@
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                border-radius: 10px;
                 margin-bottom: 10px;
+                border-radius: 10px;
                 background: var(--blue);
                 color: #fff;
                 font-weight: 800;
             }
 
-            .warning {
-                background: #fff7ed;
-                border-left: 4px solid var(--orange);
-            }
-
-            .success {
-                background: #f0fff4;
-                border-left: 4px solid var(--green);
-            }
-
-            ul {
-                margin: 0;
-                padding-left: 20px;
-            }
-
-            li {
-                margin-bottom: 8px;
-            }
-
-            code {
-                padding: 2px 6px;
-                border-radius: 6px;
-                background: #f1f5f9;
-                color: #0f172a;
-                font-size: 0.94em;
-            }
-
-            .split-title {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 12px;
-                flex-wrap: wrap;
+            .word-action {
+                display: inline-block;
+                margin: 0 6px 8px 0;
+                padding: 7px 10px;
+                border-radius: 12px;
+                background: #f8fafc;
+                border: 1px solid #e5e7eb;
+                font-size: 13px;
+                font-weight: 650;
             }
         </style>
     </head>
     <body>
         <main class="container">
             <header>
-                <h1>Архитектура Context-English MVP</h1>
+                <h1>Архитектура Context-English Series MVP</h1>
                 <p class="subtitle">
-                    Практичная Clean Architecture для React Native + Expo,
-                    Supabase и офлайн-первого прогресса. Это не структура
-                    папок, а карта ответственности, границ и потоков данных.
+                    Clean Architecture для продукта, где главный объект - не
+                    карточка и не очередь повторений, а персональный
+                    AI-сериал: серии, эпизоды, Story Words, интерактив,
+                    память сюжета и мягкие learning signals.
                 </p>
             </header>
 
             <section class="card">
                 <div class="split-title">
-                    <h2>Главная идея</h2>
+                    <h2>Главная идея архитектуры</h2>
                     <div>
-                        <span class="tag">React Native</span>
-                        <span class="tag">Expo Managed</span>
-                        <span class="tag">Supabase</span>
+                        <span class="tag">AI Series</span>
+                        <span class="tag">Word Picker</span>
                         <span class="tag">Offline First</span>
+                        <span class="tag">Expo Managed</span>
                     </div>
                 </div>
                 <p>
-                    Приложение делится не по экранам, а по причинам изменения:
-                    интерфейс показывает состояние, application-слой выполняет
-                    сценарии, domain хранит правила MVP, infrastructure
-                    разговаривает с SDK и внешними сервисами.
+                    Приложение делится по ответственности: интерфейс показывает
+                    состояние и принимает намерения пользователя, application
+                    слой выполняет сценарии, domain хранит правила продукта,
+                    infrastructure работает с SDK, локальным хранилищем,
+                    Supabase и Edge Functions.
                 </p>
                 <div class="note">
-                    Зависимости направлены внутрь: UI может знать use cases,
-                    use cases знают domain и порты, а конкретные SDK
-                    подключаются только снаружи через адаптеры.
+                    Это архитектура, а не структура папок. Цель - понимать, где
+                    живут правила, какие зависимости допустимы и какие данные
+                    должны сохраняться локально до сети.
                 </div>
             </section>
 
@@ -364,90 +424,164 @@
                     <div class="layer-stack">
                         <div class="layer presentation">
                             <strong>Presentation</strong>
-                            React Native экраны, компоненты, visual state,
-                            обработка пользовательских намерений.
+                            React Native экраны, компоненты, Apple-style UI,
+                            Word Picker, episode reader, inline hints, audio
+                            controls, bottom sheets.
                         </div>
                         <div class="arrow">↓ вызывает</div>
                         <div class="layer application">
                             <strong>Application</strong>
-                            Use cases: начать день, выбрать слова, сгенерировать
-                            текст, синхронизировать прогресс.
+                            Use cases: создать серию, выбрать Story Words,
+                            сгенерировать эпизод, обработать ответ,
+                            синхронизировать локальные изменения.
                         </div>
                         <div class="arrow">↓ использует</div>
                         <div class="layer domain">
                             <strong>Domain</strong>
-                            Слова, карточная сессия, повторения, история,
-                            прогресс, цели дня и 100-150 слов текста.
+                            Series, Episode, Word Set, Series Memory, Learning
+                            Signal, правила CEFR, cliffhanger, no review debt.
                         </div>
                         <div class="arrow">↕ через порты</div>
                         <div class="layer infrastructure">
                             <strong>Infrastructure</strong>
                             AsyncStorage, Supabase, Edge Functions, Oxford JSON,
-                            expo-speech, network status.
+                            expo-speech, network status, auth.
                         </div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <h2>Что это дает новичку в React Native</h2>
+                    <h2>Правило зависимостей</h2>
                     <ul>
-                        <li>
-                            UI не превращается в место, где смешаны стили,
-                            бизнес-логика, Supabase и локальное хранилище.
-                        </li>
-                        <li>
-                            Большинство решений можно тестировать без запуска
-                            телефона и без реальных сетевых вызовов.
-                        </li>
-                        <li>
-                            Переход с AsyncStorage на SQLite или смена LLM
-                            провайдера не ломают сценарии приложения.
-                        </li>
-                        <li>
-                            Офлайн-поведение становится архитектурным правилом,
-                            а не набором случайных проверок в компонентах.
-                        </li>
+                        <li>Domain не знает про React Native, Supabase и AI SDK.</li>
+                        <li>Application зависит от domain и портов.</li>
+                        <li>Presentation вызывает use cases, но не хранит бизнес-правила.</li>
+                        <li>Infrastructure реализует порты и знает конкретные SDK.</li>
+                        <li>Edge Functions - отдельная backend AI boundary.</li>
                     </ul>
                     <div class="note warning">
-                        Не добавляй абстракции ради абстракций. Порт нужен
-                        только там, где есть внешний источник данных, SDK,
-                        побочный эффект или правило, которое надо тестировать.
+                        UI не должен напрямую читать Oxford JSON, писать в
+                        AsyncStorage, вызывать Supabase таблицы или дергать LLM.
                     </div>
                 </div>
             </section>
 
             <section class="card">
-                <h2>Поток ежедневного обучения</h2>
+                <h2>Основной пользовательский поток</h2>
                 <div class="diagram">
-                    <div class="flow long">
+                    <div class="flow seven">
                         <div class="node connector">
-                            <strong>Oxford 5000</strong>
-                            <span>локальный seed из bundle</span>
+                            <strong>Create Series</strong>
+                            <span>title, genre, CEFR, tone, premise, role</span>
                         </div>
                         <div class="node connector">
-                            <strong>Цель дня</strong>
-                            <span>3-20 новых слов</span>
+                            <strong>Continue</strong>
+                            <span>open memory and latest episode</span>
                         </div>
                         <div class="node connector">
-                            <strong>Практика</strong>
-                            <span>карточки, повторения и локальный прогресс</span>
+                            <strong>Word Picker</strong>
+                            <span>choose Story Words</span>
                         </div>
                         <div class="node connector">
-                            <strong>Жанр</strong>
-                            <span>Daily, Work, Travel, Fiction</span>
-                        </div>
-                        <div class="node connector">
-                            <strong>Text of the Day</strong>
-                            <span>только онлайн через Edge Function</span>
+                            <strong>Generate Episode</strong>
+                            <span>online via Edge Function</span>
                         </div>
                         <div class="node connector">
                             <strong>Read & Listen</strong>
-                            <span>tap translation, karaoke TTS</span>
+                            <span>inline translation, karaoke TTS</span>
+                        </div>
+                        <div class="node connector">
+                            <strong>Interact</strong>
+                            <span>choice, reply, question, theory</span>
                         </div>
                         <div class="node">
-                            <strong>Quiz & Streak</strong>
-                            <span>результат пишется локально первым</span>
+                            <strong>Persist Memory</strong>
+                            <span>local first, sync later</span>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Основные доменные сущности</h2>
+                <div class="entity-grid">
+                    <div class="entity">
+                        <h3><span class="dot"></span>Series</h3>
+                        <p>
+                            Контейнер истории: название, жанр, уровень, тон,
+                            premise, персонажи или роль пользователя, compact
+                            memory и sync metadata.
+                        </p>
+                    </div>
+                    <div class="entity">
+                        <h3><span class="dot green"></span>Episode</h3>
+                        <p>
+                            Короткая учебная серия: recap, сцена или диалог,
+                            Story Words, interaction point, feedback,
+                            cliffhanger и summary update.
+                        </p>
+                    </div>
+                    <div class="entity">
+                        <h3><span class="dot orange"></span>Word Set</h3>
+                        <p>
+                            Today's Words, Episode Words, Series Words, Weak
+                            Words или No Focus. Это выбор слов для сюжета, не
+                            очередь повторений.
+                        </p>
+                    </div>
+                    <div class="entity">
+                        <h3><span class="dot purple"></span>Series Memory</h3>
+                        <p>
+                            Компактная память: конфликт, факты, открытые
+                            вопросы, объекты, локации, last summary,
+                            cliffhanger и recurring words.
+                        </p>
+                    </div>
+                    <div class="entity">
+                        <h3><span class="dot red"></span>Learning Signal</h3>
+                        <p>
+                            Непунитивные события: encountered, selected,
+                            translated, used, corrected, resurfaced, stable.
+                            Они влияют на подсказки.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid two">
+                <div class="card">
+                    <h2>Word Picker</h2>
+                    <p>
+                        Word Picker - это кастинг слов для будущего эпизода, а
+                        не карточная тренировка. Он собирает предложения из
+                        Oxford 5000, уровня пользователя, жанра, памяти серии,
+                        pinned words и learning signals.
+                    </p>
+                    <div>
+                        <span class="word-action">Use in episode</span>
+                        <span class="word-action">Know it</span>
+                        <span class="word-action">Later</span>
+                        <span class="word-action">Remove</span>
+                        <span class="word-action">Pin</span>
+                    </div>
+                    <div class="note">
+                        Если пользователь выбирает много новых слов, приложение
+                        предупреждает о сложности и предлагает auto-balancing,
+                        но не блокирует выбор жестким лимитом.
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>No Review Debt</h2>
+                    <p>
+                        В MVP нельзя возвращать старую модель с обязательными
+                        SRS-очередями. Пропущенные дни не создают долг.
+                        Встреченные слова могут возвращаться естественно, когда
+                        подходят сюжету, уровню и выбранному word set.
+                    </p>
+                    <div class="note danger">
+                        Запрещено делать flashcard-first поток, scheduled due
+                        reviews и punitive backlog основой MVP.
                     </div>
                 </div>
             </section>
@@ -456,69 +590,105 @@
                 <div class="card">
                     <h2>AI boundary</h2>
                     <div class="diagram">
-                        <div class="flow">
+                        <div class="flow five">
                             <div class="node connector">
-                                <strong>Mobile app</strong>
-                                <span>JWT + typed payload</span>
+                                <strong>Mobile App</strong>
+                                <span>JWT + typed request</span>
                             </div>
                             <div class="node connector">
                                 <strong>Edge Function</strong>
-                                <span>validation and secrets</span>
+                                <span>validation, secrets, bounded context</span>
                             </div>
                             <div class="node connector">
-                                <strong>Writer</strong>
-                                <span>draft story</span>
+                                <strong>Episode Writer</strong>
+                                <span>scene, words, interaction, hook</span>
                             </div>
                             <div class="node connector">
                                 <strong>Validator</strong>
-                                <span>CEFR and scope guard</span>
+                                <span>CEFR, safety, continuity, shape</span>
                             </div>
                             <div class="node">
-                                <strong>Story JSON</strong>
+                                <strong>Episode JSON</strong>
                                 <span>client validates again</span>
                             </div>
                         </div>
                     </div>
                     <p>
-                        Мобильное приложение никогда не хранит LLM ключи,
-                        промпты и выбор моделей. Все это живет внутри Supabase
-                        Edge Functions. Клиент получает только проверенный
-                        структурированный результат.
+                        Мобильное приложение не хранит LLM ключи, prompts,
+                        provider settings или model choices. Оно отправляет
+                        компактный контекст и получает структурированный
+                        результат.
                     </p>
                 </div>
 
                 <div class="card">
-                    <h2>Offline-first progress</h2>
+                    <h2>Bounded series memory</h2>
                     <div class="diagram">
-                        <div class="flow">
+                        <div class="flow five">
                             <div class="node connector">
-                                <strong>User action</strong>
-                                <span>слово, квиз, день</span>
+                                <strong>Premise</strong>
+                                <span>original story setup</span>
                             </div>
                             <div class="node connector">
-                                <strong>Local write</strong>
-                                <span>AsyncStorage first</span>
+                                <strong>Known Facts</strong>
+                                <span>characters, locations, objects</span>
                             </div>
                             <div class="node connector">
-                                <strong>UI update</strong>
-                                <span>быстрый отклик</span>
+                                <strong>Open Questions</strong>
+                                <span>conflict and mystery</span>
                             </div>
                             <div class="node connector">
-                                <strong>Sync queue</strong>
-                                <span>dirty operations</span>
+                                <strong>Last Summary</strong>
+                                <span>recent episode state</span>
                             </div>
                             <div class="node">
-                                <strong>Supabase</strong>
-                                <span>online + authenticated</span>
+                                <strong>Next Context</strong>
+                                <span>small enough for LLM</span>
                             </div>
                         </div>
                     </div>
                     <p>
-                        Инвариант простой: прогресс сначала сохраняется на
-                        устройстве. Сеть нужна для облачной копии и
-                        кросс-девайс синхронизации, но не для завершения
-                        локального учебного действия.
+                        Edge Functions не должны отправлять в модель всю
+                        историю сериала без ограничений. Нужны summary и compact
+                        memory.
                     </p>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Offline-first поток данных</h2>
+                <div class="diagram">
+                    <div class="flow">
+                        <div class="node connector">
+                            <strong>User Action</strong>
+                            <span>series, episode, words, reply, signal</span>
+                        </div>
+                        <div class="node connector">
+                            <strong>Validate</strong>
+                            <span>domain and trust boundary checks</span>
+                        </div>
+                        <div class="node connector">
+                            <strong>Local Write</strong>
+                            <span>AsyncStorage first</span>
+                        </div>
+                        <div class="node connector">
+                            <strong>UI Update</strong>
+                            <span>responsive local source</span>
+                        </div>
+                        <div class="node connector">
+                            <strong>Sync Queue</strong>
+                            <span>pending operations</span>
+                        </div>
+                        <div class="node">
+                            <strong>Supabase</strong>
+                            <span>online + authenticated</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="note success">
+                    Инвариант: пользовательские данные и AI-результаты
+                    сохраняются локально до remote sync. Облако - резервная и
+                    кросс-девайс копия, а не причина блокировать локальный UX.
                 </div>
             </section>
 
@@ -528,165 +698,156 @@
                     <thead>
                         <tr>
                             <th>Порт</th>
-                            <th>За что отвечает</th>
-                            <th>Реализация в MVP</th>
+                            <th>Ответственность</th>
+                            <th>MVP реализация</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><code>VocabularyCatalog</code></td>
-                            <td>Загрузка и поиск словаря</td>
-                            <td>Локальный адаптер для <code>words/oxford-5000.json</code></td>
+                            <td>Загрузка и поиск Oxford 5000 для словаря и Word Picker</td>
+                            <td>Локальный JSON adapter</td>
                         </tr>
                         <tr>
-                            <td><code>LocalProgressStore</code></td>
-                            <td>Мгновенная запись прогресса на устройстве</td>
-                            <td><code>@react-native-async-storage/async-storage</code></td>
+                            <td><code>LocalSeriesStore</code></td>
+                            <td>Series, episodes, memory, word sets, signals, preferences</td>
+                            <td><code>AsyncStorage</code></td>
                         </tr>
                         <tr>
-                            <td><code>RemoteProgressStore</code></td>
-                            <td>Облачная копия прогресса пользователя</td>
+                            <td><code>RemoteSeriesStore</code></td>
+                            <td>Cloud copy и cross-device sync</td>
                             <td>Supabase tables with RLS</td>
                         </tr>
                         <tr>
-                            <td><code>StoryGenerationGateway</code></td>
-                            <td>Генерация Text of the Day</td>
+                            <td><code>SyncQueue</code></td>
+                            <td>Pending local operations и conflict metadata</td>
+                            <td>AsyncStorage metadata</td>
+                        </tr>
+                        <tr>
+                            <td><code>EpisodeGenerationGateway</code></td>
+                            <td>Генерация эпизода по series memory и Story Words</td>
                             <td>Supabase Edge Function + OpenRouter</td>
                         </tr>
                         <tr>
-                            <td><code>GrammarGateway</code></td>
-                            <td>Объяснение выбранного предложения</td>
+                            <td><code>InteractionGateway</code></td>
+                            <td>Продолжение после выбора или короткого ответа</td>
                             <td>Supabase Edge Function</td>
                         </tr>
                         <tr>
                             <td><code>AudioNarrator</code></td>
-                            <td>Озвучка по предложениям и karaoke highlight</td>
+                            <td>Sentence-by-sentence TTS и karaoke highlight</td>
                             <td><code>expo-speech</code></td>
                         </tr>
                         <tr>
                             <td><code>NetworkStatus</code></td>
-                            <td>Понимание online/offline состояния</td>
+                            <td>Online/offline gating для server-only действий</td>
                             <td>Expo/React Native network adapter</td>
                         </tr>
                         <tr>
                             <td><code>AuthSessionProvider</code></td>
-                            <td>Текущий пользователь и JWT</td>
+                            <td>User и JWT state</td>
                             <td>Supabase Auth</td>
                         </tr>
                     </tbody>
                 </table>
             </section>
 
+            <section class="grid two">
+                <div class="card">
+                    <h2>Работает без интернета</h2>
+                    <ul>
+                        <li>Список уже созданных серий.</li>
+                        <li>Чтение уже сгенерированных эпизодов.</li>
+                        <li>Sentence-by-sentence TTS для сохраненных эпизодов.</li>
+                        <li>Oxford 5000 browsing/search.</li>
+                        <li>Word Picker из локальных данных.</li>
+                        <li>Локальные word sets, signals и preferences.</li>
+                        <li>Локальные изменения, не требующие AI.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h2>Требует интернета</h2>
+                    <ul>
+                        <li>Генерация нового эпизода.</li>
+                        <li>AI continuation после выбора или reply.</li>
+                        <li>AI correction и grammar-style explanation.</li>
+                        <li>Cloud sync с Supabase.</li>
+                    </ul>
+                    <div class="note">
+                        Для server-only действий UI показывает явный offline
+                        state: "будет доступно после подключения".
+                    </div>
+                </div>
+            </section>
+
             <section class="card">
-                <h2>SOLID в этом проекте</h2>
+                <h2>SOLID в этой архитектуре</h2>
                 <div class="grid three">
                     <div class="principle">
                         <div class="letter">S</div>
                         <h3>Single Responsibility</h3>
                         <p>
-                            Компонент рисует, use case выполняет сценарий,
-                            adapter работает с SDK, domain хранит правила.
+                            UI рисует, use case выполняет сценарий, domain
+                            защищает правила, adapter работает с SDK.
                         </p>
                     </div>
                     <div class="principle">
                         <div class="letter">O</div>
                         <h3>Open/Closed</h3>
                         <p>
-                            Новая реализация хранилища или AI провайдера
-                            подключается через порт без переписывания сценариев.
+                            Новый scoring для Word Picker или другое хранилище
+                            добавляются через порты.
                         </p>
                     </div>
                     <div class="principle">
                         <div class="letter">L</div>
                         <h3>Liskov Substitution</h3>
                         <p>
-                            Любой adapter обязан сохранять контракт: например,
-                            local progress write действительно завершается до
-                            sync.
+                            Любой adapter сохраняет контракт: local write
+                            завершается до sync.
                         </p>
                     </div>
                     <div class="principle">
                         <div class="letter">I</div>
                         <h3>Interface Segregation</h3>
                         <p>
-                            Лучше маленькие порты для audio, grammar, story и
-                            storage, чем один большой сервис приложения.
+                            Отдельные маленькие порты для episode generation,
+                            interaction, audio, storage и sync.
                         </p>
                     </div>
                     <div class="principle">
                         <div class="letter">D</div>
                         <h3>Dependency Inversion</h3>
                         <p>
-                            Use cases зависят от контрактов. Supabase,
-                            AsyncStorage и expo-speech зависят от этих
-                            контрактов как реализации.
+                            Use cases зависят от контрактов, а Supabase,
+                            AsyncStorage и expo-speech их реализуют.
                         </p>
                     </div>
                     <div class="principle">
                         <div class="letter">M</div>
                         <h3>MVP restraint</h3>
                         <p>
-                            Чистая архитектура не означает тяжелую архитектуру:
-                            без Redux, CQRS, event bus и лишних слоев.
+                            Без Redux, CQRS, event bus и лишних слоев, пока
+                            MVP не докажет необходимость.
                         </p>
                     </div>
                 </div>
             </section>
 
-            <section class="grid two">
-                <div class="card">
-                    <h2>Что должно работать без интернета</h2>
-                    <ul>
-                        <li>Просмотр Oxford 5000 из bundle.</li>
-                        <li>Карточная сессия с дневной целью.</li>
-                        <li>Повторения и простая локальная практика.</li>
-                        <li>Запись прогресса и completion state локально.</li>
-                        <li>Очередь изменений для будущей синхронизации.</li>
-                    </ul>
-                </div>
-
-                <div class="card">
-                    <h2>Что требует интернета</h2>
-                    <ul>
-                        <li>Генерация Text of the Day.</li>
-                        <li>AI grammar helper.</li>
-                        <li>Cloud sync с Supabase.</li>
-                        <li>Любая операция, где нужен Edge Function или Auth.</li>
-                    </ul>
-                    <div class="note success">
-                        При офлайне серверные действия не должны падать
-                        молча: экран показывает понятное состояние
-                        "доступно после подключения".
-                    </div>
-                </div>
-            </section>
-
             <section class="card">
-                <h2>Правила, которые нельзя нарушать</h2>
+                <h2>Нельзя нарушать</h2>
                 <ul>
-                    <li>
-                        Не вызывать OpenRouter или другой LLM provider из
-                        мобильного приложения.
-                    </li>
-                    <li>
-                        Не добавлять native <code>ios/</code> или
-                        <code>android/</code> код: только Expo Managed Workflow.
-                    </li>
-                    <li>
-                        Не загружать Oxford 5000 из сети во время работы
-                        приложения.
-                    </li>
-                    <li>
-                        Не прятать бизнес-правила в компонентах React Native.
-                    </li>
-                    <li>
-                        Не перезаписывать свежий локальный офлайн-прогресс
-                        старым remote state.
-                    </li>
-                    <li>
-                        Не расширять MVP функциями из backlog без явного
-                        решения.
-                    </li>
+                    <li>Не делать flashcards или SRS главным потоком MVP.</li>
+                    <li>Не показывать due reviews, review debt или missed-day backlog.</li>
+                    <li>Не вызывать OpenRouter или другой LLM provider из мобильного приложения.</li>
+                    <li>Не хранить prompts, model choices или AI secrets во frontend.</li>
+                    <li>Не отправлять в LLM всю историю сериала без ограничений.</li>
+                    <li>Не копировать copyrighted worlds, characters, names или plots.</li>
+                    <li>Не загружать Oxford 5000 из сети во время работы приложения.</li>
+                    <li>Не добавлять native <code>ios/</code> или <code>android/</code> code.</li>
+                    <li>Не прятать sync, AI validation или Word Picker scoring в UI.</li>
+                    <li>Не перезаписывать свежие локальные записи старым remote state.</li>
                 </ul>
             </section>
         </main>

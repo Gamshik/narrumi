@@ -1,24 +1,47 @@
-# Architecture Guide for AI Agents — Context-English MVP
+# Architecture Guide for AI Agents - Context-English Series MVP
 
-This document is the implementation architecture contract for AI coding agents. It explains the intended architecture, boundaries, dependency direction, and runtime flows without prescribing a concrete folder structure.
+This document is the implementation architecture contract for AI coding agents. It describes the architecture, boundaries, dependency direction, runtime flows, and non-negotiable product rules for the redesigned AI-series MVP.
+
+This is an architecture document, not a folder-structure document.
 
 ## Source Of Truth
 
-When implementing the app, follow these artifacts in this priority order:
+Follow the project artifacts in this priority order:
 
-1. `concept/prd_concept_mvp.md` — product scope and MVP behavior.
-2. `stack/tech_stack_mvp.md` — technology choices and hard constraints.
-3. `design/design_system.html` — visual and interaction reference.
-4. `concept/concept.html` — supporting product explanation.
-5. `words/oxford-5000.json` — bundled read-only vocabulary seed.
+1. `concept/prd_concept_mvp.md` - canonical product scope and MVP behavior.
+2. `stack/tech_stack_mvp.md` - canonical technology choices and runtime constraints.
+3. `architecture/architecture_for_ai.md` - canonical implementation boundaries and dependency rules.
+4. `architecture/architecture_for_developer.html` - supporting visual architecture reference.
+5. `design/design_system.html` and `design/design_system_guidelines.md` - visual and interaction rules.
+6. `concept/concept.html` - supporting product explanation.
+7. `words/oxford-5000.json` - bundled read-only vocabulary seed.
 
-If this architecture conflicts with those artifacts, stop and ask for clarification instead of silently choosing one side.
+If these artifacts conflict, do not silently resolve the conflict. Stop and ask for clarification.
+
+## Product Architecture Summary
+
+The MVP is no longer a flashcard-first vocabulary trainer. The main product object is a personal English AI series.
+
+The core loop is:
+
+```text
+Create or continue a personal series
+  -> choose Story Words through Word Picker
+  -> generate a short level-safe episode
+  -> read and listen
+  -> interact through a choice or short reply
+  -> receive concise story-friendly feedback
+  -> persist episode, memory, words, and learning signals locally first
+  -> sync when possible
+```
+
+The product must feel like continuing a personal series, not like servicing a vocabulary queue.
 
 ## Architectural Style
 
-Use a pragmatic Clean Architecture variant adapted for React Native and Supabase Edge Functions.
+Use a pragmatic Clean Architecture variant adapted to React Native, Expo, Supabase, and server-side AI generation.
 
-The architecture is organized by responsibility, not by UI screens:
+Dependency direction:
 
 ```text
 Presentation -> Application -> Domain <- Infrastructure
@@ -27,204 +50,368 @@ Presentation -> Application -> Domain <- Infrastructure
        +------ uses ports ----------+
 ```
 
-The dependency rule is strict:
+Rules:
 
-- Domain depends on nothing app-specific.
-- Application depends on Domain abstractions and use-case inputs/outputs.
-- Presentation depends on Application contracts and view models.
-- Infrastructure implements Application/Domain ports and may depend on external SDKs.
-- Supabase Edge Functions are a separate backend boundary, not a hidden part of the mobile app.
+- Domain depends on no app-specific framework, SDK, persistence, or UI code.
+- Application depends on Domain and ports.
+- Presentation depends on Application contracts, view models, and design tokens.
+- Infrastructure implements ports and may depend on concrete SDKs.
+- Supabase Edge Functions are a backend AI boundary, not a hidden mobile layer.
 
-Do not let UI components call Supabase tables, Edge Functions, AsyncStorage, Expo Speech, network status APIs, or Oxford JSON parsing directly. They must go through application-level use cases or facades.
+React Native components must not call Supabase tables, Edge Functions, AsyncStorage, Expo Speech, network APIs, or Oxford JSON parsing directly. They must call application use cases or presentation-facing facades that use application use cases.
 
 ## Core Domain Model
 
-Keep the domain small and explicit. The MVP domain consists of:
+Keep the domain explicit and close to the MVP.
 
-- Learner profile: user id when authenticated, selected CEFR level, learning preferences.
-- Vocabulary item: word, part of speech, CEFR level, phonetics, examples, source id.
-- Learning preferences: daily new-word goal, required successful review cycles for mastery.
-- Daily learning session: card queue, today's learning words, selected genre, story state, quiz state, completion state.
-- Learned word progress: local status, review cycle, next review timestamp, last update timestamp, dirty/sync metadata.
-- Generated story: 100-150 words, sentence list, target word annotations, context-aware translations, quiz questions.
-- Grammar explanation: sentence input and concise explanation output.
-- Connectivity state: online/offline capability used to gate server-only actions.
+### Series
 
-Domain objects should encode invariants where practical:
+A user-created story container:
 
-- Daily new-word goal is bounded from 3 to 20 words, with 5 as the default.
-- Required successful review cycles for mastery are bounded from 2 to 8, with 5 as the default.
-- A generated story belongs to a CEFR level and selected genre.
-- Story text shown to the user has already passed the Writer -> Validator pipeline.
-- Progress changes are persisted locally before remote sync is attempted.
-- LLM outputs are untrusted until validated.
-- Card decisions follow the product rules: new card left = skip, new card right = add to learning; learning card left = learned and schedule review, learning card right = continue learning; review card left = advance cycle, review card right = return to previous cycle.
-- A forgotten review word uses the delay of the cycle it returns to when computing its next review timestamp.
+- id;
+- owner id when authenticated;
+- title;
+- genre;
+- CEFR level;
+- tone or mood;
+- premise;
+- main characters or user role;
+- compact series memory;
+- sync metadata.
 
-## Application Layer
+Domain rules:
 
-The application layer coordinates user actions as use cases. It owns flow logic, not SDK details.
+- A series is the continuity root for episodes.
+- New episodes continue the same series instead of starting unrelated texts.
+- Series memory is compact and bounded; do not model full unbounded chat history as required AI context.
+- Series settings must support safe original stories, not direct copies of copyrighted worlds.
 
-Required MVP use cases:
+### Episode
 
-- Load bundled vocabulary and build local indexes.
-- Browse/filter vocabulary by CEFR level and learning status.
-- Start or resume a daily learning session.
-- Load and update learning preferences.
-- Present new-word, same-day learning, and review cards.
-- Apply card decisions locally.
-- Mark words as skipped, learning, in review, or mastered.
-- Schedule review availability for learned and forgotten words.
-- Select text genre.
-- Generate Text of the Day through an Edge Function when online.
-- Open inline translation for any story word.
-- Play/pause story audio sentence by sentence.
-- Request grammar explanation for a selected sentence when online.
-- Submit micro-quiz answer and mark session completion.
-- Queue local progress for sync.
-- Sync local progress with Supabase when online and authenticated.
+A generated learning unit linked to a series:
 
-Use case inputs and outputs should be plain typed data. Avoid leaking React state, Supabase responses, storage keys, or SDK-specific errors into use-case boundaries.
+- episode id;
+- series id;
+- optional "previously" recap;
+- main scene or dialogue;
+- sentence list;
+- selected Story Words;
+- inline translation annotations;
+- one interaction point;
+- user choice or short reply when present;
+- concise feedback or correction when present;
+- cliffhanger or unresolved hook;
+- summary update for future memory;
+- sync metadata.
 
-## Ports And Dependency Inversion
+Domain rules:
 
-Define application-facing ports for external capabilities:
+- Initial episode content before user interaction is roughly 100-180 words.
+- The episode must respect the series CEFR level.
+- The episode must use selected Story Words naturally.
+- The episode must end with a reason to continue.
+- AI output is untrusted until validated.
 
-| Port | Responsibility | Typical implementation |
-| --- | --- | --- |
-| VocabularyCatalog | Load and query bundled Oxford 5000 data | Local JSON adapter |
-| LocalProgressStore | Read/write progress immediately on device | AsyncStorage adapter |
-| RemoteProgressStore | Read/write authenticated cloud progress | Supabase adapter |
-| ProgressSyncQueue | Store pending local operations | AsyncStorage metadata adapter |
-| StoryGenerationGateway | Generate and validate story payloads | Supabase Edge Function client |
-| GrammarGateway | Explain selected sentence grammar | Supabase Edge Function client |
-| AudioNarrator | Speak sentences and report completion | `expo-speech` adapter |
-| NetworkStatus | Report online/offline state | Expo/React Native network adapter |
-| AuthSessionProvider | Expose authenticated user state | Supabase Auth adapter |
-| Clock | Provide timestamps for deterministic conflict handling | System clock adapter |
+### Word And Word Sets
 
-Ports protect the app from SDK churn and make behavior testable. Keep interfaces small and shaped around use cases, not around vendor APIs.
+Vocabulary source:
 
-## Presentation Layer
+- Oxford 5000 JSON is bundled locally and read-only.
+- It powers dictionary browsing, Word Picker suggestions, Story Words, and non-LLM dictionary lookups.
 
-React Native screens and components should be thin:
+Word-set concepts:
 
-- Render current state.
-- Forward user intent to application actions.
-- Show loading, empty, offline, success, and error states.
-- Preserve iOS-friendly interaction patterns from `design/design_system.html`.
-- Never own business rules such as word-count constraints, sync conflict handling, grammar availability, or story validation.
+- Today's Words;
+- Episode Words;
+- Series Words;
+- Weak Words;
+- No Focus.
 
-Use React hooks or a lightweight state container such as Zustand only as a delivery mechanism for application state. State management must not become the domain model.
+Domain rules:
 
-Recommended presentation state categories:
+- Word Picker is not a flashcard session.
+- Story Words are chosen for the next episode, not scheduled into a review debt queue.
+- The app should not hard-block the number of selected words.
+- If the user selects many new words, warn about difficulty and offer auto-balancing.
+- "Know it" lowers future suggestion priority but does not create permanent mastery.
+- "Later" skips without a negative learning state.
+- "Pin" keeps a word important for upcoming episodes or the series.
 
-- Screen state: loading, ready, error, offline.
-- User input state: selected genre, selected word, selected sentence, quiz selection.
-- Playback state: playing, paused, current sentence index.
-- Derived display state: highlighted sentence, inline hint, disabled server action.
+### Learning Signals
 
-## Infrastructure Layer
+Track non-punitive vocabulary events internally:
 
-Infrastructure implements ports and is the only mobile-app layer allowed to know concrete SDKs and persistence mechanics.
+- encountered;
+- selected;
+- translated;
+- understood;
+- used;
+- corrected;
+- resurfaced;
+- stable.
 
 Rules:
 
-- `words/oxford-5000.json` is loaded from the app bundle and treated as read-only.
-- Vocabulary parsing must validate external shape before creating domain values.
-- `@react-native-async-storage/async-storage` is preferred for MVP progress and sync metadata.
-- Supabase JS client uses only public environment variables in the app.
-- LLM API keys, prompts, model selection, and validation logic never appear in mobile code.
-- All LLM calls go through Supabase Edge Functions.
-- All cloud user progress is protected by Supabase RLS.
-- Offline-capable actions must not fail the learning flow because the network is unavailable.
+- Do not expose a punitive "due reviews" queue.
+- Do not create scheduled SRS review debt.
+- Missed days must not accumulate backlog.
+- Previously encountered words may resurface naturally when they fit the story, level, and selected word set.
+
+### Series Memory
+
+Compact continuity state:
+
+- premise;
+- genre;
+- tone;
+- main characters;
+- user role;
+- current conflict;
+- known facts;
+- open questions;
+- important objects or locations;
+- last episode summary;
+- unresolved cliffhanger;
+- recurring Story Words.
+
+Rules:
+
+- Use memory and summaries for model context.
+- Do not send unbounded full episode history to the model.
+- Memory updates are generated by AI but validated before storage.
+
+## Application Layer
+
+Application use cases coordinate user intent. They own flow logic and depend on ports, not SDKs.
+
+Required MVP use cases:
+
+- Load bundled vocabulary and build deterministic indexes.
+- Browse/search vocabulary for dictionary and Word Picker.
+- Create a series.
+- Update series settings when allowed by product scope.
+- List local series.
+- Open a series and load its episodes, memory, word sets, and learning signals.
+- Build Word Picker suggestions from vocabulary, series context, prior signals, pinned words, and level.
+- Apply Word Picker actions: use in episode, know it, later, remove, pin.
+- Assemble Episode Words with optional auto-balancing.
+- Generate an episode through an Edge Function when online.
+- Validate and persist generated episode locally first.
+- Play or pause episode audio sentence by sentence.
+- Open inline translation for any episode word.
+- Record translation/usage/correction learning signals locally.
+- Submit a choice or short reply for an episode interaction.
+- Request AI continuation/correction through an Edge Function when online.
+- Persist user reply, feedback, episode continuation, memory update, and signals locally first.
+- Queue local changes for sync.
+- Sync series, episodes, memory, word sets, signals, preferences, and sync metadata with Supabase.
+
+Use case inputs and outputs must be typed plain data. Do not leak React state, Supabase response shapes, AsyncStorage keys, Edge Function transport details, or raw SDK errors through use-case boundaries.
+
+## Ports And Dependency Inversion
+
+Define narrow application-facing ports for external capabilities.
+
+| Port | Responsibility | Typical MVP implementation |
+| --- | --- | --- |
+| VocabularyCatalog | Load/query bundled Oxford 5000 data | Local JSON adapter |
+| LocalSeriesStore | Persist series, episodes, memory, word sets, signals, preferences | AsyncStorage adapter |
+| RemoteSeriesStore | Read/write authenticated cloud records | Supabase adapter with RLS |
+| SyncQueue | Store pending local operations and sync metadata | AsyncStorage metadata adapter |
+| EpisodeGenerationGateway | Generate validated episode payloads | Supabase Edge Function client |
+| InteractionGateway | Continue episode and correct short user input | Supabase Edge Function client |
+| GrammarGateway | Provide grammar-style explanation when requested | Supabase Edge Function client |
+| AudioNarrator | Speak sentence list and report progress | `expo-speech` adapter |
+| NetworkStatus | Report online/offline capability | Expo/React Native network adapter |
+| AuthSessionProvider | Expose user and JWT state | Supabase Auth adapter |
+| Clock | Provide timestamps for conflict handling | System clock adapter |
+| IdGenerator | Create local ids before sync | UUID or platform-safe generator |
+
+Ports should be shaped around use cases, not vendor APIs. Avoid broad service objects.
+
+## Presentation Layer
+
+React Native presentation code should stay thin:
+
+- Render screen state and component state.
+- Forward user intent to application actions.
+- Show loading, empty, success, offline, validation, and error states.
+- Preserve Apple-style UI, light/dark theme support, liquidglass overlays, spring-like interactions, and iOS-friendly patterns from the design artifacts.
+- Keep story reading, inline translation, audio controls, Word Picker, and bottom sheets accessible.
+
+Presentation must not own:
+
+- story generation rules;
+- CEFR constraints;
+- AI prompt or validation logic;
+- Word Picker scoring;
+- sync conflict handling;
+- local persistence keys;
+- Supabase table contracts;
+- copyright/safety enforcement.
+
+Recommended presentation state categories:
+
+- screen state: loading, ready, empty, offline, error;
+- series state: selected series, selected episode, memory summary preview;
+- Word Picker state: suggested words, selected words, pinned words, warning about difficulty;
+- episode reader state: selected word hint, selected sentence, current sentence index;
+- interaction state: choice selected, reply draft, feedback visible;
+- sync state: local only, syncing, synced, failed.
+
+## Infrastructure Layer
+
+Infrastructure implements ports and owns concrete SDK details.
+
+Rules:
+
+- Load `words/oxford-5000.json` from the app bundle only.
+- Validate bundled vocabulary shape before creating domain values.
+- Prefer `@react-native-async-storage/async-storage` for MVP local records.
+- Move to `expo-sqlite` only if AsyncStorage becomes insufficient for local episode history or indexing.
+- Instantiate Supabase client with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+- Keep all LLM secrets, prompts, provider settings, model choices, and validation logic out of the mobile app.
+- All AI calls go through Supabase Edge Functions.
+- All cloud records are protected by Supabase RLS.
+- Treat local storage, remote records, user input, and AI output as untrusted at boundaries.
 
 ## Backend Boundary: Supabase Edge Functions
 
-Treat Edge Functions as the AI backend. They are not a generic business layer for all app behavior.
+Edge Functions are the AI backend and trust boundary for model access.
 
-Edge Function responsibilities:
+Responsibilities:
 
-- Authenticate the request with the user JWT when needed.
+- Authenticate requests when user state is needed.
 - Validate request payloads.
-- Run the two-agent Writer -> Validator generation pipeline.
+- Enforce copyright and safety constraints.
+- Build bounded model context from compact series memory, recent summary, selected Story Words, user level, genre, tone, and output schema.
+- Never send unbounded full series history.
 - Call OpenRouter using server-side secrets only.
 - Use Vercel AI SDK structured JSON output.
-- Validate generated story shape before returning it to the client.
-- Enforce story length, CEFR grammar constraints, target word coverage, genre selection, and quiz consistency.
-- Generate concise grammar explanations for selected sentences.
-- Return typed error categories the app can present safely.
+- Run Episode Writer and Language/Safety Validator flow when required.
+- Validate episode length, CEFR fit, word usage, continuity, interaction point, cliffhanger, annotations, feedback, and memory update.
+- Return typed error categories safe for the client.
 
-The mobile app must assume Edge Function responses are untrusted until client-side shape validation also succeeds.
+The mobile app must validate Edge Function response shape again before rendering or storing data.
 
-## Offline-First Progress Architecture
+## Offline-First Persistence
 
-Progress writes follow this invariant:
+Local write invariant:
 
 ```text
-User action -> Local write succeeds -> UI updates -> pending sync recorded -> remote sync attempted when possible
+User action
+  -> validate input
+  -> write local record
+  -> update UI
+  -> append sync operation
+  -> attempt remote sync when online and authenticated
 ```
 
-Offline rules:
+Offline-capable:
 
-- Vocabulary browsing works from bundled Oxford 5000 data.
-- Flashcards and simple local practice work from local state.
-- Card learning and scheduled reviews work from local state.
-- Word progress is written locally first.
-- Pending changes are retained in a sync queue.
-- Story generation and grammar explanations show explicit offline states.
-- The app must not call LLM APIs directly or try on-device LLM generation.
+- Existing series list.
+- Already-generated episodes.
+- Episode reading and local audio playback.
+- Word Picker browsing/search from bundled Oxford 5000.
+- Locally saved word sets.
+- Learning signals.
+- Preferences.
+- Local edits that do not require AI.
 
-Online rules:
+Online-only:
 
-- Local state remains the immediate UI source for progress.
-- Remote Supabase progress is a backup and cross-device copy.
-- Sync reconciles pending local changes with remote rows.
-- Conflicts are resolved deterministically using per-record timestamps or operation ordering.
-- Newer local offline progress must not be overwritten by stale remote data.
+- Episode generation.
+- AI continuation.
+- AI correction.
+- Grammar-style explanations.
+- Cloud sync.
+
+Offline UI rule:
+
+- Server-only actions must show explicit "available when online" states.
+- Do not silently fail and do not fake AI generation on device.
+
+## Sync And Conflict Handling
+
+Remote Supabase data is a cloud copy for backup and cross-device use. Local data remains the immediate UI source for responsiveness.
+
+Sync rules:
+
+- Every locally changed record carries sync metadata.
+- Pending operations are replayed when online and authenticated.
+- Conflicts are resolved deterministically using timestamps or explicit operation ordering.
+- Do not overwrite newer local offline records with stale remote state.
+- Validate user ownership before applying remote data.
+- Validate allowed state transitions before applying local or remote operations.
+
+Records that must sync when implemented:
+
+- series;
+- episodes;
+- series memory;
+- word sets;
+- learning signals;
+- preferences;
+- sync metadata.
 
 ## Main Runtime Flows
 
-### Daily Learning Flow
+### Series Creation Flow
 
 ```text
-Open app
-  -> load local vocabulary index
-  -> load local progress
-  -> load learning preferences
-  -> start/resume card session
-  -> present new, learning, and due review cards
-  -> apply swipe decisions locally
-  -> schedule learned and forgotten words for review
-  -> persist progress locally
-  -> choose genre
-  -> if online: call story generation Edge Function
-  -> if offline: show unavailable generation state
-  -> read/listen/translate
-  -> complete quiz
-  -> update streak/session locally
+User enters title, genre, CEFR level, tone, premise, role
+  -> CreateSeries use case
+  -> validate scope and safety-sensitive inputs
+  -> create compact initial memory
+  -> write local series
+  -> queue sync
+  -> show new series
+```
+
+### Continue Series Flow
+
+```text
+Open series
+  -> load local episodes, memory, word sets, signals
+  -> build Word Picker suggestions
+  -> user edits Episode Words
+  -> if many difficult words: warn and offer auto-balance
+  -> if online: call EpisodeGenerationGateway
+  -> Edge Function writes/validates structured episode payload
+  -> client validates response shape
+  -> write episode, annotations, memory update, and signals locally
+  -> queue sync
+  -> render episode reader
+```
+
+### Episode Interaction Flow
+
+```text
+Episode reaches interaction point
+  -> user picks choice or writes short reply
+  -> local draft/reply saved
+  -> if online: call InteractionGateway
+  -> Edge Function returns concise correction, continuation, memory update
+  -> client validates response
+  -> write feedback, continuation, signals, memory locally
   -> queue sync
 ```
 
-### Story Generation Flow
+### Word Picker Flow
 
 ```text
-Presentation intent
-  -> GenerateTextOfDay use case
-  -> NetworkStatus check
-  -> StoryGenerationGateway
-  -> Supabase Edge Function
-  -> Writer agent
-  -> Validator agent
-  -> structured story payload
-  -> client-side validation
-  -> render story
+Load vocabulary index
+  -> combine level words, genre words, series words, weak words, pinned words
+  -> rank suggestions
+  -> user actions: use, know it, later, remove, pin
+  -> update Episode Words and learning signals locally
+  -> warn or auto-balance when difficulty is high
 ```
 
 ### Audio Flow
 
 ```text
-Story sentence list
+Episode sentence list
   -> AudioNarrator.speak(sentence[index])
   -> set currentSentenceIndex
   -> expo-speech onDone
@@ -232,86 +419,89 @@ Story sentence list
   -> stop at final sentence or user pause
 ```
 
-### Sync Flow
-
-```text
-Local progress change
-  -> write local progress
-  -> append pending operation
-  -> when online + authenticated
-  -> push pending operations
-  -> fetch remote state if needed
-  -> reconcile deterministically
-  -> clear applied operations
-```
-
-## SOLID Guidance
-
-- Single Responsibility: UI renders, use cases orchestrate, domain validates, adapters talk to SDKs.
-- Open/Closed: Add new storage or AI providers by implementing ports, not by rewriting use cases.
-- Liskov Substitution: Port implementations must preserve use-case expectations, especially local-first writes and typed errors.
-- Interface Segregation: Prefer narrow ports such as `AudioNarrator` and `GrammarGateway` over broad service objects.
-- Dependency Inversion: Use cases depend on ports; adapters depend on SDKs.
-
-Avoid over-engineering. Do not add repositories, mediators, event buses, CQRS, or global service locators unless a concrete MVP requirement demands them.
-
 ## Error And State Policy
 
 Every user-facing flow must model:
 
 - loading;
 - empty;
-- success;
+- ready;
+- offline for server-only actions;
 - validation error;
 - recoverable network error;
-- explicit offline state for server-only actions;
-- unexpected error with safe generic message.
+- sync failed but local data preserved;
+- unexpected error with a safe generic message.
 
-Use typed application errors. Do not show raw Supabase, OpenRouter, storage, or parsing errors directly to users.
+Use typed application errors. Do not expose raw Supabase, OpenRouter, AsyncStorage, schema, or parsing errors directly to users.
 
-## Security And Trust Boundaries
+## Security, Safety, And Trust Boundaries
 
 Trust boundary rules:
 
-- Oxford JSON is bundled but still parsed as external data.
-- Local storage is mutable and must be validated on read.
-- Supabase data is remote and must be validated on read.
-- LLM output is untrusted and must be validated in the Edge Function and again on the client.
-- Client input to Edge Functions is untrusted.
-- Authenticated user ownership is enforced by RLS and checked in backend logic where applicable.
+- Bundled Oxford JSON is parsed as external data.
+- Local storage is mutable and validated on read.
+- Supabase data is remote and validated on read.
+- User input is untrusted.
+- AI output is untrusted.
+- Edge Function request payloads are untrusted.
+- Authenticated ownership is enforced by RLS and checked where applicable.
+
+Safety rules:
+
+- Do not generate unsafe content.
+- Do not directly copy copyrighted worlds, characters, names, or plots.
+- If the user requests a protected franchise, steer to an original story with a similar broad genre or mood.
+
+## SOLID Guidance
+
+- Single Responsibility: UI renders; use cases orchestrate; domain validates; adapters talk to SDKs.
+- Open/Closed: new stores, AI providers, or scoring strategies are added behind ports.
+- Liskov Substitution: adapters preserve use-case contracts, especially local-first writes.
+- Interface Segregation: keep ports narrow and scenario-oriented.
+- Dependency Inversion: use cases depend on ports; SDK adapters implement ports.
+
+Avoid over-engineering. Do not introduce Redux, CQRS, event buses, repository layers everywhere, service locators, or large frameworks unless an MVP requirement proves the need.
 
 ## Non-Goals For MVP
 
 Do not implement:
 
+- flashcard-first learning as the main flow;
+- scheduled SRS review queues;
+- user-facing review debt;
+- punitive missed-day backlogs;
 - placement testing;
-- saving arbitrary text words into a personal dictionary;
+- public sharing or publishing of series;
+- multiplayer or community worlds;
+- voice conversation as the primary interaction mode;
+- image, comic, or video generation;
+- unvalidated arbitrary vocabulary import;
 - native iOS or Android directories;
 - direct client calls to OpenRouter or any LLM provider;
-- Redux;
-- remote loading of Oxford 5000 seed data at runtime;
-- broad analytics/event platforms;
-- complex local databases unless AsyncStorage becomes demonstrably insufficient.
+- remote loading of Oxford 5000 at runtime;
+- direct copying of copyrighted story worlds or characters.
 
 ## Implementation Checklist For AI Tasks
 
 Before coding:
 
-- Read the relevant product, stack, and design artifacts.
-- Identify available verification commands from docs, CI, and manifests.
-- Determine which use case and port boundaries are affected.
-- Confirm whether the affected flow is offline-capable or online-only.
+- Read the relevant PRD, stack, architecture, and design artifacts.
+- Identify verification commands from docs, CI, and manifests.
+- Determine affected use cases and ports.
+- Confirm whether the affected behavior is offline-capable or online-only.
+- Check whether the task touches series, episode, memory, Word Picker, signals, AI boundary, sync, or UI.
 
 During coding:
 
 - Keep changes scoped to the affected use case.
 - Preserve dependency direction.
-- Validate data at boundaries.
-- Persist progress locally before remote sync.
-- Keep UI components thin.
+- Validate all data crossing boundaries.
+- Persist local records before remote sync.
+- Keep presentation code thin.
+- Avoid reintroducing card-first or SRS assumptions.
 
 Before completion:
 
 - Run available lint, typecheck, build, and relevant tests.
-- Verify affected user flows against the artifacts.
-- Report commands run and any unavailable verification.
+- Verify affected flows against the product artifacts.
+- Report commands run and anything that remains unverified.
