@@ -27,9 +27,10 @@ The product should feel like creating and watching a personal English series, no
 4. **Word Choice:** User accepts the proposed words or makes light edits: add, remove, skip, or keep words.
 5. **Episode Generation:** The app generates a short episode that continues the series, uses selected Story Words naturally, respects the user's level, and ends with a narrative hook.
 6. **Read & Listen:** User reads the episode, listens to sentence-by-sentence audio, and can tap words for translation and transcription without leaving the episode.
-7. **Interact:** User influences the story through a choice, a short written reply, a question to a character, or a short explanation of what should happen next.
-8. **Feedback:** The app provides concise correction or explanation for the user's reply without interrupting the story experience.
-9. **Persist Memory:** The app stores episode content, series memory, selected words, and learning signals locally first, then syncs when possible.
+7. **Interact:** User influences the same episode through several choices or short replies while the scene continues.
+8. **Feedback And Continuation:** After every reply, the app provides concise correction or support, continues the same episode, and presents another interaction when the episode arc is not complete.
+9. **Episode Completion:** The AI decides when the current episode has reached a meaningful ending. An episode normally contains 5-10 learner interactions and must not end after only a few routine choices.
+10. **Persist Memory:** The app stores the complete episode, all learner replies, series memory, selected words, and learning signals locally first, then syncs when possible.
 
 ---
 
@@ -55,10 +56,15 @@ The product should feel like creating and watching a personal English series, no
   - optional short "previously" recap when useful for continuity;
   - main scene or dialogue;
   - selected Story Words used naturally;
-  - one interaction point for the user;
-  - concise feedback or correction after user input when applicable;
-  - cliffhanger or unresolved narrative hook;
+  - several interaction points that let the user influence the same episode;
+  - concise feedback or correction after each user input when applicable;
+  - an AI-controlled episode completion decision;
+  - a cliffhanger or unresolved narrative hook when the episode ends;
   - structured summary update for future episodes.
+- An episode normally contains 5-10 meaningful learner interactions.
+- The AI may choose the ending within this range when the current episode arc reaches a meaningful closing beat, but it must not end after only a few routine interactions.
+- Every continuation and next interaction must be paced toward this 5-10 interaction ending. Early turns establish and complicate the local goal, middle turns develop consequences, and late turns converge toward closure instead of opening large new branches.
+- Episode completion means the current episode ends; it does not mean the personal series is permanently complete.
 - **Episode Length:** The episode should be concise enough for a comfortable learning session, but substantial enough to develop the scene, use Story Words naturally, and lead to meaningful interaction. Do not enforce a fixed word-count range; adapt length to the user's CEFR level, the current scene, and narrative needs.
 - **Grammar Control:** Strict compliance with the target CEFR level. No complex grammatical structures above the user's current level.
 - **Controlled Freedom:** The user can influence the story, but the app must keep level, safety, continuity, word usage, and episode structure under control.
@@ -129,12 +135,15 @@ The product should feel like creating and watching a personal English series, no
 - Audio should use native device TTS for the MVP.
 
 #### FEATURE I: Interactive Reply And Feedback
-- Each episode should contain at least one user interaction:
+- Each episode should contain several user interactions:
   - choose what happens next;
   - write a short reply;
   - ask a character a question;
   - explain a theory or plan;
   - discuss the scene with the AI in a constrained context.
+- Every submitted interaction continues the same episode.
+- The continuation should lead to another meaningful interaction until the AI marks the current episode complete.
+- The AI should end an episode only after a coherent local story arc has developed, the learner's decisions have had visible consequences, and a closing beat or hook has been established.
 - Feedback must be brief and story-friendly.
 - Corrections should focus on one or two important issues rather than turning the episode into a grammar lecture.
 

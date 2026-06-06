@@ -108,7 +108,7 @@ User preferences stored locally and synced when possible:
 Core records must be modeled explicitly:
 
 - **Series:** User-created story container with title, genre, CEFR level, tone, premise, characters or user role, compact memory, and sync metadata.
-- **Episode:** Generated learning unit linked to a series with episode text, sentences, interaction choices, user reply, feedback, cliffhanger, Story Words, and summary update.
+- **Episode:** Generated learning unit linked to a series with accumulated story text, sentences, several ordered interaction turns, learner replies, feedback, an AI-controlled completion state, cliffhanger, Story Words, and summary update.
 - **Word Set:** A selected group of words for a day, series, or episode.
 - **Learning Signal:** A non-punitive vocabulary event such as selected, encountered, translated, used, corrected, resurfaced, or stable.
 - **Series Memory:** Compact continuity state used for future generation instead of unbounded chat history.

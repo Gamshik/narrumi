@@ -97,9 +97,10 @@ A generated learning unit linked to a series:
 - sentence list;
 - selected Story Words;
 - inline translation annotations;
-- one interaction point;
-- user choice or short reply when present;
-- concise feedback or correction when present;
+- ordered interaction turns;
+- user choices or short replies for completed turns;
+- concise feedback or correction for each completed turn;
+- current episode completion state;
 - cliffhanger or unresolved hook;
 - summary update for future memory;
 - sync metadata.
@@ -109,7 +110,11 @@ Domain rules:
 - Episode length is adaptive. It must be concise enough for a comfortable learning session and substantial enough to develop the scene, use Story Words naturally, and support meaningful interaction. Do not enforce a fixed word-count range.
 - The episode must respect the series CEFR level.
 - The episode must use selected Story Words naturally.
-- The episode must end with a reason to continue.
+- An episode normally contains 5-10 meaningful learner interactions and must not end after only a few routine decisions.
+- Every AI continuation must consider the remaining interaction budget so the same episode can close inside the 5-10 interaction window.
+- The AI decides when the current episode arc is complete.
+- Completing an episode does not complete the overall personal series.
+- A completed episode must end with a reason to continue the series.
 - AI output is untrusted until validated.
 
 ### Word And Word Sets
@@ -388,9 +393,11 @@ Episode reaches interaction point
   -> user picks choice or writes short reply
   -> local draft/reply saved
   -> if online: call InteractionGateway
-  -> Edge Function returns concise correction, continuation, memory update
-  -> client validates response
-  -> write feedback, continuation, signals, memory locally
+  -> Edge Function returns concise correction, continuation, next interaction or episode-complete state, memory update
+  -> client validates response and completion transition
+  -> write feedback, continuation, ordered interaction turn, signals, memory locally
+  -> if episode continues: render the next interaction in the same reader
+  -> if episode completes: persist final hook and expose exit/next-episode action
   -> queue sync
 ```
 
