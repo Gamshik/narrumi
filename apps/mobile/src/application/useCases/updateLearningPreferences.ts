@@ -1,8 +1,6 @@
 import type { Clock, LocalSeriesStore } from '@application/ports';
 import {
-  clampEpisodeWordCount,
   clampStoryWordGoal,
-  DEFAULT_EPISODE_WORD_COUNT,
   DEFAULT_STORY_WORD_GOAL,
   type CefrLevel,
   type LearningPreferences,
@@ -17,8 +15,6 @@ export type UpdateLearningPreferencesInput = {
   readonly preferredGenre?: LearningGenre;
   // storyWordGoal updates automatic Story Word suggestion count.
   readonly storyWordGoal?: number;
-  // episodeWordCount updates the target generated episode length.
-  readonly episodeWordCount?: number;
 };
 
 // UpdateLearningPreferences writes bounded local settings for future series work.
@@ -45,11 +41,6 @@ export function createUpdateLearningPreferences(
           input.preferredGenre ?? existing?.preferredGenre ?? 'short-fiction',
         storyWordGoal: clampStoryWordGoal(
           input.storyWordGoal ?? existing?.storyWordGoal ?? DEFAULT_STORY_WORD_GOAL,
-        ),
-        episodeWordCount: clampEpisodeWordCount(
-          input.episodeWordCount ??
-            existing?.episodeWordCount ??
-            DEFAULT_EPISODE_WORD_COUNT,
         ),
         updatedAt: timestamp,
         sync: {

@@ -1,6 +1,6 @@
 import type { Clock, LocalSeriesStore, VocabularyCatalog } from '@application/ports';
 import type { LearningPreferences, WordSet } from '@domain/index';
-import { DEFAULT_EPISODE_WORD_COUNT, DEFAULT_STORY_WORD_GOAL } from '@domain/index';
+import { DEFAULT_STORY_WORD_GOAL } from '@domain/index';
 
 // StartOrResumeTodaysWordSetInput optionally overrides automatic Story Word count.
 export type StartOrResumeTodaysWordSetInput = {
@@ -88,7 +88,6 @@ async function ensurePreferences(
     preferredCefrLevel: 'B1',
     preferredGenre: 'short-fiction',
     storyWordGoal: DEFAULT_STORY_WORD_GOAL,
-    episodeWordCount: DEFAULT_EPISODE_WORD_COUNT,
     updatedAt: timestamp,
     sync: {
       isDirty: true,

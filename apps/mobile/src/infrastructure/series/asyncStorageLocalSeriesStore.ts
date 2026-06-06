@@ -7,7 +7,6 @@ import type {
 } from '@application/ports';
 import {
   cefrLevels,
-  clampEpisodeWordCount,
   clampStoryWordGoal,
   type Episode,
   interactionKinds,
@@ -43,7 +42,18 @@ export class AsyncStorageLocalSeriesStore implements LocalSeriesStore {
   async getPreferences(): Promise<LearningPreferences | undefined> {
     const rawValue = await AsyncStorage.getItem(STORAGE_KEYS.preferences);
 
-    return rawValue ? parsePreferences(JSON.parse(rawValue)) : undefined;
+    if (!rawValue) {
+      return undefined;
+    }
+
+    try {
+      return parsePreferences(JSON.parse(rawValue));
+    } catch {
+      // Invalid legacy preferences must not permanently block settings writes.
+      await AsyncStorage.removeItem(STORAGE_KEYS.preferences);
+
+      return undefined;
+    }
   }
 
   // savePreferences writes local series defaults for offline use.
@@ -285,7 +295,6 @@ function parsePreferences(value: unknown): LearningPreferences {
     preferredCefrLevel: preferredCefrLevel as LearningPreferences['preferredCefrLevel'],
     preferredGenre,
     storyWordGoal: clampStoryWordGoal(readNumber(value, 'storyWordGoal')),
-    episodeWordCount: clampEpisodeWordCount(readNumber(value, 'episodeWordCount')),
     updatedAt: readString(value, 'updatedAt'),
     sync: parseSyncMetadata(value.sync),
   };

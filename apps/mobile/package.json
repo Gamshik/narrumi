@@ -5,20 +5,25 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-segmented-control/segmented-control": "2.5.7",
+    "@supabase/supabase-js": "^2.107.0",
     "expo": "^55.0.0",
+    "expo-network": "~55.0.14",
     "expo-router": "~55.0.16",
+    "expo-speech": "~55.0.14",
     "expo-status-bar": "~55.0.6",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.6",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
-    "react-native-web": "^0.21.0"
+    "react-native-web": "^0.21.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
     "eslint": "^9.39.4",
     "eslint-config-expo": "~55.0.1",
+    "tsx": "^4.22.4",
     "typescript": "~5.9.2"
   },
   "scripts": {
@@ -27,6 +32,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint .",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "build": "expo export"
   },

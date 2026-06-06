@@ -12,5 +12,6 @@
       "@infrastructure/*": ["./src/infrastructure/*"],
       "@presentation/*": ["./src/presentation/*"]
     }
-  }
+  },
+  "exclude": ["dist", "node_modules"]
 }

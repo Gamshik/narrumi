@@ -1,6 +1,5 @@
 import type { Clock, LocalSeriesStore } from '@application/ports';
 import {
-  DEFAULT_EPISODE_WORD_COUNT,
   DEFAULT_STORY_WORD_GOAL,
   type LearningPreferences,
 } from '@domain/index';
@@ -35,7 +34,6 @@ export function createLoadLearningPreferences(
         preferredCefrLevel: 'B1',
         preferredGenre: 'short-fiction',
         storyWordGoal: DEFAULT_STORY_WORD_GOAL,
-        episodeWordCount: DEFAULT_EPISODE_WORD_COUNT,
         updatedAt: timestamp,
         sync: {
           isDirty: true,

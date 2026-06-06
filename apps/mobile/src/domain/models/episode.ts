@@ -27,7 +27,7 @@ export type Episode = {
   readonly previouslyRecap?: string;
   // title is an optional story-facing episode label.
   readonly title?: string;
-  // sceneText stores the validated 100-180 word main episode content.
+  // sceneText stores the validated adaptive main episode content.
   readonly sceneText: string;
   // sentences stores the playback and karaoke-sync units.
   readonly sentences: readonly string[];
