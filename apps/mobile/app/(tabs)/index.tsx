@@ -11,8 +11,10 @@ export default function HomeRoute(): ReactElement {
   return (
     <RouteScreen isDark={isDark} styles={styles}>
       <HomeScreen
+        onOpenSeries={(seriesId) =>
+          router.push({ pathname: '/series-details', params: { seriesId } })
+        }
         styles={styles}
-        onStartDailySession={() => router.push('/daily-session')}
       />
     </RouteScreen>
   );

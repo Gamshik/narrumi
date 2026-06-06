@@ -1,15 +1,16 @@
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import {
-  DEFAULT_EPISODE_WORD_COUNT,
+  cefrLevels,
   DEFAULT_STORY_WORD_GOAL,
+  learningGenres,
+  type CefrLevel,
   type LearningPreferences,
-  MAX_EPISODE_WORD_COUNT,
+  type LearningGenre,
   MAX_STORY_WORD_GOAL,
-  MIN_EPISODE_WORD_COUNT,
   MIN_STORY_WORD_GOAL,
 } from '@domain/index';
 
@@ -17,10 +18,28 @@ import { localAppServices } from '../services/localAppServices';
 import { useAppTheme } from '../theme';
 import type { AppStyles } from '../types';
 
-// settingsLevels is the native segmented-control value set for grammar target level.
-const settingsLevels = ['A1', 'A2', 'B1', 'B2', 'C1'] as const;
+// settingsLevels mirrors the domain CEFR set so persisted values always render.
+const settingsLevels = cefrLevels;
 // SettingsLevel narrows the settings selector to supported grammar targets.
 type SettingsLevel = (typeof settingsLevels)[number];
+
+// EditablePreferencePatch is the settings subset controlled by this screen.
+type EditablePreferencePatch = Partial<
+  Pick<
+    LearningPreferences,
+    | 'preferredCefrLevel'
+    | 'preferredGenre'
+    | 'storyWordGoal'
+  >
+>;
+
+// genreLabels maps domain genre values to settings display labels.
+const genreLabels: Record<LearningGenre, string> = {
+  'daily-life': 'Daily Life',
+  'short-fiction': 'Short Fiction',
+  'travel-leisure': 'Travel',
+  'work-it': 'Work & IT',
+};
 
 // SettingsScreenProps defines the top-level settings screen style and theme inputs.
 type SettingsScreenProps = {
@@ -36,25 +55,24 @@ type SettingsSectionProps = {
   readonly styles: AppStyles;
 };
 
-// GrammarControlProps defines inputs needed by the CEFR target control.
-type GrammarControlProps = SettingsScreenProps;
-
-// SettingsScreen renders real settings controls and excludes mock profile/network panels.
+// SettingsScreen renders real settings controls and excludes fake profile/network panels.
 export function SettingsScreen({
   isDark,
   styles,
 }: SettingsScreenProps): ReactElement {
-  const [preferences, setPreferences] = useState<LearningPreferences>({
+  const initialPreferences: LearningPreferences = {
     preferredCefrLevel: 'B1',
     preferredGenre: 'short-fiction',
     storyWordGoal: DEFAULT_STORY_WORD_GOAL,
-    episodeWordCount: DEFAULT_EPISODE_WORD_COUNT,
     updatedAt: new Date(0).toISOString(),
     sync: {
       isDirty: false,
       pendingOperationId: 'initial-preferences-placeholder',
     },
-  });
+  };
+  const [preferences, setPreferences] =
+    useState<LearningPreferences>(initialPreferences);
+  const preferencesRef = useRef<LearningPreferences>(initialPreferences);
   const [errorMessage, setErrorMessage] = useState<string>();
 
   useEffect(() => {
@@ -64,6 +82,7 @@ export function SettingsScreen({
       .execute()
       .then(({ preferences: loadedPreferences }) => {
         if (isActive) {
+          preferencesRef.current = loadedPreferences;
           setPreferences(loadedPreferences);
         }
       })
@@ -79,18 +98,31 @@ export function SettingsScreen({
   }, []);
 
   const updatePreferences = async (
-    nextPreferences: Partial<
-      Pick<LearningPreferences, 'storyWordGoal' | 'episodeWordCount'>
-    >,
+    nextPreferences: EditablePreferencePatch,
   ): Promise<void> => {
+    const previousPreferences = preferencesRef.current;
+    const optimisticPreferences = buildOptimisticPreferences(
+      previousPreferences,
+      nextPreferences,
+    );
+
+    preferencesRef.current = optimisticPreferences;
+    setPreferences(optimisticPreferences);
     setErrorMessage(undefined);
 
     try {
       const savedPreferences =
-        await localAppServices.updateLearningPreferences.execute(nextPreferences);
+        await localAppServices.updateLearningPreferences.execute({
+          preferredCefrLevel: optimisticPreferences.preferredCefrLevel,
+          preferredGenre: optimisticPreferences.preferredGenre,
+          storyWordGoal: optimisticPreferences.storyWordGoal,
+        });
 
+      preferencesRef.current = savedPreferences;
       setPreferences(savedPreferences);
     } catch {
+      preferencesRef.current = previousPreferences;
+      setPreferences(previousPreferences);
       setErrorMessage('Learning settings could not be saved.');
     }
   };
@@ -107,7 +139,14 @@ export function SettingsScreen({
         </View>
       ) : null}
 
-      <GrammarControl isDark={isDark} styles={styles} />
+      <GrammarControl
+        isDark={isDark}
+        level={preferences.preferredCefrLevel}
+        styles={styles}
+        onChangeLevel={(preferredCefrLevel) =>
+          updatePreferences({ preferredCefrLevel })
+        }
+      />
       <Appearance styles={styles} />
       <SeriesDefaults
         preferences={preferences}
@@ -143,10 +182,15 @@ function Appearance({ styles }: SettingsSectionProps): ReactElement {
 // GrammarControl stores the local CEFR target until persistence is introduced.
 function GrammarControl({
   isDark,
+  level,
   styles,
-}: GrammarControlProps): ReactElement {
-  const [level, setLevel] = useState<SettingsLevel>('B2');
-
+  onChangeLevel,
+}: SettingsScreenProps & {
+  // level is the persisted preferred CEFR level.
+  readonly level: CefrLevel;
+  // onChangeLevel persists the selected preferred CEFR level.
+  readonly onChangeLevel: (level: CefrLevel) => void;
+}): ReactElement {
   return (
     <>
       <Text style={styles.sectionLabel}>GRAMMAR CONTROL</Text>
@@ -162,8 +206,8 @@ function GrammarControl({
         </View>
         <SegmentedControl
           appearance={isDark ? 'dark' : 'light'}
-          onValueChange={(value) => setLevel(value as SettingsLevel)}
-          selectedIndex={settingsLevels.indexOf(level)}
+          onValueChange={(value) => onChangeLevel(value as SettingsLevel)}
+          selectedIndex={settingsLevels.indexOf(level as SettingsLevel)}
           style={styles.cefrSegmentedControl}
           values={[...settingsLevels]}
         />
@@ -183,7 +227,10 @@ function SeriesDefaults({
   // onUpdatePreferences persists bounded preference updates through the use case.
   readonly onUpdatePreferences: (
     preferences: Partial<
-      Pick<LearningPreferences, 'storyWordGoal' | 'episodeWordCount'>
+      Pick<
+        LearningPreferences,
+        'preferredGenre' | 'storyWordGoal'
+      >
     >,
   ) => Promise<void>;
 }): ReactElement {
@@ -191,6 +238,13 @@ function SeriesDefaults({
     <>
       <Text style={styles.sectionLabel}>SERIES DEFAULTS</Text>
       <View style={styles.settingsCard}>
+        <GenreDefault
+          selectedGenre={preferences.preferredGenre}
+          styles={styles}
+          onChangeGenre={(preferredGenre) =>
+            onUpdatePreferences({ preferredGenre })
+          }
+        />
         <StepSetting
           max={MAX_STORY_WORD_GOAL}
           min={MIN_STORY_WORD_GOAL}
@@ -202,19 +256,52 @@ function SeriesDefaults({
             onUpdatePreferences({ storyWordGoal })
           }
         />
-        <StepSetting
-          max={MAX_EPISODE_WORD_COUNT}
-          min={MIN_EPISODE_WORD_COUNT}
-          label="Episode Length"
-          styles={styles}
-          suffix="words"
-          value={preferences.episodeWordCount}
-          onChange={(episodeWordCount) =>
-            onUpdatePreferences({ episodeWordCount })
-          }
-        />
       </View>
     </>
+  );
+}
+
+// GenreDefault renders persisted default genre choices for new series.
+function GenreDefault({
+  selectedGenre,
+  styles,
+  onChangeGenre,
+}: {
+  // selectedGenre is the locally persisted default series genre.
+  readonly selectedGenre: LearningGenre;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // onChangeGenre persists the chosen default genre.
+  readonly onChangeGenre: (genre: LearningGenre) => void;
+}): ReactElement {
+  return (
+    <View style={styles.settingMeter}>
+      <View style={styles.settingRow}>
+        <Text style={styles.actionTitle}>Default Genre</Text>
+        <Text style={styles.settingValue}>{genreLabels[selectedGenre]}</Text>
+      </View>
+      <View style={styles.choiceRow}>
+        {learningGenres.map((genre) => (
+          <Pressable
+            key={genre}
+            onPress={() => onChangeGenre(genre)}
+            style={[
+              styles.goalChoice,
+              genre === selectedGenre && styles.activeGoalChoice,
+            ]}
+          >
+            <Text
+              style={[
+                styles.goalChoiceText,
+                genre === selectedGenre && styles.activeGoalChoiceText,
+              ]}
+            >
+              {genreLabels[genre]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -260,10 +347,9 @@ function StepSetting({
         <Pressable
           disabled={value <= min}
           onPress={() => onChange(value - 1)}
-          style={({ pressed }) => [
+          style={[
             styles.stepperButton,
             value <= min && styles.disabledControl,
-            pressed && styles.pressed,
           ]}
         >
           <Text style={styles.stepperButtonText}>-</Text>
@@ -271,10 +357,9 @@ function StepSetting({
         <Pressable
           disabled={value >= max}
           onPress={() => onChange(value + 1)}
-          style={({ pressed }) => [
+          style={[
             styles.stepperButton,
             value >= max && styles.disabledControl,
-            pressed && styles.pressed,
           ]}
         >
           <Text style={styles.stepperButtonText}>+</Text>
@@ -282,4 +367,25 @@ function StepSetting({
       </View>
     </View>
   );
+}
+
+// buildOptimisticPreferences updates UI immediately while persistence catches up.
+function buildOptimisticPreferences(
+  currentPreferences: LearningPreferences,
+  nextPreferences: EditablePreferencePatch,
+): LearningPreferences {
+  const timestamp = new Date().toISOString();
+
+  return {
+    ...currentPreferences,
+    ...nextPreferences,
+    updatedAt: timestamp,
+    sync: {
+      isDirty: true,
+      pendingOperationId: `${timestamp}:preferences:update`,
+      ...(currentPreferences.sync.lastSyncedAt
+        ? { lastSyncedAt: currentPreferences.sync.lastSyncedAt }
+        : {}),
+    },
+  };
 }

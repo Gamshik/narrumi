@@ -34,14 +34,6 @@ export default function TabsLayout(): ReactElement {
         <NativeTabs.Trigger.Label>Dictionary</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="audio">
-        <NativeTabs.Trigger.Icon
-          md="play_circle"
-          sf={{ default: 'play.circle', selected: 'play.circle.fill' }}
-        />
-        <NativeTabs.Trigger.Label>Audio</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-
       <NativeTabs.Trigger name="settings">
         <NativeTabs.Trigger.Icon
           md="settings"

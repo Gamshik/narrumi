@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import { useFocusEffect } from 'expo-router';
 import {
   FlatList,
   Pressable,
@@ -12,7 +11,6 @@ import {
 
 import {
   cefrLevels,
-  type LearningSignal,
   type VocabularyItem,
 } from '@domain/index';
 
@@ -22,21 +20,6 @@ import type { AppStyles, LevelFilter } from '../types';
 
 // levelFilters keeps the visual CEFR selector aligned with the domain levels.
 const levelFilters: readonly LevelFilter[] = ['ALL', ...cefrLevels];
-// signalFilters are local learning-signal filters for the bundled dictionary.
-const queueFilters = [
-  'All',
-  'No Signals',
-  'Selected',
-  'Translated',
-  'Used',
-  'Corrected',
-  'Pinned',
-  'Later',
-  'Known',
-] as const;
-// QueueFilter is the selected visual signal filter shown above the dictionary list.
-type QueueFilter = (typeof queueFilters)[number];
-
 // DictionaryScreenProps defines the dictionary list screen dependencies.
 type DictionaryScreenProps = {
   // styles is the current theme StyleSheet contract.
@@ -71,16 +54,6 @@ type LevelFiltersProps = {
   readonly onChangeLevel: (level: LevelFilter) => void;
 };
 
-// QueueFiltersProps defines the visual card-state selector contract.
-type QueueFiltersProps = {
-  // selectedFilter is the active visual state bucket.
-  readonly selectedFilter: QueueFilter;
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // onChangeFilter updates the visual card-state selection.
-  readonly onChangeFilter: (filter: QueueFilter) => void;
-};
-
 // DictionaryContentProps defines the loaded/error/list states for catalog results.
 type DictionaryContentProps = {
   // errorMessage is shown when the bundled catalog cannot be read.
@@ -94,9 +67,6 @@ type DictionaryContentProps = {
   // onSelectWord opens details for a selected row.
   readonly onSelectWord: (word: VocabularyItem) => void;
 };
-
-// SignalsByWordId maps vocabulary ids to local non-punitive learning events.
-type SignalsByWordId = ReadonlyMap<string, readonly LearningSignal[]>;
 
 // StateMessageProps defines a compact empty/error state.
 type StateMessageProps = {
@@ -121,37 +91,10 @@ export function DictionaryScreen({
   onSelectWord,
 }: DictionaryScreenProps): ReactElement {
   const [level, setLevel] = useState<LevelFilter>('ALL');
-  const [queueFilter, setQueueFilter] = useState<QueueFilter>('All');
   const [search, setSearch] = useState('');
   const [words, setWords] = useState<readonly VocabularyItem[]>([]);
-  const [signalsByWordId, setSignalsByWordId] = useState<SignalsByWordId>(
-    new Map(),
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>();
-
-  useFocusEffect(
-    useCallback(() => {
-      let isActive = true;
-
-      void localAppServices.loadLearningSignals
-        .execute()
-        .then(({ signals }) => {
-          if (isActive) {
-            setSignalsByWordId(groupSignalsByWordId(signals));
-          }
-        })
-        .catch(() => {
-          if (isActive) {
-            setErrorMessage('Local learning signals could not be loaded.');
-          }
-        });
-
-      return () => {
-        isActive = false;
-      };
-    }, []),
-  );
 
   useEffect(() => {
     // Filters can change while the catalog promise is resolving; ignore stale
@@ -187,31 +130,21 @@ export function DictionaryScreen({
     };
   }, [level, search]);
 
-  const filteredWords = useMemo(
-    () => filterWordsBySignals(words, queueFilter, signalsByWordId),
-    [signalsByWordId, queueFilter, words],
-  );
-
   return (
     <View style={styles.dictionaryScreen}>
       <DictionaryHeader styles={styles} />
       <SearchBar search={search} styles={styles} onChangeSearch={setSearch} />
       <LevelFilters level={level} styles={styles} onChangeLevel={setLevel} />
-      <QueueFilters
-        selectedFilter={queueFilter}
-        styles={styles}
-        onChangeFilter={setQueueFilter}
-      />
       <Text style={styles.counterText}>
         {isLoading
           ? 'Loading local catalog...'
-          : `${filteredWords.length} words available`}
+          : `${words.length} words available`}
       </Text>
       <DictionaryContent
         errorMessage={errorMessage}
         isLoading={isLoading}
         styles={styles}
-        words={filteredWords}
+        words={words}
         onSelectWord={onSelectWord}
       />
     </View>
@@ -290,76 +223,6 @@ function LevelFilters({
       </ScrollView>
     </View>
   );
-}
-
-// QueueFilters renders local learning-signal filters backed by AsyncStorage.
-function QueueFilters({
-  selectedFilter,
-  styles,
-  onChangeFilter,
-}: QueueFiltersProps): ReactElement {
-  return (
-    <View style={styles.queueFilterBar}>
-      {queueFilters.map((filter) => (
-        <Pressable
-          key={filter}
-          onPress={() => onChangeFilter(filter)}
-          style={[
-            styles.queueFilterOption,
-            filter === selectedFilter && styles.activeQueueFilterOption,
-          ]}
-        >
-          <Text
-            style={[
-              styles.queueFilterText,
-              filter === selectedFilter && styles.activeQueueFilterText,
-            ]}
-          >
-            {filter}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-// filterWordsBySignals applies dictionary filters from local learning signals.
-function filterWordsBySignals(
-  words: readonly VocabularyItem[],
-  queueFilter: QueueFilter,
-  signalsByWordId: SignalsByWordId,
-): readonly VocabularyItem[] {
-  if (queueFilter === 'All') {
-    return words;
-  }
-
-  return words.filter((word) => {
-    const signals = signalsByWordId.get(word.id) ?? [];
-
-    if (queueFilter === 'No Signals') {
-      return signals.length === 0;
-    }
-
-    return signals.some((signal) => signal.kind === toSignalKind(queueFilter));
-  });
-}
-
-// groupSignalsByWordId keeps dictionary filtering independent from storage layout.
-function groupSignalsByWordId(
-  signals: readonly LearningSignal[],
-): SignalsByWordId {
-  return signals.reduce<Map<string, readonly LearningSignal[]>>((groups, signal) => {
-    groups.set(signal.wordId, [...(groups.get(signal.wordId) ?? []), signal]);
-
-    return groups;
-  }, new Map());
-}
-
-// toSignalKind maps visual dictionary filters to internal non-punitive events.
-function toSignalKind(
-  queueFilter: Exclude<QueueFilter, 'All' | 'No Signals'>,
-): LearningSignal['kind'] {
-  return queueFilter.toLowerCase() as LearningSignal['kind'];
 }
 
 // DictionaryContent selects the correct list, empty, or error state.

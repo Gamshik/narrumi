@@ -19,6 +19,8 @@ export default function Layout(): ReactElement {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="daily-session" options={{ headerShown: false }} />
+          <Stack.Screen name="episode-reader" options={{ headerShown: false }} />
+          <Stack.Screen name="series-details" options={{ headerShown: false }} />
           <Stack.Screen
             name="dictionary-word-details"
             options={{

@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import {
   learningGenres,
   type LearningGenre,
-  type LearningSignalKind,
+  type LearningPreferences,
+  type Series,
   type VocabularyItem,
   type WordSet,
 } from '@domain/index';
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
+import { EpisodeReaderScreen } from './EpisodeReaderScreen';
 
 // genreLabels maps domain genre values to user-facing labels from the PRD.
 const genreLabels: Record<LearningGenre, string> = {
@@ -21,33 +23,70 @@ const genreLabels: Record<LearningGenre, string> = {
   'short-fiction': 'Short Fiction',
 };
 
-// WordPickerScreenProps carries themed styles into the local Story Words flow.
+// DailySessionScreenProps carries themed styles into the unified episode flow.
 type DailySessionScreenProps = {
+  // seriesId scopes the episode setup to one local story.
+  readonly seriesId?: string;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
+  // onExit returns from the story flow to the stories list.
+  readonly onExit: () => void;
 };
 
-// WordPickerStage tracks the visible part of the local Story Words flow.
-type WordPickerStage = 'loading' | 'picker' | 'genre' | 'generation';
+// EpisodeFlowStage tracks the unified Story Words -> Reader flow.
+type EpisodeFlowStage = 'loading' | 'setup' | 'reader';
 
-// WordPickerState stores the loaded local word set and vocabulary suggestions.
-type WordPickerState = {
-  // wordSet is the persisted Today's Words selection.
-  readonly wordSet: WordSet;
-  // words are the ordered vocabulary suggestions shown in Word Picker.
+// EpisodeWordSelectionState stores current local Story Words and settings.
+type EpisodeWordSelectionState = {
+  // preferences define the configured number of proposed Story Words.
+  readonly preferences: LearningPreferences;
+  // todayWordSet is preserved as the local daily source.
+  readonly todayWordSet: WordSet;
+  // episodeWordSet is the editable current generation set.
+  readonly episodeWordSet: WordSet;
+  // words are the resolved visible words for the current episode.
   readonly words: readonly VocabularyItem[];
 };
 
-// DailySessionScreen now hosts the first local Word Picker step for the series MVP.
+// DailySessionScreen hosts Story Words, AI generation, and Episode Reader together.
 export function DailySessionScreen({
+  onExit,
+  seriesId,
   styles,
 }: DailySessionScreenProps): ReactElement {
-  const [stage, setStage] = useState<WordPickerStage>('loading');
-  const [pickerState, setPickerState] = useState<WordPickerState>();
+  const [stage, setStage] = useState<EpisodeFlowStage>('loading');
+  const [selectionState, setSelectionState] =
+    useState<EpisodeWordSelectionState>();
+  const [series, setSeries] = useState<Series>();
   const [selectedGenre, setSelectedGenre] = useState<LearningGenre>();
   const [errorMessage, setErrorMessage] = useState<string>();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isReplacing, setIsReplacing] = useState(false);
+  const [generatedEpisodeId, setGeneratedEpisodeId] = useState<string>();
   const [isOnline, setIsOnline] = useState(false);
+
+  const loadWordSelection = useCallback(async (isActive = true): Promise<void> => {
+    setErrorMessage(undefined);
+
+    try {
+      const result = await localAppServices.startEpisodeWordSelection.execute();
+      const loadedSeries = seriesId
+        ? (await localAppServices.listSeries.execute()).series.find(
+            (candidate) => candidate.id === seriesId,
+          )
+        : undefined;
+
+      if (isActive) {
+        setSeries(loadedSeries);
+        setSelectionState(result);
+        setSelectedGenre(loadedSeries?.genre ?? result.preferences.preferredGenre);
+        setStage('setup');
+      }
+    } catch {
+      if (isActive) {
+        setErrorMessage('Local Story Words could not be loaded.');
+      }
+    }
+  }, [seriesId]);
 
   useEffect(() => {
     let isActive = true;
@@ -61,93 +100,91 @@ export function DailySessionScreen({
       })
       .catch(() => setIsOnline(false));
 
-    void startLocalWordPicker(isActive);
+    void loadWordSelection(isActive);
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [loadWordSelection]);
 
-  const currentWord = useMemo(
-    () =>
-      pickerState?.words.find((word) =>
-        pickerState.wordSet.wordIds.includes(word.id),
-      ),
-    [pickerState],
-  );
-
-  const startLocalWordPicker = async (isActive = true): Promise<void> => {
-    setIsLoading(true);
-    setErrorMessage(undefined);
-
-    try {
-      const { wordSet } = await localAppServices.startTodaysWordSet.execute();
-      const words = await loadWordSetWords(wordSet);
-
-      if (isActive) {
-        setPickerState({ wordSet, words });
-        setStage(words.length > 0 ? 'picker' : 'genre');
-      }
-    } catch {
-      if (isActive) {
-        setErrorMessage('Local Story Words could not be loaded.');
-      }
-    } finally {
-      if (isActive) {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  const applyWordAction = async (
-    word: VocabularyItem,
-    signalKind: LearningSignalKind,
-  ): Promise<void> => {
-    if (!pickerState) {
+  const replaceWord = async (wordId: string): Promise<void> => {
+    if (!selectionState) {
       return;
     }
 
-    setIsLoading(true);
+    setIsReplacing(true);
     setErrorMessage(undefined);
 
     try {
-      await localAppServices.recordLearningSignal.execute({
-        wordId: word.id,
-        kind: signalKind,
+      const result = await localAppServices.replaceEpisodeStoryWord.execute({
+        episodeWordSet: selectionState.episodeWordSet,
+        wordId,
       });
 
-      const wordSet =
-        signalKind === 'selected' || signalKind === 'pinned'
-          ? await localAppServices.updateWordSet.execute({
-              wordSet: pickerState.wordSet,
-              addWordId: word.id,
-            })
-          : await localAppServices.updateWordSet.execute({
-              wordSet: pickerState.wordSet,
-              removeWordId: word.id,
-            });
-
-      setPickerState({ ...pickerState, wordSet });
-
-      if (wordSet.wordIds.length === 0 || signalKind === 'selected') {
-        setStage('genre');
-      }
+      setSelectionState({
+        ...selectionState,
+        episodeWordSet: result.episodeWordSet,
+        words: result.words,
+      });
     } catch {
-      setErrorMessage('Story Word choice could not be saved locally.');
+      setErrorMessage('Story Word could not be replaced locally.');
     } finally {
-      setIsLoading(false);
+      setIsReplacing(false);
     }
   };
 
-  const selectGenre = (genre: LearningGenre): void => {
-    setSelectedGenre(genre);
-    setStage('generation');
+  const generateEpisode = async (): Promise<void> => {
+    if (!seriesId) {
+      setErrorMessage('Open a series before generating an episode.');
+
+      return;
+    }
+
+    if (!selectionState) {
+      setErrorMessage('Story Words must be loaded before generation.');
+
+      return;
+    }
+
+    try {
+      const result = await localAppServices.generateEpisode.execute({
+        episodeWordSet: selectionState.episodeWordSet,
+        seriesId,
+      });
+
+      setGeneratedEpisodeId(result.episode.id);
+      setStage('reader');
+    } catch {
+      setErrorMessage(
+        'Episode generation is online-only and requires configured Supabase Edge Functions.',
+      );
+    }
   };
+
+  if (stage === 'reader') {
+    return (
+      <EpisodeReaderScreen
+        {...(generatedEpisodeId ? { episodeId: generatedEpisodeId } : {})}
+        {...(seriesId ? { seriesId } : {})}
+        styles={styles}
+        onExit={onExit}
+      />
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.screenContent}>
       <View style={styles.homeHeader}>
-        <Text style={styles.largeTitle}>Story Words</Text>
+        <View>
+          <Text style={styles.appCategory}>NEXT EPISODE</Text>
+          <Text style={styles.largeTitle}>{series?.title ?? 'Story Setup'}</Text>
+        </View>
+        <Pressable
+          onPress={onExit}
+          style={({ pressed }) => [styles.smallPrimaryButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.smallPrimaryButtonText}>Exit</Text>
+        </Pressable>
       </View>
 
       {errorMessage ? (
@@ -156,121 +193,107 @@ export function DailySessionScreen({
         </View>
       ) : null}
 
-      {stage === 'loading' ? (
+      {stage === 'loading' || !selectionState ? (
         <View style={styles.settingsCard}>
-          <Text style={styles.actionTitle}>Loading local Word Picker...</Text>
+          <Text style={styles.actionTitle}>Loading local Story Words...</Text>
           <Text style={styles.secondaryText}>
-            Suggestions come from the bundled dictionary and local learning
-            signals on this device.
+            The app checks saved daily words and the last current episode set.
           </Text>
         </View>
-      ) : null}
-
-      {stage === 'picker' && pickerState && currentWord ? (
-        <StoryWordCard
-          isLoading={isLoading}
-          progressLabel={`${pickerState.wordSet.wordIds.indexOf(currentWord.id) + 1} of ${
-            pickerState.wordSet.wordIds.length
-          }`}
-          styles={styles}
-          word={currentWord}
-          onAction={applyWordAction}
-        />
-      ) : null}
-
-      {stage === 'genre' ? (
-        <GenreSelection
-          isLoading={isLoading}
-          selectedGenre={selectedGenre}
-          styles={styles}
-          onSelectGenre={selectGenre}
-        />
-      ) : null}
-
-      {stage === 'generation' ? (
-        <GenerationState
-          isOnline={isOnline}
-          selectedGenre={selectedGenre}
-          selectedWordCount={pickerState?.wordSet.wordIds.length ?? 0}
-          styles={styles}
-        />
-      ) : null}
+      ) : (
+        <>
+          <StoryWordsPanel
+            isReplacing={isReplacing}
+            selectionState={selectionState}
+            styles={styles}
+            onReplaceWord={(wordId) => {
+              void replaceWord(wordId);
+            }}
+          />
+          <GenreSelection
+            selectedGenre={selectedGenre}
+            styles={styles}
+            onSelectGenre={setSelectedGenre}
+          />
+          <GenerationPanel
+            isOnline={isOnline}
+            selectedGenre={selectedGenre}
+            selectedWordCount={selectionState.words.length}
+            styles={styles}
+            onGenerateEpisode={() => {
+              void generateEpisode();
+            }}
+          />
+        </>
+      )}
     </ScrollView>
   );
 }
 
-// StoryWordCard renders one Word Picker suggestion with non-punitive decisions.
-function StoryWordCard({
-  isLoading,
-  progressLabel,
+// StoryWordsPanel shows the current editable words while preserving today's source.
+function StoryWordsPanel({
+  isReplacing,
+  selectionState,
   styles,
-  word,
-  onAction,
+  onReplaceWord,
 }: {
-  // isLoading disables duplicate local writes.
-  readonly isLoading: boolean;
-  // progressLabel shows the suggestion position inside Today's Words.
-  readonly progressLabel: string;
+  // isReplacing disables duplicate local writes.
+  readonly isReplacing: boolean;
+  // selectionState carries today's source and current episode words.
+  readonly selectionState: EpisodeWordSelectionState;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
-  // word is the current local Word Picker suggestion.
-  readonly word: VocabularyItem;
-  // onAction persists the selected Word Picker signal.
-  readonly onAction: (
-    word: VocabularyItem,
-    signalKind: LearningSignalKind,
-  ) => void;
+  // onReplaceWord changes only the current episode word set.
+  readonly onReplaceWord: (wordId: string) => void;
 }): ReactElement {
   return (
-    <View style={styles.practiceCard}>
-      <Text style={styles.sectionLabel}>{progressLabel}</Text>
-      <Text style={styles.practiceWord}>{word.word}</Text>
-      <Text style={styles.partOfSpeech}>{word.partOfSpeech}</Text>
-      <Text style={styles.phonetics}>
-        {word.phonetics.us ?? word.phonetics.uk ?? 'No phonetics'}
-      </Text>
-      <Text style={styles.exampleText}>{word.examples[0] ?? 'No example'}</Text>
-      <View style={styles.practiceActions}>
-        <SecondaryAction
-          disabled={isLoading}
-          label="Know it"
-          styles={styles}
-          onPress={() => onAction(word, 'known')}
-        />
-        <PrimaryAction
-          disabled={isLoading}
-          label="Use in episode"
-          styles={styles}
-          onPress={() => onAction(word, 'selected')}
-        />
+    <View style={styles.settingsCard}>
+      <View style={styles.settingRow}>
+        <View style={styles.flex}>
+          <Text style={styles.actionTitle}>Story Words</Text>
+          <Text style={styles.secondaryText}>
+            Showing {selectionState.words.length} of{' '}
+            {selectionState.preferences.storyWordGoal} words from settings.
+          </Text>
+        </View>
+        <Text style={styles.settingValue}>
+          Today: {selectionState.todayWordSet.wordIds.length}
+        </Text>
       </View>
-      <View style={styles.practiceActions}>
-        <SecondaryAction
-          disabled={isLoading}
-          label="Later"
-          styles={styles}
-          onPress={() => onAction(word, 'later')}
-        />
-        <SecondaryAction
-          disabled={isLoading}
-          label="Pin"
-          styles={styles}
-          onPress={() => onAction(word, 'pinned')}
-        />
-      </View>
+      {selectionState.words.map((word) => (
+        <View key={word.id} style={styles.storyWordRow}>
+          <View style={styles.flex}>
+            <View style={styles.wordHeading}>
+              <Text style={styles.wordTitle}>{word.word}</Text>
+              <Text style={styles.partOfSpeech}>{word.partOfSpeech}</Text>
+            </View>
+            <Text style={styles.secondaryText} numberOfLines={2}>
+              {word.examples[0] ?? 'No local example'}
+            </Text>
+          </View>
+          <Pressable
+            disabled={isReplacing}
+            onPress={() => onReplaceWord(word.id)}
+            style={({ pressed }) => [
+              styles.smallPrimaryButton,
+              isReplacing && styles.disabledControl,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.smallPrimaryButtonText}>Replace</Text>
+          </Pressable>
+        </View>
+      ))}
     </View>
   );
 }
 
 // GenreSelection renders the approved MVP genre choices before generation.
 function GenreSelection({
-  isLoading,
   selectedGenre,
   styles,
   onSelectGenre,
 }: {
-  // isLoading disables duplicate genre writes.
-  readonly isLoading: boolean;
   // selectedGenre is the locally selected story genre when present.
   readonly selectedGenre: LearningGenre | undefined;
   // styles is the current theme StyleSheet contract.
@@ -280,35 +303,40 @@ function GenreSelection({
 }): ReactElement {
   return (
     <View style={styles.settingsCard}>
-      <Text style={styles.actionTitle}>Choose a series genre</Text>
-      <Text style={styles.secondaryText}>
-        The next implementation step will attach this to a personal series.
-      </Text>
-      {learningGenres.map((genre) => (
-        <Pressable
-          disabled={isLoading}
-          key={genre}
-          onPress={() => onSelectGenre(genre)}
-          style={({ pressed }) => [
-            styles.genreRow,
-            genre === selectedGenre && styles.activeGenreRow,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={styles.actionTitle}>{genreLabels[genre]}</Text>
-          <Text style={styles.rowChevron}>›</Text>
-        </Pressable>
-      ))}
+      <Text style={styles.actionTitle}>Genre</Text>
+      <View style={styles.choiceRow}>
+        {learningGenres.map((genre) => (
+          <Pressable
+            key={genre}
+            onPress={() => onSelectGenre(genre)}
+            style={({ pressed }) => [
+              styles.goalChoice,
+              genre === selectedGenre && styles.activeGoalChoice,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text
+              style={[
+                styles.goalChoiceText,
+                genre === selectedGenre && styles.activeGoalChoiceText,
+              ]}
+            >
+              {genreLabels[genre]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
 
-// GenerationState renders the explicit offline state for server-only episode generation.
-function GenerationState({
+// GenerationPanel opens the AI reader while keeping server-only status explicit.
+function GenerationPanel({
   isOnline,
   selectedGenre,
   selectedWordCount,
   styles,
+  onGenerateEpisode,
 }: {
   // isOnline tells whether server-backed generation could be attempted.
   readonly isOnline: boolean;
@@ -318,6 +346,8 @@ function GenerationState({
   readonly selectedWordCount: number;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
+  // onGenerateEpisode calls the Supabase AI boundary through application use cases.
+  readonly onGenerateEpisode: () => void;
 }): ReactElement {
   return (
     <View style={styles.goalCard}>
@@ -328,87 +358,24 @@ function GenerationState({
       </Text>
       <View style={styles.offlineNotice}>
         <Text style={styles.stateMessageTitle}>
-          {isOnline ? 'Generation backend is not connected yet.' : 'Offline mode'}
+          {isOnline ? 'Ready for AI generation' : 'Offline mode'}
         </Text>
         <Text style={styles.secondaryText}>
-          AI episodes require a Supabase Edge Function. Local Story Words and
-          signals are saved first and can sync later.
+          Episode generation requires Supabase Edge Functions and remains disabled
+          while the device is offline.
         </Text>
       </View>
+      <Pressable
+        disabled={!isOnline}
+        onPress={onGenerateEpisode}
+        style={({ pressed }) => [
+          styles.primaryButton,
+          !isOnline && styles.disabledControl,
+          pressed && styles.pressed,
+        ]}
+      >
+        <Text style={styles.primaryButtonText}>Generate Episode</Text>
+      </Pressable>
     </View>
   );
-}
-
-// PrimaryAction renders the main filled action button.
-function PrimaryAction({
-  disabled,
-  label,
-  styles,
-  onPress,
-}: {
-  // disabled prevents duplicate local writes while an action is pending.
-  readonly disabled: boolean;
-  // label is the visible action text.
-  readonly label: string;
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // onPress forwards the user intent to the screen use case handler.
-  readonly onPress: () => void;
-}): ReactElement {
-  return (
-    <Pressable
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.primaryButton,
-        disabled && styles.disabledControl,
-        pressed && styles.pressed,
-      ]}
-    >
-      <Text style={styles.primaryButtonText}>{label}</Text>
-    </Pressable>
-  );
-}
-
-// SecondaryAction renders the neutral companion action button.
-function SecondaryAction({
-  disabled,
-  label,
-  styles,
-  onPress,
-}: {
-  // disabled prevents duplicate local writes while an action is pending.
-  readonly disabled: boolean;
-  // label is the visible action text.
-  readonly label: string;
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // onPress forwards the user intent to the screen use case handler.
-  readonly onPress: () => void;
-}): ReactElement {
-  return (
-    <Pressable
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.secondaryButton,
-        disabled && styles.disabledControl,
-        pressed && styles.pressed,
-      ]}
-    >
-      <Text style={styles.secondaryButtonText}>{label}</Text>
-    </Pressable>
-  );
-}
-
-// loadWordSetWords resolves Today's Words through the vocabulary use case.
-async function loadWordSetWords(wordSet: WordSet): Promise<readonly VocabularyItem[]> {
-  const words = await localAppServices.browseVocabulary.execute();
-  const wordsById = new Map(words.map((word) => [word.id, word]));
-
-  return wordSet.wordIds.flatMap((wordId) => {
-    const word = wordsById.get(wordId);
-
-    return word ? [word] : [];
-  });
 }
