@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import type { Episode, TranslationAnnotation } from '@domain/index';
+import type {
+  Episode,
+  EpisodeInteraction,
+  TranslationAnnotation,
+} from '@domain/index';
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
@@ -26,7 +30,7 @@ type EpisodeReaderScreenProps = {
   readonly onExit?: () => void;
 };
 
-// EpisodeReaderScreen renders one complete series timeline and active narration.
+// EpisodeReaderScreen renders saved story beats and decisions in episode order.
 export function EpisodeReaderScreen({
   episodeId,
   isReadOnly = false,
@@ -50,7 +54,9 @@ export function EpisodeReaderScreen({
   const loadReader = useCallback(async (): Promise<void> => {
     try {
       if (seriesId) {
-        const details = await localAppServices.loadSeriesDetails.execute({ seriesId });
+        const details = await localAppServices.loadSeriesDetails.execute({
+          seriesId,
+        });
 
         if (details.episodes.length > 0) {
           const selectedIndex = episodeId
@@ -150,18 +156,15 @@ export function EpisodeReaderScreen({
     setCurrentSentenceIndex(sentenceIndex);
   };
 
-  const submitChoice = async (choiceId: string): Promise<void> => {
-    const hasSavedInteraction =
-      activeEpisode?.interaction.selectedChoiceId !== undefined ||
-      activeEpisode?.interaction.userReply !== undefined;
-
-    if (
-      !activeEpisode ||
-      isReadOnly ||
-      hasSavedInteraction
-    ) {
+  const submitChoice = async (
+    interactionId: string,
+    choiceId: string,
+  ): Promise<void> => {
+    if (!activeEpisode || isReadOnly || activeEpisode.isComplete) {
       return;
     }
+
+    const previousSentenceCount = activeEpisode.sentences.length;
 
     setIsSubmittingInteraction(true);
     await pauseNarration();
@@ -170,12 +173,18 @@ export function EpisodeReaderScreen({
       const result = await localAppServices.submitEpisodeInteraction.execute({
         choiceId,
         episodeId: activeEpisode.id,
+        interactionId,
       });
       const updatedEpisodes = episodes.map((episode, episodeIndex) =>
         episodeIndex === activeEpisodeIndex ? result.episode : episode,
       );
 
       setEpisodes(updatedEpisodes);
+      setCurrentSentenceIndex(
+        previousSentenceCount < result.episode.sentences.length
+          ? previousSentenceCount
+          : 0,
+      );
       setInteractionErrorMessage(undefined);
     } catch (error) {
       console.error('submitChoice error:', error);
@@ -184,6 +193,8 @@ export function EpisodeReaderScreen({
           ? error.message
           : 'Story interaction is online-only and requires configured Supabase Edge Functions.',
       );
+      // The answer is persisted before the network call, so reload its draft state.
+      await loadReader();
     } finally {
       setIsSubmittingInteraction(false);
     }
@@ -233,13 +244,9 @@ export function EpisodeReaderScreen({
         {episodes.map((episode, episodeIndex) => {
           const isActiveEpisode = episodeIndex === activeEpisodeIndex;
           const isLastEpisode = episodeIndex === episodes.length - 1;
-          const savedChoice = episode.interaction.choices.find(
-            (choice) => choice.id === episode.interaction.selectedChoiceId,
-          );
-          const hasSavedAnswer =
-            savedChoice !== undefined || episode.interaction.userReply !== undefined;
-          const canAnswer =
-            !isReadOnly && isLastEpisode && !hasSavedAnswer;
+          const pendingInteraction = [...episode.interactions]
+            .reverse()
+            .find((interaction) => interaction.feedback === undefined);
 
           return (
             <View key={episode.id} style={styles.readerEpisodeBlock}>
@@ -251,50 +258,72 @@ export function EpisodeReaderScreen({
                   {episode.title ?? 'Untitled Episode'}
                 </Text>
                 {episode.previouslyRecap ? (
-                  <Text style={styles.secondaryText}>{episode.previouslyRecap}</Text>
+                  <Text style={styles.secondaryText}>
+                    {episode.previouslyRecap}
+                  </Text>
                 ) : null}
               </View>
 
               <View style={styles.readerStory}>
-                {episode.sentences.map((sentence, sentenceIndex) => (
-                  <EpisodeSentence
-                    annotations={episode.annotations}
-                    isActive={
-                      isActiveEpisode && sentenceIndex === currentSentenceIndex
-                    }
-                    isDimmed={
-                      isActiveEpisode && sentenceIndex !== currentSentenceIndex
-                    }
-                    key={`${episode.id}:${sentenceIndex}`}
-                    sentence={sentence}
-                    sentenceIndex={sentenceIndex}
-                    styles={styles}
-                    onPressAnnotation={setSelectedAnnotation}
-                    onSelectSentence={(nextSentenceIndex) => {
-                      void selectSentence(episodeIndex, nextSentenceIndex);
-                    }}
-                  />
-                ))}
+                {episode.sentences.map((sentence, sentenceIndex) => {
+                  const sentenceEndIndex = sentenceIndex + 1;
+                  const interactionsAtBoundary = episode.interactions.filter(
+                    (interaction) =>
+                      interaction.sentenceEndIndex === sentenceEndIndex,
+                  );
+
+                  return (
+                    <View key={`${episode.id}:${sentenceIndex}`}>
+                      <EpisodeSentence
+                        annotations={episode.annotations}
+                        isActive={
+                          isActiveEpisode &&
+                          sentenceIndex === currentSentenceIndex
+                        }
+                        isDimmed={
+                          isActiveEpisode &&
+                          sentenceIndex !== currentSentenceIndex
+                        }
+                        sentence={sentence}
+                        sentenceIndex={sentenceIndex}
+                        styles={styles}
+                        onPressAnnotation={setSelectedAnnotation}
+                        onSelectSentence={(nextSentenceIndex) => {
+                          void selectSentence(episodeIndex, nextSentenceIndex);
+                        }}
+                      />
+                      {interactionsAtBoundary.map((interaction) => (
+                        <EpisodeInteractionBlock
+                          canAnswer={
+                            !isReadOnly &&
+                            isLastEpisode &&
+                            !episode.isComplete &&
+                            pendingInteraction?.id === interaction.id
+                          }
+                          interaction={interaction}
+                          isReadOnly={isReadOnly}
+                          isSubmitting={isSubmittingInteraction}
+                          key={interaction.id}
+                          styles={styles}
+                          onSelectChoice={(choiceId) => {
+                            void submitChoice(interaction.id, choiceId);
+                          }}
+                        />
+                      ))}
+                    </View>
+                  );
+                })}
               </View>
 
-              <View style={styles.readerInteraction}>
-                {hasSavedAnswer || isReadOnly ? (
-                  <SavedEpisodeAnswer
-                    episode={episode}
-                    savedChoiceLabel={savedChoice?.label}
-                    styles={styles}
-                  />
-                ) : canAnswer ? (
-                  <EpisodeChoice
-                    episode={episode}
-                    isSubmitting={isSubmittingInteraction}
-                    styles={styles}
-                    onSelectChoice={(choiceId) => {
-                      void submitChoice(choiceId);
-                    }}
-                  />
-                ) : null}
-              </View>
+              {episode.isComplete ? (
+                <View style={styles.readerComplete}>
+                  <Text style={styles.sectionLabel}>EPISODE COMPLETE</Text>
+                  <Text style={styles.secondaryText}>
+                    {episode.cliffhanger ??
+                      'This episode is complete. The series can continue.'}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           );
         })}
@@ -330,16 +359,84 @@ export function EpisodeReaderScreen({
   );
 }
 
-// EpisodeChoice renders the only interactive answer point in the current series.
+// EpisodeInteractionBlock chooses read-only, answered, or active interaction UI.
+function EpisodeInteractionBlock({
+  canAnswer,
+  interaction,
+  isReadOnly,
+  isSubmitting,
+  onSelectChoice,
+  styles,
+}: {
+  // canAnswer permits only the latest pending turn in the current episode.
+  readonly canAnswer: boolean;
+  // interaction is one ordered decision inside the episode timeline.
+  readonly interaction: EpisodeInteraction;
+  // isReadOnly prevents historical episodes from becoming interactive.
+  readonly isReadOnly: boolean;
+  // isSubmitting disables duplicate network requests.
+  readonly isSubmitting: boolean;
+  // onSelectChoice submits the selected controlled outcome.
+  readonly onSelectChoice: (choiceId: string) => void;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+}): ReactElement | null {
+  const savedChoice = interaction.choices.find(
+    (choice) => choice.id === interaction.selectedChoiceId,
+  );
+  const hasSavedAnswer =
+    savedChoice !== undefined || interaction.userReply !== undefined;
+
+  if (interaction.feedback !== undefined || (isReadOnly && hasSavedAnswer)) {
+    return (
+      <View style={styles.readerInteraction}>
+        <SavedEpisodeAnswer
+          interaction={interaction}
+          savedChoiceLabel={savedChoice?.label}
+          styles={styles}
+        />
+      </View>
+    );
+  }
+
+  if (canAnswer) {
+    return (
+      <View style={styles.readerInteraction}>
+        <EpisodeChoice
+          interaction={interaction}
+          isSubmitting={isSubmitting}
+          styles={styles}
+          onSelectChoice={onSelectChoice}
+        />
+      </View>
+    );
+  }
+
+  if (hasSavedAnswer) {
+    return (
+      <View style={styles.readerInteraction}>
+        <SavedEpisodeAnswer
+          interaction={interaction}
+          savedChoiceLabel={savedChoice?.label}
+          styles={styles}
+        />
+      </View>
+    );
+  }
+
+  return null;
+}
+
+// EpisodeChoice renders the active controlled decision inside the episode.
 function EpisodeChoice({
-  episode,
+  interaction,
   isSubmitting,
   styles,
   onSelectChoice,
 }: {
-  // episode is the current unanswered story unit.
-  readonly episode: Episode;
-  // isSubmitting disables duplicate local writes.
+  // interaction is the current unanswered story turn.
+  readonly interaction: EpisodeInteraction;
+  // isSubmitting disables duplicate local and remote writes.
   readonly isSubmitting: boolean;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
@@ -349,41 +446,48 @@ function EpisodeChoice({
   return (
     <>
       <Text style={styles.sectionLabel}>STORY CHOICE</Text>
-      <Text style={styles.actionTitle}>{episode.interaction.prompt}</Text>
+      <Text style={styles.actionTitle}>{interaction.prompt}</Text>
       <View style={styles.choiceRow}>
-        {episode.interaction.choices.map((choice) => (
-          <Pressable
-            disabled={isSubmitting}
-            key={choice.id}
-            onPress={() => onSelectChoice(choice.id)}
-            style={({ pressed }) => [
-              styles.readerChoice,
-              isSubmitting && styles.disabledControl,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.readerChoiceText}>{choice.label}</Text>
-          </Pressable>
-        ))}
+        {interaction.choices.map((choice) => {
+          const isSelected = interaction.selectedChoiceId === choice.id;
+
+          return (
+            <Pressable
+              disabled={isSubmitting}
+              key={choice.id}
+              onPress={() => onSelectChoice(choice.id)}
+              style={({ pressed }) => [
+                styles.readerChoice,
+                isSelected && styles.readerChoiceSelected,
+                isSubmitting && styles.disabledControl,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.readerChoiceText}>
+                {isSubmitting && isSelected ? 'Continuing...' : choice.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </>
   );
 }
 
-// SavedEpisodeAnswer renders persisted learner input without interactive choices.
+// SavedEpisodeAnswer renders one persisted answer and its language feedback.
 function SavedEpisodeAnswer({
-  episode,
+  interaction,
   savedChoiceLabel,
   styles,
 }: {
-  // episode contains the persisted interaction answer and feedback.
-  readonly episode: Episode;
+  // interaction contains the persisted learner answer and feedback.
+  readonly interaction: EpisodeInteraction;
   // savedChoiceLabel resolves the selected choice id for display.
   readonly savedChoiceLabel: string | undefined;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
 }): ReactElement {
-  const answer = episode.interaction.userReply ?? savedChoiceLabel;
+  const answer = interaction.userReply ?? savedChoiceLabel;
 
   return (
     <>
@@ -391,10 +495,10 @@ function SavedEpisodeAnswer({
       <View style={styles.readerSavedAnswer}>
         <Text style={styles.actionTitle}>{answer ?? 'No answer was saved.'}</Text>
       </View>
-      {episode.interaction.feedback ? (
+      {interaction.feedback ? (
         <View style={styles.readerFeedback}>
           <Text style={styles.sectionLabel}>FEEDBACK</Text>
-          <Text style={styles.secondaryText}>{episode.interaction.feedback}</Text>
+          <Text style={styles.secondaryText}>{interaction.feedback}</Text>
         </View>
       ) : null}
     </>

@@ -85,6 +85,9 @@ export function SeriesDetailsScreen({
     );
   }
 
+  const latestEpisode = state.episodes.at(-1);
+  const hasEpisodeInProgress =
+    latestEpisode !== undefined && !latestEpisode.isComplete;
   const nextEpisodeNumber = state.episodes.length + 1;
 
   return (
@@ -102,19 +105,38 @@ export function SeriesDetailsScreen({
       </View>
 
       <Pressable
-        onPress={() => onPrepareEpisode(state.series.id)}
+        onPress={() => {
+          if (latestEpisode && !latestEpisode.isComplete) {
+            onOpenEpisode(latestEpisode.id);
+
+            return;
+          }
+
+          onPrepareEpisode(state.series.id);
+        }}
         style={({ pressed }) => [
           styles.continueBanner,
           styles.seriesPrepareBanner,
           pressed && styles.pressed,
         ]}
       >
-        <Text style={styles.continueTag}>PREPARE NEXT</Text>
-        <Text style={styles.continueTitle}>Episode {nextEpisodeNumber}</Text>
-        <Text style={styles.continueText}>
-          Choose Story Words and generate the next AI episode.
+        <Text style={styles.continueTag}>
+          {hasEpisodeInProgress ? 'CONTINUE EPISODE' : 'PREPARE NEXT'}
         </Text>
-        <Text style={styles.bannerButtonText}>Start Setup</Text>
+        <Text style={styles.continueTitle}>
+          Episode{' '}
+          {hasEpisodeInProgress
+            ? (latestEpisode?.orderIndex ?? nextEpisodeNumber)
+            : nextEpisodeNumber}
+        </Text>
+        <Text style={styles.continueText}>
+          {hasEpisodeInProgress
+            ? 'Return to the latest decision and finish this episode arc.'
+            : 'Choose Story Words and generate the next AI episode.'}
+        </Text>
+        <Text style={styles.bannerButtonText}>
+          {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
+        </Text>
       </Pressable>
 
       <View style={styles.settingsCard}>
@@ -188,6 +210,11 @@ function EpisodeHistoryRow({
         </View>
         <Text style={styles.secondaryText} numberOfLines={2}>
           {episode.summaryUpdate}
+        </Text>
+        <Text style={styles.sectionLabel}>
+          {episode.isComplete
+            ? `${episode.interactions.length} DECISIONS - COMPLETE`
+            : `${episode.interactions.length} DECISIONS - IN PROGRESS`}
         </Text>
       </View>
       <Text style={styles.rowChevron}>›</Text>
