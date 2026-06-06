@@ -59,6 +59,7 @@ const episodeSentences: readonly string[] = [
 // submitRequest is bounded context used by interaction finalizer tests.
 const submitRequest: SubmitInteractionRequest = {
   episodeId: 'episode:test',
+  interactionId: 'interaction:test:1',
   seriesId: 'series:test',
   cefrLevel: 'B1',
   genre: 'short-fiction',
@@ -75,6 +76,8 @@ const submitRequest: SubmitInteractionRequest = {
   },
   episodeSummary: 'Mira and Leo found a hidden blue door.',
   interactionPrompt: 'What should Mira do?',
+  interactionCount: 1,
+  previousDecisions: [],
   selectedChoiceId: 'open',
   selectedChoiceLabel: 'Open the door carefully',
   userReply: 'Open the door carefully',
@@ -236,6 +239,15 @@ Deno.test('finalizeInteractionPayload synchronizes continuation and summary', ()
         'Mira turned the handle slowly.',
         'A blue passage appeared behind the door.',
       ],
+      isEpisodeComplete: false,
+      nextInteraction: {
+        kind: 'choice',
+        prompt: 'What should Mira do inside the passage?',
+        choices: [
+          { id: 'enter', label: 'Enter the passage' },
+          { id: 'listen', label: 'Stop and listen' },
+        ],
+      },
       summaryUpdate: 'Mira opened the door and found a blue passage.',
       memoryUpdate: {
         currentConflict: 'Mira must decide whether to enter the passage.',
@@ -264,5 +276,230 @@ Deno.test('finalizeInteractionPayload synchronizes continuation and summary', ()
   assertEquals(
     result.feedback,
     'Good choice. "Open the door carefully" sounds natural.',
+  );
+  assertEquals(result.isEpisodeComplete, false);
+  assertEquals(result.nextInteraction?.choices.length, 2);
+});
+
+Deno.test('finalizeInteractionPayload compacts verbose AI memory arrays', () => {
+  const result = finalizeInteractionPayload({
+    request: submitRequest,
+    payload: {
+      feedback: 'Good choice. "Open the door carefully" sounds natural.',
+      continuationText: 'Mira opened the door and found a blue passage.',
+      continuationSentences: [
+        'Mira opened the door and found a blue passage.',
+      ],
+      isEpisodeComplete: false,
+      nextInteraction: {
+        kind: 'choice',
+        prompt: 'What should Mira do next?',
+        choices: [
+          { id: 'enter', label: 'Enter the passage' },
+          { id: 'wait', label: 'Wait for Leo' },
+        ],
+      },
+      summaryUpdate: 'Mira opened the hidden door and found a blue passage.',
+      memoryUpdate: {
+        knownFacts: [
+          'The door is blue.',
+          'The door is blue.',
+          'The door is hidden in the library.',
+          'Mira opened the door.',
+          'A blue passage appeared.',
+          'Leo stayed nearby.',
+          'The passage is narrow.',
+          'The air felt cold.',
+          'A symbol is carved on the door.',
+          'The library is quiet.',
+          'Mira is curious.',
+        ],
+        openQuestions: [
+          'Where does the passage lead?',
+          'Who made the symbol?',
+          'Why was the door hidden?',
+          'Can Leo hear the whisper?',
+          'Is the passage safe?',
+          'Who owns the key?',
+          'Why is the light blue?',
+        ],
+        importantObjectsOrLocations: [
+          'blue door',
+          'city library',
+          'blue passage',
+          'door symbol',
+          'bookshelf',
+          'hidden room',
+          'old map',
+        ],
+        lastEpisodeSummary:
+          'Mira opened the hidden door and found a blue passage.',
+        unresolvedCliffhanger:
+          'The blue passage waited beyond the hidden door.',
+        recurringStoryWordIds: [
+          'word:curious',
+          'word:whisper',
+          'word:map',
+          'word:key',
+          'word:door',
+          'word:library',
+          'word:passage',
+          'word:symbol',
+          'word:hidden',
+          'word:blue',
+          'word:quiet',
+          'word:careful',
+          'word:glow',
+          'word:page',
+          'word:voice',
+          'word:friend',
+          'word:turn',
+          'word:listen',
+          'word:open',
+          'word:close',
+          'word:step',
+          'word:path',
+          'word:mark',
+          'word:cold',
+          'word:warm',
+          'word:old',
+        ],
+      },
+    },
+  });
+
+  assertEquals(result.memoryUpdate.knownFacts.length, 8);
+  assertEquals(result.memoryUpdate.openQuestions.length, 6);
+  assertEquals(result.memoryUpdate.importantObjectsOrLocations.length, 6);
+  assertEquals(result.memoryUpdate.recurringStoryWordIds.length, 24);
+});
+
+Deno.test('finalizeInteractionPayload rejects completion before the fifth answer', () => {
+  assertThrows(() =>
+    finalizeInteractionPayload({
+      request: submitRequest,
+      payload: {
+        feedback: 'Good choice.',
+        continuationText: 'Mira entered the passage.',
+        continuationSentences: ['Mira entered the passage.'],
+        isEpisodeComplete: true,
+        cliffhanger: 'A familiar voice called from the next room.',
+        summaryUpdate: 'Mira entered the hidden passage.',
+        memoryUpdate: {
+          knownFacts: ['Mira entered the hidden passage.'],
+          openQuestions: ['Who called Mira?'],
+          importantObjectsOrLocations: ['hidden passage'],
+          lastEpisodeSummary: 'Mira entered the hidden passage.',
+          unresolvedCliffhanger:
+            'A familiar voice called from the next room.',
+          recurringStoryWordIds: [],
+        },
+      },
+    })
+  );
+});
+
+Deno.test('finalizeInteractionPayload accepts a coherent fifth-turn ending', () => {
+  const result = finalizeInteractionPayload({
+    request: {
+      ...submitRequest,
+      interactionId: 'interaction:test:5',
+      interactionCount: 5,
+      previousDecisions: [
+        {
+          prompt: 'What should Mira do?',
+          answer: 'Open the door carefully',
+          feedback: 'Good choice.',
+        },
+        {
+          prompt: 'Where should Mira look?',
+          answer: 'Study the map',
+          feedback: 'That sounds natural.',
+        },
+        {
+          prompt: 'What should Mira do with the key?',
+          answer: 'Keep it safe',
+          feedback: 'Good choice.',
+        },
+        {
+          prompt: 'Who should Mira trust?',
+          answer: 'Trust Leo',
+          feedback: 'That sounds natural.',
+        },
+      ],
+    },
+    payload: {
+      feedback: 'Good choice. "Follow the marked path" sounds natural.',
+      continuationText:
+        'Mira followed the marked path and found the missing library key.',
+      continuationSentences: [
+        'Mira followed the marked path and found the missing library key.',
+      ],
+      isEpisodeComplete: true,
+      cliffhanger: 'The key carried the same symbol as another locked door.',
+      summaryUpdate:
+        'Mira explored the passage and recovered the missing library key.',
+      memoryUpdate: {
+        knownFacts: ['Mira found the missing library key.'],
+        openQuestions: ['What does the second locked door hide?'],
+        importantObjectsOrLocations: ['library key', 'hidden passage'],
+        lastEpisodeSummary:
+          'Mira explored the passage and recovered the missing library key.',
+        unresolvedCliffhanger:
+          'The key carried the same symbol as another locked door.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+
+  assertEquals(result.isEpisodeComplete, true);
+  assertEquals(
+    result.memoryUpdate.unresolvedCliffhanger,
+    result.cliffhanger,
+  );
+});
+
+Deno.test('finalizeInteractionPayload forces completion at the tenth answer', () => {
+  const result = finalizeInteractionPayload({
+    request: {
+      ...submitRequest,
+      interactionId: 'interaction:test:10',
+      interactionCount: 10,
+    },
+    payload: {
+      feedback: 'Good choice. That answer sounds natural.',
+      continuationText:
+        'Mira stepped through the final doorway and found the library map.',
+      continuationSentences: [
+        'Mira stepped through the final doorway and found the library map.',
+      ],
+      isEpisodeComplete: false,
+      nextInteraction: {
+        kind: 'choice',
+        prompt: 'What should Mira do next?',
+        choices: [
+          { id: 'read', label: 'Read the map' },
+          { id: 'hide', label: 'Hide the map' },
+        ],
+      },
+      summaryUpdate:
+        'Mira completed the hidden passage and found the library map.',
+      memoryUpdate: {
+        knownFacts: ['Mira found the library map.'],
+        openQuestions: ['Where does the map point next?'],
+        importantObjectsOrLocations: ['library map'],
+        lastEpisodeSummary:
+          'Mira completed the hidden passage and found the library map.',
+        unresolvedCliffhanger:
+          'The map pointed to a second door under the reading room.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+
+  assertEquals(result.isEpisodeComplete, true);
+  assertEquals(
+    result.cliffhanger,
+    'The map pointed to a second door under the reading room.',
   );
 });

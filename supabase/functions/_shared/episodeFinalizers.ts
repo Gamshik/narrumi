@@ -10,6 +10,26 @@ import {
 // CYRILLIC_PATTERN identifies Russian translations required by the current learner UI.
 const CYRILLIC_PATTERN = /[А-Яа-яЁё]/;
 
+// MEMORY_LIMITS keep AI-written continuity compact before it reaches the client.
+const MEMORY_LIMITS = {
+  // knownFacts should preserve only high-signal continuity facts.
+  knownFacts: 8,
+  // openQuestions should keep only active unresolved story questions.
+  openQuestions: 6,
+  // importantObjectsOrLocations should keep only recurring anchors.
+  importantObjectsOrLocations: 6,
+  // recurringStoryWordIds can be wider because ids are small and user-selected.
+  recurringStoryWordIds: 24,
+} as const;
+
+// EPISODE_INTERACTION_LIMITS bound one MVP episode arc.
+const EPISODE_INTERACTION_LIMITS = {
+  // minimum prevents one-answer episodes.
+  minimumBeforeCompletion: 5,
+  // maximum prevents open-ended episodes inside one local unit.
+  maximumBeforeForcedCompletion: 10,
+} as const;
+
 // FinalizeEpisodePayloadInput joins validated AI output with trusted request context.
 export type FinalizeEpisodePayloadInput = {
   // payload is the structured output produced by the model.
@@ -103,17 +123,24 @@ export function finalizeEpisodePayload({
     summaryUpdate,
     memoryUpdate: {
       ...parsed.memoryUpdate,
-      knownFacts: uniqueText(parsed.memoryUpdate.knownFacts),
-      openQuestions: uniqueText(parsed.memoryUpdate.openQuestions),
-      importantObjectsOrLocations: uniqueText(
+      knownFacts: compactTextList(
+        parsed.memoryUpdate.knownFacts,
+        MEMORY_LIMITS.knownFacts,
+      ),
+      openQuestions: compactTextList(
+        parsed.memoryUpdate.openQuestions,
+        MEMORY_LIMITS.openQuestions,
+      ),
+      importantObjectsOrLocations: compactTextList(
         parsed.memoryUpdate.importantObjectsOrLocations,
+        MEMORY_LIMITS.importantObjectsOrLocations,
       ),
       lastEpisodeSummary: summaryUpdate,
       unresolvedCliffhanger: parsed.cliffhanger,
-      recurringStoryWordIds: uniqueText([
-        ...request.compactSeriesMemory.recurringStoryWordIds,
-        ...storyWordIds,
-      ]),
+      recurringStoryWordIds: compactTextList(
+        [...request.compactSeriesMemory.recurringStoryWordIds, ...storyWordIds],
+        MEMORY_LIMITS.recurringStoryWordIds,
+      ),
     },
   };
 }
@@ -127,26 +154,86 @@ export function finalizeInteractionPayload({
   const continuationSentences = uniqueText(parsed.continuationSentences);
   const continuationText = continuationSentences.join(' ');
   const summaryUpdate = parsed.summaryUpdate;
+  const shouldForceCompletion =
+    request.interactionCount >=
+      EPISODE_INTERACTION_LIMITS.maximumBeforeForcedCompletion;
+  const isEpisodeComplete = parsed.isEpisodeComplete || shouldForceCompletion;
 
-  return {
-    ...parsed,
+  if (
+    isEpisodeComplete &&
+    request.interactionCount <
+      EPISODE_INTERACTION_LIMITS.minimumBeforeCompletion
+  ) {
+    throw new Error(
+      'Episode cannot complete before five meaningful learner interactions.',
+    );
+  }
+
+  const completionCliffhanger =
+    parsed.cliffhanger ?? parsed.memoryUpdate.unresolvedCliffhanger;
+
+  if (isEpisodeComplete && !completionCliffhanger) {
+    throw new Error('Completed episode requires a final cliffhanger.');
+  }
+
+  const nextInteraction = parsed.nextInteraction
+    ? {
+        ...parsed.nextInteraction,
+        choices: uniqueById(parsed.nextInteraction.choices),
+      }
+    : undefined;
+
+  if (!isEpisodeComplete && (!nextInteraction || nextInteraction.choices.length < 2)) {
+    throw new Error(
+      'Continuing episode requires at least two unique next choices.',
+    );
+  }
+
+  const commonPayload = {
+    feedback: parsed.feedback,
     continuationText,
     continuationSentences,
+    isEpisodeComplete,
     summaryUpdate,
     memoryUpdate: {
       ...parsed.memoryUpdate,
-      knownFacts: uniqueText(parsed.memoryUpdate.knownFacts),
-      openQuestions: uniqueText(parsed.memoryUpdate.openQuestions),
-      importantObjectsOrLocations: uniqueText(
+      knownFacts: compactTextList(
+        parsed.memoryUpdate.knownFacts,
+        MEMORY_LIMITS.knownFacts,
+      ),
+      openQuestions: compactTextList(
+        parsed.memoryUpdate.openQuestions,
+        MEMORY_LIMITS.openQuestions,
+      ),
+      importantObjectsOrLocations: compactTextList(
         parsed.memoryUpdate.importantObjectsOrLocations,
+        MEMORY_LIMITS.importantObjectsOrLocations,
       ),
       lastEpisodeSummary: summaryUpdate,
-      recurringStoryWordIds: uniqueText([
-        ...request.compactSeriesMemory.recurringStoryWordIds,
-        ...parsed.memoryUpdate.recurringStoryWordIds,
-      ]),
+      ...(isEpisodeComplete && completionCliffhanger
+        ? { unresolvedCliffhanger: completionCliffhanger }
+        : {}),
+      recurringStoryWordIds: compactTextList(
+        [
+          ...request.compactSeriesMemory.recurringStoryWordIds,
+          ...parsed.memoryUpdate.recurringStoryWordIds,
+        ],
+        MEMORY_LIMITS.recurringStoryWordIds,
+      ),
     },
   };
+
+  return isEpisodeComplete
+    ? {
+        ...commonPayload,
+        isEpisodeComplete: true,
+        cliffhanger: completionCliffhanger,
+      }
+    : {
+        ...commonPayload,
+        isEpisodeComplete: false,
+        nextInteraction: nextInteraction!,
+      };
 }
 
 // containsWord checks a selected headword as a complete case-insensitive token.
@@ -164,6 +251,11 @@ function containsText(text: string, surfaceText: string): boolean {
 // uniqueText removes duplicate text values while preserving model order.
 function uniqueText(values: readonly string[]): string[] {
   return [...new Set(values)];
+}
+
+// compactTextList deduplicates and caps AI memory arrays for bounded context.
+function compactTextList(values: readonly string[], limit: number): string[] {
+  return uniqueText(values).slice(0, limit);
 }
 
 // uniqueById removes duplicate choice ids while preserving model order.

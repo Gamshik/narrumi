@@ -4,15 +4,19 @@ import { z } from 'npm:zod';
 const readableTextSchema = z.string().trim().min(1).transform(normalizeReadableText);
 
 // optionalReadableTextSchema normalizes optional AI text when it is present.
-const optionalReadableTextSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .transform(normalizeReadableText)
-  .optional();
+const optionalReadableTextSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.string().trim().min(1).transform(normalizeReadableText).optional(),
+);
 
 // feedbackTextSchema removes accidental model prefixes before learner feedback is shown.
 const feedbackTextSchema = readableTextSchema.transform(normalizeFeedbackText);
+
+// AI_MEMORY_ARRAY_DRAFT_LIMIT accepts verbose drafts before deterministic finalization.
+const AI_MEMORY_ARRAY_DRAFT_LIMIT = 32;
+
+// PREVIOUS_DECISION_DRAFT_LIMIT accepts older clients while prompts stay bounded later.
+const PREVIOUS_DECISION_DRAFT_LIMIT = 64;
 
 // interactionKinds is the Edge-side copy of supported MVP interaction kinds.
 const interactionKinds = [
@@ -60,12 +64,16 @@ const compactSeriesMemorySchema = z.object({
 // seriesMemoryUpdateSchema validates only bounded memory fields written by AI.
 export const seriesMemoryUpdateSchema = z.object({
   currentConflict: optionalReadableTextSchema,
-  knownFacts: z.array(readableTextSchema).max(8),
-  openQuestions: z.array(readableTextSchema).max(6),
-  importantObjectsOrLocations: z.array(readableTextSchema).max(6),
+  knownFacts: z.array(readableTextSchema).max(AI_MEMORY_ARRAY_DRAFT_LIMIT),
+  openQuestions: z.array(readableTextSchema).max(AI_MEMORY_ARRAY_DRAFT_LIMIT),
+  importantObjectsOrLocations: z
+    .array(readableTextSchema)
+    .max(AI_MEMORY_ARRAY_DRAFT_LIMIT),
   lastEpisodeSummary: readableTextSchema.pipe(z.string().max(600)),
   unresolvedCliffhanger: readableTextSchema.pipe(z.string().max(300)),
-  recurringStoryWordIds: z.array(z.string().trim().min(1)).max(24),
+  recurringStoryWordIds: z
+    .array(z.string().trim().min(1))
+    .max(AI_MEMORY_ARRAY_DRAFT_LIMIT),
 });
 
 // episodePayloadSchema validates generate-episode structured output.
@@ -105,8 +113,63 @@ export const interactionPayloadSchema = z.object({
   feedback: feedbackTextSchema.pipe(z.string().max(500)),
   continuationText: readableTextSchema.pipe(z.string().max(600)),
   continuationSentences: z.array(readableTextSchema).min(1).max(8),
+  isEpisodeComplete: z.boolean(),
+  nextInteraction: z.preprocess(
+    (value) => (value === null ? undefined : value),
+    z
+      .object({
+        kind: z.literal(interactionKinds[0]),
+        prompt: readableTextSchema.pipe(z.string().max(300)),
+        choices: z
+          .array(
+            z.object({
+              id: z.string().trim().min(1),
+              label: readableTextSchema.pipe(z.string().max(120)),
+              outcomeHint: optionalReadableTextSchema.pipe(
+                z.string().max(240).optional(),
+              ),
+            }),
+          )
+          .min(2)
+          .max(3),
+      })
+      .optional(),
+  ),
+  cliffhanger: optionalReadableTextSchema.pipe(z.string().max(300).optional()),
   summaryUpdate: readableTextSchema.pipe(z.string().max(600)),
   memoryUpdate: seriesMemoryUpdateSchema,
+}).superRefine((payload, context) => {
+  if (payload.isEpisodeComplete && !payload.cliffhanger) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Completed episode requires a cliffhanger.',
+      path: ['cliffhanger'],
+    });
+  }
+
+  if (payload.isEpisodeComplete && payload.nextInteraction) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Completed episode must not include another interaction.',
+      path: ['nextInteraction'],
+    });
+  }
+
+  if (!payload.isEpisodeComplete && !payload.nextInteraction) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Continuing episode requires a next interaction.',
+      path: ['nextInteraction'],
+    });
+  }
+
+  if (!payload.isEpisodeComplete && payload.cliffhanger) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Continuing episode must not include a final cliffhanger.',
+      path: ['cliffhanger'],
+    });
+  }
 });
 
 // generateEpisodeRequestSchema validates untrusted mobile generation requests.
@@ -128,6 +191,7 @@ export const generateEpisodeRequestSchema = z.object({
 // submitInteractionRequestSchema validates untrusted mobile interaction requests.
 export const submitInteractionRequestSchema = z.object({
   episodeId: z.string().trim().min(1),
+  interactionId: z.string().trim().min(1),
   seriesId: z.string().trim().min(1),
   cefrLevel: z.enum(cefrLevels),
   genre: z.enum(learningGenres),
@@ -135,6 +199,16 @@ export const submitInteractionRequestSchema = z.object({
   compactSeriesMemory: compactSeriesMemorySchema,
   episodeSummary: z.string().trim().min(1).max(600),
   interactionPrompt: z.string().trim().min(1).max(300),
+  interactionCount: z.number().int().positive(),
+  previousDecisions: z
+    .array(
+      z.object({
+        prompt: z.string().trim().min(1).max(300),
+        answer: z.string().trim().min(1).max(500),
+        feedback: z.string().trim().min(1).max(500).optional(),
+      }),
+    )
+    .max(PREVIOUS_DECISION_DRAFT_LIMIT),
   selectedChoiceId: z.string().trim().min(1).optional(),
   selectedChoiceLabel: z.string().trim().min(1).max(120).optional(),
   userReply: z.string().trim().min(1).max(500).optional(),
