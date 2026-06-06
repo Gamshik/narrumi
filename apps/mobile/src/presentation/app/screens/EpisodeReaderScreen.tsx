@@ -177,9 +177,12 @@ export function EpisodeReaderScreen({
 
       setEpisodes(updatedEpisodes);
       setInteractionErrorMessage(undefined);
-    } catch {
+    } catch (error) {
+      console.error('submitChoice error:', error);
       setInteractionErrorMessage(
-        'Story interaction is online-only and requires configured Supabase Edge Functions.',
+        error instanceof Error
+          ? error.message
+          : 'Story interaction is online-only and requires configured Supabase Edge Functions.',
       );
     } finally {
       setIsSubmittingInteraction(false);
