@@ -154,9 +154,12 @@ export function DailySessionScreen({
 
       setGeneratedEpisodeId(result.episode.id);
       setStage('reader');
-    } catch {
+    } catch (error) {
+      console.error('generateEpisode error:', error);
       setErrorMessage(
-        'Episode generation is online-only and requires configured Supabase Edge Functions.',
+        error instanceof Error
+          ? error.message
+          : 'Episode generation is online-only and requires configured Supabase Edge Functions.',
       );
     }
   };
