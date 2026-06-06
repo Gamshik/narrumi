@@ -399,7 +399,7 @@
                     <h2>Главная идея архитектуры</h2>
                     <div>
                         <span class="tag">AI Series</span>
-                        <span class="tag">Word Picker</span>
+                        <span class="tag">Story Words</span>
                         <span class="tag">Offline First</span>
                         <span class="tag">Expo Managed</span>
                     </div>
@@ -425,7 +425,7 @@
                         <div class="layer presentation">
                             <strong>Presentation</strong>
                             React Native экраны, компоненты, Apple-style UI,
-                            Word Picker, episode reader, inline hints, audio
+                            Story Words selection, episode reader, inline hints, audio
                             controls, bottom sheets.
                         </div>
                         <div class="arrow">↓ вызывает</div>
@@ -479,7 +479,7 @@
                             <span>open memory and latest episode</span>
                         </div>
                         <div class="node connector">
-                            <strong>Word Picker</strong>
+                            <strong>Story Words</strong>
                             <span>choose Story Words</span>
                         </div>
                         <div class="node connector">
@@ -524,8 +524,8 @@
                     <div class="entity">
                         <h3><span class="dot orange"></span>Word Set</h3>
                         <p>
-                            Today's Words, Episode Words, Series Words, Weak
-                            Words или No Focus. Это выбор слов для сюжета, не
+                            Today's Words, Episode Words или Series Words. Это
+                            простой выбор слов для сюжета, не
                             очередь повторений.
                         </p>
                     </div>
@@ -550,24 +550,23 @@
 
             <section class="grid two">
                 <div class="card">
-                    <h2>Word Picker</h2>
+                    <h2>Story Words</h2>
                     <p>
-                        Word Picker - это кастинг слов для будущего эпизода, а
-                        не карточная тренировка. Он собирает предложения из
-                        Oxford 5000, уровня пользователя, жанра, памяти серии,
-                        pinned words и learning signals.
+                        Story Words - это легкий выбор слов для будущего
+                        эпизода, а не полноценный словарный тренажер. Он
+                        собирает предложения из Oxford 5000, уровня
+                        пользователя, жанра, памяти серии и learning signals.
                     </p>
                     <div>
                         <span class="word-action">Use in episode</span>
                         <span class="word-action">Know it</span>
                         <span class="word-action">Later</span>
                         <span class="word-action">Remove</span>
-                        <span class="word-action">Pin</span>
                     </div>
                     <div class="note">
                         Если пользователь выбирает много новых слов, приложение
-                        предупреждает о сложности и предлагает auto-balancing,
-                        но не блокирует выбор жестким лимитом.
+                        предупреждает о сложности, но не блокирует выбор
+                        жестким лимитом.
                     </div>
                 </div>
 
@@ -705,7 +704,7 @@
                     <tbody>
                         <tr>
                             <td><code>VocabularyCatalog</code></td>
-                            <td>Загрузка и поиск Oxford 5000 для словаря и Word Picker</td>
+                            <td>Загрузка и поиск Oxford 5000 для словаря и Story Words</td>
                             <td>Локальный JSON adapter</td>
                         </tr>
                         <tr>
@@ -760,7 +759,7 @@
                         <li>Чтение уже сгенерированных эпизодов.</li>
                         <li>Sentence-by-sentence TTS для сохраненных эпизодов.</li>
                         <li>Oxford 5000 browsing/search.</li>
-                        <li>Word Picker из локальных данных.</li>
+                        <li>Story Words из локальных данных.</li>
                         <li>Локальные word sets, signals и preferences.</li>
                         <li>Локальные изменения, не требующие AI.</li>
                     </ul>
@@ -796,7 +795,7 @@
                         <div class="letter">O</div>
                         <h3>Open/Closed</h3>
                         <p>
-                            Новый scoring для Word Picker или другое хранилище
+                            Новые правила подсказок Story Words или другое хранилище
                             добавляются через порты.
                         </p>
                     </div>
@@ -846,7 +845,7 @@
                     <li>Не копировать copyrighted worlds, characters, names или plots.</li>
                     <li>Не загружать Oxford 5000 из сети во время работы приложения.</li>
                     <li>Не добавлять native <code>ios/</code> или <code>android/</code> code.</li>
-                    <li>Не прятать sync, AI validation или Word Picker scoring в UI.</li>
+                    <li>Не прятать sync, AI validation или правила Story Words в UI.</li>
                     <li>Не перезаписывать свежие локальные записи старым remote state.</li>
                 </ul>
             </section>

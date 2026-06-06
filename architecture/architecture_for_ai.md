@@ -26,7 +26,7 @@ The core loop is:
 
 ```text
 Create or continue a personal series
-  -> choose Story Words through Word Picker
+  -> choose a small set of Story Words
   -> generate a short level-safe episode
   -> read and listen
   -> interact through a choice or short reply
@@ -106,7 +106,7 @@ A generated learning unit linked to a series:
 
 Domain rules:
 
-- Initial episode content before user interaction is roughly 100-180 words.
+- Episode length is adaptive. It must be concise enough for a comfortable learning session and substantial enough to develop the scene, use Story Words naturally, and support meaningful interaction. Do not enforce a fixed word-count range.
 - The episode must respect the series CEFR level.
 - The episode must use selected Story Words naturally.
 - The episode must end with a reason to continue.
@@ -117,25 +117,22 @@ Domain rules:
 Vocabulary source:
 
 - Oxford 5000 JSON is bundled locally and read-only.
-- It powers dictionary browsing, Word Picker suggestions, Story Words, and non-LLM dictionary lookups.
+- It powers dictionary browsing, lightweight Story Words suggestions, and non-LLM dictionary lookups.
 
 Word-set concepts:
 
 - Today's Words;
 - Episode Words;
-- Series Words;
-- Weak Words;
-- No Focus.
+- Series Words.
 
 Domain rules:
 
-- Word Picker is not a flashcard session.
+- Story Words selection is not a flashcard session or a full vocabulary management module.
 - Story Words are chosen for the next episode, not scheduled into a review debt queue.
 - The app should not hard-block the number of selected words.
-- If the user selects many new words, warn about difficulty and offer auto-balancing.
+- If the user selects many new words, warn about difficulty.
 - "Know it" lowers future suggestion priority but does not create permanent mastery.
 - "Later" skips without a negative learning state.
-- "Pin" keeps a word important for upcoming episodes or the series.
 
 ### Learning Signals
 
@@ -187,14 +184,14 @@ Application use cases coordinate user intent. They own flow logic and depend on 
 Required MVP use cases:
 
 - Load bundled vocabulary and build deterministic indexes.
-- Browse/search vocabulary for dictionary and Word Picker.
+- Browse/search vocabulary for dictionary and Story Words selection.
 - Create a series.
 - Update series settings when allowed by product scope.
 - List local series.
 - Open a series and load its episodes, memory, word sets, and learning signals.
-- Build Word Picker suggestions from vocabulary, series context, prior signals, pinned words, and level.
-- Apply Word Picker actions: use in episode, know it, later, remove, pin.
-- Assemble Episode Words with optional auto-balancing.
+- Build lightweight Story Words suggestions from vocabulary, series context, prior signals, and level.
+- Apply Story Words actions: use in episode, know it, later, remove.
+- Assemble Episode Words for the next episode.
 - Generate an episode through an Edge Function when online.
 - Validate and persist generated episode locally first.
 - Play or pause episode audio sentence by sentence.
@@ -237,14 +234,14 @@ React Native presentation code should stay thin:
 - Forward user intent to application actions.
 - Show loading, empty, success, offline, validation, and error states.
 - Preserve Apple-style UI, light/dark theme support, liquidglass overlays, spring-like interactions, and iOS-friendly patterns from the design artifacts.
-- Keep story reading, inline translation, audio controls, Word Picker, and bottom sheets accessible.
+- Keep story reading, inline translation, audio controls, Story Words selection, and bottom sheets accessible.
 
 Presentation must not own:
 
 - story generation rules;
 - CEFR constraints;
 - AI prompt or validation logic;
-- Word Picker scoring;
+- Story Words suggestion rules;
 - sync conflict handling;
 - local persistence keys;
 - Supabase table contracts;
@@ -254,7 +251,7 @@ Recommended presentation state categories:
 
 - screen state: loading, ready, empty, offline, error;
 - series state: selected series, selected episode, memory summary preview;
-- Word Picker state: suggested words, selected words, pinned words, warning about difficulty;
+- Story Words state: suggested words, selected words, warning about difficulty;
 - episode reader state: selected word hint, selected sentence, current sentence index;
 - interaction state: choice selected, reply draft, feedback visible;
 - sync state: local only, syncing, synced, failed.
@@ -312,7 +309,7 @@ Offline-capable:
 - Existing series list.
 - Already-generated episodes.
 - Episode reading and local audio playback.
-- Word Picker browsing/search from bundled Oxford 5000.
+- Story Words selection from bundled Oxford 5000.
 - Locally saved word sets.
 - Learning signals.
 - Preferences.
@@ -373,9 +370,9 @@ User enters title, genre, CEFR level, tone, premise, role
 ```text
 Open series
   -> load local episodes, memory, word sets, signals
-  -> build Word Picker suggestions
+  -> build lightweight Story Words suggestions
   -> user edits Episode Words
-  -> if many difficult words: warn and offer auto-balance
+  -> if many difficult words: warn about difficulty
   -> if online: call EpisodeGenerationGateway
   -> Edge Function writes/validates structured episode payload
   -> client validates response shape
@@ -397,15 +394,15 @@ Episode reaches interaction point
   -> queue sync
 ```
 
-### Word Picker Flow
+### Story Words Selection Flow
 
 ```text
 Load vocabulary index
-  -> combine level words, genre words, series words, weak words, pinned words
+  -> combine level words, genre words, and simple series words
   -> rank suggestions
-  -> user actions: use, know it, later, remove, pin
+  -> user actions: use, know it, later, remove
   -> update Episode Words and learning signals locally
-  -> warn or auto-balance when difficulty is high
+  -> warn when difficulty is high
 ```
 
 ### Audio Flow
@@ -489,7 +486,7 @@ Before coding:
 - Identify verification commands from docs, CI, and manifests.
 - Determine affected use cases and ports.
 - Confirm whether the affected behavior is offline-capable or online-only.
-- Check whether the task touches series, episode, memory, Word Picker, signals, AI boundary, sync, or UI.
+- Check whether the task touches series, episode, memory, Story Words selection, signals, AI boundary, sync, or UI.
 
 During coding:
 

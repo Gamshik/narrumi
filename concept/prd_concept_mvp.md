@@ -14,7 +14,7 @@ The app solves two common problems in vocabulary learning:
 - users recognize isolated words in cards but fail to understand or use them in real situations;
 - scheduled review systems can create review debt, where missed days become a large backlog that discourages returning.
 
-**The Core Loop:** Create or continue a personal English series -> Choose Story Words through Word Picker -> Read and listen to a short AI-generated episode -> Influence the story through a choice or short reply -> Receive concise correction and context support -> End on a cliffhanger that motivates the next episode.
+**The Core Loop:** Create or continue a personal English series -> Choose a small set of Story Words -> Read and listen to a short AI-generated episode -> Influence the story through a choice or short reply -> Receive concise correction and context support -> End on a cliffhanger that motivates the next episode.
 
 The product should feel like creating and watching a personal English series, not like completing a vocabulary queue.
 
@@ -23,8 +23,8 @@ The product should feel like creating and watching a personal English series, no
 ### 3. Target User Flow
 1. **Series Creation:** User creates a series by choosing a title, genre, CEFR level, tone, and initial premise or role.
 2. **Continue Series:** User opens an existing series or creates a new one.
-3. **Story Words:** Before generating an episode, the app proposes words from the bundled vocabulary and the user's prior learning signals.
-4. **Word Picker:** User chooses which words should appear in the episode. The user may add, remove, skip, or keep suggested words.
+3. **Story Words:** Before generating an episode, the app proposes a small word set from the bundled vocabulary.
+4. **Word Choice:** User accepts the proposed words or makes light edits: add, remove, skip, or keep words.
 5. **Episode Generation:** The app generates a short episode that continues the series, uses selected Story Words naturally, respects the user's level, and ends with a narrative hook.
 6. **Read & Listen:** User reads the episode, listens to sentence-by-sentence audio, and can tap words for translation and transcription without leaving the episode.
 7. **Interact:** User influences the story through a choice, a short written reply, a question to a character, or a short explanation of what should happen next.
@@ -59,35 +59,30 @@ The product should feel like creating and watching a personal English series, no
   - concise feedback or correction after user input when applicable;
   - cliffhanger or unresolved narrative hook;
   - structured summary update for future episodes.
-- **Constraints:** Initial MVP episode content should be roughly **100-180 words** before user interaction.
+- **Episode Length:** The episode should be concise enough for a comfortable learning session, but substantial enough to develop the scene, use Story Words naturally, and lead to meaningful interaction. Do not enforce a fixed word-count range; adapt length to the user's CEFR level, the current scene, and narrative needs.
 - **Grammar Control:** Strict compliance with the target CEFR level. No complex grammatical structures above the user's current level.
 - **Controlled Freedom:** The user can influence the story, but the app must keep level, safety, continuity, word usage, and episode structure under control.
 
-#### FEATURE C: Word Picker / Story Words
+#### FEATURE C: Story Words Selection
 - The app uses `words/oxford-5000.json` as the bundled local vocabulary source.
-- Word Picker is not a flashcard learning session. It is a selection system for choosing words that should appear in the next episode.
+- Story Words selection is not a flashcard learning session. It is a lightweight step for choosing words that should appear in the next episode.
 - Word suggestions may come from:
   - recommended words for the user's level;
   - genre-relevant words;
   - words from the bundled dictionary;
-  - words previously selected for the same series;
-  - words the user often translated or used incorrectly;
-  - words pinned by the user.
+  - words previously selected for the same series.
 - User actions for suggested words:
   - **Use in episode:** include the word in the next episode;
   - **Know it:** reduce future suggestion priority without marking permanent mastery;
   - **Later:** skip the word for now without a negative learning state;
-  - **Remove:** remove the word from the current episode set;
-  - **Pin:** keep the word important for upcoming episodes.
-- The app should not hard-block the number of selected words. If the user selects many new words, it should warn that the episode may become harder and offer auto-balancing.
+  - **Remove:** remove the word from the current episode set.
+- The app should not hard-block the number of selected words. If the user selects many new words, it should warn that the episode may become harder.
 
-#### FEATURE D: Word Sets
-- The MVP should support or prepare for these word-set concepts:
+#### FEATURE D: Simple Word Sets
+- The MVP should support only simple word-set concepts:
   - **Today’s Words:** words selected by the user during the current day;
   - **Episode Words:** words selected for a specific episode;
-  - **Series Words:** words that matter to a specific series;
-  - **Weak Words:** words where the user often opened translation, made mistakes, or needed help;
-  - **No Focus:** an episode without required target words.
+  - **Series Words:** words that have appeared in a specific series.
 - The default behavior should be helpful and lightweight: the app may choose a reasonable set automatically, while the user can edit it before generation.
 - There must be no scheduled review backlog or required repetition queue.
 - If the user misses several days, the app must not show accumulated review debt. Previously selected and encountered words may return naturally in future episodes when they fit the story, level, and selected word set.

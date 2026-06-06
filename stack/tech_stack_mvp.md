@@ -17,7 +17,7 @@
 - **Development Tool:** Expo Go app for iOS (allows local testing on iPhone from a Windows host without local compilation).
 - **Build System:** EAS (Expo Application Services) remote cloud builds for production `.ipa` compilation.
 - **Native Project Rule:** Absolutely NO modifications to native `/ios` or `/android` directories. All native configurations must be handled via `app.json` or Expo Config Plugins.
-- **Bundled Vocabulary:** `words/oxford-5000.json` is shipped with the application bundle as read-only seed data. The app must support dictionary browsing, Word Picker suggestions, Story Words, word-set assembly, and non-LLM dictionary lookups from this file without network access.
+- **Bundled Vocabulary:** `words/oxford-5000.json` is shipped with the application bundle as read-only seed data. The app must support dictionary browsing, lightweight Story Words suggestions, simple word-set assembly, and non-LLM dictionary lookups from this file without network access.
 - **Local Store:** User-created series, episodes, series memory, selected word sets, learning signals, preferences, and sync metadata must be written locally first. Use a lightweight Expo-compatible local store: prefer `@react-native-async-storage/async-storage` for MVP key-value records; move to `expo-sqlite` only if structured querying, larger episode history, or complex local indexing becomes necessary.
 - **Network Awareness:** Use Expo/React Native network status detection to gate server-only actions. Episode generation, AI correction, and grammar-style explanation screens must render explicit offline states instead of silently failing.
 
@@ -86,7 +86,7 @@ The app has two persistence layers:
 Offline behavior:
 
 - Existing series and already-generated episodes remain readable.
-- Word Picker can browse and search the bundled Oxford 5000 list.
+- Story Words selection can use the bundled Oxford 5000 list.
 - Locally saved word sets, learning signals, and preferences remain available.
 - New AI episode generation, AI continuation, AI correction, and grammar-style explanation actions are disabled or replaced with explicit offline messages until connectivity is restored.
 - Local changes are retained with sync metadata such as `updated_at`, dirty flags, or pending operations.
@@ -102,7 +102,7 @@ Online behavior:
 User preferences stored locally and synced when possible:
 
 - Preferred CEFR level selected manually.
-- Preferred default episode word count or difficulty profile when implemented.
+- Preferred episode difficulty profile when implemented.
 - Preferred default genre or series creation defaults when implemented.
 
 Core records must be modeled explicitly:
@@ -113,13 +113,12 @@ Core records must be modeled explicitly:
 - **Learning Signal:** A non-punitive vocabulary event such as selected, encountered, translated, used, corrected, resurfaced, or stable.
 - **Series Memory:** Compact continuity state used for future generation instead of unbounded chat history.
 
-Word Picker decisions:
+Story Words decisions:
 
 - Use in episode = include the word in the next episode set.
 - Know it = reduce future suggestion priority without creating permanent mastery.
 - Later = skip the word for now without a negative learning state.
 - Remove = remove from the current episode set.
-- Pin = keep important for upcoming episodes or series vocabulary.
 
 No scheduled review backlog:
 

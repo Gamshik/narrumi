@@ -10,14 +10,14 @@ Read the relevant artifacts before implementation:
 
 | Artifact | Role |
 | --- | --- |
-| `concept/prd_concept_mvp.md` | Canonical product scope: AI-series core loop, user flow, MVP features, Story Words, Word Picker, series memory, learning signals, AI quality control, and explicit out-of-scope items. |
-| `concept/concept.html` | Supporting product reference for users: detailed explanation of the learning problem, expected AI-series experience, Word Picker behavior, and MVP behavior. It clarifies intent but must not expand the PRD scope. |
-| `stack/tech_stack_mvp.md` | Canonical technical architecture and constraints: React Native with Expo Managed Workflow, TypeScript, Supabase, Edge Functions, OpenRouter, Vercel AI SDK, RLS, local series/episode storage, Word Picker, series memory, and `expo-speech`. |
+| `concept/prd_concept_mvp.md` | Canonical product scope: AI-series core loop, user flow, MVP features, Story Words selection, series memory, learning signals, AI quality control, and explicit out-of-scope items. |
+| `concept/concept.html` | Supporting product reference for users: detailed explanation of the learning problem, expected AI-series experience, lightweight Story Words behavior, and MVP behavior. It clarifies intent but must not expand the PRD scope. |
+| `stack/tech_stack_mvp.md` | Canonical technical architecture and constraints: React Native with Expo Managed Workflow, TypeScript, Supabase, Edge Functions, OpenRouter, Vercel AI SDK, RLS, local series/episode storage, Story Words selection, series memory, and `expo-speech`. |
 | `architecture/architecture_for_ai.md` | Canonical implementation architecture contract for AI agents: Clean Architecture boundaries, dependency direction, domain model, use cases, ports, offline-first sync, Edge Function responsibilities, error policy, and trust boundaries. |
 | `architecture/architecture_for_developer.html` | Supporting architecture reference for developers: visual explanation of layers, flows, ports, offline behavior, AI boundary, and non-negotiable rules. It clarifies `architecture_for_ai.md` but must not override it. |
 | `design/design_system.html` | Canonical visual and interaction reference: colors, typography, themes, controls, states, story reader, genre selection, audio controls, inline translation, grammar sheet, quiz feedback, and navigation. Reproduce the design in React Native; do not copy browser-only implementation details blindly. Some screen examples may still reflect the previous card-first concept; when product behavior conflicts, follow the PRD and stack documents first. |
 | `design/design_system_guidelines.md` | Mandatory design rules for UI work when there is no exact layout or screen-level specification. Read before any free-form layout or visual decision. |
-| `words/oxford-5000.json` | Bundled local vocabulary source for offline word lists, Word Picker suggestions, Story Words, and non-LLM dictionary lookups. Treat as read-only seed data shipped with the app. |
+| `words/oxford-5000.json` | Bundled local vocabulary source for offline word lists, lightweight Story Words suggestions, and non-LLM dictionary lookups. Treat as read-only seed data shipped with the app. |
 
 ## Compliance Rules
 
@@ -27,7 +27,7 @@ Read the relevant artifacts before implementation:
 - Do not implement backlog items unless explicitly requested.
 - Do not silently resolve contradictions between artifacts. State the conflict and ask for clarification.
 - Keep artifact files aligned when an approved product, architecture, or design decision changes their documented behavior.
-- Preserve the hybrid offline/online behavior, AI-series flow, Word Picker rules, series memory, learning-signal model, and sync rules defined in the PRD, stack, and architecture artifacts. Do not redefine those rules in code from memory.
+- Preserve the hybrid offline/online behavior, AI-series flow, Story Words selection rules, series memory, learning-signal model, and sync rules defined in the PRD, stack, and architecture artifacts. Do not redefine those rules in code from memory.
 - Do not reintroduce traditional flashcard-first learning, scheduled SRS review queues, review debt, or streak-pressure mechanics as the primary MVP flow unless the user explicitly approves a product-scope change.
 
 ## Engineering Standards

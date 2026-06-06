@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Context-English: Main Screen Design Reference</title>
-    <!-- Premium Outfit & Inter Google Fonts for high-fidelity Apple-style typography -->
+    <title>Context-English: Series-First Home & Dictionary</title>
+    <!-- Outfit & Inter Google Fonts for high-fidelity Apple typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,7 +14,6 @@
            1. CSS CUSTOM PROPERTIES (SYSTEM PALETTES - LIGHT & DARK)
            ========================================================================== */
         :root {
-            /* System Accent & Semantic Colors */
             --sys-blue: #007aff;
             --sys-green: #34c759;
             --sys-red: #ff3b30;
@@ -22,7 +21,7 @@
             --sys-purple: #af52de;
             --sys-gray: #8e8e93;
             
-            /* Main Dashboard Styles (Light Mode Default) */
+            /* Main Dashboard Styles (Light Mode) */
             --db-bg: #f5f5f7;
             --db-card-bg: #ffffff;
             --db-text-primary: #1d1d1f;
@@ -34,7 +33,7 @@
             --phone-card: #ffffff;
             --phone-card-elevated: #ffffff;
             --phone-text-primary: #000000;
-            --phone-text-secondary: rgba(60, 60, 67, 0.6);
+            --phone-text-secondary: rgba(60, 60, 67, 0.65);
             --phone-text-tertiary: rgba(60, 60, 67, 0.35);
             --phone-separator: rgba(60, 60, 67, 0.12);
             --phone-border: rgba(0, 0, 0, 0.04);
@@ -44,7 +43,6 @@
             --glass-border: rgba(255, 255, 255, 0.4);
             --glass-shadow: rgba(0, 0, 0, 0.06);
             
-            /* Constants */
             --spring-easing: cubic-bezier(0.16, 1, 0.3, 1);
             --spring-transition: all 0.35s var(--spring-easing);
         }
@@ -62,7 +60,7 @@
             --phone-card: #1c1c1e;
             --phone-card-elevated: #2c2c2e;
             --phone-text-primary: #ffffff;
-            --phone-text-secondary: rgba(235, 235, 245, 0.6);
+            --phone-text-secondary: rgba(235, 235, 245, 0.65);
             --phone-text-tertiary: rgba(235, 235, 245, 0.35);
             --phone-separator: rgba(84, 84, 86, 0.3);
             --phone-border: rgba(255, 255, 255, 0.05);
@@ -73,9 +71,6 @@
             --glass-shadow: rgba(0, 0, 0, 0.35);
         }
 
-        /* ==========================================================================
-           2. GLOBAL RESET & TYPOGRAPHY
-           ========================================================================== */
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
@@ -109,7 +104,7 @@
                 padding: 20px 16px;
             }
             .simulator-panel {
-                order: -1; /* Place interactive simulator on top in single-column mobile view */
+                order: -1;
             }
             .sticky-simulator {
                 position: relative !important;
@@ -117,7 +112,6 @@
             }
         }
 
-        /* Responsive iPhone scaling on narrow browser viewports */
         @media (max-width: 480px) {
             .iphone-15 {
                 transform: scale(0.88);
@@ -158,7 +152,6 @@
             font-size: 14px;
         }
 
-        /* Top Theme and Controls Block */
         .header-controls {
             display: flex;
             align-items: center;
@@ -186,13 +179,13 @@
         }
 
         /* ==========================================================================
-           3. DEVELOPER PROMPT & INSTRUCTION PANEL (LEFT COLUMN)
+           2. DEVELOPER SPECIFICATION PANEL (LEFT COLUMN)
            ========================================================================== */
         .instruction-panel {
             display: flex;
             flex-direction: column;
             gap: 24px;
-            min-width: 0; /* Prevent grid column stretching from nested content */
+            min-width: 0;
         }
 
         .prompt-card {
@@ -227,7 +220,6 @@
             line-height: 1.5;
         }
 
-        /* Prompt Text Area Box */
         .prompt-box-wrapper {
             position: relative;
             background-color: #1e1e24;
@@ -240,59 +232,19 @@
             font-family: 'Courier New', Courier, monospace;
             font-size: 13px;
             color: #a9b2c3;
-            max-height: 380px;
+            max-height: 480px;
             overflow-y: auto;
             white-space: pre-wrap;
-            word-break: break-word; /* Force wrap long syntax prompts */
+            word-break: break-word;
             margin: 0;
             line-height: 1.6;
         }
 
-        .prompt-box strong {
-            color: #e5c07b;
-        }
+        .prompt-box strong { color: #e5c07b; }
+        .prompt-box span.comment { color: #5c6370; font-style: italic; }
+        .prompt-box span.string { color: #98c379; }
+        .prompt-box span.keyword { color: #c678dd; }
 
-        .prompt-box span.comment {
-            color: #5c6370;
-            font-style: italic;
-        }
-
-        .prompt-box span.string {
-            color: #98c379;
-        }
-
-        .prompt-box span.keyword {
-            color: #c678dd;
-        }
-
-        .copy-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background-color: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #ffffff;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: var(--spring-transition);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            backdrop-filter: blur(4px);
-        }
-
-        .copy-btn:hover {
-            background-color: rgba(255, 255, 255, 0.15);
-        }
-
-        .copy-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* Key Highlights of MVP Architecture */
         .spec-list {
             display: flex;
             flex-direction: column;
@@ -324,13 +276,13 @@
         }
 
         /* ==========================================================================
-           4. SIMULATOR PANEL (RIGHT COLUMN)
+           3. SIMULATOR PANEL (RIGHT COLUMN)
            ========================================================================== */
         .simulator-panel {
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 0; /* Prevent horizontal stretching issues */
+            min-width: 0;
         }
 
         .sticky-simulator {
@@ -375,7 +327,6 @@
             background-color: #000000;
             border-radius: 20px;
             z-index: 1000;
-            transition: var(--spring-transition);
             box-shadow: 0 0 2px rgba(255,255,255,0.1);
         }
 
@@ -387,8 +338,8 @@
             flex-direction: column;
             position: relative;
             overflow: hidden;
-            padding-top: 48px; /* Safe Area Top */
-            padding-bottom: 24px; /* Safe Area Bottom */
+            padding-top: 48px;
+            padding-bottom: 24px;
             transition: background-color 0.3s ease;
         }
 
@@ -408,7 +359,6 @@
             color: var(--phone-text-primary);
             z-index: 999;
             pointer-events: none;
-            transition: color 0.3s ease;
         }
 
         .status-icons {
@@ -430,905 +380,10 @@
             opacity: 0.3;
             z-index: 1000;
             pointer-events: none;
-            transition: background-color 0.3s ease;
         }
 
         /* ==========================================================================
-           5. SIMULATED APPLICATION SCREENS (MAIN SCREEN - REFINED LACONIC)
-           ========================================================================== */
-        .screen-container {
-            flex: 1;
-            display: none;
-            flex-direction: column;
-            overflow-y: auto;
-            scrollbar-width: none;
-            padding: 16px 16px 96px 16px; /* Space for capsule floating nav */
-        }
-
-        .screen-container.active {
-            display: flex;
-        }
-
-        .screen-container::-webkit-scrollbar {
-            display: none;
-        }
-
-        /* Application Header Block */
-        .app-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .app-greeting-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .app-greeting-sub {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--sys-blue);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .app-greeting-main {
-            font-family: 'Outfit', sans-serif;
-            font-size: 21px;
-            font-weight: 700;
-            color: var(--phone-text-primary);
-            letter-spacing: -0.015em;
-            margin: 0;
-        }
-
-        .app-profile-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background-color: var(--sys-blue);
-            color: #ffffff;
-            font-weight: 700;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,122,255,0.15);
-            border: 2px solid var(--phone-card);
-        }
-
-        /* LACONIC MAIN STATS & ACTIONS (CONCISE STYLE) */
-        .stats-badge-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .stats-badge {
-            background-color: var(--phone-card);
-            border: 1px solid var(--phone-border);
-            border-radius: 12px;
-            padding: 6px 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01);
-        }
-
-        .stats-badge-value {
-            font-family: 'Outfit', sans-serif;
-            font-size: 13.5px;
-            font-weight: 700;
-            color: var(--phone-text-primary);
-        }
-
-        .stats-badge-label {
-            font-size: 10px;
-            font-weight: 600;
-            color: var(--phone-text-secondary);
-            text-transform: uppercase;
-        }
-
-        /* Goal Progress Card */
-        .goal-progress-card {
-            background-color: var(--phone-card);
-            border: 1px solid var(--phone-border);
-            border-radius: 16px;
-            padding: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.005);
-        }
-
-        .progress-circle-group {
-            position: relative;
-            width: 54px;
-            height: 54px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .progress-circle-svg {
-            transform: rotate(-90deg);
-        }
-
-        .progress-circle-value {
-            position: absolute;
-            font-family: 'Outfit', sans-serif;
-            font-size: 12.5px;
-            font-weight: 700;
-            color: var(--phone-text-primary);
-        }
-
-        .goal-text-group {
-            flex: 1;
-            margin-left: 16px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .goal-title {
-            font-size: 14.5px;
-            font-weight: 700;
-            color: var(--phone-text-primary);
-        }
-
-        .goal-desc {
-            font-size: 11.5px;
-            color: var(--phone-text-secondary);
-            margin-top: 2px;
-        }
-
-        /* Dynamic Learning Action buttons (Concise & Bold) */
-        .learning-actions-container {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .action-card {
-            background-color: var(--phone-card);
-            border: 1px solid var(--phone-border);
-            border-radius: 16px;
-            padding: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.005);
-            transition: var(--spring-transition);
-        }
-
-        .action-card:active {
-            transform: scale(0.96);
-        }
-
-        .action-left {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .action-icon-wrapper {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-        }
-
-        .action-details {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .action-title {
-            font-size: 14.5px;
-            font-weight: 700;
-            color: var(--phone-text-primary);
-        }
-
-        .action-sub {
-            font-size: 11.5px;
-            color: var(--phone-text-secondary);
-            margin-top: 1px;
-        }
-
-        .action-chevron {
-            color: var(--phone-text-tertiary);
-        }
-
-        /* Dynamic Connectivity State badge */
-        .connection-status-row {
-            display: flex;
-            justify-content: center;
-            margin-top: auto;
-            margin-bottom: 12px;
-        }
-
-        .connection-status-badge {
-            font-size: 9.5px;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-        }
-
-        /* ==========================================================================
-           6. FULL SCREEN SWIPE FLASHCARD OVERLAY (COMPLIES WITH CARD RULES)
-           ========================================================================== */
-        .card-session-overlay {
-            display: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: var(--phone-bg);
-            z-index: 1050;
-            padding: 48px 16px 24px 16px;
-            flex-direction: column;
-            animation: fadeIn 0.2s ease;
-        }
-
-        .card-session-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .session-progress-bar {
-            flex: 1;
-            height: 6px;
-            background-color: rgba(120, 120, 128, 0.08);
-            border-radius: 99px;
-            margin: 0 16px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .session-progress-fill {
-            height: 100%;
-            background-color: var(--sys-blue);
-            width: 0%;
-            border-radius: 99px;
-            transition: width 0.3s ease;
-        }
-
-        .session-close-btn {
-            background: none;
-            border: none;
-            color: var(--phone-text-secondary);
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        /* The Swipe Card Stack Container */
-        .card-stack {
-            flex: 1;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 30px;
-        }
-
-        /* High fidelity swipe card specs */
-        .swipe-card {
-            position: absolute;
-            width: 100%;
-            height: 380px;
-            background-color: var(--phone-card);
-            border: 1px solid var(--phone-border);
-            border-radius: 24px;
-            padding: 24px;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            cursor: grab;
-            user-select: none;
-            transform-origin: center bottom;
-            transition: transform 0.1s ease;
-        }
-
-        /* Swipe visual stamp badges (KNOW / LEARN) */
-        .card-stamp {
-            position: absolute;
-            top: 20px;
-            font-family: 'Outfit', sans-serif;
-            font-size: 18px;
-            font-weight: 800;
-            text-transform: uppercase;
-            padding: 4px 10px;
-            border-radius: 8px;
-            border: 2.5px solid;
-            opacity: 0;
-            transform: rotate(-12deg);
-            pointer-events: none;
-            transition: opacity 0.15s ease;
-        }
-
-        .card-stamp.stamp-left {
-            left: 20px;
-            color: var(--sys-red);
-            border-color: var(--sys-red);
-            transform: rotate(-10deg);
-        }
-
-        .card-stamp.stamp-right {
-            right: 20px;
-            color: var(--sys-green);
-            border-color: var(--sys-green);
-            transform: rotate(10deg);
-        }
-
-        .card-word-title {
-            font-family: 'Outfit', sans-serif;
-            font-size: 28px;
-            font-weight: 800;
-            color: var(--phone-text-primary);
-            letter-spacing: -0.015em;
-        }
-
-        .card-word-ipa {
-            font-size: 14px;
-            font-family: monospace;
-            color: var(--sys-orange);
-            font-weight: 600;
-            margin-top: 2px;
-        }
-
-        .card-word-pos {
-            font-size: 11px;
-            font-style: italic;
-            color: var(--phone-text-secondary);
-            margin-left: 6px;
-        }
-
-        .card-divider {
-            height: 1px;
-            background-color: var(--phone-separator);
-            margin: 12px 0;
-        }
-
-        .card-label {
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--phone-text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            margin-bottom: 4px;
-        }
-
-        .card-meaning {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--phone-text-primary);
-            margin: 0 0 10px 0;
-        }
-
-        .card-definition {
-            font-size: 13px;
-            color: var(--phone-text-secondary);
-            line-height: 1.5;
-            margin: 0;
-        }
-
-        .card-example-box {
-            background-color: var(--phone-bg);
-            border-radius: 12px;
-            padding: 12px 14px;
-            font-size: 13px;
-            color: var(--phone-text-primary);
-            line-height: 1.5;
-            border-left: 3px solid var(--sys-blue);
-            margin-top: auto;
-        }
-
-        /* Swipe Controller buttons at the bottom */
-        .swipe-actions-row {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 20px;
-            margin-bottom: 12px;
-        }
-
-        .swipe-circle-btn {
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            background-color: var(--phone-card);
-            border: 1px solid var(--phone-border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.03);
-            transition: var(--spring-transition);
-        }
-
-        .swipe-circle-btn:active {
-            transform: scale(0.88);
-        }
-
-        .swipe-circle-btn.btn-left {
-            color: var(--sys-red);
-        }
-
-        .swipe-circle-btn.btn-left:hover {
-            background-color: rgba(255, 59, 48, 0.05);
-        }
-
-        .swipe-circle-btn.btn-right {
-            color: var(--sys-green);
-        }
-
-        .swipe-circle-btn.btn-right:hover {
-            background-color: rgba(52, 199, 89, 0.05);
-        }
-
-        .swipe-instructions {
-            text-align: center;
-            font-size: 11px;
-            color: var(--phone-text-secondary);
-            margin-top: 4px;
-        }
-
-        /* ==========================================================================
-           7. DEDICATED STORY GENERATOR MODAL VIEW (REMOVED FROM MAIN SCREEN INLINE)
-           ========================================================================== */
-        .story-modal-overlay {
-            display: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.35);
-            z-index: 1080;
-            animation: fadeIn 0.2s ease;
-        }
-
-        .story-modal {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: var(--phone-card);
-            border-radius: 24px 24px 0 0;
-            border-top: 1px solid var(--glass-border);
-            padding: 16px 20px 32px 20px;
-            box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
-            transform: translateY(100%);
-            transition: var(--spring-transition);
-            max-height: 85%; /* Prevent drawer from expanding off-screen */
-            overflow-y: auto;
-            scrollbar-width: none;
-        }
-
-        .story-modal::-webkit-scrollbar {
-            display: none;
-        }
-
-        .story-modal-overlay.active {
-            display: block;
-        }
-
-        .story-modal-overlay.active .story-modal {
-            transform: translateY(0);
-        }
-
-        .story-modal-title {
-            font-family: 'Outfit', sans-serif;
-            font-size: 20px;
-            font-weight: 800;
-            color: var(--phone-text-primary);
-        }
-
-        .genre-picker-scroll {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            scrollbar-width: none;
-            margin: 12px -20px 18px -20px;
-            padding: 0 20px;
-        }
-
-        .genre-picker-scroll::-webkit-scrollbar {
-            display: none;
-        }
-
-        .genre-badge-pill {
-            background-color: rgba(120, 120, 128, 0.08);
-            border: 1px solid transparent;
-            border-radius: 12px;
-            padding: 10px 14px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12.5px;
-            font-weight: 600;
-            color: var(--phone-text-primary);
-            cursor: pointer;
-            white-space: nowrap;
-            transition: var(--spring-transition);
-        }
-
-        .genre-badge-pill.active {
-            background-color: rgba(0, 122, 255, 0.08);
-            border-color: rgba(0, 122, 255, 0.15);
-            color: var(--sys-blue);
-        }
-
-        .genre-badge-pill svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        /* Large Synthesis master button */
-        .story-modal-btn {
-            background-color: var(--sys-blue);
-            color: #ffffff;
-            border: none;
-            border-radius: 14px;
-            padding: 14px;
-            width: 100%;
-            font-size: 14.5px;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            box-shadow: 0 4px 14px rgba(0, 122, 255, 0.25);
-            transition: var(--spring-transition);
-        }
-
-        .story-modal-btn:active {
-            transform: scale(0.97);
-        }
-
-        .story-modal-btn.disabled {
-            background-color: var(--phone-text-tertiary);
-            color: var(--phone-text-secondary);
-            box-shadow: none;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-
-        /* Loading Panel Overlay inside Modal */
-        .story-loader {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            padding: 24px 0;
-            text-align: center;
-        }
-
-        .story-spinner {
-            width: 32px;
-            height: 32px;
-            border: 3.5px solid rgba(0, 122, 255, 0.12);
-            border-top: 3.5px solid var(--sys-blue);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        .story-loader-step {
-            font-size: 13.5px;
-            font-weight: 600;
-            color: var(--phone-text-primary);
-        }
-
-        .story-loader-sub {
-            font-size: 11px;
-            color: var(--phone-text-secondary);
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Explicit Offline error screen */
-        .offline-error-view {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            padding: 16px 0;
-            text-align: center;
-        }
-
-        .offline-error-view svg {
-            color: var(--sys-orange);
-            margin-bottom: 10px;
-        }
-
-        .offline-error-title {
-            font-size: 14.5px;
-            font-weight: 700;
-            color: var(--phone-text-primary);
-        }
-
-        .offline-error-desc {
-            font-size: 12px;
-            color: var(--phone-text-secondary);
-            line-height: 1.5;
-            margin-top: 4px;
-        }
-
-        /* Success Story Preview Block */
-        .story-render-block {
-            display: none;
-            flex-direction: column;
-            gap: 12px;
-            animation: slideUpSpring 0.5s var(--spring-easing);
-        }
-
-        .story-success-badge {
-            background-color: rgba(52, 199, 89, 0.12);
-            color: var(--sys-green);
-            padding: 8px;
-            border-radius: 10px;
-            font-size: 12.5px;
-            font-weight: 600;
-            text-align: center;
-        }
-
-        .story-text-container {
-            background-color: var(--phone-bg);
-            border-radius: 12px;
-            padding: 14px;
-            font-size: 13.5px;
-            color: var(--phone-text-primary);
-            line-height: 1.6;
-            max-height: 160px;
-            overflow-y: auto;
-            border-left: 3px solid var(--sys-blue);
-        }
-
-        .story-open-btn {
-            background-color: var(--sys-blue);
-            color: #ffffff;
-            border: none;
-            border-radius: 12px;
-            padding: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--spring-transition);
-            text-align: center;
-        }
-
-        .story-open-btn:active {
-            transform: scale(0.97);
-        }
-
-        /* ==========================================================================
-           8. SYSTEM SETTINGS SCREEN - INCORPORATING CEFR & SYNC METRICS
-           ========================================================================== */
-        .settings-container {
-            display: none;
-            flex-direction: column;
-            overflow-y: auto;
-            scrollbar-width: none;
-            padding: 16px 16px 96px 16px;
-        }
-
-        .settings-container.active {
-            display: flex;
-        }
-
-        .settings-section-title {
-            font-size: 11.5px;
-            font-weight: 700;
-            color: var(--phone-text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 8px;
-            padding-left: 4px;
-        }
-
-        .settings-card {
-            background-color: var(--phone-card);
-            border: 1px solid var(--phone-border);
-            border-radius: 16px;
-            padding: 14px 16px;
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.005);
-        }
-
-        /* CEFR segmented slider selector */
-        .cefr-selector-bar {
-            background-color: rgba(120, 120, 128, 0.08);
-            border-radius: 10px;
-            padding: 2px;
-            display: flex;
-            position: relative;
-        }
-
-        .cefr-option {
-            flex: 1;
-            text-align: center;
-            padding: 7px 0;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--phone-text-secondary);
-            cursor: pointer;
-            z-index: 2;
-            transition: color 0.2s ease;
-        }
-
-        .cefr-option.active {
-            color: var(--phone-text-primary);
-        }
-
-        .cefr-slider-bg {
-            position: absolute;
-            top: 2px;
-            bottom: 2px;
-            left: 2px;
-            width: calc(20% - 2px);
-            background-color: var(--phone-card-elevated);
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-            z-index: 1;
-            transition: transform 0.3s var(--spring-easing);
-        }
-
-        /* Slider settings controls */
-        .setting-control-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .setting-label {
-            font-size: 13.5px;
-            font-weight: 600;
-            color: var(--phone-text-primary);
-        }
-
-        .setting-value-badge {
-            font-size: 12.5px;
-            font-weight: 700;
-            color: var(--sys-blue);
-            background-color: rgba(0, 122, 255, 0.08);
-            padding: 2px 8px;
-            border-radius: 6px;
-        }
-
-        .setting-slider-input {
-            width: 100%;
-            height: 4px;
-            background-color: rgba(120, 120, 128, 0.16);
-            border-radius: 2px;
-            outline: none;
-            -webkit-appearance: none;
-            margin-top: 4px;
-        }
-
-        .setting-slider-input::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background-color: #ffffff;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-            cursor: pointer;
-        }
-
-        /* Network simulator trigger switch inside Settings */
-        .settings-switch-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .settings-switch-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .settings-switch-title {
-            font-size: 13.5px;
-            font-weight: 600;
-            color: var(--phone-text-primary);
-        }
-
-        .settings-switch-desc {
-            font-size: 11px;
-            color: var(--phone-text-secondary);
-            max-width: 200px;
-        }
-
-        /* Custom Switch */
-        .ios-switch {
-            position: relative;
-            display: inline-block;
-            width: 46px;
-            height: 28px;
-            cursor: pointer;
-        }
-
-        .ios-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .ios-switch-slider {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(120, 120, 128, 0.16);
-            transition: .25s var(--spring-easing);
-            border-radius: 34px;
-        }
-
-        .ios-switch-slider:before {
-            position: absolute;
-            content: "";
-            height: 24px;
-            width: 24px;
-            left: 2px;
-            bottom: 2px;
-            background-color: #ffffff;
-            transition: .25s var(--spring-easing);
-            border-radius: 50%;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-        }
-
-        input:checked + .ios-switch-slider {
-            background-color: var(--sys-green);
-        }
-
-        input:checked + .ios-switch-slider:before {
-            transform: translateX(18px);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideUpSpring {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        /* ==========================================================================
-           10. FLOATING NAVIGATION BAR STYLES (RESTORED MISSING HIG-STYLING)
+           4. FLOATING pill TABS NAVIGATION
            ========================================================================== */
         .simulator-nav {
             position: absolute;
@@ -1389,7 +444,6 @@
 
         .dark-theme .nav-item.active .nav-icon-wrapper {
             background-color: rgba(10, 132, 255, 0.16);
-            color: var(--sys-blue);
         }
 
         .nav-item svg {
@@ -1402,6 +456,1165 @@
         .nav-item:active .nav-icon-wrapper {
             transform: scale(0.9);
         }
+
+        /* ==========================================================================
+           5. SIMULATED VIEWS STRUCTURE (SCREEN CONTAINERS)
+           ========================================================================== */
+        .screen-container {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            overflow-y: auto;
+            scrollbar-width: none;
+            padding: 16px 16px 96px 16px;
+        }
+
+        .screen-container.active {
+            display: flex;
+        }
+
+        .screen-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* iOS-style Headers & Actions */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .app-title-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-category {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--sys-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .app-main-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--phone-text-primary);
+            letter-spacing: -0.02em;
+            margin: 0;
+        }
+
+        .view-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--sys-blue);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 0;
+            transition: var(--spring-transition);
+        }
+
+        .back-btn:active {
+            transform: translateX(-4px);
+        }
+
+        .back-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* ==========================================================================
+           6. APPLE TV STYLE "CONTINUE READING" BANNER
+           ========================================================================== */
+        .continue-banner {
+            position: relative;
+            background: linear-gradient(135deg, #007aff 0%, #af52de 100%);
+            border-radius: 20px;
+            padding: 18px;
+            color: #ffffff;
+            margin-bottom: 24px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 102, 204, 0.15);
+            transition: var(--spring-transition);
+            cursor: pointer;
+        }
+
+        .continue-banner:active {
+            transform: scale(0.98);
+        }
+
+        .continue-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0) 100%);
+            z-index: 1;
+        }
+
+        .continue-banner-content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .continue-banner-tag {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(255, 255, 255, 0.9);
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 3px 8px;
+            border-radius: 6px;
+            align-self: flex-start;
+            backdrop-filter: blur(4px);
+        }
+
+        .continue-banner-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 19px;
+            font-weight: 800;
+            margin: 4px 0 0 0;
+            letter-spacing: -0.02em;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        }
+
+        .continue-banner-ep {
+            font-size: 11.5px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+        }
+
+        .continue-banner-cliff {
+            font-size: 12px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.85);
+            font-style: italic;
+            margin: 4px 0 8px 0;
+            border-left: 2px solid rgba(255, 255, 255, 0.5);
+            padding-left: 10px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .continue-banner-btn {
+            background-color: #ffffff;
+            color: #000000;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            align-self: flex-start;
+        }
+
+        /* ==========================================================================
+           7. APPLE HIG GROUPED TABLES & LIST ITEMS
+           ========================================================================== */
+        .section-label {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--phone-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+            padding-left: 4px;
+            display: block;
+        }
+
+        .ios-list-group {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-border);
+            border-radius: 14px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.005);
+        }
+
+        .ios-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 16px;
+            border-bottom: 1px solid var(--phone-separator);
+            cursor: pointer;
+            transition: var(--spring-transition);
+        }
+
+        .ios-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .ios-list-item:active {
+            background-color: rgba(120, 120, 128, 0.08);
+        }
+
+        .ios-list-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .ios-list-item-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .ios-list-item-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .ios-list-item-title {
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--phone-text-primary);
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ios-list-item-subtitle {
+            font-size: 11.5px;
+            color: var(--phone-text-secondary);
+            margin-top: 1px;
+        }
+
+        .ios-list-item-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .ios-chevron {
+            font-size: 12px;
+            color: var(--phone-text-tertiary);
+            font-weight: bold;
+        }
+
+        .ios-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 5px;
+        }
+
+        .ios-badge-blue { background-color: rgba(0, 122, 255, 0.1); color: var(--sys-blue); }
+        .ios-badge-purple { background-color: rgba(175, 82, 222, 0.1); color: var(--sys-purple); }
+        .ios-badge-gray { background-color: rgba(142, 142, 147, 0.1); color: var(--sys-gray); }
+
+        .ios-btn-primary {
+            background-color: var(--sys-blue);
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.15);
+            transition: var(--spring-transition);
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .ios-btn-primary:active {
+            transform: scale(0.97);
+        }
+
+        /* Connection status footer */
+        .connection-status-row {
+            display: flex;
+            justify-content: center;
+            margin-top: 12px;
+            margin-bottom: 24px;
+        }
+
+        .connection-status-badge {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+        }
+
+        /* ==========================================================================
+           8. SERIES DETAILS VIEW
+           ========================================================================== */
+        .series-details-header {
+            margin-bottom: 20px;
+        }
+
+        .series-genre-tag {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--sys-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .series-detail-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--phone-text-primary);
+            letter-spacing: -0.015em;
+            margin: 0 0 6px 0;
+        }
+
+        .series-detail-premise {
+            font-size: 13px;
+            color: var(--phone-text-secondary);
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        /* ==========================================================================
+           9. PREPARE EPISODE VIEW & DYNAMIC WORD SHUFFLING
+           ========================================================================== */
+        .prepare-banner {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-border);
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
+        .prepare-banner-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--sys-purple);
+            text-transform: uppercase;
+        }
+
+        .prepare-banner-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--phone-text-primary);
+            margin: 2px 0 0 0;
+        }
+
+        .suggest-word-card {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-border);
+            border-radius: 14px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            position: relative;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.005);
+            transition: transform 0.25s var(--spring-easing), opacity 0.2s ease;
+        }
+
+        .suggest-word-card.swapping {
+            transform: scale(0.9) translateY(8px);
+            opacity: 0;
+        }
+
+        .suggest-word-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .suggest-word-spelling {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--phone-text-primary);
+        }
+
+        .suggest-word-pos {
+            font-size: 10.5px;
+            font-style: italic;
+            color: var(--phone-text-secondary);
+            margin-left: 4px;
+        }
+
+        .suggest-word-definition {
+            font-size: 12px;
+            color: var(--phone-text-secondary);
+            line-height: 1.4;
+            margin: 2px 0;
+        }
+
+        .suggest-word-trans {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--sys-blue);
+        }
+
+        .suggest-word-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .suggest-btn-use {
+            flex: 1;
+            background-color: rgba(52, 199, 89, 0.08);
+            border: 1px solid rgba(52, 199, 89, 0.15);
+            color: var(--sys-green);
+            border-radius: 8px;
+            padding: 6px 0;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: center;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: var(--spring-transition);
+        }
+
+        .suggest-btn-use.active {
+            background-color: var(--sys-green);
+            color: #ffffff;
+            border-color: var(--sys-green);
+        }
+
+        .suggest-btn-swap {
+            background-color: rgba(255, 59, 48, 0.08);
+            border: 1px solid rgba(255, 59, 48, 0.15);
+            color: var(--sys-red);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: center;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: var(--spring-transition);
+        }
+
+        .suggest-btn-swap:active {
+            transform: scale(0.95);
+        }
+
+        /* ==========================================================================
+           10. DICTIONARY VIEW (WITH horizontal PILL FILTERS)
+           ========================================================================== */
+        .search-bar-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .search-bar-input {
+            width: 100%;
+            background-color: rgba(120, 120, 128, 0.08);
+            border: none;
+            border-radius: 10px;
+            padding: 8px 12px 8px 34px;
+            font-size: 13.5px;
+            color: var(--phone-text-primary);
+            outline: none;
+            font-family: inherit;
+        }
+
+        .search-bar-input::placeholder {
+            color: var(--phone-text-tertiary);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            color: var(--phone-text-secondary);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-clear-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--phone-text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            display: none;
+            align-items: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .cefr-scroll-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            margin: 0 -16px 12px -16px;
+            padding: 0 16px;
+        }
+
+        .cefr-scroll-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .cefr-filter-pill {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-border);
+            color: var(--phone-text-secondary);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 11.5px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: var(--spring-transition);
+        }
+
+        .cefr-filter-pill.active {
+            background-color: var(--sys-blue);
+            color: #ffffff;
+            border-color: var(--sys-blue);
+        }
+
+        /* Custom Categories Filter Bar */
+        .category-filter-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            margin: 0 -16px 14px -16px;
+            padding: 0 16px;
+        }
+
+        .category-filter-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .category-pill {
+            background-color: rgba(120, 120, 128, 0.06);
+            border: 1px solid transparent;
+            color: var(--phone-text-secondary);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: var(--spring-transition);
+        }
+
+        .category-pill.active {
+            background-color: rgba(0, 122, 255, 0.1);
+            color: var(--sys-blue);
+            border-color: rgba(0, 122, 255, 0.15);
+        }
+
+        .dict-counter {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--phone-text-secondary);
+            margin-bottom: 8px;
+            padding-left: 4px;
+        }
+
+        /* Word cells badges */
+        .word-badge-list {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .word-badge {
+            font-size: 8px;
+            font-weight: 700;
+            padding: 1.5px 5px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .badge-used { background-color: rgba(0, 122, 255, 0.1); color: var(--sys-blue); }
+        .badge-translated { background-color: rgba(175, 82, 222, 0.12); color: var(--sys-purple); }
+        .badge-known { background-color: rgba(52, 199, 89, 0.12); color: var(--sys-green); }
+        .badge-later { background-color: rgba(142, 142, 147, 0.12); color: var(--sys-gray); }
+
+        /* ==========================================================================
+           11. EPISODE READER OVERLAY ( TTS & NARRATIVE RESPONSE )
+           ========================================================================== */
+        .episode-reader-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--phone-bg);
+            z-index: 1060;
+            padding: 48px 16px 24px 16px;
+            flex-direction: column;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .picker-title-row {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .picker-title-main {
+            font-family: 'Outfit', sans-serif;
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--phone-text-primary);
+        }
+
+        .picker-title-sub {
+            font-size: 11px;
+            color: var(--phone-text-secondary);
+        }
+
+        .session-close-btn {
+            background-color: rgba(120, 120, 128, 0.12);
+            border: none;
+            border-radius: 10px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--phone-text-primary);
+            cursor: pointer;
+        }
+
+        .reader-scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            scrollbar-width: none;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-bottom: 20px;
+        }
+
+        .reader-scroll-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .story-paragraph {
+            margin: 0;
+            font-size: 14.5px;
+            line-height: 1.65;
+            color: var(--phone-text-primary);
+        }
+
+        .story-sentence {
+            opacity: 0.45;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: opacity 0.3s ease, background-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        .story-sentence.active-sentence {
+            opacity: 1;
+            background-color: rgba(0, 122, 255, 0.1);
+        }
+
+        .story-sentence strong {
+            color: var(--sys-blue);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .audio-playback-bar {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-border);
+            border-radius: 16px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        }
+
+        .audio-playback-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .audio-btn {
+            background: none;
+            border: none;
+            color: var(--sys-blue);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+        }
+
+        .audio-btn:active {
+            transform: scale(0.9);
+        }
+
+        .audio-track-status {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--phone-text-secondary);
+        }
+
+        .story-interaction-box {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-border);
+            border-radius: 16px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .story-interaction-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--phone-text-primary);
+        }
+
+        .story-reply-input {
+            width: 100%;
+            background-color: rgba(120, 120, 128, 0.08);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+            color: var(--phone-text-primary);
+            outline: none;
+            font-family: inherit;
+            resize: none;
+        }
+
+        .story-reply-input:focus {
+            border-color: rgba(0, 122, 255, 0.3);
+            background-color: rgba(120, 120, 128, 0.12);
+        }
+
+        .story-reply-submit {
+            background-color: var(--sys-blue);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: var(--spring-transition);
+        }
+
+        .story-reply-submit:active {
+            transform: scale(0.97);
+        }
+
+        .grammar-correction-box {
+            background-color: rgba(52, 199, 89, 0.08);
+            border: 1px solid rgba(52, 199, 89, 0.2);
+            border-radius: 10px;
+            padding: 10px 12px;
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .grammar-correction-title {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--sys-green);
+            text-transform: uppercase;
+        }
+
+        .grammar-correction-text {
+            font-size: 12px;
+            color: var(--phone-text-primary);
+            line-height: 1.45;
+        }
+
+        /* Inline Tooltip */
+        .translation-tooltip {
+            position: absolute;
+            background-color: var(--phone-card-elevated);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+            max-width: 180px;
+            animation: fadeIn 0.15s ease;
+        }
+
+        .translation-tooltip-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--phone-text-primary);
+        }
+
+        .translation-tooltip-ipa {
+            font-size: 10.5px;
+            font-family: monospace;
+            color: var(--sys-orange);
+        }
+
+        .translation-tooltip-text {
+            font-size: 12px;
+            color: var(--phone-text-secondary);
+        }
+
+        /* ==========================================================================
+           12. CREATE SERIES DIALOG MODAL & DRAWERS
+           ========================================================================== */
+        .create-series-modal-overlay,
+        .word-drawer-overlay,
+        .story-modal-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.35);
+            z-index: 1100;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .create-series-modal,
+        .word-drawer,
+        .story-modal {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--phone-card);
+            border-radius: 24px 24px 0 0;
+            border-top: 1px solid var(--glass-border);
+            padding: 16px 20px 32px 20px;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+            transform: translateY(100%);
+            transition: var(--spring-transition);
+            max-height: 85%;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .create-series-modal-overlay.active,
+        .word-drawer-overlay.active,
+        .story-modal-overlay.active {
+            display: block;
+        }
+
+        .create-series-modal-overlay.active .create-series-modal,
+        .word-drawer-overlay.active .word-drawer,
+        .story-modal-overlay.active .story-modal {
+            transform: translateY(0);
+        }
+
+        .drawer-handle {
+            width: 36px;
+            height: 5px;
+            background-color: var(--phone-text-tertiary);
+            border-radius: 99px;
+            margin: 0 auto 16px auto;
+            opacity: 0.6;
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .drawer-title-word {
+            font-family: 'Outfit', sans-serif;
+            font-size: 23px;
+            font-weight: 800;
+            color: var(--phone-text-primary);
+        }
+
+        .drawer-tts-btn {
+            background: none;
+            border: none;
+            color: var(--sys-blue);
+            cursor: pointer;
+            padding: 4px;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .drawer-close {
+            background-color: rgba(120, 120, 128, 0.12);
+            border: none;
+            color: var(--phone-text-primary);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .drawer-divider {
+            height: 1px;
+            background-color: var(--phone-separator);
+            margin: 10px 0;
+        }
+
+        .drawer-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--phone-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .drawer-translation {
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--phone-text-primary);
+            margin: 0 0 10px 0;
+        }
+
+        .drawer-definition {
+            font-size: 12.5px;
+            color: var(--phone-text-secondary);
+            line-height: 1.5;
+            margin: 0 0 10px 0;
+        }
+
+        .drawer-example-card {
+            background-color: var(--phone-bg);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 12.5px;
+            line-height: 1.45;
+            color: var(--phone-text-primary);
+            border-left: 2px solid var(--sys-blue);
+            margin-bottom: 16px;
+        }
+
+        .drawer-state-controller {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .state-options-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .state-select-btn {
+            background-color: rgba(120, 120, 128, 0.08);
+            border: 1px solid transparent;
+            color: var(--phone-text-primary);
+            border-radius: 10px;
+            padding: 8px 4px;
+            font-size: 10.5px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            text-transform: uppercase;
+            transition: var(--spring-transition);
+        }
+
+        .state-select-btn.active {
+            background-color: rgba(0, 122, 255, 0.1);
+            border-color: rgba(0, 122, 255, 0.2);
+            color: var(--sys-blue);
+        }
+
+        .form-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .form-label {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--phone-text-secondary);
+            text-transform: uppercase;
+        }
+
+        .form-input, .form-select {
+            background-color: rgba(120, 120, 128, 0.08);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13.5px;
+            color: var(--phone-text-primary);
+            outline: none;
+            font-family: inherit;
+        }
+
+        /* Online synthesis loader */
+        .story-loader {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 24px 0;
+            text-align: center;
+        }
+
+        .story-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(0, 122, 255, 0.12);
+            border-top: 3px solid var(--sys-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .ios-switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 26px;
+        }
+
+        .ios-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .ios-switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--phone-separator);
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        .ios-switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px; width: 22px;
+            left: 2px; bottom: 2px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+
+        input:checked + .ios-switch-slider {
+            background-color: var(--sys-green);
+        }
+
+        input:checked + .ios-switch-slider:before {
+            transform: translateX(20px);
+        }
+
+        .settings-switch-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-switch-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-width: 80%;
+        }
+
+        .settings-switch-title {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--phone-text-primary);
+        }
+
+        .settings-switch-desc {
+            font-size: 11px;
+            color: var(--phone-text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -1411,7 +1624,7 @@
         <header class="dashboard-header">
             <div class="dashboard-title-group">
                 <h1>Context-English MVP Design</h1>
-                <p>Simplified Main Screen simulator & flashcard swiping card logic flow</p>
+                <p>Interactive Series Hub and non-SRS Dictionary mockup</p>
             </div>
             <div class="header-controls">
                 <button class="theme-toggle-btn" onclick="toggleTheme()">
@@ -1423,7 +1636,7 @@
             </div>
         </header>
 
-        <!-- LEFT COLUMN: SCREEN DESIGN NOTES -->
+        <!-- LEFT COLUMN: DEVELOPER PROMPT & INSTRUCTION PANEL -->
         <section class="instruction-panel">
             <div class="prompt-card">
                 <h2>
@@ -1432,47 +1645,28 @@
                     </svg>
                     Main Screen Design Notes
                 </h2>
-                <p>Reference notes for the main screen layout, card-session entry point, learning progress, and review states.</p>
+                <p>Interactive specifications for the new Series-First learning flow and the redesigned Dictionary.</p>
                 
                 <div class="prompt-box-wrapper">
                     <pre class="prompt-box" id="ai-prompt-text">
-<strong>1. THEME & COLORS:</strong>
-- <span class="keyword">Primary Accent:</span> <span class="string">#007aff</span> (light), <span class="string">#0a84ff</span> (dark)
-- <span class="keyword">Success:</span> <span class="string">#34c759</span> (light), <span class="string">#30d158</span> (dark)
-- <span class="keyword">Warning/Phonetics:</span> <span class="string">#ff9500</span> (light), <span class="string">#ff9f0a</span> (dark)
-- <span class="keyword">Background Primary:</span> <span class="string">#f2f2f7</span> (light), <span class="string">#000000</span> (dark)
-- <span class="keyword">Card Primary:</span> <span class="string">#ffffff</span> (light), <span class="string">#1c1c1e</span> (dark)
-- <span class="keyword">Text Primary:</span> <span class="string">#000000</span> (light), <span class="string">#ffffff</span> (dark)
-- <span class="keyword">Text Secondary:</span> <span class="string">rgba(60,60,67,0.6)</span> (light), <span class="string">rgba(235,235,245,0.6)</span> (dark)
+<strong>1. METRICS & CARD BACKLOGS REMOVED:</strong>
+No study queues, review metrics, streak counts, or review debt.
+The user's progress is measured purely by reading stories.
 
-<strong>2. LACONIC MAIN SCREEN STRUCTURE:</strong>
-- <strong>Screen View:</strong> Scrollable content with padding-bottom: 96 to prevent floating tab bar blocking contents.
-- <strong>Minimalist Header:</strong> Shows greeting, streak metric, and circular profile avatar.
-- <strong>Progress Card:</strong> Shows daily goal status e.g., "Goal: 3/5 words learned". Contains a circular progress indicator.
-- <strong>Two Primary Action Cards:</strong>
-  - <strong>"Study New Words"</strong> (shows: "5 new cards waiting"). Opens a fullscreen Card Swipe overlay.
-  - <strong>"Review Due Cards"</strong> (shows: "12 cards due"). Opens a fullscreen Card Swipe overlay.
-- <strong>Story Generator Card:</strong>
-  - Shows locked state until today's word goal is reached.
-  - Tapping opens a dedicated frosted Bottom Drawer overlay where the user selects a genre and starts text creation.
-- <strong>Connectivity:</strong> If offline, the generation button in the overlay displays a warning explaining that text creation requires internet.
+<strong>2. SERIES DETAILS VIEW (OFFLINE HISTORY):</strong>
+Clicking any series card displays its description, current memory, and a list of all completed episodes.
+Completed episodes can be reopened and read/listened offline in read-only mode.
 
-<strong>3. CARD SWIPE SESSION FLOW:</strong>
-- <strong>New Cards Session:</strong>
-  - Swipe LEFT (Skip): Word is marked as `Skipped` (user already knows it), skipped from session, and not learned.
-  - Swipe RIGHT (Learn): Word is marked as `Learning` (added to today's active learning session).
-- <strong>Same-Day Learning Cards Session:</strong>
-  - Swipe LEFT (Learned): Word is marked as `In Review` (learned and enters review cycle).
-  - Swipe RIGHT (Keep Learning): Word remains in today's active session and reappears until learned.
-- <strong>Review Cards Session:</strong>
-  - Swipe LEFT (Remembered): Word advances one review cycle.
-  - Swipe RIGHT (Forgotten): Word moves back one review cycle. Reschedules next review using the previous cycle's delay.
-- <strong>Physics Specifications:</strong> Cards rotate slightly while dragging horizontally and slide away with a spring animation when released. Display overlay stamp tags "KNOW", "LEARN", or "LEARNED" depending on drag direction.
+<strong>3. PREPARE EPISODE SCREEN (SWAP/SHUFFLE):</strong>
+Before generation, the user is presented with suggested words.
+- Clicking <strong>[✕ Swap]</strong> dynamically fades the word out, queries the offline dictionary database, and spring-slides a new word in.
+- Clicking <strong>[✓ Use]</strong> confirms focus target inclusion.
+- Option: <strong>"Generate Episode"</strong> (AI writer/validator pipeline online).
 
-<strong>4. SETTINGS VIEW SPECIFICATIONS:</strong>
-- <strong>CEFR level selector:</strong> Custom Segmented Control [A1 | A2 | B1 | B2 | C1] with sliding highlight.
-- <strong>Goal Sliders:</strong> Configure daily word goal (3 to 20, default 5) and repetitions for mastery (2 to 8, default 5).
-- <strong>Network Status:</strong> Visible state for online/offline behavior.
+<strong>4. DICTIONARY AS PICKER SOURCE:</strong>
+The dictionary drops SRS categories. All filters are shifted to:
+<code>All | Used in series | Translated | Known | Later</code>.
+Words carrying these states are queried by the picker to recommend future story words.
 </pre>
                 </div>
             </div>
@@ -1483,7 +1677,7 @@
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                     </svg>
-                    Architectural Card-Rules
+                    AI Series Specifications
                 </h2>
                 <div class="spec-list">
                     <div class="spec-item">
@@ -1491,8 +1685,8 @@
                             <path d="M5 13l4 4L19 7"/>
                         </svg>
                         <div class="spec-content">
-                            <strong>Binds and Constraints:</strong>
-                            <p>Daily word goal is bounded strictly between 3-20 words. Mastery repetitions are bounded between 2-8 repetitions.</p>
+                            <strong>Length & Level Constraints:</strong>
+                            <p>Episodes stay concise enough for a comfortable learning session, while remaining substantial enough to develop the scene and interaction. Length adapts to the story and CEFR level. Grammar fits strictly within manual CEFR selections [A1 | A2 | B1 | B2 | C1].</p>
                         </div>
                     </div>
                     <div class="spec-item">
@@ -1500,8 +1694,8 @@
                             <path d="M5 13l4 4L19 7"/>
                         </svg>
                         <div class="spec-content">
-                            <strong>Review Scheduling Logic:</strong>
-                            <p>First review is scheduled 30 minutes after marked as learned. If a review card is forgotten, return it to cycle N-1 and apply the delay assigned to that previous cycle.</p>
+                            <strong>Memory & Feedback rules:</strong>
+                            <p>Compacted series summaries prevent LLM context bloat. Story corrections are brief and non-punitive to preserve reader immersion.</p>
                         </div>
                     </div>
                 </div>
@@ -1513,7 +1707,6 @@
             <div class="sticky-simulator">
                 
                 <div class="iphone-15">
-                    <!-- Dynamic Island overlay -->
                     <div class="dynamic-island"></div>
                     
                     <div class="iphone-screen" id="iphone-screen">
@@ -1528,10 +1721,9 @@
                             </div>
                         </div>
 
-                        <!-- Home Indicator Safe Area Bottom -->
                         <div class="home-indicator"></div>
 
-                        <!-- Floating Capsule Tab Bar (Apple / Expo style) -->
+                        <!-- FLOATING TABS NAVIGATION -->
                         <nav class="simulator-nav">
                             <div class="nav-item active" id="tabHome" onclick="switchTab('HOME')">
                                 <div class="nav-icon-wrapper">
@@ -1539,17 +1731,11 @@
                                 </div>
                                 <span>Home</span>
                             </div>
-                            <div class="nav-item" id="tabDict" onclick="alert('Dictionary is in separate design/dictionary_screen folder. Toggle in tabs is simulated!')">
+                            <div class="nav-item" id="tabDict" onclick="switchTab('DICT')">
                                 <div class="nav-icon-wrapper">
                                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                                 </div>
                                 <span>Dictionary</span>
-                            </div>
-                            <div class="nav-item" onclick="alert('Audio Karaoke playback requires generated Text of Day.')">
-                                <div class="nav-icon-wrapper">
-                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-                                </div>
-                                <span>Audio</span>
                             </div>
                             <div class="nav-item" id="tabSettings" onclick="switchTab('SETTINGS')">
                                 <div class="nav-icon-wrapper">
@@ -1559,364 +1745,492 @@
                             </div>
                         </nav>
 
-                        <!-- ==================== TAB 1: CONCISE HOME VIEW ==================== -->
+                        <!-- ==================== TAB 1: HOME ==================== -->
                         <div class="screen-container active" id="viewHome">
-                            
-                            <!-- App Header -->
                             <div class="app-header">
-                                <div class="app-greeting-group">
-                                    <span class="app-greeting-sub">Let's Study</span>
-                                    <h2 class="app-greeting-main">Context-English</h2>
-                                </div>
-                                <div class="app-profile-avatar">LE</div>
-                            </div>
-
-                            <!-- Laconic Streak/Activity Badges -->
-                            <div class="stats-badge-row">
-                                <div class="stats-badge">
-                                    <svg width="14" height="14" fill="var(--sys-orange)" viewBox="0 0 24 24"><path d="M17.66 11.57c-.77-.77-1.9-1.16-3.05-1.15.54-1.37.07-2.98-.94-3.99-1.01-1.01-2.62-1.48-3.99-.94.01-1.15-.38-2.28-1.15-3.05a1.002 1.002 0 00-1.63.3C6.31 4.39 6.01 6.52 7.02 8.53l.06.12-.13.06c-2.01 1.01-4.14.71-5.79-1.88a.998.998 0 00-1.63.3c-.77.77-1.16 1.9-1.15 3.05 1.37-.54 2.98-.07 3.99.94 1.01 1.01 1.48 2.62.94 3.99-1.15-.01-2.28.38-3.05 1.15a1.002 1.002 0 00.3 1.63c1.65.6 3.78.3 5.79-1.02l.12-.06-.06.13c-1.01 2.01-.71 4.14 1.88 5.79.43.26.97.23 1.37-.09.77-.77 1.16-1.9 1.15-3.05-1.37.54-2.98.07-3.99-.94-1.01-1.01-1.48-2.62-.94-3.99 1.15.01 2.28-.38 3.05-1.15a1.002 1.002 0 00-.3-1.63c-1.65-.6-3.78-.3-5.79 1.02l-.12.06.06-.13c1.01-2.01.71-4.14-1.88-5.79a1.001 1.001 0 00-1.37.09z"/></svg>
-                                    <span class="stats-badge-value">14 Days</span>
-                                </div>
-                                <div class="stats-badge">
-                                    <span class="stats-badge-value">284</span>
-                                    <span class="stats-badge-label">Mastered</span>
+                                <div class="app-title-group">
+                                    <span class="app-category">Learn in Context</span>
+                                    <h2 class="app-main-title">My Series</h2>
                                 </div>
                             </div>
 
-                            <!-- Goal Progress Card widget -->
-                            <div class="goal-progress-card">
-                                <div class="goal-text-group">
-                                    <span class="goal-title" id="goalTitleText">Today's Goal</span>
-                                    <span class="goal-desc" id="goalDescText">3 of 5 words studied today</span>
-                                </div>
-                                <div class="progress-circle-group">
-                                    <svg class="progress-circle-svg" width="50" height="50">
-                                        <circle cx="25" cy="25" r="20" fill="transparent" stroke="var(--phone-separator)" stroke-width="4"/>
-                                        <circle id="goalCircleFill" cx="25" cy="25" r="20" fill="transparent" stroke="var(--sys-blue)" stroke-width="4" stroke-dasharray="125" stroke-dashoffset="50"/>
-                                    </svg>
-                                    <span class="progress-circle-value" id="goalCircleText">60%</span>
-                                </div>
-                            </div>
-
-                            <!-- Primary action list -->
-                            <div class="learning-actions-container">
-                                <!-- Action 1: Study Cards -->
-                                <div class="action-card" onclick="startCardSession('NEW')">
-                                    <div class="action-left">
-                                        <div class="action-icon-wrapper" style="background-color: var(--sys-blue)">
-                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                                        </div>
-                                        <div class="action-details">
-                                            <span class="action-title">Study Cards</span>
-                                            <span class="action-sub" id="newCardsText">2 cards left for today's goal</span>
-                                        </div>
-                                    </div>
-                                    <div class="action-chevron">❯</div>
-                                </div>
-
-                                <!-- Action 2: Scheduled Reviews -->
-                                <div class="action-card" onclick="startCardSession('REVIEW')">
-                                    <div class="action-left">
-                                        <div class="action-icon-wrapper" style="background-color: var(--sys-purple)">
-                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17"/></svg>
-                                        </div>
-                                        <div class="action-details">
-                                            <span class="action-title">Reviews</span>
-                                            <span class="action-sub" id="reviewCardsText">12 words due for review</span>
-                                        </div>
-                                    </div>
-                                    <div class="action-chevron">❯</div>
-                                </div>
-
-                                <!-- Action 3: Story Synthesis (Dedicated Panel trigger) -->
-                                <div class="action-card" id="storyActionCard" onclick="openStoryOverlay()">
-                                    <div class="action-left">
-                                        <div class="action-icon-wrapper" id="storyIconWrapper" style="background-color: var(--sys-orange)">
-                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 4a2 2 0 00-2-2h-3a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3z"/></svg>
-                                        </div>
-                                        <div class="action-details">
-                                            <span class="action-title" id="storyTitleText">Text of the Day</span>
-                                            <span class="action-sub" id="storySubText">Goal met! Read your daily story</span>
-                                        </div>
-                                    </div>
-                                    <div class="action-chevron">❯</div>
+                            <!-- Premium TV-Style continue reading banner -->
+                            <div class="continue-banner" id="activeSeriesWidget" onclick="openSeriesDetails(activeSeriesId)">
+                                <div class="continue-banner-content">
+                                    <span class="continue-banner-tag" id="activeGenre">Sci-Fi Series</span>
+                                    <h3 class="continue-banner-title" id="activeTitle">Space Odyssey</h3>
+                                    <span class="continue-banner-ep" id="activeEpNumber">Episode 4 • Next Chapter</span>
+                                    <p class="continue-banner-cliff" id="activeCliffhanger">
+                                        "You notice a flashing red light on the cockpit console, and a distorted audio voice begins transmission over the short-range radio..."
+                                    </p>
+                                    <button class="continue-banner-btn">
+                                        <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                        <span>Continue Story</span>
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Dynamic Connectivity State indicator -->
+                            <!-- iOS Grouped Table View of all series -->
+                            <span class="section-label">Browse My Series</span>
+                            <div class="ios-list-group" id="mySeriesList">
+                                <!-- Dynamically populated -->
+                            </div>
+
+                            <!-- Apple-style Primary Buttons -->
+                            <button class="ios-btn-primary" onclick="openCreateSeriesModal()">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M12 4v16m8-8H4"/></svg>
+                                <span>Create New Series</span>
+                            </button>
+
                             <div class="connection-status-row">
                                 <div class="connection-status-badge" id="connBadge" style="background-color: rgba(52, 199, 89, 0.12); color: var(--sys-green);">
                                     <div class="status-dot" id="connDot" style="background-color: var(--sys-green);"></div>
                                     <span id="connLabel">Connected</span>
                                 </div>
                             </div>
+                        </div>
 
-                        </div> <!-- End Tab 1 Screen Container -->
+                        <!-- ==================== SCREEN 1B: SERIES DETAILS ==================== -->
+                        <div class="screen-container" id="viewSeriesDetails">
+                            <div class="view-header">
+                                <button class="back-btn" onclick="showView('HOME')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 19l-7-7 7-7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    <span>Back</span>
+                                </button>
+                            </div>
 
-                        <!-- ==================== TAB 2: SYSTEM SETTINGS VIEW ==================== -->
+                            <div class="series-details-header">
+                                <span class="series-genre-tag" id="detailGenre">Sci-Fi Series</span>
+                                <h2 class="series-detail-title" id="detailTitle">Space Odyssey</h2>
+                                <p class="series-detail-premise" id="detailPremise">Exploring deep space...</p>
+                            </div>
+
+                            <!-- Prepare upcoming episode CTA -->
+                            <div id="detailPrepareSection" style="margin-bottom: 20px;">
+                                <!-- Dynamically generated prepare episode box -->
+                            </div>
+
+                            <span class="section-label">Episode History</span>
+                            <div class="ios-list-group" id="detailEpisodesHistoryList">
+                                <!-- Past episodes list -->
+                            </div>
+                        </div>
+
+                        <!-- ==================== SCREEN 1C: PREPARE EPISODE ==================== -->
+                        <div class="screen-container" id="viewPrepareEpisode">
+                            <div class="view-header">
+                                <button class="back-btn" onclick="showSeriesDetails(activeSeriesId)">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 19l-7-7 7-7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    <span id="prepareBackLabel">Back</span>
+                                </button>
+                            </div>
+
+                            <div class="prepare-banner">
+                                <span class="prepare-banner-label">Upcoming Chapter</span>
+                                <h4 class="prepare-banner-title" id="prepareEpTitle">Episode 4 preparation</h4>
+                            </div>
+
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 4px;">
+                                <span class="section-label" style="margin-bottom:0;">Suggested Words (4)</span>
+                                <button class="back-btn" style="font-size:11.5px;" onclick="shuffleAllSuggestedWords()">Shuffle All</button>
+                            </div>
+
+                            <!-- Word suggestion cards container -->
+                            <div id="suggestedWordsContainer">
+                                <!-- Suggested items -->
+                            </div>
+
+                            <!-- Generate action triggers -->
+                            <button class="ios-btn-primary" onclick="runStorySynthesis()">
+                                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                <span>Generate Episode</span>
+                            </button>
+
+                        </div>
+
+                        <!-- ==================== TAB 2: DICTIONARY ==================== -->
+                        <div class="screen-container" id="viewDictionary">
+                            <div class="app-header">
+                                <div class="app-title-group">
+                                    <span class="app-category">Oxford 5000</span>
+                                    <h2 class="app-main-title">Dictionary</h2>
+                                </div>
+                            </div>
+
+                            <!-- Search Input -->
+                            <div class="search-bar-container">
+                                <div class="search-icon">
+                                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                </div>
+                                <input type="text" class="search-bar-input" id="dictSearchInput" placeholder="Search vocabulary..." oninput="handleDictSearch()">
+                                <button class="search-clear-btn" id="dictSearchClear" onclick="clearDictSearch()">✕</button>
+                            </div>
+
+                            <!-- CEFR Horizontal filter pills -->
+                            <div class="cefr-scroll-row">
+                                <div class="cefr-filter-pill active" onclick="filterCEFR(this, 'ALL')">All levels</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'A1')">A1</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'A2')">A2</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'B1')">B1</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'B2')">B2</div>
+                                <div class="cefr-filter-pill" onclick="filterCEFR(this, 'C1')">C1</div>
+                            </div>
+
+                            <!-- Custom non-SRS category filter pills -->
+                            <div class="category-filter-row">
+                                <div class="category-pill active" onclick="filterCategory(this, 'ALL')">All</div>
+                                <div class="category-pill" onclick="filterCategory(this, 'USED')">Used in series</div>
+                                <div class="category-pill" onclick="filterCategory(this, 'TRANSLATED')">Translated</div>
+                                <div class="category-pill" onclick="filterCategory(this, 'KNOWN')">Known</div>
+                                <div class="category-pill" onclick="filterCategory(this, 'LATER')">Later</div>
+                            </div>
+
+                            <div class="dict-counter" id="dictCounterLabel">Showing 21 words</div>
+
+                            <!-- Dictionary grouped word cells -->
+                            <div class="ios-list-group" id="dictionaryWordsList">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- ==================== TAB 3: SETTINGS ==================== -->
                         <div class="screen-container" id="viewSettings">
                             <div class="app-header">
-                                <div class="app-greeting-group">
-                                    <span class="app-greeting-sub">Preferences</span>
-                                    <h2 class="app-greeting-main">Settings</h2>
+                                <div class="app-title-group">
+                                    <span class="app-category">Preferences</span>
+                                    <h2 class="app-main-title">Settings</h2>
                                 </div>
                             </div>
 
-                            <!-- CEFR Settings Section -->
-                            <span class="settings-section-title">Grammar Control</span>
-                            <div class="settings-card">
-                                <div class="setting-control-row">
-                                    <span class="setting-label">CEFR Target Level</span>
-                                    <span class="setting-value-badge" id="cefrBadgeVal" style="background-color: rgba(175, 82, 222, 0.12); color: var(--sys-purple);">B2 Upper</span>
+                            <span class="section-label">Grammar Control</span>
+                            <div class="ios-list-group" style="padding:14px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                    <span style="font-size:13.5px; font-weight:600; color:var(--phone-text-primary);">CEFR Target Level</span>
+                                    <span class="ios-badge ios-badge-purple" id="cefrLabelBadge">B2 Upper</span>
                                 </div>
-                                <div class="cefr-selector-bar">
-                                    <div class="cefr-slider-bg" id="cefrSlider"></div>
-                                    <div class="cefr-option" onclick="changeCEFR(0, 'A1', 'A1 Basic', '#34c759', 'rgba(52, 199, 89, 0.12)')">A1</div>
-                                    <div class="cefr-option" onclick="changeCEFR(1, 'A2', 'A2 Elementary', '#007aff', 'rgba(0, 122, 255, 0.12)')">A2</div>
-                                    <div class="cefr-option" onclick="changeCEFR(2, 'B1', 'B1 Intermediate', '#ff9500', 'rgba(255, 149, 0, 0.12)')">B1</div>
-                                    <div class="cefr-option active" onclick="changeCEFR(3, 'B2', 'B2 Upper', '#af52de', 'rgba(175, 82, 222, 0.12)')">B2</div>
-                                    <div class="cefr-option" onclick="changeCEFR(4, 'C1', 'C1 Advanced', '#ff3b30', 'rgba(255, 59, 48, 0.12)')">C1</div>
+                                <div style="position:relative; background-color:rgba(120, 120, 128, 0.08); border-radius:8px; padding:2px; display:flex;">
+                                    <div id="cefrSliderHighlight" style="position:absolute; top:2px; bottom:2px; left:2px; width:calc(20% - 2px); background-color:var(--phone-card); border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.1); transition:transform 0.25s var(--spring-easing);"></div>
+                                    <div style="flex:1; text-align:center; padding:6px 0; font-size:11px; font-weight:700; color:var(--phone-text-secondary); z-index:2; cursor:pointer;" onclick="changeCEFR(0, 'A1', 'A1 Basic')">A1</div>
+                                    <div style="flex:1; text-align:center; padding:6px 0; font-size:11px; font-weight:700; color:var(--phone-text-secondary); z-index:2; cursor:pointer;" onclick="changeCEFR(1, 'A2', 'A2 Elementary')">A2</div>
+                                    <div style="flex:1; text-align:center; padding:6px 0; font-size:11px; font-weight:700; color:var(--phone-text-secondary); z-index:2; cursor:pointer;" onclick="changeCEFR(2, 'B1', 'B1 Intermediate')">B1</div>
+                                    <div style="flex:1; text-align:center; padding:6px 0; font-size:11px; font-weight:700; color:var(--phone-text-primary); z-index:2; cursor:pointer;" onclick="changeCEFR(3, 'B2', 'B2 Upper')">B2</div>
+                                    <div style="flex:1; text-align:center; padding:6px 0; font-size:11px; font-weight:700; color:var(--phone-text-secondary); z-index:2; cursor:pointer;" onclick="changeCEFR(4, 'C1', 'C1 Advanced')">C1</div>
                                 </div>
                             </div>
 
-                            <!-- Card Sessions Preferences -->
-                            <span class="settings-section-title">Card Goal preferences</span>
-                            <div class="settings-card">
-                                <div class="setting-control-row">
-                                    <span class="setting-label">Daily New-Word Goal</span>
-                                    <span class="setting-value-badge" id="goalValText">5 words</span>
-                                </div>
-                                <input type="range" class="setting-slider-input" id="goalSlider" min="3" max="20" value="5" oninput="changeGoalSetting(this.value)">
-                                
-                                <div class="setting-control-row" style="margin-top: 8px;">
-                                    <span class="setting-label">Mastery Repetitions</span>
-                                    <span class="setting-value-badge" id="repsValText">5 cycles</span>
-                                </div>
-                                <input type="range" class="setting-slider-input" id="repsSlider" min="2" max="8" value="5" oninput="changeRepsSetting(this.value)">
-                            </div>
-
-                            <!-- Network Simulator Switch (For developer demonstration) -->
-                            <span class="settings-section-title">Network Simulator</span>
-                            <div class="settings-card">
+                            <span class="section-label">Developer Tools</span>
+                            <div class="ios-list-group" style="padding:14px;">
                                 <div class="settings-switch-row">
                                     <div class="settings-switch-info">
                                         <span class="settings-switch-title" id="simTitle">Online Connection</span>
-                                        <span class="settings-switch-desc" id="simDesc">Toggle off to test offline caching behaviors.</span>
+                                        <span class="settings-switch-desc" id="simDesc">Toggle off to test offline alerts when writing stories.</span>
                                     </div>
                                     <label class="ios-switch">
-                                        <input type="checkbox" checked id="netToggle" onchange="toggleNetworkSimulation()">
+                                        <input type="checkbox" checked onchange="toggleOnlineConnection(this)">
                                         <span class="ios-switch-slider"></span>
                                     </label>
                                 </div>
                             </div>
+                        </div>
 
-                        </div> <!-- End Tab 2 Screen Container -->
+                        <!-- ==================== OVERLAYS & MODALS ==================== -->
 
-                        <!-- ==================== SWIPE SESSION SCREEN OVERLAY ==================== -->
-                        <div class="card-session-overlay" id="sessionOverlay">
-                            <div class="card-session-header">
-                                <span class="stats-badge-value" style="font-size: 13px;" id="sessionTitleType">New cards</span>
-                                <div class="session-progress-bar">
-                                    <div class="session-progress-fill" id="sessionProgressFill"></div>
+
+                        <!-- 2. EPISODE READER -->
+                        <div class="episode-reader-overlay" id="readerOverlay">
+                            <div class="picker-header">
+                                <div class="picker-title-row">
+                                    <span class="picker-title-main" id="readerTitleMain">Space Odyssey</span>
+                                    <span class="picker-title-sub" id="readerEpSubtitle">Episode 4 Reading</span>
                                 </div>
-                                <button class="session-close-btn" onclick="closeCardSession()">Close</button>
+                                <button class="session-close-btn" onclick="closeEpisodeReader()">Close</button>
                             </div>
 
-                            <!-- The interactive card swiping stack -->
-                            <div class="card-stack" id="cardStack">
-                                <!-- Cards will be loaded dynamically by script -->
+                            <!-- Online Generator loader -->
+                            <div class="story-loader" id="modalLoader">
+                                <div class="story-spinner"></div>
+                                <div class="story-loader-step" id="modalLoaderStep">Preparing...</div>
+                                <div style="font-size:11px; color:var(--phone-text-secondary); margin-top:4px;">Assembling series memory & CEFR vocabulary</div>
                             </div>
 
-                            <div class="swipe-actions-row">
-                                <button class="swipe-circle-btn btn-left" onclick="simulateSwipe('LEFT')">
-                                    <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                                </button>
-                                <button class="swipe-circle-btn btn-right" onclick="simulateSwipe('RIGHT')">
-                                    <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
-                                </button>
+                            <!-- Offline Error indicator -->
+                            <div class="story-loader" id="offlineErrorView" style="display:none; color:var(--sys-orange);">
+                                <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                <div class="story-loader-step" style="margin-top:8px;">Episode Generation Unavailable Offline</div>
+                                <div style="font-size:11.5px; color:var(--phone-text-secondary); padding:0 10px;">Please toggle online mode in Settings or reread completed historical episodes.</div>
                             </div>
-                            <div class="swipe-instructions" id="swipeInstructions">
-                                Swipe LEFT to Skip • Swipe RIGHT to Study
-                            </div>
-                        </div> <!-- End card session overlay -->
 
-                        <!-- ==================== DEDICATED STORY GENERATOR OVERLAY ==================== -->
-                        <div class="story-modal-overlay" id="storyOverlay" onclick="closeStoryOverlay()">
-                            <div class="story-modal" onclick="event.stopPropagation()">
+                            <div class="reader-scroll-content" id="modalSuccessBlock" style="display:none;">
+                                <div class="audio-playback-bar">
+                                    <div class="audio-playback-controls">
+                                        <button class="audio-btn" id="btnAudioPlay" onclick="toggleAudioPlayback()">
+                                            <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                        </button>
+                                        <span class="audio-track-status" id="audioTrackStatus">Sentence 1 of 4</span>
+                                    </div>
+                                    <span style="font-size:10px; font-weight:700; color:var(--sys-blue); text-transform:uppercase;">Karaoke TTS</span>
+                                </div>
+
+                                <div class="story-text-container" id="successStoryPreviewText">
+                                    <!-- Populated dynamically -->
+                                </div>
+
+                                <!-- Narrative Choice / Answer box (Hidden for completed history) -->
+                                <div class="story-interaction-box" id="readerInteractionBox">
+                                    <span class="story-interaction-title" id="interactPrompt">How do you react to the transmission?</span>
+                                    <textarea class="story-reply-input" id="replyInput" rows="2" placeholder="Write your response in English..."></textarea>
+                                    <button class="story-reply-submit" onclick="submitInteractionReply()">Continue story</button>
+                                    
+                                    <div class="grammar-correction-box" id="grammarCorrectionPanel">
+                                        <span class="grammar-correction-title">AI Grammar Advice</span>
+                                        <p class="grammar-correction-text" id="grammarCorrectionText">Excellent! Your grammar matches requirements. Unresolved cliffhanger saved to memory.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. CREATE NEW SERIES MODAL -->
+                        <div class="create-series-modal-overlay" id="createSeriesOverlay" onclick="closeCreateSeriesModal()">
+                            <div class="create-series-modal" onclick="event.stopPropagation()">
                                 <div class="drawer-handle"></div>
-                                <div class="drawer-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                    <span class="story-modal-title">Synthesize Story</span>
-                                    <button class="drawer-close" onclick="closeStoryOverlay()">✕</button>
+                                <div class="drawer-header">
+                                    <span class="drawer-title-word" style="font-size:18px;">New AI Series</span>
+                                    <button class="drawer-close" onclick="closeCreateSeriesModal()">✕</button>
                                 </div>
-                                <p style="font-size: 12.5px; color: var(--phone-text-secondary); margin: 0 0 14px 0; line-height: 1.45;">
-                                    Generate a custom story integrating today's learned vocabulary matched exactly to your CEFR target level.
-                                </p>
+                                <div class="drawer-divider"></div>
 
-                                <div class="genre-picker-scroll">
-                                    <div class="genre-badge-pill active" onclick="selectGenrePill(this, 'General')">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                                        <span>Daily Life</span>
-                                    </div>
-                                    <div class="genre-badge-pill" onclick="selectGenrePill(this, 'Business')">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                                        <span>Work & IT</span>
-                                    </div>
-                                    <div class="genre-badge-pill" onclick="selectGenrePill(this, 'Travel')">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2a2.5 2.5 0 002.5-2.5V9a2 2 0 00-2-2h-1.036A2.5 2.5 0 0014 5.5v-.365M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        <span>Travel</span>
-                                    </div>
-                                    <div class="genre-badge-pill" onclick="selectGenrePill(this, 'Fiction')">
-                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                                        <span>Short Fiction</span>
-                                    </div>
+                                <div class="form-section">
+                                    <label class="form-label">Series Title</label>
+                                    <input type="text" class="form-input" id="formSeriesTitle" placeholder="e.g., Space Odyssey, Detective Baker...">
                                 </div>
 
-                                <!-- CTA synthesis trigger -->
-                                <button class="story-modal-btn" id="modalGenBtn" onclick="runStorySynthesis()">
-                                    <span>Synthesize Story Preview</span>
+                                <div class="form-section">
+                                    <label class="form-label">Genre</label>
+                                    <select class="form-select" id="formSeriesGenre">
+                                        <option value="Sci-Fi">Science Fiction</option>
+                                        <option value="Detective">Detective & Mystery</option>
+                                        <option value="Drama">Daily Drama</option>
+                                        <option value="Travel">Travel Adventure</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-section">
+                                    <label class="form-label">Tone & Mood</label>
+                                    <select class="form-select" id="formSeriesTone">
+                                        <option value="Serious">Serious & Dark</option>
+                                        <option value="Humorous">Humorous & Relaxed</option>
+                                        <option value="Mysterious">Mysterious & Tense</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-section">
+                                    <label class="form-label">Starting Premise</label>
+                                    <input type="text" class="form-input" id="formSeriesPremise" placeholder="e.g., An orphan searching for clues in Victorian London...">
+                                </div>
+
+                                <button class="ios-btn-primary" onclick="submitCreateSeriesForm()">
+                                    <span>Launch Series</span>
                                 </button>
+                            </div>
+                        </div>
 
-                                <!-- Loading steps spinner panel -->
-                                <div class="story-loader" id="modalLoader">
-                                    <div class="story-spinner"></div>
-                                    <span class="story-loader-step" id="modalLoaderStep">Connecting with AI Writer...</span>
-                                    <span class="story-loader-sub">Personalizing story structures</span>
-                                </div>
-
-                                <!-- Explicit Offline State Alert -->
-                                <div class="offline-error-view" id="offlineErrorView">
-                                    <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                                    <span class="offline-error-title">Network Offline Status</span>
-                                    <span class="offline-error-desc">
-                                        Synthesizing custom learning stories requires connection to remote Writer & Validator LLMs. Practice your cards locally until online!
-                                    </span>
-                                </div>
-
-                                <!-- Success Preview panel -->
-                                <div class="story-render-block" id="modalSuccessBlock">
-                                    <div class="story-success-badge">Story Synthesized Successfully!</div>
-                                    <div class="story-text-container" id="successStoryPreviewText">
-                                        <!-- Story content -->
+                        <!-- 4. DICTIONARY DETAILS DRAWER -->
+                        <div class="word-drawer-overlay" id="wordDrawerOverlay" onclick="closeWordDrawer()">
+                            <div class="word-drawer" onclick="event.stopPropagation()">
+                                <div class="drawer-handle"></div>
+                                <div class="drawer-header">
+                                    <div>
+                                        <span class="drawer-title-word" id="drWord">verify</span>
+                                        <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                                            <span style="font-size:12.5px; font-family:monospace; color:var(--sys-orange); font-weight:600;" id="drIpa">/ˈver.ɪ.faɪ/</span>
+                                            <button class="drawer-tts-btn" onclick="speakDrawerWord()">
+                                                <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button class="story-open-btn" onclick="alert('Proceeding to full audio-sync reader...')">Open Story Reader</button>
+                                    <button class="drawer-close" onclick="closeWordDrawer()">✕</button>
+                                </div>
+                                <div class="drawer-divider"></div>
+
+                                <span class="drawer-section-label">Context Translation</span>
+                                <p class="drawer-translation" id="drTranslation">подтверждать / верифицировать</p>
+
+                                <span class="drawer-section-label">English Definition</span>
+                                <p class="drawer-definition" id="drDefinition">To prove that something is true, correct, or accurate.</p>
+
+                                <span class="drawer-section-label">Story Usage Example</span>
+                                <div class="drawer-example-card" id="drExample">
+                                    The pilot had to verify the credentials.
+                                </div>
+                                <div class="drawer-divider"></div>
+
+                                <span class="drawer-section-label" style="display:block; margin-bottom:8px;">Custom Picker Actions</span>
+                                <div class="drawer-state-controller">
+                                    <div class="state-options-grid">
+                                        <button class="state-select-btn" id="btnDrawerKnown" onclick="toggleDrawerState('isKnown')">Mark Known</button>
+                                        <button class="state-select-btn" id="btnDrawerLater" onclick="toggleDrawerState('isLater')">Learn Later</button>
+                                    </div>
                                 </div>
                             </div>
-                        </div> <!-- End story overlay modal -->
+                        </div>
 
-                    </div> <!-- End iPhone Screen -->
-                </div> <!-- End iPhone 15 Frame -->
-                
+                        <!-- 5. FLOATING TRANSLATION TOOLTIP -->
+                        <div class="translation-tooltip" id="transTooltip">
+                            <span class="translation-tooltip-title" id="ttSpelling">verify</span>
+                            <span class="translation-tooltip-ipa" id="ttIpa">/ˈver.ɪ.faɪ/</span>
+                            <span class="translation-tooltip-text" id="ttTrans">подтверждать</span>
+                        </div>
+
+                    </div>
+                </div>
             </div>
         </section>
     </div>
 
     <!-- ==========================================================================
-       9. INTERACTIVE APP STATE CONTROLLER (JAVASCRIPT)
-       ========================================================================== */ -->
+       14. APP STATE CONTROLLER (JAVASCRIPT)
+       ========================================================================== -->
     <script>
-        // State variables
+        // High fidelity mock database for offline catalog
+        const mockOxfordWords = [
+            { id: 0, word: "abandon", type: "verb", level: "B2", ipa: "/əˈbændən/", translation: "оставлять, бросать", definition: "To leave somebody or something, especially when you should stay.", example: "The crew had to abandon the station during the solar flare.", isUsed: true, translationCount: 0, isKnown: false, isLater: false },
+            { id: 1, word: "ability", type: "noun", level: "A2", ipa: "/əˈbɪləti/", translation: "способность, умение", definition: "The physical or mental power or skill needed to do something.", example: "Computers have the ability to calculate orbital trajectories.", isUsed: false, translationCount: 2, isKnown: true, isLater: false },
+            { id: 2, word: "able", type: "adjective", level: "A2", ipa: "/ˈeɪbl/", translation: "способный (что-то сделать)", definition: "Having the necessary power, skill, time, or opportunity to do something.", example: "We might be able to intercept the transmission.", isUsed: true, translationCount: 0, isKnown: false, isLater: false },
+            { id: 3, word: "abolish", type: "verb", level: "C1", ipa: "/əˈbɑːlɪʃ/", translation: "упразднять, отменять", definition: "To formally put an end to a system, practice, or institution.", example: "They voted to abolish the ancient sector laws.", isUsed: false, translationCount: 0, isKnown: false, isLater: false },
+            { id: 4, word: "academic", type: "noun", level: "B2", ipa: "/ˌækəˈdemɪk/", translation: "академик, преподаватель", definition: "A person who teaches or does research at a university.", example: "She was a respected academic on alien linguistics.", isUsed: false, translationCount: 1, isKnown: false, isLater: false },
+            { id: 5, word: "accent", type: "noun", level: "B2", ipa: "/ˈæksənt/", translation: "акцент, произношение", definition: "A distinctive way of pronouncing a language.", example: "The alien spoke with a strange robotic accent.", isUsed: false, translationCount: 0, isKnown: false, isLater: false },
+            { id: 6, word: "accept", type: "verb", level: "A2", ipa: "/accept/", translation: "принимать, соглашаться", definition: "To agree to receive or take something offered.", example: "They chose to accept the peace treaty terms.", isUsed: true, translationCount: 0, isKnown: false, isLater: false },
+            { id: 7, word: "busy", type: "adjective", level: "A1", ipa: "/ˈbɪzi/", translation: "занятой", definition: "Having a great deal to do; keeping occupied.", example: "The docking bays were busy with cargo ships.", isUsed: true, translationCount: 0, isKnown: true, isLater: false },
+            { id: 8, word: "creative", type: "adjective", level: "A2", ipa: "/kriˈeɪtɪv/", translation: "творческий, креативный", definition: "Involving the use of imagination or original ideas.", example: "The engineer found a creative fix for the engine.", isUsed: false, translationCount: 0, isKnown: false, isLater: false },
+            { id: 9, word: "decide", type: "verb", level: "A1", ipa: "/dɪˈsaɪd/", translation: "решать, принимать решение", definition: "To choose something after thinking about possibilities.", example: "You must decide which coordinates to pilot next.", isUsed: true, translationCount: 0, isKnown: false, isLater: false },
+            { id: 10, word: "efficient", type: "adjective", level: "B1", ipa: "/ɪˈfɪʃnt/", translation: "эффективный, действенный", definition: "Working in a well-organized way without wasting time.", example: "The engine was highly efficient during hyperspace.", isUsed: false, translationCount: 0, isKnown: false, isLater: false },
+            { id: 11, word: "frequent", type: "adjective", level: "B1", ipa: "/ˈfriːkwənt/", translation: "частый", definition: "Occurring or done on many occasions or intervals.", example: "Frequent comets made piloting extremely difficult.", isUsed: false, translationCount: 0, isKnown: false, isLater: false },
+            { id: 12, word: "genuine", type: "adjective", level: "B2", ipa: "/ˈdʒen.ju.ɪn/", translation: "подлинный, настоящий", definition: "Real, true, and not fake or artificial.", example: "We detected a genuine distress call.", isUsed: false, translationCount: 0, isKnown: false, isLater: true },
+            { id: 13, word: "hesitate", type: "verb", level: "B2", ipa: "/ˈhez.ɪ.teɪt/", translation: "колебаться, сомневаться", definition: "To pause before doing something because you are unsure.", example: "She did not hesitate to activate the shields.", isUsed: false, translationCount: 0, isKnown: false, isLater: true },
+            { id: 14, word: "impact", type: "noun", level: "B1", ipa: "/ˈɪmpækt/", translation: "влияние, воздействие", definition: "The powerful effect that something has.", example: "The asteroid impact caused minor damage to deck B.", isUsed: false, translationCount: 3, isKnown: false, isLater: false },
+            { id: 15, word: "justify", type: "verb", level: "B2", ipa: "/ˈdʒʌs.tɪ.faɪ/", translation: "оправдывать, обосновывать", definition: "To show or prove that something is right.", example: "How can you justify skipping the safety checks?", isUsed: false, translationCount: 0, isKnown: false, isLater: false },
+            { id: 16, word: "keen", type: "adjective", level: "B1", ipa: "/kiːn/", translation: "увлекающийся, стремящийся", definition: "Highly developed, sharp, or showing enthusiasm.", example: "He was a keen observer of planetary movements.", isUsed: false, translationCount: 0, isKnown: false, isLater: false },
+            { id: 17, word: "predict", type: "verb", level: "B1", ipa: "/prɪˈdɪkt/", translation: "предсказывать, прогнозировать", definition: "To say that something will happen in the future.", example: "Computers could not predict solar flare times.", isUsed: false, translationCount: 1, isKnown: false, isLater: false },
+            { id: 18, word: "qualify", type: "verb", level: "B2", ipa: "/ˈkwɒl.ɪ.faɪ/", translation: "квалифицировать, подходить", definition: "To reach the necessary standard or skills.", example: "He managed to qualify as a deep-space pilot.", isUsed: false, translationCount: 0, isKnown: false, isLater: false },
+            { id: 19, word: "reflect", type: "verb", level: "B1", ipa: "/rɪˈflekt/", translation: "отражать, размышлять", definition: "To think carefully about something.", example: "The hull shields reflect secondary cosmic rays.", isUsed: false, translationCount: 0, isKnown: false, isLater: false },
+            { id: 20, word: "verify", type: "verb", level: "B2", ipa: "/ˈver.ɪ.faɪ/", translation: "подтверждать, верифицировать", definition: "To prove that something is true, correct, or accurate.", example: "The computer had to verify the landing coordinates.", isUsed: false, translationCount: 0, isKnown: false, isLater: false }
+        ];
+
+        // Mock database for series and episodes
+        let mockSeries = [
+            {
+                id: 0,
+                title: "Space Odyssey",
+                genre: "Sci-Fi",
+                level: "B2",
+                tone: "Tense",
+                premise: "A pilot searches for a forgotten space signal in sector nine.",
+                role: "Young Pilot",
+                cliffhanger: "\"You notice a flashing red light on the cockpit console, and a distorted audio voice begins transmission over the short-range radio...\"",
+                emoji: "🌌",
+                episodes: [
+                    { number: 1, title: "The Quiet Void", text: "You cruise through sector nine. A soft chime rings from the comms board. No one usually transmits in this deep void. It is a mystery.", focusWords: ["abandon", "able"] },
+                    { number: 2, title: "Faint Signals", text: "The frequency matches old federation codes. You decide to adjust the antennas. A broken voice calls for help. You verify the coordinates.", focusWords: ["accept", "decide"] },
+                    { number: 3, title: "Radio Silence", text: "Suddenly, the voice cut out. You hesitate, looking at the sensor display. The warning lights turn amber. Something massive is approaching.", focusWords: ["busy", "ability"] }
+                ]
+            },
+            {
+                id: 1,
+                title: "Detective Baker",
+                genre: "Detective",
+                level: "B1",
+                tone: "Serious",
+                premise: "Solving Victorian alleyway mysteries in rainy London.",
+                role: "Rookie Detective",
+                cliffhanger: "\"Baker spotted a gold-plated pocketwatch under the trash crate. On the casing lay a fresh, dark smudge...\"",
+                emoji: "🔍",
+                episodes: [
+                    { number: 1, title: "A Golden Key", text: "Baker arrived at the dark alley. The rain had washed away most clues. He found a key under the crate. It had a clean fingerprint.", focusWords: ["ability", "busy"] }
+                ]
+            },
+            {
+                id: 2,
+                title: "Victorian Orphan",
+                genre: "Drama",
+                level: "A2",
+                tone: "Mysterious",
+                premise: "An orphan uncovers family secrets in an old mansion.",
+                role: "Quiet Orphan",
+                cliffhanger: "\"A wooden door creaked open in the library. Behind it stood a tall shadow holding an old letter...\"",
+                emoji: "🕯️",
+                episodes: []
+            }
+        ];
+
+        // Application State
+        let activeSeriesId = 0;
         let isOnline = true;
         let cefrLevel = 'B2';
         let cefrText = 'B2 Upper';
-        let dailyGoal = 5;
-        let masteryReps = 5;
-        let learnedTodayCount = 3; // Initial studied today
 
-        // Tab switches
+        // Prepare Series Episode suggested words state
+        let prepareSuggestedWords = [];
+        let selectedSuggestedWords = []; // word spellings selected to "Use"
+
+        // Audio state
+        let activeSentenceIndex = -1;
+        let ttsPlaying = false;
+        let readerEpisodeSentences = [];
+        let readerEpisodeWords = [];
+        let isReaderReadOnly = false;
+
+        // Dictionary filters state
+        let currentCEFRFilter = 'ALL';
+        let currentCategoryFilter = 'ALL';
+        let searchQuery = '';
+        let activeWordId = null;
+
+        // Clock status bar updates
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            if (hours < 10) hours = '0' + hours;
+            if (minutes < 10) minutes = '0' + minutes;
+            document.getElementById('statusBarTime').innerText = hours + ':' + minutes;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Switch main screen tabs
         function switchTab(tabId) {
             document.querySelectorAll('.screen-container').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             
             if (tabId === 'HOME') {
-                document.getElementById('viewHome').classList.add('active');
+                showView('HOME');
                 document.getElementById('tabHome').classList.add('active');
+            } else if (tabId === 'DICT') {
+                showView('viewDictionary');
+                document.getElementById('tabDict').classList.add('active');
+                renderDictionary();
             } else if (tabId === 'SETTINGS') {
-                document.getElementById('viewSettings').classList.add('active');
+                showView('viewSettings');
                 document.getElementById('tabSettings').classList.add('active');
             }
         }
 
-        // Theme toggle logic
+        // View manager
+        function showView(viewId) {
+            document.querySelectorAll('.screen-container').forEach(c => c.classList.remove('active'));
+            const target = document.getElementById(viewId);
+            if (target) {
+                target.classList.add('active');
+            }
+        }
+
         function toggleTheme() {
             document.body.classList.toggle('dark-theme');
         }
 
-        // Settings managers
-        function changeCEFR(index, name, detail, color, tint) {
-            cefrLevel = name;
-            cefrText = detail;
-            
-            // Slider slider movement
-            document.getElementById('cefrSlider').style.transform = `translateX(${index * 100}%)`;
-            
-            document.querySelectorAll('.cefr-option').forEach((opt, idx) => {
-                if (idx === index) opt.classList.add('active');
-                else opt.classList.remove('active');
-            });
-
-            const badge = document.getElementById('cefrBadgeVal');
-            badge.innerText = detail;
-            badge.style.color = color;
-            badge.style.backgroundColor = tint;
-        }
-
-        function changeGoalSetting(val) {
-            dailyGoal = parseInt(val);
-            document.getElementById('goalValText').innerText = val + " words";
-            updateGoalProgress();
-        }
-
-        function changeRepsSetting(val) {
-            masteryReps = parseInt(val);
-            document.getElementById('repsValText').innerText = val + " cycles";
-        }
-
-        function updateGoalProgress() {
-            document.getElementById('goalDescText').innerText = `${learnedTodayCount} of ${dailyGoal} words studied today`;
-            
-            let percent = Math.min(100, Math.round((learnedTodayCount / dailyGoal) * 100));
-            document.getElementById('goalCircleText').innerText = percent + "%";
-            
-            // Adjust SVG dashoffset (stroke dasharray = 125 representing circumference)
-            let circumference = 125;
-            let offset = circumference - (percent / 100) * circumference;
-            document.getElementById('goalCircleFill').style.strokeDashoffset = offset;
-
-            // Study Actions subtext updates
-            let left = dailyGoal - learnedTodayCount;
-            const newCardsSub = document.getElementById('newCardsText');
-            const storyCard = document.getElementById('storyActionCard');
-            if (left > 0) {
-                newCardsSub.innerText = `${left} cards left for today's goal`;
-                newCardsSub.style.color = 'var(--phone-text-secondary)';
-                
-                // Block story card with Locked state
-                document.getElementById('storyTitleText').innerText = "Text of the Day (Locked)";
-                document.getElementById('storySubText').innerText = `Complete studied cards goal to unlock`;
-                document.getElementById('storyIconWrapper').style.backgroundColor = 'var(--phone-text-tertiary)';
-                
-                // Enforce physical lock and opacity
-                storyCard.style.opacity = '0.6';
-                storyCard.style.pointerEvents = 'none';
-            } else {
-                newCardsSub.innerText = `Daily word goal completed!`;
-                newCardsSub.style.color = 'var(--sys-green)';
-                
-                // Unlock story card
-                document.getElementById('storyTitleText').innerText = "Text of the Day";
-                document.getElementById('storySubText').innerText = `Goal met! Read your daily story`;
-                document.getElementById('storyIconWrapper').style.backgroundColor = 'var(--sys-orange)';
-                
-                // Unlock physical actions
-                storyCard.style.opacity = '1';
-                storyCard.style.pointerEvents = 'auto';
-            }
-        }
-
-        // Online offline toggle
-        function toggleNetworkSimulation() {
-            isOnline = !isOnline;
-            const toggle = document.getElementById('netToggle');
+        // Online simulation toggle
+        function toggleOnlineConnection(checkbox) {
+            isOnline = checkbox.checked;
             const badge = document.getElementById('connBadge');
             const dot = document.getElementById('connDot');
             const label = document.getElementById('connLabel');
@@ -1927,277 +2241,685 @@
                 dot.style.backgroundColor = 'var(--sys-green)';
                 label.innerText = 'Connected';
                 document.getElementById('simTitle').innerText = 'Online Connection';
-                document.getElementById('simDesc').innerText = 'Toggle off to test offline caching behaviors.';
             } else {
                 badge.style.backgroundColor = 'rgba(255, 149, 0, 0.12)';
                 badge.style.color = 'var(--sys-orange)';
                 dot.style.backgroundColor = 'var(--sys-orange)';
                 label.innerText = 'Offline Mode';
                 document.getElementById('simTitle').innerText = 'Offline Simulated';
-                document.getElementById('simDesc').innerText = 'Text generator locked. Cards practice offline.';
             }
         }
 
-        // ==================== CARD SWIPE MECHANISM INTERACTION ====================
-        let sessionWords = [];
-        let currentWordIndex = 0;
-        let sessionType = 'NEW'; // NEW or REVIEW
-
-        // High fidelity mock databases
-        const dbNewWords = [
-            { word: "verify", pos: "verb", ipa: "/ˈver.ɪ.faɪ/", meaning: "подтверждать / верифицировать", definition: "To prove that something is true, correct, or accurate.", example: "The teacher had to verify the credentials of the students." },
-            { word: "hesitate", pos: "verb", ipa: "/ˈhez.ɪ.teɪt/", meaning: "колебаться / сомневаться", definition: "To pause before doing something because you are nervous or unsure.", example: "Please do not hesitate to ask if you have any questions." },
-            { word: "genuine", pos: "adj", ipa: "/ˈdʒen.ju.ɪn/", meaning: "искренний / подлинный", definition: "Real, true, and not fake or artificial.", example: "She showed a genuine interest in learning English grammar." },
-            { word: "predict", pos: "verb", ipa: "/prɪˈdɪkt/", meaning: "предсказывать / прогнозировать", definition: "To say that something will happen in the future.", example: "It is difficult to predict the outcome of card reviews." }
-        ];
-
-        const dbReviewWords = [
-            { word: "ultimate", pos: "adj", ipa: "/ˈʌl.tɪ.mət/", meaning: "конечный / максимальный", definition: "Happening or existing at the end of a process.", example: "Fluency is the ultimate goal of context learning." },
-            { word: "withdraw", pos: "verb", ipa: "/wɪðˈdrɔː/", meaning: "изымать / отзывать", definition: "To take back or remove something from a place.", example: "She decided to withdraw her application yesterday." }
-        ];
-
-        function startCardSession(type) {
-            sessionType = type;
-            currentWordIndex = 0;
+        // CEFR levels inside settings
+        function changeCEFR(index, name, detail) {
+            cefrLevel = name;
+            cefrText = detail;
+            document.getElementById('cefrSliderHighlight').style.transform = `translateX(${index * 100}%)`;
             
-            const typeLabel = document.getElementById('sessionTitleType');
-            const instruct = document.getElementById('swipeInstructions');
-            
-            if (type === 'NEW') {
-                typeLabel.innerText = "New Word Session";
-                instruct.innerText = "Swipe LEFT to Skip • Swipe RIGHT to Study";
-                sessionWords = [...dbNewWords];
-            } else {
-                typeLabel.innerText = "Due Reviews Session";
-                instruct.innerText = "Swipe LEFT if Forgot • Swipe RIGHT if Remembered";
-                sessionWords = [...dbReviewWords];
+            const badge = document.getElementById('cefrLabelBadge');
+            badge.innerText = detail;
+        }
+
+        // Render Series Lists
+        function renderHomeSeries() {
+            // Update Continue Banner
+            const active = mockSeries.find(s => s.id === activeSeriesId);
+            if (active) {
+                document.getElementById('activeGenre').innerText = `${active.genre} Series`;
+                document.getElementById('activeTitle').innerText = active.title;
+                document.getElementById('activeEpNumber').innerText = `Episode ${active.episodes.length + 1} • Prepare Next`;
+                document.getElementById('activeCliffhanger').innerHTML = active.cliffhanger;
             }
 
-            document.getElementById('sessionOverlay').style.display = 'flex';
-            renderActiveCard();
-        }
+            // Render My Series list Group
+            const container = document.getElementById('mySeriesList');
+            container.innerHTML = '';
 
-        function closeCardSession() {
-            document.getElementById('sessionOverlay').style.display = 'none';
-        }
+            mockSeries.forEach(s => {
+                const item = document.createElement('div');
+                item.className = 'ios-list-item';
+                item.onclick = () => showSeriesDetails(s.id);
+                
+                let genreColor = 'var(--sys-blue)';
+                if (s.genre === 'Detective') genreColor = 'var(--sys-purple)';
+                else if (s.genre === 'Drama') genreColor = 'var(--sys-orange)';
+                else if (s.genre === 'Travel') genreColor = 'var(--sys-green)';
 
-        function renderActiveCard() {
-            const stack = document.getElementById('cardStack');
-            stack.innerHTML = '';
-
-            // Update Progress bar width
-            let progressPercent = (currentWordIndex / sessionWords.length) * 100;
-            document.getElementById('sessionProgressFill').style.width = progressPercent + "%";
-
-            if (currentWordIndex >= sessionWords.length) {
-                // Session completed!
-                if (sessionType === 'NEW') {
-                    learnedTodayCount = dailyGoal; // studied goal achieved
-                    updateGoalProgress();
-                }
-                stack.innerHTML = `
-                    <div style="text-align: center; padding: 40px 20px;">
-                        <svg width="44" height="44" fill="var(--sys-green)" viewBox="0 0 24 24" style="margin-bottom: 12px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                        <h3 style="font-family: Outfit, sans-serif; font-size: 18px; color: var(--phone-text-primary); margin: 0 0 8px 0;">Session Completed!</h3>
-                        <p style="font-size: 13px; color: var(--phone-text-secondary); margin: 0 0 20px 0; line-height: 1.45;">
-                            ${sessionType === 'NEW' ? 'All words entered your local review queue. Sync pending in background.' : 'All reviews advanced to next repetition delay.'}
-                        </p>
-                        <button class="story-open-btn" onclick="closeCardSession()">Return to Home</button>
+                item.innerHTML = `
+                    <div class="ios-list-item-left">
+                        <div class="ios-list-item-icon" style="background-color: ${genreColor}">${s.emoji}</div>
+                        <div class="ios-list-item-info">
+                            <h5 class="ios-list-item-title">${s.title}</h5>
+                            <span class="ios-list-item-subtitle">Episode ${s.episodes.length} completed • ${s.genre} • ${s.level}</span>
+                        </div>
+                    </div>
+                    <div class="ios-list-item-right">
+                        <span class="ios-chevron">❯</span>
                     </div>
                 `;
-                return;
-            }
+                container.appendChild(item);
+            });
+        }
 
-            const item = sessionWords[currentWordIndex];
-            const card = document.createElement('div');
-            card.className = 'swipe-card';
-            card.id = 'swipeCardElement';
+        // Open Series Details view
+        function showSeriesDetails(id) {
+            activeSeriesId = id;
+            const s = mockSeries.find(x => x.id === id);
+            if (!s) return;
 
-            // HTML content with labels matching rules
-            let stampLeftText = sessionType === 'NEW' ? "SKIP" : "FORGOT";
-            let stampRightText = sessionType === 'NEW' ? "STUDY" : "KNOW";
+            document.getElementById('detailTitle').innerText = s.title;
+            document.getElementById('detailGenre').innerText = `${s.genre} Series • CEFR ${s.level}`;
+            document.getElementById('detailPremise').innerText = s.premise;
 
-            card.innerHTML = `
-                <div class="card-stamp stamp-left" id="stampLeft">${stampLeftText}</div>
-                <div class="card-stamp stamp-right" id="stampRight">${stampRightText}</div>
-                
-                <div>
-                    <div style="display: flex; align-items: baseline; justify-content: space-between;">
-                        <span class="card-word-title">${item.word}</span>
-                        <span class="card-word-pos">${item.pos}</span>
+            // Prepare next episode card
+            const nextEpNum = s.episodes.length + 1;
+            const prepareDiv = document.getElementById('detailPrepareSection');
+            prepareDiv.innerHTML = `
+                <div class="continue-banner" style="background: linear-gradient(135deg, var(--sys-purple) 0%, var(--sys-blue) 100%); margin-bottom:0;" onclick="openPrepareEpisode(${s.id})">
+                    <div class="continue-banner-content">
+                        <span class="continue-banner-tag">Prepare Next</span>
+                        <h3 class="continue-banner-title">Episode ${nextEpNum}</h3>
+                        <p class="continue-banner-cliff">Influence the story using Story Words you choose.</p>
+                        <button class="continue-banner-btn" style="color:var(--sys-purple);">
+                            <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2"/></svg>
+                            <span>Select Words</span>
+                        </button>
                     </div>
-                    <span class="card-word-ipa">${item.ipa}</span>
-                    <div class="card-divider"></div>
-                    
-                    <span class="card-label">Translation</span>
-                    <p class="card-meaning">${item.meaning}</p>
-                    
-                    <span class="card-label">Definition</span>
-                    <p class="card-definition">${item.definition}</p>
-                </div>
-
-                <div class="card-example-box">
-                    <span class="card-label" style="color: var(--sys-blue);">Example Context</span>
-                    <div style="margin-top: 2px;">${item.example.replace(item.word, `<strong>${item.word}</strong>`)}</div>
                 </div>
             `;
-            stack.appendChild(card);
-            initSwipeGestures(card);
+
+            // History list
+            const historyList = document.getElementById('detailEpisodesHistoryList');
+            historyList.innerHTML = '';
+
+            if (s.episodes.length === 0) {
+                historyList.innerHTML = `
+                    <div style="text-align: center; padding: 20px 10px; color: var(--phone-text-secondary); font-size: 13px;">
+                        No episodes generated yet.
+                    </div>
+                `;
+            } else {
+                s.episodes.forEach(ep => {
+                    const cell = document.createElement('div');
+                    cell.className = 'ios-list-item';
+                    cell.onclick = () => openCompletedEpisode(s.id, ep.number);
+                    cell.innerHTML = `
+                        <div class="ios-list-item-left">
+                            <div class="ios-list-item-info">
+                                <h5 class="ios-list-item-title">Episode ${ep.number}: ${ep.title}</h5>
+                                <span class="ios-list-item-subtitle">Target words: ${ep.focusWords.join(', ')}</span>
+                            </div>
+                        </div>
+                        <div class="ios-list-item-right">
+                            <span class="ios-badge ios-badge-gray">Read</span>
+                            <span class="ios-chevron">❯</span>
+                        </div>
+                    `;
+                    historyList.appendChild(cell);
+                });
+            }
+
+            showView('viewSeriesDetails');
         }
 
-        // Swipe simulation button triggers
-        function simulateSwipe(direction) {
-            const card = document.getElementById('swipeCardElement');
-            if (!card) return;
+        // Open Prepare Episode Screen
+        function openPrepareEpisode(seriesId) {
+            const s = mockSeries.find(x => x.id === seriesId);
+            if (!s) return;
 
-            const stamp = direction === 'LEFT' ? document.getElementById('stampLeft') : document.getElementById('stampRight');
-            stamp.style.opacity = '1';
+            const nextEpNum = s.episodes.length + 1;
+            document.getElementById('prepareEpTitle').innerText = `Episode ${nextEpNum} Preparation`;
+            document.getElementById('prepareBackLabel').innerText = s.title;
 
-            let moveX = direction === 'LEFT' ? -380 : 380;
-            let rotate = direction === 'LEFT' ? -15 : 15;
+            // Generate initial suggested words (4 random words from dictionary not in past episodes)
+            const usedInPast = s.episodes.reduce((acc, ep) => acc.concat(ep.focusWords), []);
+            const availableWords = mockOxfordWords.filter(w => !usedInPast.includes(w.word));
+            
+            // Pick 4 words matching CEFR level of series if possible, otherwise random
+            let matching = availableWords.filter(w => w.level === s.level);
+            if (matching.length < 4) matching = availableWords;
 
-            card.style.transition = 'transform 0.4s ease, opacity 0.3s ease';
-            card.style.transform = `translateX(${moveX}px) translateY(30px) rotate(${rotate}deg)`;
-            card.style.opacity = '0';
+            // Shuffle matching
+            const shuffled = [...matching].sort(() => 0.5 - Math.random());
+            prepareSuggestedWords = shuffled.slice(0, 4);
+            selectedSuggestedWords = prepareSuggestedWords.map(w => w.word); // select all by default
+
+            renderSuggestedWords();
+            showView('viewPrepareEpisode');
+        }
+
+        function renderSuggestedWords() {
+            const container = document.getElementById('suggestedWordsContainer');
+            container.innerHTML = '';
+
+            prepareSuggestedWords.forEach((wordObj, idx) => {
+                const card = document.createElement('div');
+                card.className = 'suggest-word-card';
+                card.id = `suggest-card-${idx}`;
+
+                const isSelected = selectedSuggestedWords.includes(wordObj.word);
+
+                card.innerHTML = `
+                    <div class="suggest-word-header">
+                        <div>
+                            <span class="suggest-word-spelling">${wordObj.word}</span>
+                            <span class="suggest-word-pos">${wordObj.type}</span>
+                        </div>
+                        <span class="ios-badge ios-badge-blue">${wordObj.level}</span>
+                    </div>
+                    <p class="suggest-word-definition">${wordObj.definition}</p>
+                    <p class="suggest-word-trans">${wordObj.translation}</p>
+                    <div class="suggest-word-actions">
+                        <button class="suggest-btn-use ${isSelected ? 'active' : ''}" id="btn-use-${idx}" onclick="toggleUseSuggestedWord(${idx})">
+                            ${isSelected ? '✓ In Episode' : 'Use in Episode'}
+                        </button>
+                        <button class="suggest-btn-swap" onclick="swapWordSuggestion(${idx})">✕ Swap</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleUseSuggestedWord(idx) {
+            const word = prepareSuggestedWords[idx].word;
+            const button = document.getElementById(`btn-use-${idx}`);
+            
+            if (selectedSuggestedWords.includes(word)) {
+                selectedSuggestedWords = selectedSuggestedWords.filter(w => w !== word);
+                button.classList.remove('active');
+                button.innerText = 'Use in Episode';
+            } else {
+                selectedSuggestedWords.push(word);
+                button.classList.add('active');
+                button.innerText = '✓ In Episode';
+            }
+        }
+
+        // Swap suggested word (snappy shuffle animation)
+        function swapWordSuggestion(idx) {
+            const card = document.getElementById(`suggest-card-${idx}`);
+            card.classList.add('swapping');
 
             setTimeout(() => {
-                currentWordIndex++;
-                renderActiveCard();
-            }, 300);
-        }
+                const s = mockSeries.find(x => x.id === activeSeriesId);
+                const usedInPast = s.episodes.reduce((acc, ep) => acc.concat(ep.focusWords), []);
+                const currentlySuggested = prepareSuggestedWords.map(w => w.word);
 
-        // Interactive drag and swipe behavior for the visual simulator
-        function initSwipeGestures(element) {
-            let startX = 0;
-            let startY = 0;
-            let isDragging = false;
+                // Find random word from database that is not suggested and not used in history
+                const candidatePool = mockOxfordWords.filter(w => 
+                    !usedInPast.includes(w.word) && !currentlySuggested.includes(w.word)
+                );
 
-            // Touch events
-            element.addEventListener('touchstart', dragStart);
-            element.addEventListener('touchmove', dragMove);
-            element.addEventListener('touchend', dragEnd);
+                if (candidatePool.length > 0) {
+                    const randomWord = candidatePool[Math.floor(Math.random() * candidatePool.length)];
+                    
+                    // Replace in suggested array
+                    const oldWord = prepareSuggestedWords[idx].word;
+                    prepareSuggestedWords[idx] = randomWord;
 
-            // Mouse events
-            element.addEventListener('mousedown', dragStart);
-            document.addEventListener('mousemove', dragMove);
-            document.addEventListener('mouseup', dragEnd);
-
-            function dragStart(e) {
-                isDragging = true;
-                startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-                startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-                element.style.transition = 'none';
-            }
-
-            function dragMove(e) {
-                if (!isDragging) return;
-                let currentX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-                let diffX = currentX - startX;
-                
-                let rotation = diffX / 20; // Rotate slightly as you drag
-                element.style.transform = `translateX(${diffX}px) rotate(${rotation}deg)`;
-
-                // Dynamic Stamps display
-                const stampLeft = document.getElementById('stampLeft');
-                const stampRight = document.getElementById('stampRight');
-
-                if (diffX < -30) {
-                    stampLeft.style.opacity = Math.min(1, Math.abs(diffX) / 100);
-                    stampRight.style.opacity = '0';
-                } else if (diffX > 30) {
-                    stampRight.style.opacity = Math.min(1, diffX / 100);
-                    stampLeft.style.opacity = '0';
-                } else {
-                    stampLeft.style.opacity = '0';
-                    stampRight.style.opacity = '0';
+                    // Keep selected if old was selected
+                    selectedSuggestedWords = selectedSuggestedWords.filter(w => w !== oldWord);
+                    selectedSuggestedWords.push(randomWord.word);
                 }
-            }
 
-            function dragEnd(e) {
-                if (!isDragging) return;
-                isDragging = false;
-                
-                let endX = e.type === 'mouseup' ? e.clientX : (e.changedTouches ? e.changedTouches[0].clientX : startX);
-                let diffX = endX - startX;
-
-                if (diffX < -120) {
-                    // Swipe LEFT
-                    simulateSwipe('LEFT');
-                } else if (diffX > 120) {
-                    // Swipe RIGHT
-                    simulateSwipe('RIGHT');
-                } else {
-                    // Reset card positioning with spring
-                    element.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                    element.style.transform = 'translateX(0) rotate(0)';
-                    document.getElementById('stampLeft').style.opacity = '0';
-                    document.getElementById('stampRight').style.opacity = '0';
-                }
-            }
+                // Render back card
+                renderSuggestedWords();
+            }, 250);
         }
 
-        // ==================== STORY OVERLAY AND GENERATION (REMOVED INLINE) ====================
-        function openStoryOverlay() {
-            // Reset overlay state
-            document.getElementById('modalGenBtn').style.display = 'flex';
-            document.getElementById('modalLoader').style.display = 'none';
-            document.getElementById('modalSuccessBlock').style.display = 'none';
-            document.getElementById('offlineErrorView').style.display = 'none';
-            
-            document.getElementById('storyOverlay').classList.add('active');
+        function shuffleAllSuggestedWords() {
+            prepareSuggestedWords.forEach((_, idx) => {
+                swapWordSuggestion(idx);
+            });
         }
 
-        function closeStoryOverlay() {
-            document.getElementById('storyOverlay').classList.remove('active');
-        }
 
-        function selectGenrePill(element, genre) {
-            document.querySelectorAll('.genre-badge-pill').forEach(p => p.classList.remove('active'));
-            element.classList.add('active');
-        }
 
-        function runStorySynthesis() {
-            const btn = document.getElementById('modalGenBtn');
+        // ==========================================================================
+        // EPISODE READER & AUDIO TTS ORCHESTRATION
+        // ==========================================================================
+        function runStorySynthesis(noFocus = false) {
+            const reader = document.getElementById('readerOverlay');
             const loader = document.getElementById('modalLoader');
             const errorView = document.getElementById('offlineErrorView');
-            const success = document.getElementById('modalSuccessBlock');
+            const successBlock = document.getElementById('modalSuccessBlock');
             const stepText = document.getElementById('modalLoaderStep');
-
-            btn.style.display = 'none';
             
+            const s = mockSeries.find(x => x.id === activeSeriesId);
+            if (!s) return;
+
+            isReaderReadOnly = false;
+            document.getElementById('readerTitleMain').innerText = s.title;
+            document.getElementById('readerEpSubtitle').innerText = `Episode ${s.episodes.length + 1} • Generate`;
+            document.getElementById('readerInteractionBox').style.display = 'flex';
+            document.getElementById('grammarCorrectionPanel').style.display = 'none';
+            document.getElementById('replyInput').value = '';
+
+            reader.style.display = 'flex';
+            loader.style.display = 'flex';
+            successBlock.style.display = 'none';
+            errorView.style.display = 'none';
+
             if (!isOnline) {
-                // Return offline explicit alert error
+                loader.style.display = 'none';
                 errorView.style.display = 'flex';
                 return;
             }
 
-            loader.style.display = 'flex';
-            stepText.innerText = "Gathering today's studied words...";
+            stepText.innerText = "Gathering selected focus words...";
 
             setTimeout(() => {
-                stepText.innerText = `Structuring story at ${cefrLevel} level...`;
+                stepText.innerText = `Drafting scene at CEFR ${s.level} level...`;
                 
                 setTimeout(() => {
-                    stepText.innerText = "Applying safety validators...";
+                    stepText.innerText = "AI Validator checking grammar complexity...";
                     
                     setTimeout(() => {
-                        // Finish successfully
                         loader.style.display = 'none';
-                        success.style.display = 'flex';
+                        successBlock.style.display = 'flex';
                         
-                        const textContainer = document.getElementById('successStoryPreviewText');
-                        if (cefrLevel === 'A1') {
-                            textContainer.innerHTML = "Today, the student had to <strong>verify</strong> the names. She did not <strong>hesitate</strong>, because the teacher had a <strong>genuine</strong> document. We did <strong>predict</strong> a simple test.";
+                        // Build episode sentences
+                        const wordsUsed = noFocus ? [] : selectedSuggestedWords;
+                        
+                        // Mock synthesized story
+                        let text = `The spacecraft advanced deeper into the sector. `;
+                        if (wordsUsed.length > 0) {
+                            text += `The pilot tried to <strong>${wordsUsed[0] || 'verify'}</strong> the navigation beacons. `;
+                            if (wordsUsed[1]) text += `She did not <strong>${wordsUsed[1]}</strong> because the engines were low on helium. `;
+                            if (wordsUsed[2]) text += `It was a <strong>${wordsUsed[2]}</strong> crisis that could break the ship. `;
                         } else {
-                            textContainer.innerHTML = "The teacher decided to <strong>verify</strong> the credentials of the students. Although she did not want to <strong>hesitate</strong>, it was obvious that they lacked <strong>genuine</strong> signatures. She decided to <strong>predict</strong> the outcome and eventually had to <strong>withdraw</strong> the application.";
+                            text += `Everything went quiet. The stars looked like small diamond points in the deep, cold distance. `;
                         }
+                        text += `Suddenly, the sensors beeped again. A massive metallic shadow appeared directly on the main radar.`;
+
+                        readerEpisodeSentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+                        readerEpisodeWords = wordsUsed;
+
+                        renderEpisodeStoryContent();
                     }, 800);
                 }, 800);
             }, 800);
         }
 
-        // Initialize progress stats
-        updateGoalProgress();
+        // Open previous completed episode offline (Read-only)
+        function openCompletedEpisode(seriesId, episodeNum) {
+            const s = mockSeries.find(x => x.id === seriesId);
+            if (!s) return;
+
+            const ep = s.episodes.find(e => e.number === episodeNum);
+            if (!ep) return;
+
+            isReaderReadOnly = true;
+            
+            const reader = document.getElementById('readerOverlay');
+            document.getElementById('readerTitleMain').innerText = s.title;
+            document.getElementById('readerEpSubtitle').innerText = `Episode ${episodeNum}: ${ep.title} (History)`;
+            
+            // Hide narrative interact elements
+            document.getElementById('readerInteractionBox').style.display = 'none';
+            
+            document.getElementById('modalLoader').style.display = 'none';
+            document.getElementById('offlineErrorView').style.display = 'none';
+            document.getElementById('modalSuccessBlock').style.display = 'flex';
+
+            // Format previous text into sentences
+            let formattedText = ep.text;
+            ep.focusWords.forEach(w => {
+                formattedText = formattedText.replace(new RegExp(`\\b${w}\\b`, 'gi'), `<strong>${w}</strong>`);
+            });
+
+            readerEpisodeSentences = formattedText.match(/[^.!?]+[.!?]+/g) || [formattedText];
+            readerEpisodeWords = ep.focusWords;
+
+            renderEpisodeStoryContent();
+            reader.style.display = 'flex';
+        }
+
+        function renderEpisodeStoryContent() {
+            const storyTextDiv = document.getElementById('successStoryPreviewText');
+            storyTextDiv.innerHTML = '';
+
+            const p = document.createElement('p');
+            p.className = 'story-paragraph';
+
+            readerEpisodeSentences.forEach((sentenceText, idx) => {
+                const span = document.createElement('span');
+                span.className = 'story-sentence';
+                span.id = `sentence-${idx}`;
+                span.innerHTML = sentenceText + " ";
+                
+                span.onclick = (event) => {
+                    if (event.target.tagName === 'STRONG') {
+                        const wordClean = event.target.innerText.trim().toLowerCase();
+                        // Find word in dictionary to retrieve details
+                        const dictWord = mockOxfordWords.find(w => w.word === wordClean);
+                        
+                        // Increment translated count inside dictionary
+                        if (dictWord) {
+                            dictWord.translationCount++;
+                            showTranslationTooltip(event.target, dictWord.word, dictWord.ipa, dictWord.translation);
+                        } else {
+                            showTranslationTooltip(event.target, wordClean, "/.../", "перевод");
+                        }
+                    } else {
+                        highlightSentence(idx);
+                        speakSentence(sentenceText.replace(/<\/?[^>]+(>|$)/g, ""));
+                    }
+                };
+                p.appendChild(span);
+            });
+
+            storyTextDiv.appendChild(p);
+            highlightSentence(0);
+        }
+
+        function highlightSentence(index) {
+            activeSentenceIndex = index;
+            document.querySelectorAll('.story-sentence').forEach((s, idx) => {
+                if (idx === index) {
+                    s.classList.add('active-sentence');
+                } else {
+                    s.classList.remove('active-sentence');
+                }
+            });
+            document.getElementById('audioTrackStatus').innerText = `Sentence ${index + 1} of ${readerEpisodeSentences.length}`;
+        }
+
+        function speakSentence(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.85;
+                utterance.onend = () => {
+                    if (activeSentenceIndex < readerEpisodeSentences.length - 1 && ttsPlaying) {
+                        highlightSentence(activeSentenceIndex + 1);
+                        speakSentence(readerEpisodeSentences[activeSentenceIndex].text.replace(/<\/?[^>]+(>|$)/g, ""));
+                    } else {
+                        ttsPlaying = false;
+                        document.getElementById('btnAudioPlay').innerHTML = '<svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+                    }
+                };
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function toggleAudioPlayback() {
+            ttsPlaying = !ttsPlaying;
+            const playBtn = document.getElementById('btnAudioPlay');
+            
+            if (ttsPlaying) {
+                playBtn.innerHTML = '<svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+                if (activeSentenceIndex === -1) activeSentenceIndex = 0;
+                highlightSentence(activeSentenceIndex);
+                speakSentence(readerEpisodeSentences[activeSentenceIndex].replace(/<\/?[^>]+(>|$)/g, ""));
+            } else {
+                playBtn.innerHTML = '<svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                }
+            }
+        }
+
+        function showTranslationTooltip(element, spelling, ipa, translation) {
+            const tooltip = document.getElementById('transTooltip');
+            document.getElementById('ttSpelling').innerText = spelling;
+            document.getElementById('ttIpa').innerText = ipa;
+            document.getElementById('ttTrans').innerText = translation;
+
+            const rect = element.getBoundingClientRect();
+            const parentRect = document.getElementById('iphone-screen').getBoundingClientRect();
+            
+            tooltip.style.left = Math.max(10, Math.min(180, (rect.left - parentRect.left - 40))) + 'px';
+            tooltip.style.top = (rect.top - parentRect.top - 55) + 'px';
+            tooltip.style.display = 'flex';
+
+            setTimeout(() => {
+                const dismissHandler = () => {
+                    tooltip.style.display = 'none';
+                    document.removeEventListener('click', dismissHandler);
+                };
+                document.addEventListener('click', dismissHandler);
+            }, 100);
+        }
+
+        function submitInteractionReply() {
+            const reply = document.getElementById('replyInput').value.trim();
+            if (!reply) {
+                alert("Please write how you want to influence the story!");
+                return;
+            }
+
+            const panel = document.getElementById('grammarCorrectionPanel');
+            panel.style.display = 'flex';
+            
+            // Mark all used suggested words as "isUsed" in database
+            readerEpisodeWords.forEach(wordSp => {
+                const dictWord = mockOxfordWords.find(w => w.word === wordSp);
+                if (dictWord) dictWord.isUsed = true;
+            });
+
+            setTimeout(() => {
+                // Save this episode to the active series list
+                const s = mockSeries.find(x => x.id === activeSeriesId);
+                const nextNum = s.episodes.length + 1;
+                
+                // Construct clean text
+                let fullText = readerEpisodeSentences.join(" ");
+
+                s.episodes.push({
+                    number: nextNum,
+                    title: `Chapter ${nextNum}`,
+                    text: fullText,
+                    focusWords: [...readerEpisodeWords]
+                });
+
+                // Advance cliffhanger
+                s.cliffhanger = `"Continuing your story action: \\"${reply}\\" has triggered new orbital events. Prepare Episode ${nextNum + 1} to resolve this."`;
+
+                closeEpisodeReader();
+                renderHomeSeries();
+                showSeriesDetails(s.id);
+            }, 3000);
+        }
+
+        function closeEpisodeReader() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+            ttsPlaying = false;
+            activeSentenceIndex = -1;
+            document.getElementById('readerOverlay').style.display = 'none';
+        }
+
+        // ==========================================================================
+        // DICTIONARY FILTERING & EDITING ENGINE (NON-SRS METRICS)
+        // ==========================================================================
+        function handleDictSearch() {
+            const input = document.getElementById('dictSearchInput');
+            const clear = document.getElementById('dictSearchClear');
+            searchQuery = input.value.trim().toLowerCase();
+            
+            if (searchQuery.length > 0) clear.style.display = 'flex';
+            else clear.style.display = 'none';
+            renderDictionary();
+        }
+
+        function clearDictSearch() {
+            document.getElementById('dictSearchInput').value = '';
+            searchQuery = '';
+            document.getElementById('dictSearchClear').style.display = 'none';
+            renderDictionary();
+        }
+
+        function filterCEFR(pillElement, level) {
+            currentCEFRFilter = level;
+            document.querySelectorAll('#viewDictionary .cefr-filter-pill').forEach(p => p.classList.remove('active'));
+            pillElement.classList.add('active');
+            renderDictionary();
+        }
+
+        function filterCategory(pillElement, category) {
+            currentCategoryFilter = category;
+            document.querySelectorAll('#viewDictionary .category-pill').forEach(p => p.classList.remove('active'));
+            pillElement.classList.add('active');
+            renderDictionary();
+        }
+
+        function renderDictionary() {
+            const list = document.getElementById('dictionaryWordsList');
+            list.innerHTML = '';
+
+            const filtered = mockOxfordWords.filter(w => {
+                const matchesSearch = w.word.toLowerCase().includes(searchQuery) || w.translation.toLowerCase().includes(searchQuery);
+                const matchesCEFR = currentCEFRFilter === 'ALL' || w.level === currentCEFRFilter;
+                
+                let matchesCategory = true;
+                else if (currentCategoryFilter === 'USED') matchesCategory = w.isUsed;
+                else if (currentCategoryFilter === 'TRANSLATED') matchesCategory = w.translationCount > 0;
+                else if (currentCategoryFilter === 'KNOWN') matchesCategory = w.isKnown;
+                else if (currentCategoryFilter === 'LATER') matchesCategory = w.isLater;
+
+                return matchesSearch && matchesCEFR && matchesCategory;
+            });
+
+            document.getElementById('dictCounterLabel').innerText = `Showing ${filtered.length} of ${mockOxfordWords.length} words`;
+
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div style="text-align: center; padding: 40px 10px; color: var(--phone-text-secondary); font-size: 13px;">
+                        No vocabulary matches found.
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(w => {
+                const item = document.createElement('div');
+                item.className = 'ios-list-item';
+                item.onclick = () => openWordDrawer(w.id);
+
+                // Build status badges list
+                let badgeHtml = '';
+                if (w.isUsed) badgeHtml += `<span class="word-badge badge-used">Used</span>`;
+                if (w.translationCount > 0) badgeHtml += `<span class="word-badge badge-translated">Trans ${w.translationCount}x</span>`;
+                if (w.isKnown) badgeHtml += `<span class="word-badge badge-known">Known</span>`;
+                if (w.isLater) badgeHtml += `<span class="word-badge badge-later">Later</span>`;
+
+                item.innerHTML = `
+                    <div class="ios-list-item-left">
+                        <div class="ios-list-item-info">
+                            <h5 class="ios-list-item-title">${w.word} <span style="font-size:10.5px; font-weight:normal; font-style:italic; color:var(--phone-text-secondary);">${w.type}</span></h5>
+                            <span class="ios-list-item-subtitle" style="font-family:monospace; color:var(--sys-orange); font-size:11.5px;">${w.ipa}</span>
+                            <span class="ios-list-item-subtitle" style="margin-top:2px;">${w.translation}</span>
+                        </div>
+                    </div>
+                    <div class="ios-list-item-right" style="flex-direction:column; align-items:flex-end; gap:6px;">
+                        <span class="ios-badge ios-badge-blue">${w.level}</span>
+                        <div class="word-badge-list">${badgeHtml}</div>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // Dictionary details sheet drawer
+        function openWordDrawer(id) {
+            activeWordId = id;
+            const w = mockOxfordWords.find(x => x.id === id);
+            if (!w) return;
+
+            document.getElementById('drWord').innerText = w.word;
+            document.getElementById('drIpa').innerText = w.ipa;
+            document.getElementById('drTranslation').innerText = w.translation;
+            document.getElementById('drDefinition').innerText = w.definition;
+            document.getElementById('drExample').innerHTML = w.example.replace(w.word, `<strong>${w.word}</strong>`);
+
+            // Update drawer buttons toggle active
+
+            document.getElementById('btnDrawerKnown').className = `state-select-btn ${w.isKnown ? 'active' : ''}`;
+            document.getElementById('btnDrawerKnown').innerText = w.isKnown ? '✓ Known' : 'Mark Known';
+
+            document.getElementById('btnDrawerLater').className = `state-select-btn ${w.isLater ? 'active' : ''}`;
+            document.getElementById('btnDrawerLater').innerText = w.isLater ? '✓ Learning Later' : 'Learn Later';
+
+            document.getElementById('wordDrawerOverlay').classList.add('active');
+        }
+
+        function toggleDrawerState(stateKey) {
+            if (activeWordId === null) return;
+            const w = mockOxfordWords.find(x => x.id === activeWordId);
+            if (!w) return;
+
+            w[stateKey] = !w[stateKey];
+            
+            // Re-open to apply changes to buttons
+            openWordDrawer(activeWordId);
+            renderDictionary();
+        }
+
+        function closeWordDrawer() {
+            document.getElementById('wordDrawerOverlay').classList.remove('active');
+            activeWordId = null;
+        }
+
+        function speakDrawerWord() {
+            const word = document.getElementById('drWord').innerText;
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(word);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.85;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // ==========================================================================
+        // CREATE SERIES SHEET FORM
+        // ==========================================================================
+        function openCreateSeriesModal() {
+            document.getElementById('formSeriesTitle').value = '';
+            document.getElementById('formSeriesPremise').value = '';
+            document.getElementById('createSeriesOverlay').classList.add('active');
+        }
+
+        function closeCreateSeriesModal() {
+            document.getElementById('createSeriesOverlay').classList.remove('active');
+        }
+
+        function submitCreateSeriesForm() {
+            const title = document.getElementById('formSeriesTitle').value.trim();
+            const genre = document.getElementById('formSeriesGenre').value;
+            const tone = document.getElementById('formSeriesTone').value;
+            const premise = document.getElementById('formSeriesPremise').value.trim() || "A new adventure story...";
+            
+            if (!title) {
+                alert("Please enter a series title.");
+                return;
+            }
+
+            const emojis = { "Sci-Fi": "🌌", "Detective": "🔍", "Drama": "🕯️", "Travel": "✈️" };
+            const nextId = mockSeries.length;
+
+            mockSeries.push({
+                id: nextId,
+                title: title,
+                genre: genre,
+                level: cefrLevel,
+                tone: tone,
+                premise: premise,
+                role: "Protagonist",
+                cliffhanger: `\"The story of ${title} is just beginning. What will happens next in Episode 1?\"`,
+                emoji: emojis[genre] || "📚",
+                episodes: []
+            });
+
+            closeCreateSeriesModal();
+            renderHomeSeries();
+            showSeriesDetails(nextId);
+        }
+
+        // Initial setup
+        renderHomeSeries();
     </script>
 </body>
 </html>
