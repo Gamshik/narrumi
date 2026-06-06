@@ -35,10 +35,12 @@ export type Episode = {
   readonly storyWordIds: readonly string[];
   // annotations power tap-to-translate without leaving the reader.
   readonly annotations: readonly TranslationAnnotation[];
-  // interaction is the single MVP point where the learner influences the story.
-  readonly interaction: EpisodeInteraction;
-  // cliffhanger stores the reason to continue the series.
-  readonly cliffhanger: string;
+  // interactions store ordered learner decisions inside the same episode.
+  readonly interactions: readonly EpisodeInteraction[];
+  // isComplete tells whether AI ended the current episode arc.
+  readonly isComplete: boolean;
+  // cliffhanger stores the reason to continue after the episode is complete.
+  readonly cliffhanger?: string;
   // summaryUpdate is compact context for updating SeriesMemory.
   readonly summaryUpdate: string;
   // createdAt records local-first creation time.

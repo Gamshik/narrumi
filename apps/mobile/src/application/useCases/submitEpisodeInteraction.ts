@@ -12,10 +12,15 @@ import type { Episode, SyncMetadata } from '@domain/index';
 
 import { applyMemoryUpdate } from './generateEpisode';
 
+// PREVIOUS_DECISION_CONTEXT_LIMIT keeps one episode request bounded for Edge Functions.
+const PREVIOUS_DECISION_CONTEXT_LIMIT = 10;
+
 // SubmitEpisodeInteractionInput captures one learner answer inside a saved episode.
 export type SubmitEpisodeInteractionInput = {
   // episodeId identifies the unanswered local episode.
   readonly episodeId: string;
+  // interactionId identifies the exact unanswered turn being submitted.
+  readonly interactionId: string;
   // choiceId is used when the episode offers controlled choices.
   readonly choiceId?: string;
   // userReply stores free-form learner text when used.
@@ -44,7 +49,7 @@ export function createSubmitEpisodeInteraction(
   clock: Clock,
 ): SubmitEpisodeInteraction {
   return {
-    execute: async ({ choiceId, episodeId, userReply }) => {
+    execute: async ({ choiceId, episodeId, interactionId, userReply }) => {
       const connectivity = await networkStatus.getCurrentState();
 
       if (!connectivity.isOnline) {
@@ -66,8 +71,25 @@ export function createSubmitEpisodeInteraction(
         throw new Error('Series context is required before submitting an answer.');
       }
 
+      const activeInteraction = episode.interactions.find(
+        (interaction) =>
+          interaction.id === interactionId && interaction.feedback === undefined,
+      );
+
+      if (!activeInteraction || episode.isComplete) {
+        throw new Error('Episode does not have an active interaction.');
+      }
+
+      const lastPendingInteraction = [...episode.interactions]
+        .reverse()
+        .find((interaction) => interaction.feedback === undefined);
+
+      if (lastPendingInteraction?.id !== activeInteraction.id) {
+        throw new Error('Only the latest episode interaction can be answered.');
+      }
+
       const selectedChoice = choiceId
-        ? episode.interaction.choices.find((choice) => choice.id === choiceId)
+        ? activeInteraction.choices.find((choice) => choice.id === choiceId)
         : undefined;
       const submittedText = userReply?.trim() || selectedChoice?.label;
 
@@ -75,32 +97,93 @@ export function createSubmitEpisodeInteraction(
         throw new Error('A story answer is required.');
       }
 
+      const timestamp = clock.now().toISOString();
+      const draftEpisode: Episode = {
+        ...episode,
+        interactions: episode.interactions.map((interaction) =>
+          interaction.id === activeInteraction.id
+            ? {
+                ...interaction,
+                ...(choiceId ? { selectedChoiceId: choiceId } : {}),
+                userReply: submittedText,
+                updatedAt: timestamp,
+              }
+            : interaction,
+        ),
+        updatedAt: timestamp,
+        sync: createDirtySync(timestamp, episode.id),
+      };
+
+      await store.saveEpisode(draftEpisode);
+
       const payload = await gateway.submitInteraction({
         episodeId,
+        interactionId: activeInteraction.id,
         seriesId: episode.seriesId,
         cefrLevel: series.cefrLevel,
         genre: series.genre,
         tone: series.tone,
         compactSeriesMemory: buildCompactSeriesMemoryPayload(memory),
         episodeSummary: episode.summaryUpdate,
-        interactionPrompt: episode.interaction.prompt,
+        interactionPrompt: activeInteraction.prompt,
+        interactionCount: episode.interactions.length,
+        previousDecisions: episode.interactions
+          .filter((interaction) => interaction.feedback !== undefined)
+          .slice(-PREVIOUS_DECISION_CONTEXT_LIMIT)
+          .map((interaction) => ({
+            prompt: interaction.prompt,
+            answer:
+              interaction.userReply ??
+              interaction.choices.find(
+                (choice) => choice.id === interaction.selectedChoiceId,
+              )?.label ??
+              'No answer recorded',
+            ...(interaction.feedback
+              ? { feedback: interaction.feedback }
+              : {}),
+          })),
         ...(choiceId ? { selectedChoiceId: choiceId } : {}),
         ...(selectedChoice ? { selectedChoiceLabel: selectedChoice.label } : {}),
         userReply: submittedText,
         safetyAndCopyrightConstraints: SAFETY_AND_COPYRIGHT_CONSTRAINTS,
       });
-      const timestamp = clock.now().toISOString();
+      const sentenceEndIndex =
+        episode.sentences.length + payload.continuationSentences.length;
+      const answeredInteractions = draftEpisode.interactions.map((interaction) =>
+        interaction.id === activeInteraction.id
+          ? {
+              ...interaction,
+              feedback: payload.feedback,
+              updatedAt: timestamp,
+            }
+          : interaction,
+      );
+      const interactions = payload.nextInteraction
+        ? [
+            ...answeredInteractions,
+            {
+              id: `interaction:${episode.id}:${answeredInteractions.length + 1}`,
+              episodeId: episode.id,
+              kind: payload.nextInteraction.kind,
+              prompt: payload.nextInteraction.prompt,
+              choices: payload.nextInteraction.choices,
+              sentenceEndIndex,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            },
+          ]
+        : answeredInteractions;
+      const { cliffhanger: _storedCliffhanger, ...draftWithoutCliffhanger } =
+        draftEpisode;
       const updatedEpisode: Episode = {
-        ...episode,
+        ...draftWithoutCliffhanger,
         sceneText: `${episode.sceneText}\n\n${payload.continuationText}`,
         sentences: [...episode.sentences, ...payload.continuationSentences],
-        interaction: {
-          ...episode.interaction,
-          ...(choiceId ? { selectedChoiceId: choiceId } : {}),
-          userReply: submittedText,
-          feedback: payload.feedback,
-          updatedAt: timestamp,
-        },
+        interactions,
+        isComplete: payload.isEpisodeComplete,
+        ...(payload.cliffhanger
+          ? { cliffhanger: payload.cliffhanger }
+          : {}),
         summaryUpdate: payload.summaryUpdate,
         updatedAt: timestamp,
         sync: createDirtySync(timestamp, episode.id),

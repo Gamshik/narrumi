@@ -378,6 +378,12 @@ function parseEpisode(value: unknown): Episode {
 
   const previouslyRecap = readOptionalString(value, 'previouslyRecap');
   const title = readOptionalString(value, 'title');
+  const cliffhanger = readOptionalString(value, 'cliffhanger');
+  const sentences = readStringArray(value, 'sentences');
+  const interactions = parseEpisodeInteractions(value, sentences.length);
+  const isComplete =
+    readOptionalBoolean(value, 'isComplete') ??
+    interactions.every((interaction) => interaction.feedback !== undefined);
 
   return {
     id: readString(value, 'id'),
@@ -386,16 +392,37 @@ function parseEpisode(value: unknown): Episode {
     ...(previouslyRecap ? { previouslyRecap } : {}),
     ...(title ? { title } : {}),
     sceneText: readString(value, 'sceneText'),
-    sentences: readStringArray(value, 'sentences'),
+    sentences,
     storyWordIds: readStringArray(value, 'storyWordIds'),
     annotations: readArray(value, 'annotations').map(parseTranslationAnnotation),
-    interaction: parseEpisodeInteraction(value.interaction),
-    cliffhanger: readString(value, 'cliffhanger'),
+    interactions,
+    isComplete,
+    ...(cliffhanger ? { cliffhanger } : {}),
     summaryUpdate: readString(value, 'summaryUpdate'),
     createdAt: readString(value, 'createdAt'),
     updatedAt: readString(value, 'updatedAt'),
     sync: parseSyncMetadata(value.sync),
   };
+}
+
+// parseEpisodeInteractions migrates legacy single-interaction episodes on read.
+function parseEpisodeInteractions(
+  value: UnknownRecord,
+  sentenceCount: number,
+): Episode['interactions'] {
+  const storedInteractions = value.interactions;
+
+  if (Array.isArray(storedInteractions)) {
+    return storedInteractions.map((interaction) =>
+      parseEpisodeInteraction(interaction, sentenceCount)
+    );
+  }
+
+  if (value.interaction !== undefined) {
+    return [parseEpisodeInteraction(value.interaction, sentenceCount)];
+  }
+
+  throw new Error('Episode interactions must be present');
 }
 
 // parseTranslationAnnotation validates one inline translation hint.
@@ -417,7 +444,10 @@ function parseTranslationAnnotation(value: unknown): Episode['annotations'][numb
 }
 
 // parseEpisodeInteraction validates the episode's single interaction point.
-function parseEpisodeInteraction(value: unknown): Episode['interaction'] {
+function parseEpisodeInteraction(
+  value: unknown,
+  fallbackSentenceEndIndex: number,
+): Episode['interactions'][number] {
   if (!isRecord(value)) {
     throw new Error('Episode interaction must be an object');
   }
@@ -426,17 +456,24 @@ function parseEpisodeInteraction(value: unknown): Episode['interaction'] {
   const selectedChoiceId = readOptionalString(value, 'selectedChoiceId');
   const userReply = readOptionalString(value, 'userReply');
   const feedback = readOptionalString(value, 'feedback');
+  const sentenceEndIndex =
+    readOptionalNumber(value, 'sentenceEndIndex') ?? fallbackSentenceEndIndex;
 
-  if (!interactionKinds.includes(kind as Episode['interaction']['kind'])) {
+  if (
+    !interactionKinds.includes(
+      kind as Episode['interactions'][number]['kind'],
+    )
+  ) {
     throw new Error('Episode interaction kind is unsupported');
   }
 
   return {
     id: readString(value, 'id'),
     episodeId: readString(value, 'episodeId'),
-    kind: kind as Episode['interaction']['kind'],
+    kind: kind as Episode['interactions'][number]['kind'],
     prompt: readString(value, 'prompt'),
     choices: readArray(value, 'choices').map(parseInteractionChoice),
+    sentenceEndIndex,
     ...(selectedChoiceId ? { selectedChoiceId } : {}),
     ...(userReply ? { userReply } : {}),
     ...(feedback ? { feedback } : {}),
@@ -448,7 +485,7 @@ function parseEpisodeInteraction(value: unknown): Episode['interaction'] {
 // parseInteractionChoice validates one controlled story option.
 function parseInteractionChoice(
   value: unknown,
-): Episode['interaction']['choices'][number] {
+): Episode['interactions'][number]['choices'][number] {
   if (!isRecord(value)) {
     throw new Error('Episode interaction choice must be an object');
   }
@@ -595,6 +632,42 @@ function readBoolean(record: UnknownRecord, key: string): boolean {
 
   if (typeof value !== 'boolean') {
     throw new Error(`${key} must be a boolean`);
+  }
+
+  return value;
+}
+
+// readOptionalBoolean validates an optional boolean field from local storage.
+function readOptionalBoolean(
+  record: UnknownRecord,
+  key: string,
+): boolean | undefined {
+  const value = record[key];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== 'boolean') {
+    throw new Error(`${key} must be a boolean when provided`);
+  }
+
+  return value;
+}
+
+// readOptionalNumber validates an optional finite number field from local storage.
+function readOptionalNumber(
+  record: UnknownRecord,
+  key: string,
+): number | undefined {
+  const value = record[key];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`${key} must be a finite number when provided`);
   }
 
   return value;

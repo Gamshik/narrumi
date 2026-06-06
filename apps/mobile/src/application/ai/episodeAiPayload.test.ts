@@ -79,6 +79,15 @@ describe('episode AI payload validation', () => {
         'Mira opened the door.',
         'She saw a small map on the wall.',
       ],
+      isEpisodeComplete: false,
+      nextInteraction: {
+        kind: 'choice',
+        prompt: 'What should Mira inspect first?',
+        choices: [
+          { id: 'map', label: 'Study the map' },
+          { id: 'room', label: 'Search the room' },
+        ],
+      },
       summaryUpdate: 'Mira opened the blue door and found a map.',
       memoryUpdate: {
         ...validMemoryUpdate,
@@ -87,5 +96,23 @@ describe('episode AI payload validation', () => {
     });
 
     assert.equal(payload.continuationSentences.length, 2);
+    assert.equal(payload.isEpisodeComplete, false);
+    assert.equal(payload.nextInteraction?.choices.length, 2);
+  });
+
+  it('rejects a continuing interaction without the next decision', () => {
+    assert.throws(() =>
+      parseInteractionAiPayload({
+        feedback: 'Good choice.',
+        continuationText: 'Mira opened the door.',
+        continuationSentences: ['Mira opened the door.'],
+        isEpisodeComplete: false,
+        summaryUpdate: 'Mira opened the door.',
+        memoryUpdate: {
+          ...validMemoryUpdate,
+          lastEpisodeSummary: 'Mira opened the door.',
+        },
+      }),
+    );
   });
 });

@@ -31,6 +31,8 @@ export type EpisodeInteraction = {
   readonly prompt: string;
   // choices contains controlled options when kind is choice.
   readonly choices: readonly EpisodeInteractionChoice[];
+  // sentenceEndIndex places this interaction after the corresponding story beat.
+  readonly sentenceEndIndex: number;
   // selectedChoiceId stores the learner's chosen option when present.
   readonly selectedChoiceId?: string;
   // userReply stores short learner text when the interaction accepts writing.

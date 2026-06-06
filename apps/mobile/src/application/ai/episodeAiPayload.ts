@@ -86,14 +86,14 @@ export type EpisodeAiPayload = {
   readonly storyWordIds: readonly string[];
   // annotations provide context-aware inline translation hints.
   readonly annotations: Episode['annotations'];
-  // interaction is the single MVP story decision point.
+  // interaction is the first decision point in the multi-turn episode.
   readonly interaction: {
     // kind selects the supported learner interaction pattern.
     readonly kind: EpisodeInteractionKind;
     // prompt is shown before the learner answers.
     readonly prompt: string;
     // choices are present for controlled story-choice interactions.
-    readonly choices: Episode['interaction']['choices'];
+    readonly choices: Episode['interactions'][number]['choices'];
   };
   // cliffhanger stores the narrative reason to continue later.
   readonly cliffhanger: string;
@@ -107,6 +107,8 @@ export type EpisodeAiPayload = {
 export type SubmitInteractionRequest = {
   // episodeId identifies the saved local episode being answered.
   readonly episodeId: string;
+  // interactionId identifies the current unanswered turn.
+  readonly interactionId: string;
   // seriesId scopes the answer to one continuity root.
   readonly seriesId: string;
   // cefrLevel controls correction and continuation complexity.
@@ -121,6 +123,10 @@ export type SubmitInteractionRequest = {
   readonly episodeSummary: string;
   // interactionPrompt is the exact prompt the learner answered.
   readonly interactionPrompt: string;
+  // interactionCount is the current ordered turn count including this interaction.
+  readonly interactionCount: number;
+  // previousDecisions provide bounded episode progress without a full transcript.
+  readonly previousDecisions: readonly EpisodeDecisionPayload[];
   // selectedChoiceId stores the selected controlled option when used.
   readonly selectedChoiceId?: string;
   // selectedChoiceLabel is the visible selected story option when used.
@@ -131,6 +137,16 @@ export type SubmitInteractionRequest = {
   readonly safetyAndCopyrightConstraints: readonly string[];
 };
 
+// EpisodeDecisionPayload is compact context for one completed interaction turn.
+export type EpisodeDecisionPayload = {
+  // prompt is the story decision the learner previously answered.
+  readonly prompt: string;
+  // answer is the selected choice or short learner reply.
+  readonly answer: string;
+  // feedback is optional concise language support already shown to the learner.
+  readonly feedback?: string;
+};
+
 // InteractionAiPayload is the validated structured JSON returned after learner input.
 export type InteractionAiPayload = {
   // feedback is concise correction or support for the learner answer.
@@ -139,6 +155,12 @@ export type InteractionAiPayload = {
   readonly continuationText: string;
   // continuationSentences are appended to the same reader timeline.
   readonly continuationSentences: readonly string[];
+  // isEpisodeComplete tells whether the current episode arc has ended.
+  readonly isEpisodeComplete: boolean;
+  // nextInteraction is required while the same episode continues.
+  readonly nextInteraction?: EpisodeAiPayload['interaction'];
+  // cliffhanger is required when the current episode ends.
+  readonly cliffhanger?: string;
   // summaryUpdate is the compact post-answer episode summary.
   readonly summaryUpdate: string;
   // memoryUpdate is a structured patch for compact SeriesMemory.
@@ -207,6 +229,23 @@ export function parseInteractionAiPayload(value: unknown): InteractionAiPayload 
     feedback: parsed.feedback,
     continuationText: parsed.continuationText,
     continuationSentences: parsed.continuationSentences,
+    isEpisodeComplete: parsed.isEpisodeComplete,
+    ...(parsed.nextInteraction
+      ? {
+          nextInteraction: {
+            kind: parsed.nextInteraction.kind,
+            prompt: parsed.nextInteraction.prompt,
+            choices: parsed.nextInteraction.choices.map((choice) => ({
+              id: choice.id,
+              label: choice.label,
+              ...(choice.outcomeHint
+                ? { outcomeHint: choice.outcomeHint }
+                : {}),
+            })),
+          },
+        }
+      : {}),
+    ...(parsed.cliffhanger ? { cliffhanger: parsed.cliffhanger } : {}),
     summaryUpdate: parsed.summaryUpdate,
     memoryUpdate: normalizeMemoryUpdate(parsed.memoryUpdate),
   };
@@ -341,6 +380,24 @@ const interactionAiPayloadSchema = z
     feedback: z.string().trim().min(1),
     continuationText: z.string().trim().min(1),
     continuationSentences: z.array(z.string().trim().min(1)).min(1),
+    isEpisodeComplete: z.boolean(),
+    nextInteraction: z
+      .object({
+        kind: z.literal(interactionKinds[0]),
+        prompt: z.string().trim().min(1),
+        choices: z
+          .array(
+            z.object({
+              id: z.string().trim().min(1),
+              label: z.string().trim().min(1),
+              outcomeHint: z.string().trim().min(1).optional(),
+            }),
+          )
+          .min(2)
+          .max(3),
+      })
+      .optional(),
+    cliffhanger: z.string().trim().min(1).optional(),
     summaryUpdate: z.string().trim().min(1),
     memoryUpdate: z.lazy(() => seriesMemoryUpdatePayloadSchema),
   })
@@ -358,6 +415,38 @@ const interactionAiPayloadSchema = z
         code: 'custom',
         message: 'memory summary must match interaction summary',
         path: ['memoryUpdate', 'lastEpisodeSummary'],
+      });
+    }
+
+    if (payload.isEpisodeComplete && !payload.cliffhanger) {
+      context.addIssue({
+        code: 'custom',
+        message: 'completed episode must include a cliffhanger',
+        path: ['cliffhanger'],
+      });
+    }
+
+    if (payload.isEpisodeComplete && payload.nextInteraction) {
+      context.addIssue({
+        code: 'custom',
+        message: 'completed episode must not include another interaction',
+        path: ['nextInteraction'],
+      });
+    }
+
+    if (!payload.isEpisodeComplete && !payload.nextInteraction) {
+      context.addIssue({
+        code: 'custom',
+        message: 'continuing episode must include the next interaction',
+        path: ['nextInteraction'],
+      });
+    }
+
+    if (!payload.isEpisodeComplete && payload.cliffhanger) {
+      context.addIssue({
+        code: 'custom',
+        message: 'continuing episode must not include a final cliffhanger',
+        path: ['cliffhanger'],
       });
     }
   });
