@@ -1,3 +1,4 @@
+export * from './auth';
 export * from './screens';
 export * from './shared';
 export * from './theme';

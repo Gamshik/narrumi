@@ -1,19 +1,30 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import type { ReactElement } from 'react';
-import { DynamicColorIOS, PlatformColor } from 'react-native';
+import {
+  DynamicColorIOS,
+  Platform,
+  PlatformColor,
+  type ColorValue,
+} from 'react-native';
 
 // The tab icon color follows the active iOS appearance without custom theme glue.
-const tabColor = DynamicColorIOS({
-  dark: 'white',
-  light: 'black',
-});
+const tabColor: ColorValue =
+  Platform.OS === 'ios'
+    ? DynamicColorIOS({
+        dark: 'white',
+        light: 'black',
+      })
+    : '#000000';
+// The default icon color uses the native semantic label only where available.
+const defaultTabColor: ColorValue =
+  Platform.OS === 'ios' ? PlatformColor('secondaryLabel') : '#8e8e93';
 
 // Route layout contract: configures the native bottom tab shell for all main screens.
 export default function TabsLayout(): ReactElement {
   return (
     <NativeTabs
       blurEffect="systemChromeMaterial"
-      iconColor={{ default: PlatformColor('secondaryLabel'), selected: tabColor }}
+      iconColor={{ default: defaultTabColor, selected: tabColor }}
       labelStyle={{ color: tabColor }}
       minimizeBehavior="automatic"
       tintColor={tabColor}

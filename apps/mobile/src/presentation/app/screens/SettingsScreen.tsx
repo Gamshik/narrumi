@@ -13,8 +13,10 @@ import {
   MAX_STORY_WORD_GOAL,
   MIN_STORY_WORD_GOAL,
 } from '@domain/index';
+import type { SyncLocalChangesResult } from '@application/index';
 
 import { localAppServices } from '../services/localAppServices';
+import { useAuthSession } from '../auth';
 import { useAppTheme } from '../theme';
 import type { AppStyles } from '../types';
 
@@ -74,6 +76,9 @@ export function SettingsScreen({
     useState<LearningPreferences>(initialPreferences);
   const preferencesRef = useRef<LearningPreferences>(initialPreferences);
   const [errorMessage, setErrorMessage] = useState<string>();
+  const [syncResult, setSyncResult] = useState<SyncLocalChangesResult>();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { session, signOut } = useAuthSession();
 
   useEffect(() => {
     let isActive = true;
@@ -127,6 +132,26 @@ export function SettingsScreen({
     }
   };
 
+  const syncNow = async (): Promise<void> => {
+    setIsSyncing(true);
+    setErrorMessage(undefined);
+
+    try {
+      setSyncResult(await localAppServices.syncLocalChanges.execute());
+    } catch (error) {
+      setSyncResult({
+        status: 'failed',
+        pushedCount: 0,
+        failedCount: 1,
+        pendingCount: 0,
+        errorMessage:
+          error instanceof Error ? error.message : 'Sync failed unexpectedly.',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.screenContent}>
       <View style={styles.homeHeader}>
@@ -147,6 +172,14 @@ export function SettingsScreen({
           updatePreferences({ preferredCefrLevel })
         }
       />
+      <AccountSync
+        email={session?.email}
+        isSyncing={isSyncing}
+        result={syncResult}
+        styles={styles}
+        onSignOut={signOut}
+        onSyncNow={syncNow}
+      />
       <Appearance styles={styles} />
       <SeriesDefaults
         preferences={preferences}
@@ -154,6 +187,86 @@ export function SettingsScreen({
         onUpdatePreferences={updatePreferences}
       />
     </ScrollView>
+  );
+}
+
+// AccountSync renders the remote sync state needed to diagnose RLS writes.
+function AccountSync({
+  email,
+  isSyncing,
+  result,
+  styles,
+  onSignOut,
+  onSyncNow,
+}: SettingsSectionProps & {
+  // email identifies the authenticated Supabase account used by RLS.
+  readonly email: string | undefined;
+  // isSyncing disables duplicate manual sync attempts.
+  readonly isSyncing: boolean;
+  // result is the latest sync attempt summary.
+  readonly result: SyncLocalChangesResult | undefined;
+  // onSignOut closes the current Supabase session.
+  readonly onSignOut: () => Promise<void>;
+  // onSyncNow forces one visible sync attempt for diagnostics.
+  readonly onSyncNow: () => Promise<void>;
+}): ReactElement {
+  const statusLabel = result ? formatSyncStatus(result) : 'Not checked yet';
+
+  return (
+    <>
+      <Text style={styles.sectionLabel}>ACCOUNT & SYNC</Text>
+      <View style={styles.settingsCard}>
+        <View style={styles.settingRow}>
+          <View style={styles.flex}>
+            <Text style={styles.actionTitle}>Signed in as</Text>
+            <Text style={styles.secondaryText}>{email ?? 'Unknown account'}</Text>
+          </View>
+          <Text style={styles.settingValue}>{statusLabel}</Text>
+        </View>
+
+        {result?.errorMessage ? (
+          <View style={styles.syncErrorBox}>
+            <Text style={styles.syncErrorText}>{result.errorMessage}</Text>
+          </View>
+        ) : null}
+
+        {result ? (
+          <Text style={styles.secondaryText}>
+            Pending: {result.pendingCount} · Pushed: {result.pushedCount} ·
+            Failed: {result.failedCount}
+          </Text>
+        ) : (
+          <Text style={styles.secondaryText}>
+            Use Sync Now after creating a series to verify remote writes.
+          </Text>
+        )}
+
+        <View style={styles.practiceActions}>
+          <Pressable
+            disabled={isSyncing}
+            onPress={() => void onSyncNow()}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              isSyncing && styles.disabledControl,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isSyncing ? 'Syncing...' : 'Sync Now'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void onSignOut()}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.secondaryButtonText}>Sign Out</Text>
+          </Pressable>
+        </View>
+      </View>
+    </>
   );
 }
 
@@ -388,4 +501,25 @@ function buildOptimisticPreferences(
         : {}),
     },
   };
+}
+
+// formatSyncStatus keeps the diagnostic label compact inside the settings row.
+function formatSyncStatus(result: SyncLocalChangesResult): string {
+  if (result.status === 'synced' && result.pendingCount === 0) {
+    return 'Up to date';
+  }
+
+  if (result.status === 'synced') {
+    return 'Synced';
+  }
+
+  if (result.status === 'offline') {
+    return 'Offline';
+  }
+
+  if (result.status === 'unauthenticated') {
+    return 'Signed out';
+  }
+
+  return 'Failed';
 }

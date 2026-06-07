@@ -15,7 +15,7 @@ export default function EpisodeReaderRoute(): ReactElement {
   // normalizedEpisodeId protects the screen from array params on web deep links.
   const normalizedEpisodeId =
     typeof episodeId === 'string' ? episodeId : undefined;
-  // normalizedSeriesId lets history exit return to the owning series screen.
+  // normalizedSeriesId identifies the owner for full reading and exit navigation.
   const normalizedSeriesId =
     typeof seriesId === 'string' ? seriesId : undefined;
   // isReadOnly prevents completed history from resubmitting story choices.

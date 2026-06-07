@@ -18,7 +18,7 @@ import {
 
 // EpisodeReaderScreenProps carries route input and series reader behavior.
 type EpisodeReaderScreenProps = {
-  // episodeId optionally selects one episode after the series list is loaded.
+  // episodeId loads only the selected episode when present.
   readonly episodeId?: string;
   // seriesId loads the complete locally persisted episode sequence.
   readonly seriesId?: string;
@@ -53,20 +53,27 @@ export function EpisodeReaderScreen({
 
   const loadReader = useCallback(async (): Promise<void> => {
     try {
+      if (episodeId) {
+        const result = await localAppServices.loadEpisodeReader.execute({
+          episodeId,
+        });
+
+        setEpisodes([result.episode]);
+        setActiveEpisodeIndex(0);
+        setCurrentSentenceIndex(0);
+        setErrorMessage(undefined);
+
+        return;
+      }
+
       if (seriesId) {
         const details = await localAppServices.loadSeriesDetails.execute({
           seriesId,
         });
 
         if (details.episodes.length > 0) {
-          const selectedIndex = episodeId
-            ? details.episodes.findIndex((episode) => episode.id === episodeId)
-            : details.episodes.length - 1;
-
           setEpisodes(details.episodes);
-          setActiveEpisodeIndex(
-            selectedIndex >= 0 ? selectedIndex : details.episodes.length - 1,
-          );
+          setActiveEpisodeIndex(0);
           setCurrentSentenceIndex(0);
           setErrorMessage(undefined);
 
@@ -74,14 +81,7 @@ export function EpisodeReaderScreen({
         }
       }
 
-      const result = await localAppServices.loadEpisodeReader.execute({
-        ...(episodeId ? { episodeId } : {}),
-      });
-
-      setEpisodes([result.episode]);
-      setActiveEpisodeIndex(0);
-      setCurrentSentenceIndex(0);
-      setErrorMessage(undefined);
+      throw new Error('Reader target was not found.');
     } catch {
       setErrorMessage('Series reader could not load local episodes.');
     }
