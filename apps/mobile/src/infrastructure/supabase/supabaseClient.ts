@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // SupabaseEnvironment stores public Expo config required for Edge Function calls.
@@ -12,7 +13,14 @@ type SupabaseEnvironment = {
 export function createSupabaseClient(): SupabaseClient {
   const environment = readSupabaseEnvironment();
 
-  return createClient(environment.url, environment.anonKey);
+  return createClient(environment.url, environment.anonKey, {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  });
 }
 
 // readSupabaseEnvironment validates required public Expo environment variables.

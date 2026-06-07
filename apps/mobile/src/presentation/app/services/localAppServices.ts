@@ -7,31 +7,48 @@ import {
   createLoadLearningSignals,
   createLoadSeriesDetails,
   createListSeries,
+  createManageAuthSession,
   createRecordLearningSignal,
   createReplaceEpisodeStoryWord,
   createStartOrResumeEpisodeWordSelection,
   createStartOrResumeTodaysWordSet,
   createSubmitEpisodeInteraction,
+  createSyncLocalChanges,
+  type SyncLocalChanges,
   createUpdateLearningPreferences,
   createUpdateWordSet,
 } from '@application/index';
 import type {
+  AuthGateway,
+  AuthSessionProvider,
   EpisodeGenerationGateway,
   InteractionGateway,
+  RemoteSeriesStore,
 } from '@application/ports';
 import {
+  AsyncStorageSyncQueue,
   AsyncStorageLocalSeriesStore,
   BundledOxfordVocabularyCatalog,
   createSupabaseClient,
   ExpoSpeechAudioNarrator,
   ExpoNetworkStatus,
+  QueuedLocalSeriesStore,
+  SupabaseAuthSessionProvider,
   SupabaseEpisodeGenerationGateway,
   SupabaseInteractionGateway,
+  SupabaseRemoteSeriesStore,
   SystemClock,
 } from '@infrastructure/index';
 
-// localSeriesStore is the single app-local adapter for offline series records.
-const localSeriesStore = new AsyncStorageLocalSeriesStore();
+// rawLocalSeriesStore applies remote state without creating recursive queue entries.
+const rawLocalSeriesStore = new AsyncStorageLocalSeriesStore();
+// syncQueue persists compact operation pointers after local-first writes.
+const syncQueue = new AsyncStorageSyncQueue();
+// localSeriesStore queues every successful domain-record write for later sync.
+const localSeriesStore = new QueuedLocalSeriesStore(
+  rawLocalSeriesStore,
+  syncQueue,
+);
 // vocabularyCatalog is shared so the bundled Oxford seed is parsed once.
 const vocabularyCatalog = new BundledOxfordVocabularyCatalog();
 // systemClock provides production time to local-first use cases.
@@ -40,87 +57,188 @@ const systemClock = new SystemClock();
 const networkStatus = new ExpoNetworkStatus();
 // audioNarrator speaks episode sentences through the Expo-managed TTS boundary.
 const audioNarrator = new ExpoSpeechAudioNarrator();
-// aiGateways invoke Supabase Edge Functions when public environment is configured.
-const aiGateways = createAiGateways();
+// supabaseServices owns optional AI, auth, and remote persistence adapters.
+const supabaseServices = createSupabaseServices();
+// syncLocalChanges keeps local mode functional when Supabase or auth is unavailable.
+const syncLocalChanges = createSyncLocalChanges(
+  rawLocalSeriesStore,
+  supabaseServices.remoteSeriesStore,
+  syncQueue,
+  supabaseServices.authSessionProvider,
+  networkStatus,
+);
+
+const browseVocabulary = createBrowseVocabulary(vocabularyCatalog);
+const createSeries = createCreateSeries(localSeriesStore, systemClock);
+const listSeries = createListSeries(localSeriesStore);
+const loadLearningPreferences = createLoadLearningPreferences(
+  localSeriesStore,
+  systemClock,
+);
+const loadLearningSignals = createLoadLearningSignals(localSeriesStore);
+const loadEpisodeReader = createLoadEpisodeReader(localSeriesStore);
+const loadSeriesDetails = createLoadSeriesDetails(localSeriesStore);
+const recordLearningSignal = createRecordLearningSignal(
+  localSeriesStore,
+  systemClock,
+);
+const replaceEpisodeStoryWord = createReplaceEpisodeStoryWord(
+  localSeriesStore,
+  vocabularyCatalog,
+  systemClock,
+);
+const startTodaysWordSet = createStartOrResumeTodaysWordSet(
+  localSeriesStore,
+  vocabularyCatalog,
+  systemClock,
+);
+const startEpisodeWordSelection = createStartOrResumeEpisodeWordSelection(
+  localSeriesStore,
+  vocabularyCatalog,
+  systemClock,
+);
+const generateEpisode = createGenerateEpisode(
+  localSeriesStore,
+  vocabularyCatalog,
+  networkStatus,
+  supabaseServices.episodeGenerationGateway,
+  systemClock,
+);
+const submitEpisodeInteraction = createSubmitEpisodeInteraction(
+  localSeriesStore,
+  networkStatus,
+  supabaseServices.interactionGateway,
+  systemClock,
+);
+const updateLearningPreferences = createUpdateLearningPreferences(
+  localSeriesStore,
+  systemClock,
+);
+const updateWordSet = createUpdateWordSet(localSeriesStore, systemClock);
+const manageAuthSession = createManageAuthSession(
+  supabaseServices.authGateway,
+);
 
 // localAppServices groups application use cases for the current local MVP.
 export const localAppServices = {
-  browseVocabulary: createBrowseVocabulary(vocabularyCatalog),
-  createSeries: createCreateSeries(localSeriesStore, systemClock),
-  listSeries: createListSeries(localSeriesStore),
-  loadLearningPreferences: createLoadLearningPreferences(
-    localSeriesStore,
-    systemClock,
+  browseVocabulary,
+  createSeries: withBackgroundSync(createSeries, syncLocalChanges),
+  listSeries: withPreSync(listSeries, syncLocalChanges),
+  loadLearningPreferences: withPreSync(
+    loadLearningPreferences,
+    syncLocalChanges,
   ),
-  loadLearningSignals: createLoadLearningSignals(localSeriesStore),
-  loadEpisodeReader: createLoadEpisodeReader(localSeriesStore),
-  loadSeriesDetails: createLoadSeriesDetails(localSeriesStore),
-  recordLearningSignal: createRecordLearningSignal(
-    localSeriesStore,
-    systemClock,
+  loadLearningSignals,
+  loadEpisodeReader,
+  loadSeriesDetails,
+  manageAuthSession,
+  recordLearningSignal: withBackgroundSync(
+    recordLearningSignal,
+    syncLocalChanges,
   ),
-  replaceEpisodeStoryWord: createReplaceEpisodeStoryWord(
-    localSeriesStore,
-    vocabularyCatalog,
-    systemClock,
+  replaceEpisodeStoryWord: withBackgroundSync(
+    replaceEpisodeStoryWord,
+    syncLocalChanges,
   ),
   networkStatus,
   audioNarrator,
-  startTodaysWordSet: createStartOrResumeTodaysWordSet(
-    localSeriesStore,
-    vocabularyCatalog,
-    systemClock,
+  startTodaysWordSet: withBackgroundSync(
+    startTodaysWordSet,
+    syncLocalChanges,
   ),
-  startEpisodeWordSelection: createStartOrResumeEpisodeWordSelection(
-    localSeriesStore,
-    vocabularyCatalog,
-    systemClock,
+  startEpisodeWordSelection: withBackgroundSync(
+    startEpisodeWordSelection,
+    syncLocalChanges,
   ),
-  generateEpisode: createGenerateEpisode(
-    localSeriesStore,
-    vocabularyCatalog,
-    networkStatus,
-    aiGateways.episodeGenerationGateway,
-    systemClock,
+  generateEpisode: withBackgroundSync(
+    generateEpisode,
+    syncLocalChanges,
   ),
-  submitEpisodeInteraction: createSubmitEpisodeInteraction(
-    localSeriesStore,
-    networkStatus,
-    aiGateways.interactionGateway,
-    systemClock,
+  submitEpisodeInteraction: withBackgroundSync(
+    submitEpisodeInteraction,
+    syncLocalChanges,
   ),
-  updateLearningPreferences: createUpdateLearningPreferences(
-    localSeriesStore,
-    systemClock,
+  syncLocalChanges,
+  updateLearningPreferences: withBackgroundSync(
+    updateLearningPreferences,
+    syncLocalChanges,
   ),
-  updateWordSet: createUpdateWordSet(localSeriesStore, systemClock),
+  updateWordSet: withBackgroundSync(updateWordSet, syncLocalChanges),
 } as const;
 
-// AiGateways groups the two production AI boundary adapters.
-type AiGateways = {
+// SupabaseServices groups optional adapters sharing one configured client.
+type SupabaseServices = {
+  // authGateway creates and observes authenticated mobile sessions.
+  readonly authGateway: AuthGateway;
   // episodeGenerationGateway calls generate-episode or reports missing config.
   readonly episodeGenerationGateway: EpisodeGenerationGateway;
   // interactionGateway calls submit-interaction or reports missing config.
   readonly interactionGateway: InteractionGateway;
+  // authSessionProvider exposes the active user without Supabase types.
+  readonly authSessionProvider: AuthSessionProvider;
+  // remoteSeriesStore persists the authenticated cloud copy behind RLS.
+  readonly remoteSeriesStore: RemoteSeriesStore;
 };
 
-// createAiGateways keeps local reading available when Supabase env is not configured.
-function createAiGateways(): AiGateways {
+// createSupabaseServices keeps local use available without public environment config.
+function createSupabaseServices(): SupabaseServices {
   try {
     const supabaseClient = createSupabaseClient();
 
     return {
+      authGateway: new SupabaseAuthSessionProvider(supabaseClient),
       episodeGenerationGateway: new SupabaseEpisodeGenerationGateway(
         supabaseClient,
       ),
       interactionGateway: new SupabaseInteractionGateway(supabaseClient),
+      authSessionProvider: new SupabaseAuthSessionProvider(supabaseClient),
+      remoteSeriesStore: new SupabaseRemoteSeriesStore(supabaseClient),
     };
   } catch {
     return {
+      authGateway: unavailableAuthGateway,
       episodeGenerationGateway: unavailableEpisodeGenerationGateway,
       interactionGateway: unavailableInteractionGateway,
+      authSessionProvider: unauthenticatedSessionProvider,
+      remoteSeriesStore: unavailableRemoteSeriesStore,
     };
   }
+}
+
+// Executable is the common async use-case shape wrapped by sync composition.
+type Executable<TArguments extends readonly unknown[], TResult> = {
+  // execute performs one application action with typed plain-data arguments.
+  readonly execute: (...arguments_: TArguments) => Promise<TResult>;
+};
+
+// withBackgroundSync triggers best-effort replay only after local work succeeds.
+function withBackgroundSync<TArguments extends readonly unknown[], TResult>(
+  service: Executable<TArguments, TResult>,
+  sync: SyncLocalChanges,
+): Executable<TArguments, TResult> {
+  return {
+    execute: async (...arguments_) => {
+      const result = await service.execute(...arguments_);
+
+      void sync.execute().catch(() => undefined);
+
+      return result;
+    },
+  };
+}
+
+// withPreSync refreshes clean local reads without making cloud access mandatory.
+function withPreSync<TArguments extends readonly unknown[], TResult>(
+  service: Executable<TArguments, TResult>,
+  sync: SyncLocalChanges,
+): Executable<TArguments, TResult> {
+  return {
+    execute: async (...arguments_) => {
+      await sync.execute().catch(() => undefined);
+
+      return service.execute(...arguments_);
+    },
+  };
 }
 
 // unavailableEpisodeGenerationGateway fails only server-backed generation actions.
@@ -134,5 +252,33 @@ const unavailableEpisodeGenerationGateway: EpisodeGenerationGateway = {
 const unavailableInteractionGateway: InteractionGateway = {
   submitInteraction: async () => {
     throw new Error('Supabase Edge Functions are not configured.');
+  },
+};
+
+// unauthenticatedSessionProvider leaves the app in valid local-only mode.
+const unauthenticatedSessionProvider: AuthSessionProvider = {
+  getAuthenticatedUserId: async () => undefined,
+};
+
+// unavailableAuthGateway reports missing public configuration to account actions.
+const unavailableAuthGateway: AuthGateway = {
+  getSession: async () => undefined,
+  signIn: async () => {
+    throw new Error('Supabase authentication is not configured.');
+  },
+  signUp: async () => {
+    throw new Error('Supabase authentication is not configured.');
+  },
+  signOut: async () => undefined,
+  subscribe: () => ({ unsubscribe: () => undefined }),
+};
+
+// unavailableRemoteSeriesStore is unreachable while no authenticated session exists.
+const unavailableRemoteSeriesStore: RemoteSeriesStore = {
+  upsert: async () => {
+    throw new Error('Supabase remote storage is not configured.');
+  },
+  loadSnapshot: async () => {
+    throw new Error('Supabase remote storage is not configured.');
   },
 };
