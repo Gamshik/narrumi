@@ -262,6 +262,11 @@ function createAppStylesImpl(colors: AppColors) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.separator,
     },
+    rowActionStack: {
+      alignItems: "flex-end",
+      justifyContent: "center",
+      gap: 8,
+    },
     storyWordRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -297,6 +302,30 @@ function createAppStylesImpl(colors: AppColors) {
     smallPrimaryButtonText: {
       color: "#ffffff",
       fontSize: 13,
+      fontWeight: "800",
+    },
+    secondarySmallButton: {
+      minHeight: 36,
+      justifyContent: "center",
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      backgroundColor: colors.backgroundTertiary,
+    },
+    secondarySmallButtonText: {
+      color: colors.labelPrimary,
+      fontSize: 13,
+      fontWeight: "800",
+    },
+    destructiveIconButton: {
+      minHeight: 34,
+      justifyContent: "center",
+      borderRadius: 12,
+      paddingHorizontal: 11,
+      backgroundColor: `${colors.systemRed}1f`,
+    },
+    destructiveIconText: {
+      color: colors.systemRed,
+      fontSize: 12,
       fontWeight: "800",
     },
     actionRow: {
@@ -524,6 +553,30 @@ function createAppStylesImpl(colors: AppColors) {
       fontSize: 19,
       fontWeight: "500",
       lineHeight: 31,
+    },
+    readerDialogueFrame: {
+      gap: 8,
+    },
+    readerDialogueBubble: {
+      alignSelf: "flex-start",
+      maxWidth: "94%",
+      gap: 5,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.systemBlue,
+      borderRadius: 16,
+      paddingHorizontal: 13,
+      paddingVertical: 11,
+      backgroundColor: `${colors.systemBlue}14`,
+    },
+    readerDialogueSpeaker: {
+      color: colors.systemBlue,
+      fontSize: 11,
+      fontWeight: "900",
+      letterSpacing: 0.7,
+      textTransform: "uppercase",
+    },
+    readerDialogueText: {
+      fontWeight: "700",
     },
     readerAnnotatedWord: {
       color: colors.systemBlue,

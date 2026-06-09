@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -87,6 +88,7 @@ export function HomeScreen({
   const [form, setForm] = useState<SeriesFormState>(emptySeriesForm);
   const [formErrors, setFormErrors] = useState<SeriesFormErrors>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deletingSeriesId, setDeletingSeriesId] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -134,6 +136,37 @@ export function HomeScreen({
     }
   };
 
+  const requestDeleteSeries = (seriesToDelete: Series): void => {
+    Alert.alert(
+      'Delete series?',
+      `This removes "${seriesToDelete.title}" and its saved episodes from this device.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void deleteSeries(seriesToDelete.id);
+          },
+        },
+      ],
+    );
+  };
+
+  const deleteSeries = async (seriesId: string): Promise<void> => {
+    setDeletingSeriesId(seriesId);
+    setErrorMessage(undefined);
+
+    try {
+      await localAppServices.deleteSeries.execute({ seriesId });
+      await loadSeries();
+    } catch {
+      setErrorMessage('Series could not be deleted.');
+    } finally {
+      setDeletingSeriesId(undefined);
+    }
+  };
+
   return (
     <>
       <ScrollView contentContainerStyle={styles.screenContent}>
@@ -153,9 +186,11 @@ export function HomeScreen({
           onOpenSeries={onOpenSeries}
         />
         <SeriesList
+          deletingSeriesId={deletingSeriesId}
           series={series}
           styles={styles}
           onCreateSeries={() => setIsCreateOpen(true)}
+          onDeleteSeries={requestDeleteSeries}
           onOpenSeries={onOpenSeries}
         />
       </ScrollView>
@@ -249,17 +284,23 @@ function ContinueBanner({
 
 // SeriesList renders saved local series without fake episode history.
 function SeriesList({
+  deletingSeriesId,
   series,
   styles,
   onCreateSeries,
+  onDeleteSeries,
   onOpenSeries,
 }: {
+  // deletingSeriesId disables the destructive control during the active local write.
+  readonly deletingSeriesId: string | undefined;
   // series are local-first personal story containers.
   readonly series: readonly Series[];
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
   // onCreateSeries opens the local create form for the empty state.
   readonly onCreateSeries: () => void;
+  // onDeleteSeries asks the user to confirm removing a story and its children.
+  readonly onDeleteSeries: (series: Series) => void;
   // onOpenSeries starts the AI episode flow for a local series.
   readonly onOpenSeries: (seriesId: string) => void;
 }): ReactElement {
@@ -280,9 +321,11 @@ function SeriesList({
         <View style={styles.seriesList}>
           {series.map((item) => (
             <SeriesRow
+              isDeleting={item.id === deletingSeriesId}
               key={item.id}
               series={item}
               styles={styles}
+              onDeleteSeries={onDeleteSeries}
               onOpenSeries={onOpenSeries}
             />
           ))}
@@ -294,14 +337,20 @@ function SeriesList({
 
 // SeriesRow displays one saved local series and its generation gate.
 function SeriesRow({
+  isDeleting,
   series,
   styles,
+  onDeleteSeries,
   onOpenSeries,
 }: {
+  // isDeleting prevents duplicate destructive writes for this row.
+  readonly isDeleting: boolean;
   // series is the saved local series record to summarize.
   readonly series: Series;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
+  // onDeleteSeries triggers the user-facing destructive confirmation.
+  readonly onDeleteSeries: (series: Series) => void;
   // onOpenSeries starts the unified AI flow for this series.
   readonly onOpenSeries: (seriesId: string) => void;
 }): ReactElement {
@@ -319,12 +368,25 @@ function SeriesRow({
           {series.premise}
         </Text>
       </View>
-      <Pressable
-        onPress={() => onOpenSeries(series.id)}
-        style={({ pressed }) => [styles.smallPrimaryButton, pressed && styles.pressed]}
-      >
-        <Text style={styles.smallPrimaryButtonText}>Story</Text>
-      </Pressable>
+      <View style={styles.rowActionStack}>
+        <Pressable
+          onPress={() => onOpenSeries(series.id)}
+          style={({ pressed }) => [styles.smallPrimaryButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.smallPrimaryButtonText}>Story</Text>
+        </Pressable>
+        <Pressable
+          disabled={isDeleting}
+          onPress={() => onDeleteSeries(series)}
+          style={({ pressed }) => [
+            styles.destructiveIconButton,
+            pressed && styles.pressed,
+            isDeleting && styles.disabledControl,
+          ]}
+        >
+          <Text style={styles.destructiveIconText}>Delete</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

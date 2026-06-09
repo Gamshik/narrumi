@@ -13,6 +13,7 @@ import {
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
+import { DictionaryPickerPanel } from './dailySession/components/DictionaryPickerPanel';
 import { EpisodeReaderScreen } from './EpisodeReaderScreen';
 
 // genreLabels maps domain genre values to user-facing labels from the PRD.
@@ -60,7 +61,13 @@ export function DailySessionScreen({
   const [series, setSeries] = useState<Series>();
   const [selectedGenre, setSelectedGenre] = useState<LearningGenre>();
   const [errorMessage, setErrorMessage] = useState<string>();
+  const [pickerWordId, setPickerWordId] = useState<string>();
+  const [dictionarySearch, setDictionarySearch] = useState('');
+  const [dictionaryWords, setDictionaryWords] = useState<readonly VocabularyItem[]>([]);
+  const [isDictionaryLoading, setIsDictionaryLoading] = useState(false);
   const [isReplacing, setIsReplacing] = useState(false);
+  const [isChoosing, setIsChoosing] = useState(false);
+  const [isShuffling, setIsShuffling] = useState(false);
   const [generatedEpisodeId, setGeneratedEpisodeId] = useState<string>();
   const [isOnline, setIsOnline] = useState(false);
 
@@ -107,6 +114,40 @@ export function DailySessionScreen({
     };
   }, [loadWordSelection]);
 
+  useEffect(() => {
+    if (!pickerWordId) {
+      setDictionaryWords([]);
+
+      return;
+    }
+
+    let isActive = true;
+
+    setIsDictionaryLoading(true);
+
+    void localAppServices.browseVocabulary
+      .execute(dictionarySearch.trim() ? { search: dictionarySearch } : {})
+      .then((words) => {
+        if (isActive) {
+          setDictionaryWords(words.slice(0, 32));
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setErrorMessage('Dictionary words could not be loaded locally.');
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsDictionaryLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [dictionarySearch, pickerWordId]);
+
   const replaceWord = async (wordId: string): Promise<void> => {
     if (!selectionState) {
       return;
@@ -130,6 +171,66 @@ export function DailySessionScreen({
       setErrorMessage('Story Word could not be replaced locally.');
     } finally {
       setIsReplacing(false);
+    }
+  };
+
+  const shuffleWords = async (): Promise<void> => {
+    if (!selectionState) {
+      return;
+    }
+
+    setIsShuffling(true);
+    setErrorMessage(undefined);
+
+    try {
+      const result = await localAppServices.shuffleEpisodeStoryWords.execute({
+        episodeWordSet: selectionState.episodeWordSet,
+        preferences: selectionState.preferences,
+      });
+
+      setSelectionState({
+        ...selectionState,
+        episodeWordSet: result.episodeWordSet,
+        words: result.words,
+      });
+    } catch {
+      setErrorMessage('Story Words could not be shuffled locally.');
+    } finally {
+      setIsShuffling(false);
+    }
+  };
+
+  const chooseWord = async (replacementWordId: string): Promise<void> => {
+    if (!selectionState || !pickerWordId) {
+      return;
+    }
+
+    setIsChoosing(true);
+    setErrorMessage(undefined);
+
+    try {
+      const result = await localAppServices.chooseEpisodeStoryWord.execute({
+        episodeWordSet: selectionState.episodeWordSet,
+        maxLevel: selectionState.preferences.preferredCefrLevel,
+        replacementWordId,
+        wordId: pickerWordId,
+      });
+
+      setSelectionState({
+        ...selectionState,
+        episodeWordSet: result.episodeWordSet,
+        words: result.words,
+      });
+      setPickerWordId(undefined);
+      setDictionarySearch('');
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Selected dictionary word could not be used.',
+      );
+    } finally {
+      setIsChoosing(false);
     }
   };
 
@@ -205,14 +306,41 @@ export function DailySessionScreen({
         </View>
       ) : (
         <>
-          <StoryWordsPanel
-            isReplacing={isReplacing}
-            selectionState={selectionState}
-            styles={styles}
-            onReplaceWord={(wordId) => {
-              void replaceWord(wordId);
-            }}
-          />
+          {pickerWordId ? (
+            <DictionaryPickerPanel
+              isChoosing={isChoosing}
+              isLoading={isDictionaryLoading}
+              search={dictionarySearch}
+              styles={styles}
+              targetWord={
+                selectionState.words.find((word) => word.id === pickerWordId)
+              }
+              words={dictionaryWords}
+              onChangeSearch={setDictionarySearch}
+              onChooseWord={(wordId) => {
+                void chooseWord(wordId);
+              }}
+              onClose={() => {
+                setPickerWordId(undefined);
+                setDictionarySearch('');
+              }}
+            />
+          ) : (
+            <StoryWordsPanel
+              isUpdating={isReplacing || isChoosing || isShuffling}
+              selectionState={selectionState}
+              styles={styles}
+              onPickWord={(wordId) => {
+                setPickerWordId(wordId);
+              }}
+              onReplaceWord={(wordId) => {
+                void replaceWord(wordId);
+              }}
+              onShuffleWords={() => {
+                void shuffleWords();
+              }}
+            />
+          )}
           <GenreSelection
             selectedGenre={selectedGenre}
             styles={styles}
@@ -235,19 +363,25 @@ export function DailySessionScreen({
 
 // StoryWordsPanel shows the current editable words while preserving today's source.
 function StoryWordsPanel({
-  isReplacing,
+  isUpdating,
   selectionState,
   styles,
+  onPickWord,
   onReplaceWord,
+  onShuffleWords,
 }: {
-  // isReplacing disables duplicate local writes.
-  readonly isReplacing: boolean;
+  // isUpdating disables duplicate local writes while words are changing.
+  readonly isUpdating: boolean;
   // selectionState carries today's source and current episode words.
   readonly selectionState: EpisodeWordSelectionState;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
+  // onPickWord opens the local dictionary for one editable slot.
+  readonly onPickWord: (wordId: string) => void;
   // onReplaceWord changes only the current episode word set.
   readonly onReplaceWord: (wordId: string) => void;
+  // onShuffleWords replaces the full current episode word set by explicit choice.
+  readonly onShuffleWords: () => void;
 }): ReactElement {
   return (
     <View style={styles.settingsCard}>
@@ -262,6 +396,17 @@ function StoryWordsPanel({
         <Text style={styles.settingValue}>
           Today: {selectionState.todayWordSet.wordIds.length}
         </Text>
+        <Pressable
+          disabled={isUpdating}
+          onPress={onShuffleWords}
+          style={({ pressed }) => [
+            styles.smallPrimaryButton,
+            isUpdating && styles.disabledControl,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.smallPrimaryButtonText}>Shuffle</Text>
+        </Pressable>
       </View>
       {selectionState.words.map((word) => (
         <View key={word.id} style={styles.storyWordRow}>
@@ -274,17 +419,30 @@ function StoryWordsPanel({
               {word.examples[0] ?? 'No local example'}
             </Text>
           </View>
-          <Pressable
-            disabled={isReplacing}
-            onPress={() => onReplaceWord(word.id)}
-            style={({ pressed }) => [
-              styles.smallPrimaryButton,
-              isReplacing && styles.disabledControl,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.smallPrimaryButtonText}>Replace</Text>
-          </Pressable>
+          <View style={styles.rowActionStack}>
+            <Pressable
+              disabled={isUpdating}
+              onPress={() => onPickWord(word.id)}
+              style={({ pressed }) => [
+                styles.smallPrimaryButton,
+                isUpdating && styles.disabledControl,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.smallPrimaryButtonText}>Pick</Text>
+            </Pressable>
+            <Pressable
+              disabled={isUpdating}
+              onPress={() => onReplaceWord(word.id)}
+              style={({ pressed }) => [
+                styles.secondarySmallButton,
+                isUpdating && styles.disabledControl,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.secondarySmallButtonText}>Random</Text>
+            </Pressable>
+          </View>
         </View>
       ))}
     </View>

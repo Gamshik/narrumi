@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { Episode, Series, SeriesMemory } from '@domain/index';
 
@@ -43,6 +43,7 @@ export function SeriesDetailsScreen({
   styles,
 }: SeriesDetailsScreenProps): ReactElement {
   const [state, setState] = useState<SeriesDetailsState>();
+  const [deletingEpisodeId, setDeletingEpisodeId] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
 
   const loadDetails = useCallback(async (): Promise<void> => {
@@ -59,6 +60,37 @@ export function SeriesDetailsScreen({
   useEffect(() => {
     void loadDetails();
   }, [loadDetails]);
+
+  const requestDeleteEpisode = (episode: Episode): void => {
+    Alert.alert(
+      'Delete episode?',
+      `This removes Episode ${episode.orderIndex} from local history.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void deleteEpisode(episode.id);
+          },
+        },
+      ],
+    );
+  };
+
+  const deleteEpisode = async (episodeId: string): Promise<void> => {
+    setDeletingEpisodeId(episodeId);
+    setErrorMessage(undefined);
+
+    try {
+      await localAppServices.deleteEpisode.execute({ episodeId });
+      await loadDetails();
+    } catch {
+      setErrorMessage('Episode could not be deleted.');
+    } finally {
+      setDeletingEpisodeId(undefined);
+    }
+  };
 
   if (errorMessage) {
     return (
@@ -172,9 +204,11 @@ export function SeriesDetailsScreen({
         <View style={styles.seriesList}>
           {state.episodes.map((episode) => (
             <EpisodeHistoryRow
+              isDeleting={episode.id === deletingEpisodeId}
               episode={episode}
               key={episode.id}
               styles={styles}
+              onDeleteEpisode={requestDeleteEpisode}
               onOpenEpisode={onOpenEpisode}
             />
           ))}
@@ -187,37 +221,61 @@ export function SeriesDetailsScreen({
 // EpisodeHistoryRow opens one completed local episode in read/listen mode.
 function EpisodeHistoryRow({
   episode,
+  isDeleting,
   styles,
+  onDeleteEpisode,
   onOpenEpisode,
 }: {
   // episode is a locally saved generated unit.
   readonly episode: Episode;
+  // isDeleting prevents duplicate destructive writes for this row.
+  readonly isDeleting: boolean;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
+  // onDeleteEpisode triggers a confirmation before local deletion.
+  readonly onDeleteEpisode: (episode: Episode) => void;
   // onOpenEpisode opens this saved episode in the reader.
   readonly onOpenEpisode: (episodeId: string) => void;
 }): ReactElement {
   return (
-    <Pressable
-      onPress={() => onOpenEpisode(episode.id)}
-      style={({ pressed }) => [styles.seriesRow, pressed && styles.pressed]}
-    >
+    <View style={styles.seriesRow}>
       <View style={styles.flex}>
-        <View style={styles.wordHeading}>
+        <Pressable
+          onPress={() => onOpenEpisode(episode.id)}
+          style={({ pressed }) => [pressed && styles.pressed]}
+        >
           <Text style={styles.actionTitle}>
             Episode {episode.orderIndex}: {episode.title ?? 'Untitled'}
           </Text>
-        </View>
-        <Text style={styles.secondaryText} numberOfLines={2}>
-          {episode.summaryUpdate}
-        </Text>
-        <Text style={styles.sectionLabel}>
-          {episode.isComplete
-            ? `${episode.interactions.length} DECISIONS - COMPLETE`
-            : `${episode.interactions.length} DECISIONS - IN PROGRESS`}
-        </Text>
+          <Text style={styles.secondaryText} numberOfLines={2}>
+            {episode.summaryUpdate}
+          </Text>
+          <Text style={styles.sectionLabel}>
+            {episode.isComplete
+              ? `${episode.interactions.length} DECISIONS - COMPLETE`
+              : `${episode.interactions.length} DECISIONS - IN PROGRESS`}
+          </Text>
+        </Pressable>
       </View>
-      <Text style={styles.rowChevron}>›</Text>
-    </Pressable>
+      <View style={styles.rowActionStack}>
+        <Pressable
+          onPress={() => onOpenEpisode(episode.id)}
+          style={({ pressed }) => [styles.smallPrimaryButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.smallPrimaryButtonText}>Read</Text>
+        </Pressable>
+        <Pressable
+          disabled={isDeleting}
+          onPress={() => onDeleteEpisode(episode)}
+          style={({ pressed }) => [
+            styles.destructiveIconButton,
+            pressed && styles.pressed,
+            isDeleting && styles.disabledControl,
+          ]}
+        >
+          <Text style={styles.destructiveIconText}>Delete</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }

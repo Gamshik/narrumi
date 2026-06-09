@@ -284,7 +284,7 @@ export function EpisodeReaderScreen({
                           isActiveEpisode &&
                           sentenceIndex !== currentSentenceIndex
                         }
-                        sentence={sentence}
+                        sentenceFrame={episode.sentenceFrames[sentenceIndex]!}
                         sentenceIndex={sentenceIndex}
                         styles={styles}
                         onPressAnnotation={setSelectedAnnotation}
