@@ -37,12 +37,34 @@ const learningGenres = [
   'short-fiction',
 ] as const;
 
+// sentenceFrameSchema is the explicit display contract for one playback sentence.
+const sentenceFrameSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('narration'),
+    text: readableTextSchema,
+  }),
+  z.object({
+    kind: z.literal('dialogue'),
+    speaker: readableTextSchema.pipe(z.string().max(80)),
+    text: readableTextSchema,
+  }),
+]);
+
 // storyWordSchema validates one selected local Oxford word in AI context.
 const storyWordSchema = z.object({
   id: z.string().trim().min(1),
   word: z.string().trim().min(1),
   partOfSpeech: z.string().trim().min(1),
   level: z.enum(cefrLevels),
+});
+
+// annotationSchema validates context-aware translation hints for generated text.
+const annotationSchema = z.object({
+  wordId: z.string().trim().min(1).optional(),
+  surfaceText: readableTextSchema,
+  translation: readableTextSchema,
+  transcription: optionalReadableTextSchema,
+  sentenceIndex: z.number().int().nonnegative(),
 });
 
 // compactSeriesMemorySchema prevents unbounded history from entering prompts.
@@ -82,15 +104,11 @@ export const episodePayloadSchema = z.object({
   title: optionalReadableTextSchema.pipe(z.string().max(80).optional()),
   sceneText: readableTextSchema,
   sentences: z.array(readableTextSchema).min(3).max(16),
+  sentenceFrames: z.array(sentenceFrameSchema).min(3).max(16),
   storyWordIds: z.array(z.string().trim().min(1)).max(24),
-  annotations: z.array(
-    z.object({
-      wordId: z.string().trim().min(1).optional(),
-      surfaceText: readableTextSchema,
-      translation: readableTextSchema,
-      transcription: optionalReadableTextSchema,
-      sentenceIndex: z.number().int().nonnegative(),
-    }),
+  annotations: z.preprocess(
+    (value) => (Array.isArray(value) ? value : []),
+    z.array(annotationSchema),
   ),
   interaction: z.object({
     kind: z.literal(interactionKinds[0]),
@@ -113,6 +131,11 @@ export const interactionPayloadSchema = z.object({
   feedback: feedbackTextSchema.pipe(z.string().max(500)),
   continuationText: readableTextSchema.pipe(z.string().max(600)),
   continuationSentences: z.array(readableTextSchema).min(1).max(8),
+  continuationSentenceFrames: z.array(sentenceFrameSchema).min(1).max(8),
+  continuationAnnotations: z.preprocess(
+    (value) => (Array.isArray(value) ? value : []),
+    z.array(annotationSchema),
+  ),
   isEpisodeComplete: z.boolean(),
   nextInteraction: z.preprocess(
     (value) => (value === null ? undefined : value),
@@ -209,6 +232,8 @@ export const submitInteractionRequestSchema = z.object({
       }),
     )
     .max(PREVIOUS_DECISION_DRAFT_LIMIT),
+  selectedStoryWords: z.array(storyWordSchema).max(24),
+  encounteredStoryWordIds: z.array(z.string().trim().min(1)).max(24),
   selectedChoiceId: z.string().trim().min(1).optional(),
   selectedChoiceLabel: z.string().trim().min(1).max(120).optional(),
   userReply: z.string().trim().min(1).max(500).optional(),

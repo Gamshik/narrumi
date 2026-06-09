@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertThrows,
-} from 'jsr:@std/assert';
+import { assertEquals, assertThrows } from 'jsr:@std/assert';
 
 import type {
   GenerateEpisodeRequest,
@@ -53,8 +50,14 @@ const generateRequest: GenerateEpisodeRequest = {
 const episodeSentences: readonly string[] = [
   'Mira felt curious near the blue door.',
   'Leo heard a whisper inside the library.',
-  'They waited together while the hidden room slowly opened.',
+  'We should listen first.',
 ];
+
+// episodeSentenceFrames are explicit reader layout data aligned with episodeSentences.
+const episodeSentenceFrames = episodeSentences.map((sentence) => ({
+  kind: 'narration' as const,
+  text: sentence,
+}));
 
 // submitRequest is bounded context used by interaction finalizer tests.
 const submitRequest: SubmitInteractionRequest = {
@@ -78,6 +81,8 @@ const submitRequest: SubmitInteractionRequest = {
   interactionPrompt: 'What should Mira do?',
   interactionCount: 1,
   previousDecisions: [],
+  selectedStoryWords: generateRequest.selectedStoryWords,
+  encounteredStoryWordIds: ['word:curious'],
   selectedChoiceId: 'open',
   selectedChoiceLabel: 'Open the door carefully',
   userReply: 'Open the door carefully',
@@ -91,6 +96,7 @@ Deno.test('finalizeEpisodePayload synchronizes story text and compact memory', (
       title: 'The Blue Door',
       sceneText: 'This inconsistent text must be replaced.',
       sentences: episodeSentences,
+      sentenceFrames: episodeSentenceFrames,
       storyWordIds: ['word:curious'],
       annotations: [
         {
@@ -141,6 +147,189 @@ Deno.test('finalizeEpisodePayload synchronizes story text and compact memory', (
   ]);
 });
 
+Deno.test('finalizeEpisodePayload normalizes frame text to canonical sentences', () => {
+  const result = finalizeEpisodePayload({
+    request: generateRequest,
+    payload: {
+      title: 'The Blue Door',
+      sceneText: 'This inconsistent text must be replaced.',
+      sentences: episodeSentences,
+      sentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira felt curious beside the blue door.',
+        },
+        {
+          kind: 'narration',
+          text: 'Leo heard a whisper inside the library.',
+        },
+        {
+          kind: 'dialogue',
+          speaker: 'Leo',
+          text: 'We should listen first.',
+        },
+      ],
+      storyWordIds: ['word:curious', 'word:whisper'],
+      annotations: [
+        {
+          wordId: 'word:curious',
+          surfaceText: 'curious',
+          translation: 'любопытный',
+          sentenceIndex: 0,
+        },
+        {
+          wordId: 'word:whisper',
+          surfaceText: 'whisper',
+          translation: 'шепот',
+          sentenceIndex: 1,
+        },
+      ],
+      interaction: {
+        kind: 'choice',
+        prompt: 'What should Mira do?',
+        choices: [
+          { id: 'open', label: 'Open the door carefully' },
+          { id: 'wait', label: 'Wait and listen' },
+        ],
+      },
+      cliffhanger: 'The whisper called Mira by name.',
+      summaryUpdate: 'Mira and Leo found a whispering blue door.',
+      memoryUpdate: {
+        knownFacts: ['Mira found the blue door.'],
+        openQuestions: ['Who is whispering?'],
+        importantObjectsOrLocations: ['blue door'],
+        lastEpisodeSummary: 'Outdated model summary.',
+        unresolvedCliffhanger: 'Outdated hook.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+
+  assertEquals(result.sentenceFrames[0]?.text, episodeSentences[0]);
+  assertEquals(result.sentenceFrames[2]?.kind, 'dialogue');
+  assertEquals(result.sentenceFrames[2]?.text, episodeSentences[2]);
+});
+
+Deno.test('finalizeEpisodePayload keeps stripped sentence and frame text aligned', () => {
+  const result = finalizeEpisodePayload({
+    request: generateRequest,
+    payload: {
+      title: 'The Blue Door',
+      sceneText: 'This inconsistent text must be replaced.',
+      sentences: [
+        'Mira turned the handle slowly.',
+        '"We should listen first."',
+        '"Then we can open it."',
+      ],
+      sentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira turned the handle slowly.',
+        },
+        {
+          kind: 'dialogue',
+          speaker: 'Leo',
+          text: 'We should listen first.',
+        },
+        {
+          kind: 'dialogue',
+          speaker: 'Leo',
+          text: 'Then we can open it.',
+        },
+      ],
+      storyWordIds: ['word:curious', 'word:whisper'],
+      annotations: [],
+      interaction: {
+        kind: 'choice',
+        prompt: 'What should Mira do?',
+        choices: [
+          { id: 'open', label: 'Open the door carefully' },
+          { id: 'wait', label: 'Wait and listen' },
+        ],
+      },
+      cliffhanger: 'The whisper called Mira by name.',
+      summaryUpdate: 'Mira and Leo found a whispering blue door.',
+      memoryUpdate: {
+        knownFacts: ['Mira found the blue door.'],
+        openQuestions: ['Who is whispering?'],
+        importantObjectsOrLocations: ['blue door'],
+        lastEpisodeSummary: 'Outdated model summary.',
+        unresolvedCliffhanger: 'Outdated hook.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+
+  assertEquals(result.sentences[1], 'We should listen first. Then we can open it.');
+  assertEquals(result.sentenceFrames[1]?.text, result.sentences[1]);
+  assertEquals(result.sceneText, result.sentences.join(' '));
+});
+
+Deno.test('finalizeEpisodePayload merges adjacent dialogue from the same speaker', () => {
+  const result = finalizeEpisodePayload({
+    request: generateRequest,
+    payload: {
+      title: 'The Blue Door',
+      sceneText: 'This inconsistent text must be replaced.',
+      sentences: [
+        'Mira turned the handle slowly.',
+        'I think it is stuck.',
+        'Maybe we should wait.',
+      ],
+      sentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira turned the handle slowly.',
+        },
+        {
+          kind: 'dialogue',
+          speaker: 'Mira',
+          text: 'I think it is stuck.',
+        },
+        {
+          kind: 'dialogue',
+          speaker: 'Mira',
+          text: 'Maybe we should wait.',
+        },
+      ],
+      storyWordIds: ['word:curious', 'word:whisper'],
+      annotations: [],
+      interaction: {
+        kind: 'choice',
+        prompt: 'What should Mira do?',
+        choices: [
+          { id: 'open', label: 'Open the door carefully' },
+          { id: 'wait', label: 'Wait and listen' },
+        ],
+      },
+      cliffhanger: 'The whisper called Mira by name.',
+      summaryUpdate: 'Mira and Leo found a whispering blue door.',
+      memoryUpdate: {
+        knownFacts: ['Mira found the blue door.'],
+        openQuestions: ['Who is whispering?'],
+        importantObjectsOrLocations: ['blue door'],
+        lastEpisodeSummary: 'Outdated model summary.',
+        unresolvedCliffhanger: 'Outdated hook.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+
+  assertEquals(result.sentences, [
+    'Mira turned the handle slowly.',
+    'I think it is stuck. Maybe we should wait.',
+  ]);
+  assertEquals(result.sentenceFrames[1]?.kind, 'dialogue');
+  const dialogueFrame = result.sentenceFrames[1];
+
+  if (dialogueFrame?.kind !== 'dialogue') {
+    throw new Error('Expected merged dialogue frame.');
+  }
+
+  assertEquals(dialogueFrame.speaker, 'Mira');
+  assertEquals(dialogueFrame.text, 'I think it is stuck. Maybe we should wait.');
+});
+
 Deno.test('finalizeEpisodePayload repairs mojibake Russian translations', () => {
   const result = finalizeEpisodePayload({
     request: generateRequest,
@@ -148,6 +337,7 @@ Deno.test('finalizeEpisodePayload repairs mojibake Russian translations', () => 
       title: 'The Blue Door',
       sceneText: 'This inconsistent text must be replaced.',
       sentences: episodeSentences,
+      sentenceFrames: episodeSentenceFrames,
       storyWordIds: ['word:curious', 'word:whisper'],
       annotations: [
         {
@@ -188,44 +378,52 @@ Deno.test('finalizeEpisodePayload repairs mojibake Russian translations', () => 
   assertEquals(result.annotations[1]?.translation, 'шепот');
 });
 
-Deno.test('finalizeEpisodePayload rejects a missing selected Story Word', () => {
-  assertThrows(() =>
-    finalizeEpisodePayload({
-      request: generateRequest,
-      payload: {
-        sceneText: 'Ignored.',
-        sentences: episodeSentences.map((sentence) =>
-          sentence.replace('whisper', 'sound')
-        ),
-        storyWordIds: ['word:curious'],
-        annotations: [
-          {
-            wordId: 'word:curious',
-            surfaceText: 'curious',
-            translation: 'любопытный',
-            sentenceIndex: 0,
-          },
+Deno.test('finalizeEpisodePayload allows planned Story Words to appear later', () => {
+  const result = finalizeEpisodePayload({
+    request: generateRequest,
+    payload: {
+      sceneText: 'Ignored.',
+      sentences: episodeSentences.map((sentence) =>
+        sentence.replace('whisper', 'sound')
+      ),
+      sentenceFrames: episodeSentences.map((sentence) => ({
+        kind: 'narration',
+        text: sentence.replace('whisper', 'sound'),
+      })),
+      storyWordIds: ['word:curious'],
+      annotations: [
+        {
+          wordId: 'word:curious',
+          surfaceText: 'curious',
+          translation: 'любопытный',
+          sentenceIndex: 0,
+        },
+      ],
+      interaction: {
+        kind: 'choice',
+        prompt: 'What should Mira do?',
+        choices: [
+          { id: 'open', label: 'Open the door carefully' },
+          { id: 'wait', label: 'Wait and listen' },
         ],
-        interaction: {
-          kind: 'choice',
-          prompt: 'What should Mira do?',
-          choices: [
-            { id: 'open', label: 'Open the door carefully' },
-            { id: 'wait', label: 'Wait and listen' },
-          ],
-        },
-        cliffhanger: 'The hidden room moved.',
-        summaryUpdate: 'Mira and Leo found a hidden room.',
-        memoryUpdate: {
-          knownFacts: [],
-          openQuestions: [],
-          importantObjectsOrLocations: [],
-          lastEpisodeSummary: 'Outdated.',
-          unresolvedCliffhanger: 'Outdated.',
-          recurringStoryWordIds: [],
-        },
       },
-    })
+      cliffhanger: 'The hidden room moved.',
+      summaryUpdate: 'Mira and Leo found a hidden room.',
+      memoryUpdate: {
+        knownFacts: [],
+        openQuestions: [],
+        importantObjectsOrLocations: [],
+        lastEpisodeSummary: 'Outdated.',
+        unresolvedCliffhanger: 'Outdated.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+
+  assertEquals(result.storyWordIds, ['word:curious', 'word:whisper']);
+  assertEquals(
+    result.annotations.map((annotation) => annotation.wordId),
+    ['word:curious'],
   );
 });
 
@@ -237,8 +435,19 @@ Deno.test('finalizeInteractionPayload synchronizes continuation and summary', ()
       continuationText: 'This inconsistent text must be replaced.',
       continuationSentences: [
         'Mira turned the handle slowly.',
-        'A blue passage appeared behind the door.',
+        '"A blue passage appeared behind the door."',
       ],
+      continuationSentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira turned the handle slowly.',
+        },
+        {
+          kind: 'narration',
+          text: 'A blue passage appeared behind the door.',
+        },
+      ],
+      continuationAnnotations: [],
       isEpisodeComplete: false,
       nextInteraction: {
         kind: 'choice',
@@ -281,6 +490,68 @@ Deno.test('finalizeInteractionPayload synchronizes continuation and summary', ()
   assertEquals(result.nextInteraction?.choices.length, 2);
 });
 
+Deno.test('finalizeInteractionPayload normalizes continuation frame text', () => {
+  const result = finalizeInteractionPayload({
+    request: submitRequest,
+    payload: {
+      feedback: 'Good choice. "Open the door carefully" sounds natural.',
+      continuationText: 'This inconsistent text must be replaced.',
+      continuationSentences: [
+        'Mira turned the handle slowly.',
+        'I think it is stuck.',
+        'Maybe we should wait.',
+      ],
+      continuationSentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira moved the handle.',
+        },
+        {
+          kind: 'dialogue',
+          speaker: 'Mira',
+          text: 'I think it is stuck.',
+        },
+        {
+          kind: 'dialogue',
+          speaker: 'Mira',
+          text: 'Maybe we should wait.',
+        },
+      ],
+      continuationAnnotations: [],
+      isEpisodeComplete: false,
+      nextInteraction: {
+        kind: 'choice',
+        prompt: 'What should Mira do inside the passage?',
+        choices: [
+          { id: 'enter', label: 'Enter the passage' },
+          { id: 'listen', label: 'Stop and listen' },
+        ],
+      },
+      summaryUpdate: 'Mira opened the door and found a blue passage.',
+      memoryUpdate: {
+        currentConflict: 'Mira must decide whether to enter the passage.',
+        knownFacts: ['The door hides a blue passage.'],
+        openQuestions: ['Where does the passage lead?'],
+        importantObjectsOrLocations: ['blue passage'],
+        lastEpisodeSummary: 'Outdated model summary.',
+        unresolvedCliffhanger: 'A voice called from the passage.',
+        recurringStoryWordIds: ['word:whisper'],
+      },
+    },
+  });
+
+  assertEquals(
+    result.continuationSentenceFrames[0]?.text,
+    'Mira turned the handle slowly.',
+  );
+  assertEquals(result.continuationSentenceFrames[1]?.kind, 'dialogue');
+  assertEquals(
+    result.continuationSentenceFrames[1]?.text,
+    'I think it is stuck. Maybe we should wait.',
+  );
+  assertEquals(result.continuationSentences.length, 2);
+});
+
 Deno.test('finalizeInteractionPayload compacts verbose AI memory arrays', () => {
   const result = finalizeInteractionPayload({
     request: submitRequest,
@@ -290,6 +561,13 @@ Deno.test('finalizeInteractionPayload compacts verbose AI memory arrays', () => 
       continuationSentences: [
         'Mira opened the door and found a blue passage.',
       ],
+      continuationSentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira opened the door and found a blue passage.',
+        },
+      ],
+      continuationAnnotations: [],
       isEpisodeComplete: false,
       nextInteraction: {
         kind: 'choice',
@@ -374,6 +652,98 @@ Deno.test('finalizeInteractionPayload compacts verbose AI memory arrays', () => 
   assertEquals(result.memoryUpdate.recurringStoryWordIds.length, 24);
 });
 
+Deno.test('finalizeInteractionPayload rejects malformed continuation annotations', () => {
+  assertThrows(() =>
+    finalizeInteractionPayload({
+      request: submitRequest,
+      payload: {
+        feedback: 'Good choice. "Open the door carefully" sounds natural.',
+        continuationText: 'Mira heard a whisper behind the blue door.',
+        continuationSentences: [
+          'Mira heard a whisper behind the blue door.',
+        ],
+        continuationSentenceFrames: [
+          {
+            kind: 'narration',
+            text: 'Mira heard a whisper behind the blue door.',
+          },
+        ],
+        continuationAnnotations: [
+          {
+            wordId: 'word:whisper',
+            translation: 'шепот',
+            sentenceIndex: 0,
+          },
+          {
+            wordId: 'word:whisper',
+            surfaceText: 'whisper',
+            translation: 'шепот',
+            sentenceIndex: 0,
+          },
+        ],
+        isEpisodeComplete: false,
+        nextInteraction: {
+          kind: 'choice',
+          prompt: 'What should Mira do next?',
+          choices: [
+            { id: 'listen', label: 'Listen carefully' },
+            { id: 'knock', label: 'Knock on the door' },
+          ],
+        },
+        summaryUpdate:
+          'Mira opened the hidden door and heard a whisper behind it.',
+        memoryUpdate: {
+          knownFacts: ['Mira heard a whisper behind the door.'],
+          openQuestions: ['Who is whispering?'],
+          importantObjectsOrLocations: ['blue door'],
+          lastEpisodeSummary:
+            'Mira opened the hidden door and heard a whisper behind it.',
+          unresolvedCliffhanger:
+            'The whisper continued from behind the blue door.',
+          recurringStoryWordIds: ['word:whisper'],
+        },
+      },
+    })
+  );
+});
+
+Deno.test('finalizeInteractionPayload rejects missing next interaction prompt', () => {
+  assertThrows(() =>
+    finalizeInteractionPayload({
+      request: submitRequest,
+      payload: {
+        feedback: 'Good choice. "Open the door carefully" sounds natural.',
+        continuationText: 'Mira heard footsteps behind the blue door.',
+        continuationSentences: ['Mira heard footsteps behind the blue door.'],
+        continuationSentenceFrames: [
+          {
+            kind: 'narration',
+            text: 'Mira heard footsteps behind the blue door.',
+          },
+        ],
+        continuationAnnotations: [],
+        isEpisodeComplete: false,
+        nextInteraction: {
+          kind: 'choice',
+          choices: [
+            { id: 'listen', label: 'Listen carefully' },
+            { id: 'knock', label: 'Knock on the door' },
+          ],
+        },
+        summaryUpdate: 'Mira heard footsteps behind the blue door.',
+        memoryUpdate: {
+          knownFacts: ['Mira heard footsteps behind the blue door.'],
+          openQuestions: ['Who is behind the door?'],
+          importantObjectsOrLocations: ['blue door'],
+          lastEpisodeSummary: 'Mira heard footsteps behind the blue door.',
+          unresolvedCliffhanger: 'Someone was moving behind the blue door.',
+          recurringStoryWordIds: [],
+        },
+      },
+    })
+  );
+});
+
 Deno.test('finalizeInteractionPayload rejects completion before the fifth answer', () => {
   assertThrows(() =>
     finalizeInteractionPayload({
@@ -382,6 +752,13 @@ Deno.test('finalizeInteractionPayload rejects completion before the fifth answer
         feedback: 'Good choice.',
         continuationText: 'Mira entered the passage.',
         continuationSentences: ['Mira entered the passage.'],
+        continuationSentenceFrames: [
+          {
+            kind: 'narration',
+            text: 'Mira entered the passage.',
+          },
+        ],
+        continuationAnnotations: [],
         isEpisodeComplete: true,
         cliffhanger: 'A familiar voice called from the next room.',
         summaryUpdate: 'Mira entered the hidden passage.',
@@ -435,6 +812,13 @@ Deno.test('finalizeInteractionPayload accepts a coherent fifth-turn ending', () 
       continuationSentences: [
         'Mira followed the marked path and found the missing library key.',
       ],
+      continuationSentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira followed the marked path and found the missing library key.',
+        },
+      ],
+      continuationAnnotations: [],
       isEpisodeComplete: true,
       cliffhanger: 'The key carried the same symbol as another locked door.',
       summaryUpdate:
@@ -473,6 +857,13 @@ Deno.test('finalizeInteractionPayload forces completion at the tenth answer', ()
       continuationSentences: [
         'Mira stepped through the final doorway and found the library map.',
       ],
+      continuationSentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira stepped through the final doorway and found the library map.',
+        },
+      ],
+      continuationAnnotations: [],
       isEpisodeComplete: false,
       nextInteraction: {
         kind: 'choice',

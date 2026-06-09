@@ -52,54 +52,25 @@ export function finalizeEpisodePayload({
   request,
 }: FinalizeEpisodePayloadInput): EpisodePayload {
   const parsed = episodePayloadSchema.parse(payload);
-  const sentences = uniqueText(parsed.sentences);
+  const playback = normalizePlaybackFrames({
+    fieldName: 'sentenceFrames',
+    frames: parsed.sentenceFrames,
+    sentences: parsed.sentences,
+  });
+  const sentences = playback.sentences;
+  const sentenceFrames = playback.frames;
   const sceneText = sentences.join(' ');
 
   const selectedWordsById = new Map(
     request.selectedStoryWords.map((word) => [word.id, word]),
   );
   const storyWordIds = request.selectedStoryWords.map((word) => word.id);
-
-  for (const word of request.selectedStoryWords) {
-    if (!containsWord(sceneText, word.word)) {
-      throw new Error(`Selected Story Word was not used: ${word.id}`);
-    }
-  }
-
-  const annotations = parsed.annotations.filter((annotation) => {
-    const sentence = sentences[annotation.sentenceIndex];
-
-    if (!sentence || !containsText(sentence, annotation.surfaceText)) {
-      return false;
-    }
-
-    if (!CYRILLIC_PATTERN.test(annotation.translation)) {
-      return false;
-    }
-
-    if (annotation.wordId === undefined) {
-      return true;
-    }
-
-    const selectedWord = selectedWordsById.get(annotation.wordId);
-
-    return (
-      selectedWord !== undefined &&
-      annotation.surfaceText.toLocaleLowerCase() ===
-        selectedWord.word.toLocaleLowerCase()
-    );
+  const annotations = filterAnnotations({
+    annotations: parsed.annotations,
+    selectedWordsById,
+    sentences,
+    sentenceIndexMap: playback.sentenceIndexMap,
   });
-  const annotatedWordIds = new Set(
-    annotations.flatMap((annotation) =>
-      annotation.wordId ? [annotation.wordId] : [],
-    ),
-  );
-
-  for (const wordId of storyWordIds) {
-    if (!annotatedWordIds.has(wordId)) {
-      throw new Error(`Selected Story Word annotation is missing: ${wordId}`);
-    }
-  }
 
   const choices = uniqueById(parsed.interaction.choices);
 
@@ -113,6 +84,7 @@ export function finalizeEpisodePayload({
     ...parsed,
     sceneText,
     sentences,
+    sentenceFrames,
     storyWordIds,
     annotations,
     interaction: {
@@ -151,8 +123,23 @@ export function finalizeInteractionPayload({
   request,
 }: FinalizeInteractionPayloadInput): InteractionPayload {
   const parsed = interactionPayloadSchema.parse(payload);
-  const continuationSentences = uniqueText(parsed.continuationSentences);
+  const playback = normalizePlaybackFrames({
+    fieldName: 'continuationSentenceFrames',
+    frames: parsed.continuationSentenceFrames,
+    sentences: parsed.continuationSentences,
+  });
+  const continuationSentences = playback.sentences;
+  const continuationSentenceFrames = playback.frames;
   const continuationText = continuationSentences.join(' ');
+  const selectedWordsById = new Map(
+    request.selectedStoryWords.map((word) => [word.id, word]),
+  );
+  const continuationAnnotations = filterAnnotations({
+    annotations: parsed.continuationAnnotations,
+    selectedWordsById,
+    sentences: continuationSentences,
+    sentenceIndexMap: playback.sentenceIndexMap,
+  });
   const summaryUpdate = parsed.summaryUpdate;
   const shouldForceCompletion =
     request.interactionCount >=
@@ -193,6 +180,8 @@ export function finalizeInteractionPayload({
     feedback: parsed.feedback,
     continuationText,
     continuationSentences,
+    continuationSentenceFrames,
+    continuationAnnotations,
     isEpisodeComplete,
     summaryUpdate,
     memoryUpdate: {
@@ -236,6 +225,7 @@ export function finalizeInteractionPayload({
       };
 }
 
+
 // containsWord checks a selected headword as a complete case-insensitive token.
 function containsWord(text: string, word: string): boolean {
   const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -246,6 +236,84 @@ function containsWord(text: string, word: string): boolean {
 // containsText checks that an annotation surface exists in its referenced sentence.
 function containsText(text: string, surfaceText: string): boolean {
   return text.toLocaleLowerCase().includes(surfaceText.toLocaleLowerCase());
+}
+
+// filterAnnotations keeps only trustworthy hints for words actually present in generated text.
+function filterAnnotations({
+  annotations,
+  selectedWordsById,
+  sentenceIndexMap,
+  sentences,
+}: {
+  // annotations are AI-written translation hints to validate before storage.
+  readonly annotations: EpisodePayload['annotations'];
+  // selectedWordsById restricts Story Word annotations to the requested episode words.
+  readonly selectedWordsById: ReadonlyMap<string, { readonly word: string }>;
+  // sentenceIndexMap remaps original AI indexes to merged playback indexes.
+  readonly sentenceIndexMap: readonly number[];
+  // sentences are the canonical text units referenced by annotation sentenceIndex.
+  readonly sentences: readonly string[];
+}): EpisodePayload['annotations'] {
+  return annotations.flatMap((annotation) => {
+    if (
+      annotation.surfaceText === undefined ||
+      annotation.translation === undefined ||
+      annotation.sentenceIndex === undefined
+    ) {
+      return [];
+    }
+
+    const mappedSentenceIndex = sentenceIndexMap[annotation.sentenceIndex];
+
+    if (mappedSentenceIndex === undefined) {
+      return [];
+    }
+
+    const sentence = sentences[mappedSentenceIndex];
+
+    if (!sentence || !containsText(sentence, annotation.surfaceText)) {
+      return [];
+    }
+
+    if (!CYRILLIC_PATTERN.test(annotation.translation)) {
+      return [];
+    }
+
+    if (annotation.wordId === undefined) {
+      return [
+        {
+          surfaceText: annotation.surfaceText,
+          translation: annotation.translation,
+          ...(annotation.transcription
+            ? { transcription: annotation.transcription }
+            : {}),
+          sentenceIndex: mappedSentenceIndex,
+        },
+      ];
+    }
+
+    const selectedWord = selectedWordsById.get(annotation.wordId);
+
+    if (
+      selectedWord === undefined ||
+      annotation.surfaceText.toLocaleLowerCase() !==
+        selectedWord.word.toLocaleLowerCase()
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        wordId: annotation.wordId,
+        surfaceText: annotation.surfaceText,
+        translation: annotation.translation,
+        ...(annotation.transcription
+          ? { transcription: annotation.transcription }
+          : {}),
+        sentenceIndex: mappedSentenceIndex,
+      },
+    ];
+  });
 }
 
 // uniqueText removes duplicate text values while preserving model order.
@@ -271,4 +339,131 @@ function uniqueById<T extends { readonly id: string }>(values: readonly T[]): T[
 
     return true;
   });
+}
+
+// NormalizedSentenceFrame preserves explicit speaker metadata while using canonical sentence text.
+type NormalizedSentenceFrame =
+  InteractionPayload['continuationSentenceFrames'][number];
+
+// normalizePlaybackFrames makes sentences the source of truth while merging repeated dialogue.
+function normalizePlaybackFrames({
+  fieldName,
+  frames,
+  sentences,
+}: {
+  // fieldName identifies the AI field when count validation fails.
+  readonly fieldName: string;
+  // frames carry explicit narration/dialogue metadata from AI output.
+  readonly frames: readonly NormalizedSentenceFrame[];
+  // sentences are the canonical playback and reader text units.
+  readonly sentences: readonly string[];
+}): {
+  // frames are the merged reader units returned to the client.
+  frames: NormalizedSentenceFrame[];
+  // sentenceIndexMap maps each original sentence to its merged playback index.
+  sentenceIndexMap: number[];
+  // sentences are the merged playback and reader text units.
+  sentences: string[];
+} {
+  if (frames.length !== sentences.length) {
+    throw new Error(`${fieldName} must match the sentence count.`);
+  }
+
+  const normalizedFrames = frames.map((frame, index) =>
+    normalizeFrameText({
+      frame,
+      sentence: sentences[index]!,
+    }),
+  );
+
+  return mergeAdjacentDialogueFrames(normalizedFrames, sentences);
+}
+
+// normalizeFrameText strips quote markers while preserving frame meaning.
+function normalizeFrameText({
+  frame,
+  sentence,
+}: {
+  // frame is the AI-written narration/dialogue marker.
+  readonly frame: NormalizedSentenceFrame;
+  // sentence is the canonical text for this playback unit.
+  readonly sentence: string;
+}): NormalizedSentenceFrame {
+  if (frame.kind === 'dialogue') {
+    return {
+      kind: 'dialogue',
+      speaker: frame.speaker,
+      text: stripSpeechQuotes(sentence),
+    };
+  }
+
+  return {
+    kind: 'narration',
+    text: stripSpeechQuotes(sentence),
+  };
+}
+
+// mergeAdjacentDialogueFrames joins consecutive same-speaker dialogue into one playback unit.
+function mergeAdjacentDialogueFrames(
+  frames: readonly NormalizedSentenceFrame[],
+  sentences: readonly string[],
+): {
+  // frames are the merged reader units returned to the client.
+  frames: NormalizedSentenceFrame[];
+  // sentenceIndexMap maps each original sentence to its merged playback index.
+  sentenceIndexMap: number[];
+  // sentences are the merged playback and reader text units.
+  sentences: string[];
+} {
+  const mergedFrames: NormalizedSentenceFrame[] = [];
+  const mergedSentences: string[] = [];
+  const sentenceIndexMap: number[] = [];
+
+  frames.forEach((frame, index) => {
+    const currentSentence = frame.text.trim();
+    const previousFrame = mergedFrames[mergedFrames.length - 1];
+
+    if (
+      frame.kind === 'dialogue' &&
+      previousFrame?.kind === 'dialogue' &&
+      previousFrame.speaker === frame.speaker
+    ) {
+      previousFrame.text = `${previousFrame.text} ${frame.text}`.trim();
+      mergedSentences[mergedSentences.length - 1] =
+        `${mergedSentences[mergedSentences.length - 1]} ${currentSentence}`.trim();
+      sentenceIndexMap[index] = mergedFrames.length - 1;
+
+      return;
+    }
+
+    mergedFrames.push(
+      frame.kind === 'dialogue'
+        ? {
+            kind: 'dialogue',
+            speaker: frame.speaker,
+            text: frame.text,
+          }
+        : {
+            kind: 'narration',
+            text: frame.text,
+          },
+    );
+    mergedSentences.push(currentSentence);
+    sentenceIndexMap[index] = mergedFrames.length - 1;
+  });
+
+  return {
+    frames: mergedFrames,
+    sentenceIndexMap,
+    sentences: mergedSentences,
+  };
+}
+
+// stripSpeechQuotes removes accidental wrapping quotes from spoken text.
+function stripSpeechQuotes(text: string): string {
+  return text
+    .trim()
+    .replace(/^["'“”]+/, '')
+    .replace(/["'“”]+$/, '')
+    .trim();
 }
