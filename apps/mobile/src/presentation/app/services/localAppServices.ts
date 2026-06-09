@@ -1,6 +1,9 @@
 import {
   createBrowseVocabulary,
+  createChooseEpisodeStoryWord,
   createCreateSeries,
+  createDeleteEpisode,
+  createDeleteSeries,
   createGenerateEpisode,
   createLoadLearningPreferences,
   createLoadEpisodeReader,
@@ -10,6 +13,7 @@ import {
   createManageAuthSession,
   createRecordLearningSignal,
   createReplaceEpisodeStoryWord,
+  createShuffleEpisodeStoryWords,
   createStartOrResumeEpisodeWordSelection,
   createStartOrResumeTodaysWordSet,
   createSubmitEpisodeInteraction,
@@ -69,7 +73,14 @@ const syncLocalChanges = createSyncLocalChanges(
 );
 
 const browseVocabulary = createBrowseVocabulary(vocabularyCatalog);
+const chooseEpisodeStoryWord = createChooseEpisodeStoryWord(
+  localSeriesStore,
+  vocabularyCatalog,
+  systemClock,
+);
 const createSeries = createCreateSeries(localSeriesStore, systemClock);
+const deleteEpisode = createDeleteEpisode(localSeriesStore, systemClock);
+const deleteSeries = createDeleteSeries(localSeriesStore, systemClock);
 const listSeries = createListSeries(localSeriesStore);
 const loadLearningPreferences = createLoadLearningPreferences(
   localSeriesStore,
@@ -83,6 +94,11 @@ const recordLearningSignal = createRecordLearningSignal(
   systemClock,
 );
 const replaceEpisodeStoryWord = createReplaceEpisodeStoryWord(
+  localSeriesStore,
+  vocabularyCatalog,
+  systemClock,
+);
+const shuffleEpisodeStoryWords = createShuffleEpisodeStoryWords(
   localSeriesStore,
   vocabularyCatalog,
   systemClock,
@@ -106,6 +122,7 @@ const generateEpisode = createGenerateEpisode(
 );
 const submitEpisodeInteraction = createSubmitEpisodeInteraction(
   localSeriesStore,
+  vocabularyCatalog,
   networkStatus,
   supabaseServices.interactionGateway,
   systemClock,
@@ -122,7 +139,13 @@ const manageAuthSession = createManageAuthSession(
 // localAppServices groups application use cases for the current local MVP.
 export const localAppServices = {
   browseVocabulary,
+  chooseEpisodeStoryWord: withBackgroundSync(
+    chooseEpisodeStoryWord,
+    syncLocalChanges,
+  ),
   createSeries: withBackgroundSync(createSeries, syncLocalChanges),
+  deleteEpisode: withBackgroundSync(deleteEpisode, syncLocalChanges),
+  deleteSeries: withBackgroundSync(deleteSeries, syncLocalChanges),
   listSeries: withPreSync(listSeries, syncLocalChanges),
   loadLearningPreferences: withPreSync(
     loadLearningPreferences,
@@ -138,6 +161,10 @@ export const localAppServices = {
   ),
   replaceEpisodeStoryWord: withBackgroundSync(
     replaceEpisodeStoryWord,
+    syncLocalChanges,
+  ),
+  shuffleEpisodeStoryWords: withBackgroundSync(
+    shuffleEpisodeStoryWords,
     syncLocalChanges,
   ),
   networkStatus,
@@ -276,6 +303,9 @@ const unavailableAuthGateway: AuthGateway = {
 // unavailableRemoteSeriesStore is unreachable while no authenticated session exists.
 const unavailableRemoteSeriesStore: RemoteSeriesStore = {
   upsert: async () => {
+    throw new Error('Supabase remote storage is not configured.');
+  },
+  delete: async () => {
     throw new Error('Supabase remote storage is not configured.');
   },
   loadSnapshot: async () => {

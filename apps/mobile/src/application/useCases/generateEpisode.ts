@@ -12,6 +12,7 @@ import type {
   VocabularyCatalog,
 } from "@application/ports";
 import type {
+  CefrLevel,
   Episode,
   LearningSignal,
   SeriesMemory,
@@ -19,6 +20,8 @@ import type {
   VocabularyItem,
   WordSet,
 } from "@domain/index";
+
+import { isStoryWordCandidate } from "./storyWordSelection";
 
 // GenerateEpisodeInput contains the locally selected series and Story Words set.
 export type GenerateEpisodeInput = {
@@ -71,7 +74,11 @@ export function createGenerateEpisode(
         );
       }
 
-      const words = resolveStoryWords(vocabulary, episodeWordSet.wordIds);
+      const words = resolveStoryWords({
+        maxLevel: series.cefrLevel,
+        vocabulary,
+        wordIds: episodeWordSet.wordIds,
+      });
       const orderIndex = episodes.length + 1;
       const payload = await gateway.generateEpisode({
         seriesId,
@@ -167,6 +174,7 @@ function buildEpisode({
     ...(payload.title ? { title: payload.title } : {}),
     sceneText: payload.sceneText,
     sentences: payload.sentences,
+    sentenceFrames: payload.sentenceFrames,
     storyWordIds: payload.storyWordIds,
     annotations: payload.annotations,
     interactions: [
@@ -261,16 +269,24 @@ function createWordSignal({
 }
 
 // resolveStoryWords maps selected ids to bundled vocabulary items.
-function resolveStoryWords(
-  vocabulary: readonly VocabularyItem[],
-  wordIds: readonly string[],
-): readonly VocabularyItem[] {
+function resolveStoryWords({
+  maxLevel,
+  vocabulary,
+  wordIds,
+}: {
+  // maxLevel keeps stale saved word ids from exceeding the active series CEFR level.
+  readonly maxLevel: CefrLevel;
+  // vocabulary is the bundled Oxford catalog.
+  readonly vocabulary: readonly VocabularyItem[];
+  // wordIds are the editable Story Words selected for this episode.
+  readonly wordIds: readonly string[];
+}): readonly VocabularyItem[] {
   const wordsById = new Map(vocabulary.map((word) => [word.id, word]));
 
   return wordIds.flatMap((wordId) => {
     const word = wordsById.get(wordId);
 
-    return word ? [word] : [];
+    return word && isStoryWordCandidate(word, maxLevel) ? [word] : [];
   });
 }
 

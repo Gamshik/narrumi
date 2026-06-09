@@ -38,6 +38,24 @@ export class SupabaseRemoteSeriesStore implements RemoteSeriesStore {
     return parseUpsertedRecord(ownerId, record, data);
   }
 
+  // delete removes a root story or generated episode through RLS-protected tables.
+  async delete(
+    ownerId: string,
+    recordKind: 'series' | 'episode',
+    recordId: string,
+  ): Promise<void> {
+    const table = recordKind === 'series' ? 'series' : 'episodes';
+    const { error } = await this.client
+      .from(table)
+      .delete()
+      .eq('id', recordId)
+      .eq('user_id', ownerId);
+
+    if (error) {
+      throw new Error(`Remote ${recordKind} delete failed: ${error.message}`);
+    }
+  }
+
   // loadSnapshot reads all MVP records visible to the authenticated user.
   async loadSnapshot(ownerId: string): Promise<RemoteSeriesSnapshot> {
     const [

@@ -7,10 +7,18 @@ import type {
   InteractionGateway,
   LocalSeriesStore,
   NetworkStatus,
+  VocabularyCatalog,
 } from '@application/ports';
-import type { Episode, SyncMetadata } from '@domain/index';
+import type {
+  CefrLevel,
+  Episode,
+  LearningSignal,
+  SyncMetadata,
+  VocabularyItem,
+} from '@domain/index';
 
 import { applyMemoryUpdate } from './generateEpisode';
+import { isStoryWordCandidate } from './storyWordSelection';
 
 // PREVIOUS_DECISION_CONTEXT_LIMIT keeps one episode request bounded for Edge Functions.
 const PREVIOUS_DECISION_CONTEXT_LIMIT = 10;
@@ -44,6 +52,7 @@ export type SubmitEpisodeInteraction = {
 // createSubmitEpisodeInteraction injects storage, connectivity, and AI boundary ports.
 export function createSubmitEpisodeInteraction(
   store: LocalSeriesStore,
+  catalog: VocabularyCatalog,
   networkStatus: NetworkStatus,
   gateway: InteractionGateway,
   clock: Clock,
@@ -62,9 +71,10 @@ export function createSubmitEpisodeInteraction(
         throw new Error('Episode is required before submitting an answer.');
       }
 
-      const [series, memory] = await Promise.all([
+      const [series, memory, vocabulary] = await Promise.all([
         store.getSeries(episode.seriesId),
         store.getSeriesMemory(episode.seriesId),
+        catalog.list(),
       ]);
 
       if (!series || !memory) {
@@ -142,6 +152,21 @@ export function createSubmitEpisodeInteraction(
               ? { feedback: interaction.feedback }
               : {}),
           })),
+        selectedStoryWords: resolveStoryWords({
+          maxLevel: series.cefrLevel,
+          vocabulary,
+          wordIds: episode.storyWordIds,
+        }).map((word) => ({
+          id: word.id,
+          word: word.word,
+          partOfSpeech: word.partOfSpeech,
+          level: word.level,
+        })),
+        encounteredStoryWordIds: unique(
+          episode.annotations.flatMap((annotation) =>
+            annotation.wordId ? [annotation.wordId] : [],
+          ),
+        ),
         ...(choiceId ? { selectedChoiceId: choiceId } : {}),
         ...(selectedChoice ? { selectedChoiceLabel: selectedChoice.label } : {}),
         userReply: submittedText,
@@ -149,6 +174,12 @@ export function createSubmitEpisodeInteraction(
       });
       const sentenceEndIndex =
         episode.sentences.length + payload.continuationSentences.length;
+      const continuationAnnotations = payload.continuationAnnotations.map(
+        (annotation) => ({
+          ...annotation,
+          sentenceIndex: episode.sentences.length + annotation.sentenceIndex,
+        }),
+      );
       const answeredInteractions = draftEpisode.interactions.map((interaction) =>
         interaction.id === activeInteraction.id
           ? {
@@ -179,6 +210,11 @@ export function createSubmitEpisodeInteraction(
         ...draftWithoutCliffhanger,
         sceneText: `${episode.sceneText}\n\n${payload.continuationText}`,
         sentences: [...episode.sentences, ...payload.continuationSentences],
+        sentenceFrames: [
+          ...episode.sentenceFrames,
+          ...payload.continuationSentenceFrames,
+        ],
+        annotations: [...episode.annotations, ...continuationAnnotations],
         interactions,
         isComplete: payload.isEpisodeComplete,
         ...(payload.cliffhanger
@@ -196,6 +232,23 @@ export function createSubmitEpisodeInteraction(
 
       await store.saveEpisode(updatedEpisode);
       await store.saveSeriesMemory(updatedMemory);
+      await Promise.all(
+        unique(
+          continuationAnnotations.flatMap((annotation) =>
+            annotation.wordId ? [annotation.wordId] : [],
+          ),
+        ).map((wordId) =>
+          store.saveLearningSignal(
+            createWordSignal({
+              episodeId: episode.id,
+              kind: 'encountered',
+              seriesId: episode.seriesId,
+              timestamp,
+              wordId,
+            }),
+          ),
+        ),
+      );
 
       return { episode: updatedEpisode };
     },
@@ -208,4 +261,62 @@ function createDirtySync(timestamp: string, recordId: string): SyncMetadata {
     isDirty: true,
     pendingOperationId: `${timestamp}:${recordId}:interaction`,
   };
+}
+
+// resolveStoryWords maps selected ids to suitable bundled vocabulary items for AI context.
+function resolveStoryWords({
+  maxLevel,
+  vocabulary,
+  wordIds,
+}: {
+  // maxLevel keeps stale saved word ids from exceeding the active series CEFR level.
+  readonly maxLevel: CefrLevel;
+  // vocabulary is the bundled Oxford catalog.
+  readonly vocabulary: readonly VocabularyItem[];
+  // wordIds are the planned Story Words for this episode.
+  readonly wordIds: readonly string[];
+}): readonly VocabularyItem[] {
+  const wordsById = new Map(vocabulary.map((word) => [word.id, word]));
+
+  return wordIds.flatMap((wordId) => {
+    const word = wordsById.get(wordId);
+
+    return word && isStoryWordCandidate(word, maxLevel) ? [word] : [];
+  });
+}
+
+// createWordSignal records newly encountered Story Words after an interaction continuation.
+function createWordSignal({
+  episodeId,
+  kind,
+  seriesId,
+  timestamp,
+  wordId,
+}: {
+  // episodeId links the signal to generated context.
+  readonly episodeId: string;
+  // kind records the vocabulary event without a review queue.
+  readonly kind: LearningSignal['kind'];
+  // seriesId scopes the signal to the personal story.
+  readonly seriesId: string;
+  // timestamp is the local event time.
+  readonly timestamp: string;
+  // wordId links the signal to the bundled Oxford vocabulary item.
+  readonly wordId: string;
+}): LearningSignal {
+  return {
+    id: `signal:${seriesId}:${episodeId}:${wordId}:${kind}`,
+    wordId,
+    kind,
+    seriesId,
+    episodeId,
+    occurredAt: timestamp,
+    updatedAt: timestamp,
+    sync: createDirtySync(timestamp, `signal:${episodeId}:${wordId}:${kind}`),
+  };
+}
+
+// unique removes duplicate ids while preserving first occurrence.
+function unique(values: readonly string[]): readonly string[] {
+  return [...new Set(values)];
 }

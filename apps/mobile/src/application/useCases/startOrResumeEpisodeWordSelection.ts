@@ -2,6 +2,8 @@ import type { Clock, LocalSeriesStore, VocabularyCatalog } from '@application/po
 import type { LearningPreferences, VocabularyItem, WordSet } from '@domain/index';
 import { DEFAULT_STORY_WORD_GOAL } from '@domain/index';
 
+import { selectStoryWordIds } from './storyWordSelection';
+
 // CURRENT_EPISODE_WORD_SET_ID stores the last edited episode word selection.
 const CURRENT_EPISODE_WORD_SET_ID = 'episode:current-story-words';
 
@@ -92,7 +94,13 @@ async function ensureTodayWordSet({
     id: `today:${dateKey}`,
     kind: 'today',
     dateKey,
-    wordIds: vocabulary.slice(0, preferences.storyWordGoal).map((word) => word.id),
+    wordIds: selectStoryWordIds({
+      goal: preferences.storyWordGoal,
+      maxLevel: preferences.preferredCefrLevel,
+      seed: dateKey,
+      sourceWordIds: [],
+      vocabulary,
+    }),
     createdAt: timestamp,
     updatedAt: timestamp,
     sync: {
@@ -114,7 +122,7 @@ async function ensureEpisodeWordSet({
   todayWordSet,
   vocabulary,
 }: {
-  // preferences provides the configured number of visible Story Words.
+  // preferences defines the expected Story Words count and level ceiling.
   readonly preferences: LearningPreferences;
   // store reads and writes the current editable episode set.
   readonly store: LocalSeriesStore;
@@ -122,15 +130,22 @@ async function ensureEpisodeWordSet({
   readonly timestamp: string;
   // todayWordSet seeds the current selection when no previous set exists.
   readonly todayWordSet: WordSet;
-  // vocabulary fills missing words when preferences increase.
+  // vocabulary validates existing ids and fills one-time repairs.
   readonly vocabulary: readonly VocabularyItem[];
 }): Promise<WordSet> {
   const existing = (await store.listWordSets()).find(
     (wordSet) => wordSet.id === CURRENT_EPISODE_WORD_SET_ID,
   );
+
+  if (existing && canReuseEpisodeWordSet({ preferences, vocabulary, wordSet: existing })) {
+    return existing;
+  }
+
   const sourceWordIds = existing?.wordIds ?? todayWordSet.wordIds;
-  const normalizedWordIds = normalizeWordIds({
+  const wordIds = selectStoryWordIds({
     goal: preferences.storyWordGoal,
+    maxLevel: preferences.preferredCefrLevel,
+    seed: existing?.updatedAt ?? timestamp,
     sourceWordIds,
     vocabulary,
   });
@@ -140,7 +155,7 @@ async function ensureEpisodeWordSet({
       kind: 'episode' as const,
       createdAt: timestamp,
     }),
-    wordIds: normalizedWordIds,
+    wordIds,
     updatedAt: timestamp,
     sync: {
       isDirty: true,
@@ -154,34 +169,39 @@ async function ensureEpisodeWordSet({
   return wordSet;
 }
 
-// normalizeWordIds keeps the current selection aligned with settings.
-function normalizeWordIds({
-  goal,
-  sourceWordIds,
+// canReuseEpisodeWordSet keeps valid last-used words stable across screen opens.
+function canReuseEpisodeWordSet({
+  preferences,
   vocabulary,
+  wordSet,
 }: {
-  // goal is the configured number of Story Words to propose.
-  readonly goal: number;
-  // sourceWordIds are current or daily word ids before normalization.
-  readonly sourceWordIds: readonly string[];
-  // vocabulary provides deterministic fill candidates.
+  // preferences define the current visible Story Words contract.
+  readonly preferences: LearningPreferences;
+  // vocabulary resolves ids at the bundled Oxford trust boundary.
   readonly vocabulary: readonly VocabularyItem[];
-}): readonly string[] {
-  const selected = unique(sourceWordIds).slice(0, goal);
-  const selectedSet = new Set(selected);
+  // wordSet is the stored current episode selection candidate.
+  readonly wordSet: WordSet;
+}): boolean {
+  const normalizedWordIds = selectStoryWordIds({
+    goal: preferences.storyWordGoal,
+    maxLevel: preferences.preferredCefrLevel,
+    seed: wordSet.updatedAt,
+    sourceWordIds: wordSet.wordIds,
+    vocabulary,
+  });
 
-  for (const word of vocabulary) {
-    if (selected.length >= goal) {
-      break;
-    }
+  return areSameWordIds(wordSet.wordIds, normalizedWordIds);
+}
 
-    if (!selectedSet.has(word.id)) {
-      selected.push(word.id);
-      selectedSet.add(word.id);
-    }
-  }
-
-  return selected;
+// areSameWordIds compares stable Story Words order without rebuilding the set.
+function areSameWordIds(
+  leftWordIds: readonly string[],
+  rightWordIds: readonly string[],
+): boolean {
+  return (
+    leftWordIds.length === rightWordIds.length &&
+    leftWordIds.every((wordId, index) => wordId === rightWordIds[index])
+  );
 }
 
 // ensurePreferences saves local defaults if the user has not configured them yet.
@@ -210,11 +230,6 @@ async function ensurePreferences(
   await store.savePreferences(preferences);
 
   return preferences;
-}
-
-// unique removes duplicate ids while preserving local selection order.
-function unique(values: readonly string[]): string[] {
-  return [...new Set(values)];
 }
 
 // toDateKey creates the local Today's Words id for a calendar day.

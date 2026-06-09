@@ -41,6 +41,12 @@ export type RemoteSeriesStore = {
     ownerId: string,
     record: SyncRecord,
   ) => Promise<SyncRecord>;
+  // delete removes a user-owned cloud record; database cascades handle child rows.
+  readonly delete: (
+    ownerId: string,
+    recordKind: Extract<SyncRecordKind, 'series' | 'episode'>,
+    recordId: string,
+  ) => Promise<void>;
   // loadSnapshot reads the authenticated user's complete MVP cloud copy.
   readonly loadSnapshot: (ownerId: string) => Promise<RemoteSeriesSnapshot>;
 };

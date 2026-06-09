@@ -1,6 +1,8 @@
 import type { Clock, LocalSeriesStore, VocabularyCatalog } from '@application/ports';
 import type { VocabularyItem, WordSet } from '@domain/index';
 
+import { isStoryWordCandidate, normalizeStoryWordText } from './storyWordSelection';
+
 // ReplaceEpisodeStoryWordInput identifies the editable episode set and changed word.
 export type ReplaceEpisodeStoryWordInput = {
   // episodeWordSet is the current editable Story Words set.
@@ -30,12 +32,14 @@ export function createReplaceEpisodeStoryWord(
   store: LocalSeriesStore,
   catalog: VocabularyCatalog,
   clock: Clock,
+  random: () => number = Math.random,
 ): ReplaceEpisodeStoryWord {
   return {
     execute: async ({ episodeWordSet, wordId }) => {
       const vocabulary = await catalog.list();
       const replacementId = findReplacementWordId({
         currentWordIds: episodeWordSet.wordIds,
+        random,
         vocabulary,
         wordId,
       });
@@ -69,26 +73,40 @@ export function createReplaceEpisodeStoryWord(
   };
 }
 
-// findReplacementWordId chooses the next deterministic catalog word outside the set.
+// findReplacementWordId chooses a random catalog word outside the visible set.
 function findReplacementWordId({
   currentWordIds,
+  random,
   vocabulary,
   wordId,
 }: {
   // currentWordIds are already selected for the current episode.
   readonly currentWordIds: readonly string[];
-  // vocabulary provides deterministic replacement candidates.
+  // random selects one candidate without depending on bundled JSON order.
+  readonly random: () => number;
+  // vocabulary provides bundled replacement candidates.
   readonly vocabulary: readonly VocabularyItem[];
   // wordId is the word being replaced.
   readonly wordId: string;
 }): string {
-  const selected = new Set(currentWordIds);
-  const currentIndex = vocabulary.findIndex((word) => word.id === wordId);
-  const rotatedVocabulary = [
-    ...vocabulary.slice(Math.max(0, currentIndex + 1)),
-    ...vocabulary.slice(0, Math.max(0, currentIndex + 1)),
-  ];
-  const replacement = rotatedVocabulary.find((word) => !selected.has(word.id));
+  const wordsById = new Map(vocabulary.map((word) => [word.id, word]));
+  const blockedWordKeys = new Set(
+    currentWordIds
+      .map((currentWordId) => wordsById.get(currentWordId))
+      .filter((word): word is VocabularyItem => Boolean(word))
+      .map((word) => normalizeStoryWordText(word.word)),
+  );
+  const candidates = vocabulary.filter(
+    (word) =>
+      !currentWordIds.includes(word.id) &&
+      !blockedWordKeys.has(normalizeStoryWordText(word.word)) &&
+      isStoryWordCandidate(word, 'C2'),
+  );
+  const replacementIndex = Math.min(
+    Math.max(Math.floor(random() * candidates.length), 0),
+    Math.max(candidates.length - 1, 0),
+  );
+  const replacement = candidates[replacementIndex];
 
   return replacement?.id ?? wordId;
 }

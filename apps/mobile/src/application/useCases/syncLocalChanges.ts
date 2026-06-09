@@ -71,6 +71,13 @@ export function createSyncLocalChanges(
 
       for (const operation of operations) {
         try {
+          if (operation.action === 'delete') {
+            await deleteRemoteRecord(remoteStore, ownerId, operation);
+            await syncQueue.remove(operation.operationId);
+            pushedCount += 1;
+            continue;
+          }
+
           const localRecord = await loadLocalRecord(localStore, operation);
 
           if (!localRecord) {
@@ -157,6 +164,7 @@ async function enqueueDirtyRecords(
       .filter((record) => record.value.sync.isDirty)
       .map((record) =>
         queue.enqueue({
+          action: 'upsert',
           operationId: `${record.kind}:${getRecordId(record)}:${record.value.sync.pendingOperationId}`,
           recordKind: record.kind,
           recordId: getRecordId(record),
@@ -165,6 +173,19 @@ async function enqueueDirtyRecords(
         }),
       ),
   );
+}
+
+// deleteRemoteRecord applies durable user-requested deletions before snapshot reads.
+async function deleteRemoteRecord(
+  remoteStore: RemoteSeriesStore,
+  ownerId: string,
+  operation: SyncOperation,
+): Promise<void> {
+  if (operation.recordKind !== 'series' && operation.recordKind !== 'episode') {
+    throw new Error(`${operation.recordKind} deletion is unsupported.`);
+  }
+
+  await remoteStore.delete(ownerId, operation.recordKind, operation.recordId);
 }
 
 // loadLocalRecord resolves a compact queue pointer to the latest local value.
@@ -342,6 +363,12 @@ function sortByDependency(
   operations: readonly SyncOperation[],
 ): readonly SyncOperation[] {
   return [...operations].sort((left, right) => {
+    const actionDifference = getActionOrder(left) - getActionOrder(right);
+
+    if (actionDifference !== 0) {
+      return actionDifference;
+    }
+
     const dependencyDifference =
       dependencyOrder[left.recordKind] - dependencyOrder[right.recordKind];
 
@@ -354,6 +381,11 @@ function sortByDependency(
 
     return timeDifference || left.operationId.localeCompare(right.operationId);
   });
+}
+
+// getActionOrder lets deletions remove stale cloud roots before child upserts replay.
+function getActionOrder(operation: SyncOperation): number {
+  return operation.action === 'delete' ? -1 : 0;
 }
 
 // formatSyncError attaches the failed record kind to a safe diagnostic message.

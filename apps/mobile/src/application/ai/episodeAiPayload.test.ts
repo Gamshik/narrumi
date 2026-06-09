@@ -25,6 +25,16 @@ describe('episode AI payload validation', () => {
         'Mira stopped near a blue door.',
         'A quiet voice called her name.',
       ],
+      sentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira stopped near a blue door.',
+        },
+        {
+          kind: 'narration',
+          text: 'A quiet voice called her name.',
+        },
+      ],
       storyWordIds: ['word:curious'],
       annotations: [
         {
@@ -56,12 +66,91 @@ describe('episode AI payload validation', () => {
       parseEpisodeAiPayload({
         sceneText: 'Broken payload.',
         sentences: [],
+        sentenceFrames: [],
         storyWordIds: [],
         annotations: [],
         interaction: {
           kind: 'choice',
           prompt: 'Choose.',
           choices: [],
+        },
+        cliffhanger: 'Broken.',
+        summaryUpdate: 'Broken.',
+        memoryUpdate: validMemoryUpdate,
+      }),
+    );
+  });
+
+  it('accepts explicit dialogue sentence frames', () => {
+    const payload = parseEpisodeAiPayload({
+      title: 'The Blue Door',
+      sceneText: 'Mira stopped near a blue door. We should listen first.',
+      sentences: [
+        'Mira stopped near a blue door.',
+        'We should listen first.',
+      ],
+      sentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira stopped near a blue door.',
+        },
+        {
+          kind: 'dialogue',
+          speaker: 'Leo',
+          text: 'We should listen first.',
+        },
+      ],
+      storyWordIds: ['word:curious'],
+      annotations: [
+        {
+          wordId: 'word:curious',
+          surfaceText: 'curious',
+          translation: 'заинтересованный',
+          sentenceIndex: 0,
+        },
+      ],
+      interaction: {
+        kind: 'choice',
+        prompt: 'What should Mira do?',
+        choices: [
+          { id: 'open', label: 'Open the door' },
+          { id: 'wait', label: 'Wait and listen' },
+        ],
+      },
+      cliffhanger: 'The handle moved before Mira touched it.',
+      summaryUpdate: 'Mira found the blue door and decided what to do next.',
+      memoryUpdate: validMemoryUpdate,
+    });
+
+    assert.equal(payload.sentenceFrames[1]?.kind, 'dialogue');
+    assert.equal(
+      payload.sentenceFrames[1]?.kind === 'dialogue'
+        ? payload.sentenceFrames[1].speaker
+        : undefined,
+      'Leo',
+    );
+  });
+
+  it('rejects sentence frames that drift from playback sentences', () => {
+    assert.throws(() =>
+      parseEpisodeAiPayload({
+        sceneText: 'Mira opened the door.',
+        sentences: ['Mira opened the door.'],
+        sentenceFrames: [
+          {
+            kind: 'narration',
+            text: 'Mira closed the door.',
+          },
+        ],
+        storyWordIds: [],
+        annotations: [],
+        interaction: {
+          kind: 'choice',
+          prompt: 'Choose.',
+          choices: [
+            { id: 'open', label: 'Open it' },
+            { id: 'wait', label: 'Wait' },
+          ],
         },
         cliffhanger: 'Broken.',
         summaryUpdate: 'Broken.',
@@ -79,6 +168,17 @@ describe('episode AI payload validation', () => {
         'Mira opened the door.',
         'She saw a small map on the wall.',
       ],
+      continuationSentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Mira opened the door.',
+        },
+        {
+          kind: 'narration',
+          text: 'She saw a small map on the wall.',
+        },
+      ],
+      continuationAnnotations: [],
       isEpisodeComplete: false,
       nextInteraction: {
         kind: 'choice',
@@ -106,6 +206,13 @@ describe('episode AI payload validation', () => {
         feedback: 'Good choice.',
         continuationText: 'Mira opened the door.',
         continuationSentences: ['Mira opened the door.'],
+        continuationSentenceFrames: [
+          {
+            kind: 'narration',
+            text: 'Mira opened the door.',
+          },
+        ],
+        continuationAnnotations: [],
         isEpisodeComplete: false,
         summaryUpdate: 'Mira opened the door.',
         memoryUpdate: {

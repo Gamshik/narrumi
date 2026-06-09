@@ -12,6 +12,7 @@ import {
   wordSetKinds,
   type Episode,
   type EpisodeInteraction,
+  type EpisodeSentenceFrame,
   type LearningPreferences,
   type LearningSignal,
   type Series,
@@ -86,6 +87,17 @@ const annotationSchema = z.object({
   transcription: z.string().min(1).optional(),
   sentenceIndex: z.number().int().nonnegative(),
 });
+const sentenceFrameSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('narration'),
+    text: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('dialogue'),
+    speaker: z.string().min(1),
+    text: z.string().min(1),
+  }),
+]);
 const seriesRowSchema = ownedColumnsSchema.extend({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -121,6 +133,7 @@ const episodeRowSchema = ownedColumnsSchema.extend({
   title: z.string().nullable(),
   scene_text: z.string().min(1),
   sentences: stringArraySchema,
+  sentence_frames: z.array(sentenceFrameSchema).default([]),
   story_word_ids: stringArraySchema,
   annotations: z.array(annotationSchema),
   interactions: z.array(interactionSchema),
@@ -211,6 +224,7 @@ export function serializeSyncRecord(
           title: record.value.title ?? null,
           scene_text: record.value.sceneText,
           sentences: record.value.sentences,
+          sentence_frames: record.value.sentenceFrames,
           story_word_ids: record.value.storyWordIds,
           annotations: record.value.annotations,
           interactions: record.value.interactions,
@@ -437,6 +451,12 @@ function mapEpisode(
   row: z.infer<typeof episodeRowSchema>,
 ): Episode {
   assertOwner(ownerId, row.user_id);
+  const sentenceFrames =
+    row.sentence_frames.length > 0
+      ? row.sentence_frames.map(mapSentenceFrame)
+      : row.sentences.map(createNarrationFrame);
+
+  validateEpisodeSentenceFrames(row.sentences, sentenceFrames);
 
   return {
     id: row.id,
@@ -448,6 +468,7 @@ function mapEpisode(
     ...(row.title ? { title: row.title } : {}),
     sceneText: row.scene_text,
     sentences: row.sentences,
+    sentenceFrames,
     storyWordIds: row.story_word_ids,
     annotations: row.annotations.map(mapAnnotation),
     interactions: row.interactions.map(mapInteraction),
@@ -458,6 +479,22 @@ function mapEpisode(
     updatedAt: row.client_updated_at,
     sync: mapCleanSync(row),
   };
+}
+
+// validateEpisodeSentenceFrames prevents corrupted remote layout metadata from reaching UI.
+function validateEpisodeSentenceFrames(
+  sentences: readonly string[],
+  frames: readonly EpisodeSentenceFrame[],
+): void {
+  if (frames.length !== sentences.length) {
+    throw new Error('Remote sentence frame count must match sentences.');
+  }
+
+  frames.forEach((frame, index) => {
+    if (frame.text !== sentences[index]) {
+      throw new Error('Remote sentence frame text must match sentence.');
+    }
+  });
 }
 
 // mapAnnotation removes undefined optional keys for exact domain contracts.
@@ -472,6 +509,29 @@ function mapAnnotation(
       ? { transcription: annotation.transcription }
       : {}),
     sentenceIndex: annotation.sentenceIndex,
+  };
+}
+
+// mapSentenceFrame removes impossible optional fields from remote reader layout JSON.
+function mapSentenceFrame(
+  frame: z.infer<typeof sentenceFrameSchema>,
+): EpisodeSentenceFrame {
+  if (frame.kind === 'dialogue') {
+    return {
+      kind: 'dialogue',
+      speaker: frame.speaker,
+      text: frame.text,
+    };
+  }
+
+  return createNarrationFrame(frame.text);
+}
+
+// createNarrationFrame migrates remote episodes created before sentence frame support.
+function createNarrationFrame(text: string): EpisodeSentenceFrame {
+  return {
+    kind: 'narration',
+    text,
   };
 }
 

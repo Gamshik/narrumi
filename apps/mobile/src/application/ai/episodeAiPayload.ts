@@ -6,6 +6,7 @@ import {
   learningGenres,
   type CefrLevel,
   type Episode,
+  type EpisodeSentenceFrame,
   type EpisodeInteractionKind,
   type LearningGenre,
   type SeriesMemory,
@@ -82,6 +83,8 @@ export type EpisodeAiPayload = {
   readonly sceneText: string;
   // sentences are the karaoke and TTS playback units.
   readonly sentences: readonly string[];
+  // sentenceFrames explicitly mark each playback unit as narration or dialogue.
+  readonly sentenceFrames: readonly EpisodeSentenceFrame[];
   // storyWordIds confirms which selected words were used.
   readonly storyWordIds: readonly string[];
   // annotations provide context-aware inline translation hints.
@@ -127,6 +130,10 @@ export type SubmitInteractionRequest = {
   readonly interactionCount: number;
   // previousDecisions provide bounded episode progress without a full transcript.
   readonly previousDecisions: readonly EpisodeDecisionPayload[];
+  // selectedStoryWords are the planned Episode Words for the whole episode arc.
+  readonly selectedStoryWords: readonly AiStoryWord[];
+  // encounteredStoryWordIds tells the AI which planned words already appeared.
+  readonly encounteredStoryWordIds: readonly string[];
   // selectedChoiceId stores the selected controlled option when used.
   readonly selectedChoiceId?: string;
   // selectedChoiceLabel is the visible selected story option when used.
@@ -155,6 +162,10 @@ export type InteractionAiPayload = {
   readonly continuationText: string;
   // continuationSentences are appended to the same reader timeline.
   readonly continuationSentences: readonly string[];
+  // continuationSentenceFrames explicitly mark appended units as narration or dialogue.
+  readonly continuationSentenceFrames: readonly EpisodeSentenceFrame[];
+  // continuationAnnotations provide translation hints for newly appended text.
+  readonly continuationAnnotations: Episode['annotations'];
   // isEpisodeComplete tells whether the current episode arc has ended.
   readonly isEpisodeComplete: boolean;
   // nextInteraction is required while the same episode continues.
@@ -196,6 +207,7 @@ export function parseEpisodeAiPayload(value: unknown): EpisodeAiPayload {
     ...(parsed.title ? { title: parsed.title } : {}),
     sceneText: parsed.sceneText,
     sentences: parsed.sentences,
+    sentenceFrames: parsed.sentenceFrames,
     storyWordIds: parsed.storyWordIds,
     annotations: parsed.annotations.map((annotation) => ({
       ...(annotation.wordId ? { wordId: annotation.wordId } : {}),
@@ -229,6 +241,16 @@ export function parseInteractionAiPayload(value: unknown): InteractionAiPayload 
     feedback: parsed.feedback,
     continuationText: parsed.continuationText,
     continuationSentences: parsed.continuationSentences,
+    continuationSentenceFrames: parsed.continuationSentenceFrames,
+    continuationAnnotations: parsed.continuationAnnotations.map((annotation) => ({
+      ...(annotation.wordId ? { wordId: annotation.wordId } : {}),
+      surfaceText: annotation.surfaceText,
+      translation: annotation.translation,
+      ...(annotation.transcription
+        ? { transcription: annotation.transcription }
+        : {}),
+      sentenceIndex: annotation.sentenceIndex,
+    })),
     isEpisodeComplete: parsed.isEpisodeComplete,
     ...(parsed.nextInteraction
       ? {
@@ -294,6 +316,28 @@ export function buildCompactSeriesMemoryPayload(
   };
 }
 
+// sentenceFramePayloadSchema validates the reader layout data returned by the AI boundary.
+const sentenceFramePayloadSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('narration'),
+    text: z.string().trim().min(1),
+  }),
+  z.object({
+    kind: z.literal('dialogue'),
+    speaker: z.string().trim().min(1).max(80),
+    text: z.string().trim().min(1),
+  }),
+]);
+
+// annotationPayloadSchema validates inline translation hints from AI output.
+const annotationPayloadSchema = z.object({
+  wordId: z.string().trim().min(1).optional(),
+  surfaceText: z.string().trim().min(1),
+  translation: z.string().trim().min(1),
+  transcription: z.string().trim().min(1).optional(),
+  sentenceIndex: z.number().int().nonnegative(),
+});
+
 // episodeAiPayloadSchema mirrors the future generate-episode structured JSON.
 const episodeAiPayloadSchema = z
   .object({
@@ -301,16 +345,9 @@ const episodeAiPayloadSchema = z
     title: z.string().trim().min(1).optional(),
     sceneText: z.string().trim().min(1),
     sentences: z.array(z.string().trim().min(1)).min(1),
+    sentenceFrames: z.array(sentenceFramePayloadSchema).min(1),
     storyWordIds: z.array(z.string().trim().min(1)),
-    annotations: z.array(
-      z.object({
-        wordId: z.string().trim().min(1).optional(),
-        surfaceText: z.string().trim().min(1),
-        translation: z.string().trim().min(1),
-        transcription: z.string().trim().min(1).optional(),
-        sentenceIndex: z.number().int().nonnegative(),
-      }),
-    ),
+    annotations: z.array(annotationPayloadSchema),
     interaction: z.object({
       kind: z.literal(interactionKinds[0]),
       prompt: z.string().trim().min(1),
@@ -334,6 +371,10 @@ const episodeAiPayloadSchema = z
         path: ['sceneText'],
       });
     }
+
+    validateSentenceFrames(payload.sentences, payload.sentenceFrames, context, [
+      'sentenceFrames',
+    ]);
 
     if (payload.memoryUpdate.lastEpisodeSummary !== payload.summaryUpdate) {
       context.addIssue({
@@ -380,6 +421,8 @@ const interactionAiPayloadSchema = z
     feedback: z.string().trim().min(1),
     continuationText: z.string().trim().min(1),
     continuationSentences: z.array(z.string().trim().min(1)).min(1),
+    continuationSentenceFrames: z.array(sentenceFramePayloadSchema).min(1),
+    continuationAnnotations: z.array(annotationPayloadSchema),
     isEpisodeComplete: z.boolean(),
     nextInteraction: z
       .object({
@@ -408,6 +451,30 @@ const interactionAiPayloadSchema = z
         message: 'continuationText must match continuation sentences',
         path: ['continuationText'],
       });
+    }
+
+    validateSentenceFrames(
+      payload.continuationSentences,
+      payload.continuationSentenceFrames,
+      context,
+      ['continuationSentenceFrames'],
+    );
+
+    for (const [
+      annotationIndex,
+      annotation,
+    ] of payload.continuationAnnotations.entries()) {
+      if (annotation.sentenceIndex >= payload.continuationSentences.length) {
+        context.addIssue({
+          code: 'custom',
+          message: 'continuation annotation sentence index is outside the sentence list',
+          path: [
+            'continuationAnnotations',
+            annotationIndex,
+            'sentenceIndex',
+          ],
+        });
+      }
     }
 
     if (payload.memoryUpdate.lastEpisodeSummary !== payload.summaryUpdate) {
@@ -461,6 +528,34 @@ const seriesMemoryUpdatePayloadSchema = z.object({
   unresolvedCliffhanger: z.string().trim().min(1),
   recurringStoryWordIds: z.array(z.string().trim().min(1)),
 });
+
+// validateSentenceFrames ensures reader layout cannot drift from playback text.
+function validateSentenceFrames(
+  sentences: readonly string[],
+  frames: readonly z.infer<typeof sentenceFramePayloadSchema>[],
+  context: z.RefinementCtx,
+  path: readonly string[],
+): void {
+  if (frames.length !== sentences.length) {
+    context.addIssue({
+      code: 'custom',
+      message: 'sentence frames must match sentence count',
+      path: [...path],
+    });
+
+    return;
+  }
+
+  frames.forEach((frame, index) => {
+    if (frame.text !== sentences[index]) {
+      context.addIssue({
+        code: 'custom',
+        message: 'sentence frame text must match sentence text',
+        path: [...path, index, 'text'],
+      });
+    }
+  });
+}
 
 // cefrLevelSchema validates generation request construction in tests and adapters.
 export const cefrLevelSchema = z.enum(cefrLevels);

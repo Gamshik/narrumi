@@ -5,6 +5,16 @@ export function mergeSyncOperation(
   operations: readonly SyncOperation[],
   incoming: SyncOperation,
 ): readonly SyncOperation[] {
+  const existingForRecord = operations.find(
+    (operation) =>
+      operation.recordKind === incoming.recordKind &&
+      operation.recordId === incoming.recordId,
+  );
+
+  if (existingForRecord?.action === 'delete' && incoming.action === 'upsert') {
+    return operations;
+  }
+
   return [
     ...operations.filter(
       (operation) =>

@@ -105,6 +105,7 @@ function parseOperation(value: unknown): readonly SyncOperation[] {
   const recordId = record.recordId;
   const clientUpdatedAt = record.clientUpdatedAt;
   const createdAt = record.createdAt;
+  const action = record.action;
 
   if (
     typeof operationId !== 'string' ||
@@ -114,13 +115,15 @@ function parseOperation(value: unknown): readonly SyncOperation[] {
     typeof clientUpdatedAt !== 'string' ||
     !Number.isFinite(Date.parse(clientUpdatedAt)) ||
     typeof createdAt !== 'string' ||
-    !Number.isFinite(Date.parse(createdAt))
+    !Number.isFinite(Date.parse(createdAt)) ||
+    (action !== undefined && action !== 'upsert' && action !== 'delete')
   ) {
     return [];
   }
 
   return [
     {
+      action: action === 'delete' ? 'delete' : 'upsert',
       operationId,
       recordKind: recordKind as SyncOperation['recordKind'],
       recordId,

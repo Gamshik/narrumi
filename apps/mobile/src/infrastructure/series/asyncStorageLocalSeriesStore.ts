@@ -88,6 +88,75 @@ export class AsyncStorageLocalSeriesStore implements LocalSeriesStore {
     );
   }
 
+  // deleteSeries removes the local story root and every directly scoped child record.
+  async deleteSeries(seriesId: string): Promise<void> {
+    const [
+      seriesRecords,
+      episodeRecords,
+      memoryRecords,
+      wordSetRecords,
+      signalRecords,
+    ] = await Promise.all([
+      this.readSeriesMap(),
+      this.readEpisodeMap(),
+      this.readSeriesMemoryMap(),
+      this.readWordSetMap(),
+      this.readLearningSignalMap(),
+    ]);
+    const episodeIds = new Set(
+      Object.values(episodeRecords)
+        .filter((episode) => episode.seriesId === seriesId)
+        .map((episode) => episode.id),
+    );
+
+    await Promise.all([
+      AsyncStorage.setItem(
+        STORAGE_KEYS.series,
+        JSON.stringify(removeRecord(seriesRecords, seriesId)),
+      ),
+      AsyncStorage.setItem(
+        STORAGE_KEYS.episodes,
+        JSON.stringify(
+          filterRecordMap(
+            episodeRecords,
+            (episode) => episode.seriesId !== seriesId,
+          ),
+        ),
+      ),
+      AsyncStorage.setItem(
+        STORAGE_KEYS.seriesMemory,
+        JSON.stringify(
+          filterRecordMap(
+            memoryRecords,
+            (memory) => memory.seriesId !== seriesId,
+          ),
+        ),
+      ),
+      AsyncStorage.setItem(
+        STORAGE_KEYS.wordSets,
+        JSON.stringify(
+          filterRecordMap(
+            wordSetRecords,
+            (wordSet) =>
+              wordSet.seriesId !== seriesId &&
+              !matchesKnownEpisode(wordSet.episodeId, episodeIds),
+          ),
+        ),
+      ),
+      AsyncStorage.setItem(
+        STORAGE_KEYS.learningSignals,
+        JSON.stringify(
+          filterRecordMap(
+            signalRecords,
+            (signal) =>
+              signal.seriesId !== seriesId &&
+              !matchesKnownEpisode(signal.episodeId, episodeIds),
+          ),
+        ),
+      ),
+    ]);
+  }
+
   // listEpisodes returns validated episodes for a series in reading order.
   async listEpisodes(seriesId: string): Promise<readonly Episode[]> {
     const records = await this.readEpisodeMap();
@@ -112,6 +181,40 @@ export class AsyncStorageLocalSeriesStore implements LocalSeriesStore {
       STORAGE_KEYS.episodes,
       JSON.stringify({ ...records, [episode.id]: episode }),
     );
+  }
+
+  // deleteEpisode removes the episode and episode-scoped word/signal records locally.
+  async deleteEpisode(episodeId: string): Promise<void> {
+    const [episodeRecords, wordSetRecords, signalRecords] = await Promise.all([
+      this.readEpisodeMap(),
+      this.readWordSetMap(),
+      this.readLearningSignalMap(),
+    ]);
+
+    await Promise.all([
+      AsyncStorage.setItem(
+        STORAGE_KEYS.episodes,
+        JSON.stringify(removeRecord(episodeRecords, episodeId)),
+      ),
+      AsyncStorage.setItem(
+        STORAGE_KEYS.wordSets,
+        JSON.stringify(
+          filterRecordMap(
+            wordSetRecords,
+            (wordSet) => wordSet.episodeId !== episodeId,
+          ),
+        ),
+      ),
+      AsyncStorage.setItem(
+        STORAGE_KEYS.learningSignals,
+        JSON.stringify(
+          filterRecordMap(
+            signalRecords,
+            (signal) => signal.episodeId !== episodeId,
+          ),
+        ),
+      ),
+    ]);
   }
 
   // getSeriesMemory returns compact continuity context for one series.
@@ -274,6 +377,32 @@ function parseRecordMap<T>(
   );
 }
 
+// filterRecordMap preserves a local map shape while dropping deleted children.
+function filterRecordMap<T>(
+  records: Record<string, T>,
+  keepRecord: (record: T, key: string) => boolean,
+): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(records).filter(([key, record]) => keepRecord(record, key)),
+  );
+}
+
+// removeRecord deletes one local map entry without mutating validated records.
+function removeRecord<T>(
+  records: Record<string, T>,
+  recordId: string,
+): Record<string, T> {
+  return filterRecordMap(records, (_record, key) => key !== recordId);
+}
+
+// matchesKnownEpisode identifies episode-scoped child records during series deletion.
+function matchesKnownEpisode(
+  episodeId: string | undefined,
+  episodeIds: ReadonlySet<string>,
+): boolean {
+  return episodeId !== undefined && episodeIds.has(episodeId);
+}
+
 // parsePreferences validates local settings and reapplies product bounds.
 function parsePreferences(value: unknown): LearningPreferences {
   if (!isRecord(value)) {
@@ -380,10 +509,16 @@ function parseEpisode(value: unknown): Episode {
   const title = readOptionalString(value, 'title');
   const cliffhanger = readOptionalString(value, 'cliffhanger');
   const sentences = readStringArray(value, 'sentences');
+  const sentenceFrames =
+    value.sentenceFrames === undefined
+      ? sentences.map(createNarrationFrame)
+      : readArray(value, 'sentenceFrames').map(parseEpisodeSentenceFrame);
   const interactions = parseEpisodeInteractions(value, sentences.length);
   const isComplete =
     readOptionalBoolean(value, 'isComplete') ??
     interactions.every((interaction) => interaction.feedback !== undefined);
+
+  validateEpisodeSentenceFrames(sentences, sentenceFrames);
 
   return {
     id: readString(value, 'id'),
@@ -393,6 +528,7 @@ function parseEpisode(value: unknown): Episode {
     ...(title ? { title } : {}),
     sceneText: readString(value, 'sceneText'),
     sentences,
+    sentenceFrames,
     storyWordIds: readStringArray(value, 'storyWordIds'),
     annotations: readArray(value, 'annotations').map(parseTranslationAnnotation),
     interactions,
@@ -403,6 +539,55 @@ function parseEpisode(value: unknown): Episode {
     updatedAt: readString(value, 'updatedAt'),
     sync: parseSyncMetadata(value.sync),
   };
+}
+
+// parseEpisodeSentenceFrame validates the explicit reader layout for one sentence.
+function parseEpisodeSentenceFrame(
+  value: unknown,
+): Episode['sentenceFrames'][number] {
+  if (!isRecord(value)) {
+    throw new Error('Episode sentence frame must be an object');
+  }
+
+  const kind = readString(value, 'kind');
+
+  if (kind === 'narration') {
+    return createNarrationFrame(readString(value, 'text'));
+  }
+
+  if (kind === 'dialogue') {
+    return {
+      kind,
+      speaker: readString(value, 'speaker'),
+      text: readString(value, 'text'),
+    };
+  }
+
+  throw new Error('Episode sentence frame kind is unsupported');
+}
+
+// createNarrationFrame migrates legacy episodes without dialogue metadata.
+function createNarrationFrame(text: string): Episode['sentenceFrames'][number] {
+  return {
+    kind: 'narration',
+    text,
+  };
+}
+
+// validateEpisodeSentenceFrames prevents corrupted local layout metadata from reaching UI.
+function validateEpisodeSentenceFrames(
+  sentences: readonly string[],
+  frames: readonly Episode['sentenceFrames'][number][],
+): void {
+  if (frames.length !== sentences.length) {
+    throw new Error('Episode sentence frame count must match sentences');
+  }
+
+  frames.forEach((frame, index) => {
+    if (frame.text !== sentences[index]) {
+      throw new Error('Episode sentence frame text must match sentence');
+    }
+  });
 }
 
 // parseEpisodeInteractions migrates legacy single-interaction episodes on read.

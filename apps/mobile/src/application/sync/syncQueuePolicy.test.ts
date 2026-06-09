@@ -12,6 +12,7 @@ function buildOperation(
   createdAt: string,
 ): SyncOperation {
   return {
+    action: 'upsert',
     operationId,
     recordKind: 'series',
     recordId,
@@ -34,6 +35,24 @@ describe('syncQueuePolicy', () => {
     );
 
     assert.deepEqual(mergeSyncOperation([original], latest), [latest]);
+  });
+
+  it('does not replace a durable delete with a repaired dirty upsert', () => {
+    const deleted = {
+      ...buildOperation(
+        'series:1:delete',
+        'series:1',
+        '2026-06-06T11:00:00.000Z',
+      ),
+      action: 'delete' as const,
+    };
+    const repairedUpsert = buildOperation(
+      'series:1:repaired',
+      'series:1',
+      '2026-06-06T12:00:00.000Z',
+    );
+
+    assert.deepEqual(mergeSyncOperation([deleted], repairedUpsert), [deleted]);
   });
 
   it('orders equal timestamps by stable operation id', () => {

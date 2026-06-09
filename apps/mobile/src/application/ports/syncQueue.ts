@@ -7,8 +7,13 @@ export type SyncRecordKind =
   | 'learningSignal'
   | 'preferences';
 
+// SyncOperationAction distinguishes normal record uploads from durable deletions.
+export type SyncOperationAction = 'upsert' | 'delete';
+
 // SyncOperation points to the latest local record version that must reach the cloud.
 export type SyncOperation = {
+  // action tells sync whether to upload a local value or delete a remote value.
+  readonly action: SyncOperationAction;
   // operationId provides deterministic ordering and idempotent replay identity.
   readonly operationId: string;
   // recordKind selects the local and remote mapping used during replay.

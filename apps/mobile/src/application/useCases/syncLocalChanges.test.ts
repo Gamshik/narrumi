@@ -16,6 +16,7 @@ import type {
 } from '@domain/index';
 
 import { createSyncLocalChanges } from './syncLocalChanges';
+import { mergeSyncOperation } from '../sync';
 
 // timestamp is the shared deterministic client version for sync tests.
 const timestamp = '2026-06-06T12:00:00.000Z';
@@ -69,6 +70,7 @@ describe('syncLocalChanges', () => {
 
         return markRecordClean(record);
       },
+      delete: async () => undefined,
       loadSnapshot: async () => ({
         series: [],
         seriesMemories: [],
@@ -101,6 +103,10 @@ describe('syncLocalChanges', () => {
           remoteCalled = true;
           throw new Error('Unexpected remote call');
         },
+        delete: async () => {
+          remoteCalled = true;
+          throw new Error('Unexpected remote call');
+        },
         loadSnapshot: async () => {
           remoteCalled = true;
           throw new Error('Unexpected remote call');
@@ -116,6 +122,58 @@ describe('syncLocalChanges', () => {
     assert.equal(result.status, 'unauthenticated');
     assert.equal(remoteCalled, false);
   });
+
+  it('replays durable delete operations before snapshot reconciliation', async () => {
+    let deletedRecordId: string | undefined;
+    let upsertCalled = false;
+    const queue = createQueue([
+      {
+        action: 'delete',
+        operationId: `series:series:1:${timestamp}:delete`,
+        recordKind: 'series',
+        recordId: 'series:1',
+        clientUpdatedAt: timestamp,
+        createdAt: timestamp,
+      },
+    ]);
+    const remoteStore: RemoteSeriesStore = {
+      upsert: async () => {
+        upsertCalled = true;
+        throw new Error('Unexpected upsert call');
+      },
+      delete: async (_ownerId, recordKind, recordId) => {
+        assert.equal(recordKind, 'series');
+        deletedRecordId = recordId;
+      },
+      loadSnapshot: async () => ({
+        series: [],
+        seriesMemories: [],
+        episodes: [],
+        wordSets: [],
+        learningSignals: [],
+      }),
+    };
+    const localStore: LocalSeriesStore = {
+      ...createLocalStore(),
+      listSeries: async () => [],
+      getSeries: async () => undefined,
+      getSeriesMemory: async () => undefined,
+    };
+    const sync = createSyncLocalChanges(
+      localStore,
+      remoteStore,
+      queue,
+      { getAuthenticatedUserId: async () => '00000000-0000-4000-8000-000000000001' },
+      { getCurrentState: async () => ({ isOnline: true }) },
+    );
+
+    const result = await sync.execute();
+
+    assert.equal(deletedRecordId, 'series:1');
+    assert.equal(upsertCalled, false);
+    assert.equal(result.pushedCount, 1);
+    assert.equal((await queue.list()).length, 0);
+  });
 });
 
 // buildOperation creates one pending pointer for the shared test series.
@@ -123,6 +181,7 @@ function buildOperation(
   recordKind: 'series' | 'seriesMemory',
 ): SyncOperation {
   return {
+    action: 'upsert',
     operationId: `${recordKind}:series:1:${dirtySync.pendingOperationId}`,
     recordKind,
     recordId: 'series:1',
@@ -137,14 +196,7 @@ function createQueue(initial: readonly SyncOperation[]): SyncQueue {
 
   return {
     enqueue: async (operation) => {
-      operations = [
-        ...operations.filter(
-          (existing) =>
-            existing.recordKind !== operation.recordKind ||
-            existing.recordId !== operation.recordId,
-        ),
-        operation,
-      ];
+      operations = [...mergeSyncOperation(operations, operation)];
     },
     list: async () => operations,
     remove: async (operationId) => {
@@ -180,9 +232,11 @@ function createLocalStore(): LocalSeriesStore {
     saveSeries: async (value) => {
       storedSeries = value;
     },
+    deleteSeries: async () => undefined,
     listEpisodes: async () => [],
     getEpisode: async () => undefined,
     saveEpisode: async () => undefined,
+    deleteEpisode: async () => undefined,
     getSeriesMemory: async (seriesId) =>
       seriesId === storedMemory.seriesId ? storedMemory : undefined,
     saveSeriesMemory: async (value) => {

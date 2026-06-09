@@ -1,5 +1,8 @@
 export * from './browseVocabulary';
+export * from './chooseEpisodeStoryWord';
 export * from './createSeries';
+export * from './deleteEpisode';
+export * from './deleteSeries';
 export * from './getVocabularyItem';
 export * from './generateEpisode';
 export * from './loadLearningPreferences';
@@ -10,6 +13,7 @@ export * from './listSeries';
 export * from './manageAuthSession';
 export * from './recordLearningSignal';
 export * from './replaceEpisodeStoryWord';
+export * from './shuffleEpisodeStoryWords';
 export * from './startOrResumeTodaysWordSet';
 export * from './startOrResumeEpisodeWordSelection';
 export * from './submitEpisodeInteraction';

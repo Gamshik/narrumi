@@ -20,12 +20,16 @@ export type LocalSeriesStore = {
   readonly getSeries: (seriesId: string) => Promise<Series | undefined>;
   // saveSeries persists one local-first series immediately.
   readonly saveSeries: (series: Series) => Promise<void>;
+  // deleteSeries removes one story root and all locally scoped child records.
+  readonly deleteSeries: (seriesId: string, deletedAt: string) => Promise<void>;
   // listEpisodes returns validated local episodes for one series.
   readonly listEpisodes: (seriesId: string) => Promise<readonly Episode[]>;
   // getEpisode reads one local episode by id when present.
   readonly getEpisode: (episodeId: string) => Promise<Episode | undefined>;
   // saveEpisode persists one generated episode before any remote sync.
   readonly saveEpisode: (episode: Episode) => Promise<void>;
+  // deleteEpisode removes one local episode and its episode-scoped learning data.
+  readonly deleteEpisode: (episodeId: string, deletedAt: string) => Promise<void>;
   // getSeriesMemory reads the compact memory for one series when present.
   readonly getSeriesMemory: (
     seriesId: string,

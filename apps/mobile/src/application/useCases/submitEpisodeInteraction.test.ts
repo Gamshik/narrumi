@@ -6,7 +6,7 @@ import type {
   LocalSeriesStore,
   NetworkStatus,
 } from '@application/ports';
-import type { Episode, Series, SeriesMemory } from '@domain/index';
+import type { Episode, Series, SeriesMemory, VocabularyItem } from '@domain/index';
 
 import { createSubmitEpisodeInteraction } from './submitEpisodeInteraction';
 
@@ -58,8 +58,21 @@ const episode: Episode = {
   title: 'The Hidden Door',
   sceneText: 'Mira found a blue door.',
   sentences: ['Mira found a blue door.'],
-  storyWordIds: [],
-  annotations: [],
+  sentenceFrames: [
+    {
+      kind: 'narration',
+      text: 'Mira found a blue door.',
+    },
+  ],
+  storyWordIds: ['word:careful'],
+  annotations: [
+    {
+      wordId: 'word:careful',
+      surfaceText: 'careful',
+      translation: 'осторожный',
+      sentenceIndex: 0,
+    },
+  ],
   interactions: [
     {
       id: 'interaction:episode:test:1',
@@ -85,6 +98,18 @@ const episode: Episode = {
   },
 };
 
+// vocabulary resolves planned Episode Words for continuation prompts.
+const vocabulary: readonly VocabularyItem[] = [
+  {
+    id: 'word:careful',
+    word: 'careful',
+    partOfSpeech: 'adjective',
+    level: 'A2',
+    examples: ['Be careful.'],
+    phonetics: {},
+  },
+];
+
 describe('submitEpisodeInteraction', () => {
   it('appends the next decision to the same locally saved episode', async () => {
     // savedEpisodes captures the local-first draft and finalized episode writes.
@@ -98,11 +123,13 @@ describe('submitEpisodeInteraction', () => {
       listSeries: async () => [series],
       getSeries: async () => series,
       saveSeries: async () => undefined,
+      deleteSeries: async () => undefined,
       listEpisodes: async () => [episode],
       getEpisode: async () => episode,
       saveEpisode: async (value) => {
         savedEpisodes.push(value);
       },
+      deleteEpisode: async () => undefined,
       getSeriesMemory: async () => memory,
       saveSeriesMemory: async (value) => {
         savedMemories.push(value);
@@ -114,6 +141,11 @@ describe('submitEpisodeInteraction', () => {
       getSyncMetadata: async () => undefined,
       saveSyncMetadata: async () => undefined,
     };
+    // catalog resolves selected Story Words before calling the Edge boundary.
+    const catalog = {
+      getById: async (id: string) => vocabulary.find((word) => word.id === id),
+      list: async () => vocabulary,
+    };
     // networkStatus keeps the server-backed interaction path available.
     const networkStatus: NetworkStatus = {
       getCurrentState: async () => ({ isOnline: true }),
@@ -123,6 +155,10 @@ describe('submitEpisodeInteraction', () => {
       submitInteraction: async (request) => {
         assert.equal(request.interactionCount, 1);
         assert.equal(request.previousDecisions.length, 0);
+        assert.deepEqual(request.selectedStoryWords.map((word) => word.id), [
+          'word:careful',
+        ]);
+        assert.deepEqual(request.encounteredStoryWordIds, ['word:careful']);
 
         return {
           feedback: 'Good choice. "Open the door carefully" sounds natural.',
@@ -131,6 +167,13 @@ describe('submitEpisodeInteraction', () => {
           continuationSentences: [
             'Mira opened the door and found a narrow blue passage.',
           ],
+          continuationSentenceFrames: [
+            {
+              kind: 'narration',
+              text: 'Mira opened the door and found a narrow blue passage.',
+            },
+          ],
+          continuationAnnotations: [],
           isEpisodeComplete: false,
           nextInteraction: {
             kind: 'choice',
@@ -157,6 +200,7 @@ describe('submitEpisodeInteraction', () => {
     };
     const useCase = createSubmitEpisodeInteraction(
       store,
+      catalog,
       networkStatus,
       gateway,
       { now: () => new Date(timestamp) },
@@ -223,11 +267,13 @@ describe('submitEpisodeInteraction', () => {
       listSeries: async () => [series],
       getSeries: async () => series,
       saveSeries: async () => undefined,
+      deleteSeries: async () => undefined,
       listEpisodes: async () => [longEpisode],
       getEpisode: async () => longEpisode,
       saveEpisode: async (value) => {
         savedEpisodes.push(value);
       },
+      deleteEpisode: async () => undefined,
       getSeriesMemory: async () => memory,
       saveSeriesMemory: async () => undefined,
       listWordSets: async () => [],
@@ -236,6 +282,11 @@ describe('submitEpisodeInteraction', () => {
       saveLearningSignal: async () => undefined,
       getSyncMetadata: async () => undefined,
       saveSyncMetadata: async () => undefined,
+    };
+    // catalog resolves selected Story Words before calling the Edge boundary.
+    const catalog = {
+      getById: async (id: string) => vocabulary.find((word) => word.id === id),
+      list: async () => vocabulary,
     };
     // networkStatus keeps the submit flow online for the use case.
     const networkStatus: NetworkStatus = {
@@ -254,6 +305,13 @@ describe('submitEpisodeInteraction', () => {
           continuationSentences: [
             'Mira finished the passage and found a new map.',
           ],
+          continuationSentenceFrames: [
+            {
+              kind: 'narration',
+              text: 'Mira finished the passage and found a new map.',
+            },
+          ],
+          continuationAnnotations: [],
           isEpisodeComplete: true,
           cliffhanger: 'The map pointed to another hidden shelf.',
           summaryUpdate:
@@ -273,6 +331,7 @@ describe('submitEpisodeInteraction', () => {
     };
     const useCase = createSubmitEpisodeInteraction(
       store,
+      catalog,
       networkStatus,
       gateway,
       { now: () => new Date(timestamp) },

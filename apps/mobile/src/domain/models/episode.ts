@@ -1,6 +1,23 @@
 import type { EpisodeInteraction } from './episodeInteraction';
 import type { SyncMetadata } from './syncMetadata';
 
+// EpisodeSentenceFrame stores the explicit reader layout contract for one playback sentence.
+export type EpisodeSentenceFrame =
+  | {
+      // kind keeps ordinary story prose visually unframed.
+      readonly kind: 'narration';
+      // text is the exact sentence text shown and spoken for this frame.
+      readonly text: string;
+    }
+  | {
+      // kind marks a sentence as a character utterance instead of inferred prose.
+      readonly kind: 'dialogue';
+      // speaker is the validated display name shown above the utterance.
+      readonly speaker: string;
+      // text is the exact utterance shown and spoken for this frame.
+      readonly text: string;
+    };
+
 // TranslationAnnotation stores a trusted inline hint after validation.
 export type TranslationAnnotation = {
   // wordId links story text to the bundled Oxford item when available.
@@ -31,6 +48,8 @@ export type Episode = {
   readonly sceneText: string;
   // sentences stores the playback and karaoke-sync units.
   readonly sentences: readonly string[];
+  // sentenceFrames stores explicit narration/dialogue layout for every playback unit.
+  readonly sentenceFrames: readonly EpisodeSentenceFrame[];
   // storyWordIds are the selected words the episode should use naturally.
   readonly storyWordIds: readonly string[];
   // annotations power tap-to-translate without leaving the reader.

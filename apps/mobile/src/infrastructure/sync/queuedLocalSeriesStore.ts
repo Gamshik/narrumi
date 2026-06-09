@@ -55,6 +55,12 @@ export class QueuedLocalSeriesStore implements LocalSeriesStore {
     await this.enqueue('series', series.id, series);
   }
 
+  // deleteSeries persists the local removal first, then queues the cloud deletion.
+  async deleteSeries(seriesId: string, deletedAt: string): Promise<void> {
+    await this.store.deleteSeries(seriesId, deletedAt);
+    await this.enqueueDeletion('series', seriesId, deletedAt);
+  }
+
   // listEpisodes forwards local episode reads unchanged.
   listEpisodes(seriesId: string): Promise<readonly Episode[]> {
     return this.store.listEpisodes(seriesId);
@@ -69,6 +75,12 @@ export class QueuedLocalSeriesStore implements LocalSeriesStore {
   async saveEpisode(episode: Episode): Promise<void> {
     await this.store.saveEpisode(episode);
     await this.enqueue('episode', episode.id, episode);
+  }
+
+  // deleteEpisode persists the local removal first, then queues the cloud deletion.
+  async deleteEpisode(episodeId: string, deletedAt: string): Promise<void> {
+    await this.store.deleteEpisode(episodeId, deletedAt);
+    await this.enqueueDeletion('episode', episodeId, deletedAt);
   }
 
   // getSeriesMemory forwards one local memory read unchanged.
@@ -128,11 +140,28 @@ export class QueuedLocalSeriesStore implements LocalSeriesStore {
     record: { readonly updatedAt: string; readonly sync: SyncMetadata },
   ): Promise<void> {
     await this.queue.enqueue({
+      action: 'upsert',
       operationId: `${recordKind}:${recordId}:${record.sync.pendingOperationId}`,
       recordKind,
       recordId,
       clientUpdatedAt: record.updatedAt,
       createdAt: record.updatedAt,
+    });
+  }
+
+  // enqueueDeletion stores a durable delete intent with the same conflict timestamp shape.
+  private async enqueueDeletion(
+    recordKind: Extract<SyncRecordKind, 'series' | 'episode'>,
+    recordId: string,
+    deletedAt: string,
+  ): Promise<void> {
+    await this.queue.enqueue({
+      action: 'delete',
+      operationId: `${recordKind}:${recordId}:${deletedAt}:delete`,
+      recordKind,
+      recordId,
+      clientUpdatedAt: deletedAt,
+      createdAt: deletedAt,
     });
   }
 }
