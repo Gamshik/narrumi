@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context-English: Dialogue & Narrative Story Reader UI</title>
+    <!-- Outfit & Inter Google Fonts for high-fidelity Apple typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ==========================================================================
+           1. CSS CUSTOM PROPERTIES (SYSTEM PALETTES - LIGHT & DARK)
+           ========================================================================== */
+        :root {
+            --sys-blue: #007aff;
+            --sys-green: #34c759;
+            --sys-red: #ff3b30;
+            --sys-orange: #ff9500;
+            --sys-purple: #af52de;
+            --sys-gray: #8e8e93;
+            
+            /* Main Dashboard Styles (Light Mode) */
+            --db-bg: #f5f5f7;
+            --db-card-bg: #ffffff;
+            --db-text-primary: #1d1d1f;
+            --db-text-secondary: #6e6e73;
+            --db-border: rgba(0, 0, 0, 0.08);
+            
+            /* Simulated Phone Styles (Light Mode) */
+            --phone-bg: #f2f2f7;
+            --phone-card: #ffffff;
+            --phone-card-elevated: #ffffff;
+            --phone-text-primary: #000000;
+            --phone-text-secondary: rgba(60, 60, 67, 0.65);
+            --phone-text-tertiary: rgba(60, 60, 67, 0.35);
+            --phone-separator: rgba(60, 60, 67, 0.12);
+            --phone-border: rgba(0, 0, 0, 0.04);
+            
+            /* Dialogue Bubble Colors (Light Mode) */
+            --mira-bg: rgba(0, 122, 255, 0.04);
+            --mira-border: rgba(0, 122, 255, 0.15);
+            --mira-accent: #007aff;
+            
+            --lily-bg: rgba(255, 149, 0, 0.04);
+            --lily-border: rgba(255, 149, 0, 0.15);
+            --lily-accent: #ff9500;
+            
+            --voice-bg: rgba(175, 82, 222, 0.04);
+            --voice-border: rgba(175, 82, 222, 0.15);
+            --voice-accent: #af52de;
+            
+            --user-bg: rgba(52, 199, 89, 0.04);
+            --user-border: rgba(52, 199, 89, 0.15);
+            --user-accent: #34c759;
+            
+            --fallback-bg: rgba(142, 142, 147, 0.04);
+            --fallback-border: rgba(142, 142, 147, 0.15);
+            --fallback-accent: #8e8e93;
+            
+            /* Glassmorphism Formulas */
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --glass-shadow: rgba(0, 0, 0, 0.06);
+            
+            --spring-easing: cubic-bezier(0.16, 1, 0.3, 1);
+            --spring-transition: all 0.35s var(--spring-easing);
+        }
+
+        .dark-theme {
+            /* Main Dashboard Styles (Dark Mode) */
+            --db-bg: #0b0b0c;
+            --db-card-bg: #161617;
+            --db-text-primary: #f5f5f7;
+            --db-text-secondary: #86868b;
+            --db-border: rgba(255, 255, 255, 0.08);
+            
+            /* Simulated Phone Styles (Dark Mode) */
+            --phone-bg: #000000;
+            --phone-card: #1c1c1e;
+            --phone-card-elevated: #2c2c2e;
+            --phone-text-primary: #ffffff;
+            --phone-text-secondary: rgba(235, 235, 245, 0.65);
+            --phone-text-tertiary: rgba(235, 235, 245, 0.35);
+            --phone-separator: rgba(84, 84, 86, 0.3);
+            --phone-border: rgba(255, 255, 255, 0.05);
+            
+            /* Dialogue Bubble Colors (Dark Mode) */
+            --mira-bg: rgba(10, 132, 255, 0.08);
+            --mira-border: rgba(10, 132, 255, 0.25);
+            --mira-accent: #0a84ff;
+            
+            --lily-bg: rgba(255, 159, 10, 0.08);
+            --lily-border: rgba(255, 159, 10, 0.25);
+            --lily-accent: #ff9f0a;
+            
+            --voice-bg: rgba(191, 90, 242, 0.08);
+            --voice-border: rgba(191, 90, 242, 0.25);
+            --voice-accent: #bf5af2;
+            
+            --user-bg: rgba(48, 209, 88, 0.08);
+            --user-border: rgba(48, 209, 88, 0.25);
+            --user-accent: #30d158;
+            
+            --fallback-bg: rgba(142, 142, 147, 0.08);
+            --fallback-border: rgba(142, 142, 147, 0.25);
+            --fallback-accent: #8e8e93;
+            
+            /* Glassmorphism Formulas (Dark) */
+            --glass-bg: rgba(28, 28, 30, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--db-bg);
+            color: var(--db-text-primary);
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* Dashboard Grid Layout */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 40px;
+            max-width: 1380px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        @media (max-width: 1120px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+                gap: 30px;
+                padding: 20px 16px;
+            }
+            .simulator-panel {
+                order: -1;
+            }
+            .sticky-simulator {
+                position: relative !important;
+                top: 0 !important;
+            }
+        }
+
+        /* Header Block */
+        .dashboard-header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--db-border);
+            padding-bottom: 20px;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-title-group h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: -0.02em;
+        }
+
+        .dashboard-title-group p {
+            color: var(--db-text-secondary);
+            margin: 4px 0 0 0;
+            font-size: 14px;
+        }
+
+        .theme-toggle-btn {
+            background-color: var(--db-card-bg);
+            border: 1px solid var(--db-border);
+            color: var(--db-text-primary);
+            padding: 8px 16px;
+            border-radius: 99px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: var(--spring-transition);
+        }
+
+        /* SPECIFICATION PANEL (LEFT COLUMN) */
+        .instruction-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-width: 0;
+        }
+
+        .panel-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .panel-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .prompt-card {
+            background-color: var(--db-card-bg);
+            border-radius: 20px;
+            border: 1px solid var(--db-border);
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .prompt-card h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .prompt-card h2 svg {
+            color: var(--sys-blue);
+        }
+
+        .prompt-card p {
+            font-size: 14px;
+            color: var(--db-text-secondary);
+            margin: 0 0 16px 0;
+            line-height: 1.5;
+        }
+
+        /* LIVE TEXT EDITOR */
+        .editor-textarea {
+            width: 100%;
+            height: 120px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--db-border);
+            background-color: var(--db-bg);
+            color: var(--db-text-primary);
+            resize: none;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .editor-btn {
+            background-color: var(--sys-blue);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--spring-transition);
+            align-self: flex-start;
+        }
+
+        .editor-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* PROMPT DISPLAY BOX */
+        .prompt-box-wrapper {
+            position: relative;
+            background-color: #1e1e24;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 10px;
+        }
+
+        .prompt-box {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12.5px;
+            color: #a9b2c3;
+            max-height: 280px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .prompt-box strong { color: #e5c07b; }
+        .prompt-box span.comment { color: #7f848e; font-style: italic; }
+        .prompt-box span.string { color: #98c379; }
+        .prompt-box span.keyword { color: #c678dd; }
+
+        .spec-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .spec-item {
+            display: flex;
+            gap: 12px;
+            font-size: 13.5px;
+            line-height: 1.45;
+        }
+
+        .spec-icon {
+            color: var(--sys-blue);
+            flex-shrink: 0;
+            margin-top: 2px;
+            font-size: 15px;
+        }
+
+        .spec-content strong {
+            color: var(--db-text-primary);
+        }
+
+        .spec-content p {
+            margin: 2px 0 0 0;
+            font-size: 12.5px;
+            color: var(--db-text-secondary);
+        }
+
+        /* SIMULATOR PANEL (RIGHT COLUMN) */
+        .simulator-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .sticky-simulator {
+            position: sticky;
+            top: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+        }
+
+        /* Apple iPhone 15 Pro Frame Spec */
+        .iphone-15 {
+            position: relative;
+            width: 375px;
+            height: 780px;
+            background-color: #1e1e1e;
+            border-radius: 50px;
+            border: 11px solid #333336;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.22), inset 0 0 4px rgba(255,255,255,0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .dark-theme .iphone-15 {
+            border-color: #242426;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.65), inset 0 0 4px rgba(255,255,255,0.06);
+        }
+
+        /* iPhone Dynamic Island Mock */
+        .dynamic-island {
+            position: absolute;
+            top: 13px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 110px;
+            height: 28px;
+            background-color: #000000;
+            border-radius: 20px;
+            z-index: 1000;
+        }
+
+        /* Simulated Mobile Screen Viewport */
+        .iphone-screen {
+            flex: 1;
+            background-color: var(--phone-bg);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            padding-top: 48px; /* Safe space for status bar */
+            transition: background-color 0.3s ease;
+        }
+
+        /* iPhone Status Bar Layout */
+        .status-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            padding: 13px 24px 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--phone-text-primary);
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        .status-icons {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        /* Bottom Home Indicator */
+        .home-indicator {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 5px;
+            background-color: var(--phone-text-primary);
+            border-radius: 99px;
+            opacity: 0.3;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        /* Screen Container - Scrolls STRICTLY above the bottom dock */
+        .screen-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            scrollbar-width: none;
+            padding: 16px 14px 16px 14px;
+        }
+
+        .screen-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* App Header inside iPhone */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            padding: 0 4px;
+        }
+
+        .app-title-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-category {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--sys-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .app-main-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--phone-text-primary);
+            letter-spacing: -0.02em;
+            margin: 0;
+        }
+
+        .cefr-badge {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background-color: rgba(0, 122, 255, 0.1);
+            color: var(--sys-blue);
+            text-transform: uppercase;
+        }
+
+        /* CONFIGURATION SWITCH CARD */
+        .config-card {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-border);
+            border-radius: 14px;
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.01);
+        }
+
+        .config-label-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .config-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--phone-text-primary);
+        }
+
+        .config-desc {
+            font-size: 10.5px;
+            color: var(--phone-text-secondary);
+        }
+
+        /* iOS Switch */
+        .ios-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 28px;
+        }
+
+        .ios-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .ios-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--sys-gray);
+            transition: .3s;
+            border-radius: 28px;
+        }
+
+        .ios-slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .3s var(--spring-easing);
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+
+        input:checked + .ios-slider {
+            background-color: var(--sys-green);
+        }
+
+        input:checked + .ios-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* STORY VIEWPORT CANVAS */
+        .story-container-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 200px;
+            position: relative;
+        }
+
+        /* TRADITIONAL SOLID TEXT VIEW */
+        .traditional-view {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .story-sentence-plain {
+            font-size: 15px;
+            line-height: 1.65;
+            color: var(--phone-text-primary);
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 8px;
+            transition: var(--spring-transition);
+        }
+
+        /* DIALOGUE & NARRATIVE HIGHLIGHTS VIEW */
+        .dialogue-view {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Standard Narrative Paragraph Block */
+        .narrative-block {
+            font-size: 14.5px;
+            line-height: 1.6;
+            color: var(--phone-text-primary);
+            padding: 6px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 40px; /* Align text with dialogue bubble content */
+            transition: var(--spring-transition);
+        }
+
+        /* Conversational Speech Bubble Block */
+        .chat-bubble-block {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            padding: 4px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: var(--spring-transition);
+        }
+
+        /* Avatar styling */
+        .chat-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            color: #ffffff;
+            flex-shrink: 0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .avatar-mira { background-color: var(--mira-accent); }
+        .avatar-lily { background-color: var(--lily-accent); }
+        .avatar-voice { background-color: var(--voice-accent); }
+        .avatar-user { background-color: var(--user-accent); }
+        .avatar-stranger { background-color: var(--fallback-accent); }
+        .avatar-wizard { background-color: var(--sys-purple); }
+        .avatar-detective { background-color: var(--sys-blue); }
+        .avatar-suspect { background-color: var(--sys-red); }
+        .avatar-alex { background-color: var(--sys-orange); }
+
+        .chat-bubble-wrapper {
+            flex: 1;
+            max-width: 86%;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .chat-speaker-label {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--phone-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-left: 4px;
+        }
+
+        /* Sleek dialogue bubble card floating on the screen background */
+        .chat-bubble {
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-separator);
+            padding: 10px 14px;
+            border-radius: 16px;
+            border-top-left-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.015);
+            transition: var(--spring-transition);
+        }
+
+        .bubble-mira { background-color: var(--mira-bg); border-color: var(--mira-border); }
+        .bubble-lily { background-color: var(--lily-bg); border-color: var(--lily-border); }
+        .bubble-voice { background-color: var(--voice-bg); border-color: var(--voice-border); }
+        .bubble-user { background-color: var(--user-bg); border-color: var(--user-border); }
+        .bubble-stranger { background-color: var(--fallback-bg); border-color: var(--fallback-border); }
+        .bubble-wizard { background-color: rgba(175, 82, 222, 0.06); border-color: rgba(175, 82, 222, 0.15); }
+        .bubble-detective { background-color: rgba(0, 122, 255, 0.06); border-color: rgba(0, 122, 255, 0.15); }
+        .bubble-suspect { background-color: rgba(255, 59, 48, 0.06); border-color: rgba(255, 59, 48, 0.15); }
+        .bubble-alex { background-color: rgba(255, 149, 0, 0.06); border-color: rgba(255, 149, 0, 0.15); }
+
+        .chat-bubble-text {
+            font-size: 14.5px;
+            line-height: 1.55;
+            color: var(--phone-text-primary);
+        }
+
+        /* Small italicized carrier clause label below the bubble */
+        .chat-narrative-clause {
+            font-size: 11.5px;
+            font-style: italic;
+            color: var(--phone-text-secondary);
+            margin-top: 1px;
+            margin-left: 4px;
+        }
+
+        /* PLAYBACK AND HIGHLIGHT STATES */
+        .active-sentence {
+            opacity: 1 !important;
+            transform: scale(1.006);
+        }
+
+        .traditional-view .story-sentence-plain.active-sentence {
+            background-color: rgba(0, 122, 255, 0.12);
+            border-left: 3px solid var(--sys-blue);
+            padding-left: 8px;
+        }
+
+        .dialogue-view .narrative-block.active-sentence {
+            background-color: rgba(142, 142, 147, 0.08);
+            border-left: 3px solid var(--sys-gray);
+            padding-left: 8px;
+        }
+
+        /* Active bubble highlight */
+        .dialogue-view .chat-bubble-block.active-sentence .chat-bubble {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            transform: translateY(-1px);
+        }
+        .dialogue-view .chat-bubble-block.active-sentence .bubble-mira { border-color: var(--mira-accent); background-color: rgba(0, 122, 255, 0.1); }
+        .dialogue-view .chat-bubble-block.active-sentence .bubble-lily { border-color: var(--lily-accent); background-color: rgba(255, 149, 0, 0.1); }
+        .dialogue-view .chat-bubble-block.active-sentence .bubble-voice { border-color: var(--voice-accent); background-color: rgba(175, 82, 222, 0.1); }
+        .dialogue-view .chat-bubble-block.active-sentence .bubble-wizard { border-color: var(--sys-purple); background-color: rgba(175, 82, 222, 0.1); }
+        .dialogue-view .chat-bubble-block.active-sentence .bubble-detective { border-color: var(--sys-blue); background-color: rgba(0, 122, 255, 0.1); }
+        .dialogue-view .chat-bubble-block.active-sentence .bubble-suspect { border-color: var(--sys-red); background-color: rgba(255, 59, 48, 0.1); }
+        .dialogue-view .chat-bubble-block.active-sentence .bubble-alex { border-color: var(--sys-orange); background-color: rgba(255, 149, 0, 0.1); }
+
+        /* Inactive dimmed reading focus */
+        .is-dimmed {
+            opacity: 0.45;
+        }
+
+        /* Vocabulary annotations */
+        .trans-word {
+            border-bottom: 1px dashed var(--sys-blue);
+            color: var(--sys-blue);
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0 1px;
+        }
+
+        .trans-word:hover {
+            background-color: rgba(0, 122, 255, 0.05);
+        }
+
+        /* TOOLTIP FOR INLINE TRANSLATION (Relative to phone screen) */
+        .word-tooltip {
+            position: absolute;
+            width: 220px;
+            background-color: var(--phone-card-elevated);
+            border: 1px solid var(--phone-separator);
+            border-radius: 12px;
+            padding: 10px 12px;
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+            z-index: 1005;
+            pointer-events: auto;
+            animation: tooltipAppear 0.2s var(--spring-easing);
+        }
+
+        .word-tooltip.active {
+            display: flex;
+        }
+
+        @keyframes tooltipAppear {
+            from { transform: scale(0.85) translateY(6px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .tooltip-word {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--phone-text-primary);
+        }
+
+        .tooltip-ipa {
+            font-size: 11px;
+            color: var(--sys-orange);
+            font-weight: 600;
+        }
+
+        .tooltip-trans {
+            font-size: 12px;
+            color: var(--phone-text-secondary);
+            line-height: 1.4;
+            margin-top: 1px;
+        }
+
+        /* FIXED TOP DOCK (Houses header and player card at the top, preventing overlap and saving scroll space) */
+        .top-dock {
+            background-color: var(--phone-card);
+            border-bottom: 1px solid var(--phone-separator);
+            padding: 14px 14px 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 950;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .dark-theme .top-dock {
+            background-color: #121214;
+            border-bottom-color: var(--phone-border);
+        }
+
+        /* FIXED BOTTOM DOCK (Locks bottom navigation only) */
+        .bottom-dock {
+            background-color: var(--phone-card);
+            border-top: 1px solid var(--phone-separator);
+            padding: 8px 14px 24px 14px; /* Padding bottom leaves safe area for home indicator */
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.02);
+            z-index: 950;
+        }
+
+        .dark-theme .bottom-dock {
+            background-color: #121214;
+            border-top-color: var(--phone-border);
+        }
+
+        /* AUDIO CONTROLLER CARD (Compact version for top dock) */
+        .audio-controller-card {
+            background-color: var(--phone-bg);
+            border: 1px solid var(--phone-separator);
+            border-radius: 12px;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 48px;
+        }
+
+        .audio-track-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .audio-track-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--phone-text-primary);
+        }
+
+        .audio-track-sub {
+            font-size: 10px;
+            color: var(--phone-text-secondary);
+        }
+
+        .audio-buttons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .audio-btn-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-separator);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--phone-text-primary);
+            transition: var(--spring-transition);
+        }
+
+        .audio-btn-circle:active {
+            transform: scale(0.92);
+        }
+
+        .audio-btn-circle.main-play {
+            background-color: var(--sys-blue);
+            border-color: var(--sys-blue);
+            color: #ffffff;
+        }
+
+        /* Navigation Tab Bar */
+        .simulator-nav {
+            background-color: var(--phone-bg);
+            border: 1px solid var(--phone-separator);
+            border-radius: 99px;
+            height: 44px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 4px;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--phone-text-secondary);
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .nav-item.active {
+            color: var(--sys-blue);
+        }
+    </style>
+</head>
+<body class="dark-theme"> <!-- Default to premium Dark mode -->
+
+    <div class="dashboard-container">
+        
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="dashboard-title-group">
+                <h1>
+                    <!-- Apple SVG Icon -->
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block; vertical-align:middle; margin-right:4px;">
+                        <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM13 17H11V15H13V17ZM13 13H11V7H13V13Z" fill="var(--sys-blue)"/>
+                    </svg>
+                    Context-English: Dialogue Reader Design
+                </h1>
+                <p>Фиксированная нижняя панель (Bottom Dock) полностью изолирует плеер от текста, исключая наложения</p>
+            </div>
+            
+            <button class="theme-toggle-btn" id="theme-toggle">
+                <span id="theme-text">Светлая тема</span>
+            </button>
+        </header>
+
+        <!-- LEFT COLUMN: DEVELOPER CONFIGURATOR & PROMPT -->
+        <main class="instruction-panel">
+            
+            <div class="panel-row">
+                <!-- 1. LIVE TEXT EDITOR CARD -->
+                <section class="prompt-card">
+                    <h2>
+                        <!-- Edit Icon -->
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        Живой парсер-редактор (Live Parser)
+                    </h2>
+                    <p>Вставь любой текст с кавычками, чтобы посмотреть, как он распознается. Например, <code>John said: "Hi!"</code></p>
+                    <textarea class="editor-textarea" id="custom-text-editor">Alex walked into the quiet room.
+"Have you found the ancient artifact?" Lily asked quickly.
+"No," Alex replied, "the room was completely empty."
+He sighed and sat on the wooden bench.
+A deep, booming voice echoed from the ceiling: "Who dares enter my sanctuary without permission?!"</textarea>
+                    <button class="editor-btn" id="editor-render-btn">Render Text</button>
+                </section>
+
+                <!-- 2. STORY SELECTOR & PRESETS -->
+                <section class="prompt-card">
+                    <h2>
+                        <!-- Books Icon -->
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5v-15z"></path></svg>
+                        Предустановленные жанры (Presets)
+                    </h2>
+                    <p>Посмотри, как разные типы диалогов и длинные фразы смотрятся в симуляторе.</p>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button class="theme-toggle-btn" style="width: 100%; justify-content: flex-start;" onclick="loadPresetStory('daily')">
+                            📅 Daily Life (Разговор в кафе, короткий диалог)
+                        </button>
+                        <button class="theme-toggle-btn" style="width: 100%; justify-content: flex-start;" onclick="loadPresetStory('fantasy')">
+                            🔮 Fantasy (Длинная речь мага, описание сцен)
+                        </button>
+                        <button class="theme-toggle-btn" style="width: 100%; justify-content: flex-start;" onclick="loadPresetStory('detective')">
+                            🔍 Detective (Допрос, частая смена говорящих)
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 3. DETAILED IMPLEMENTATION PROMPT -->
+            <section class="prompt-card">
+                <h2>
+                    <!-- Code Icon -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    Промпт для реализации (Implementation Prompt)
+                </h2>
+                <p>Скопируй этот промпт для реализации кода в проекте. Он содержит логику для диалогового стиля.</p>
+                
+                <div class="prompt-box-wrapper">
+                    <button class="copy-btn" id="copy-prompt-btn">Copy</button>
+                    <pre class="prompt-box" id="prompt-code-box"><span class="comment"># GOAL: Implement Dialogue & Narrative styles in EpisodeReaderScreen with Top-Fixed Player</span>
+
+We want to enhance the UI/UX of the story reader in `apps/mobile` by automatically rendering character dialogues inside speech bubble blocks, formatting narrative as indented paragraphs, and placing the audio player statically at the top of the screen (below the header) to prevent text overlap.
+
+<span class="keyword">###</span> 1. Layout Architecture (UX Overlap Protection)
+- Restructure the screen layout using a vertical Flex column inside a SafeAreaView.
+- <strong>Top Section (Fixed)</strong>: Sleek top dock containing the Screen Title and the compact AudioControls card.
+- <strong>Middle Section (ScrollView - flex: 1)</strong>: The story reader text scrolls inside this area, flowing cleanly under the top player.
+- <strong>Bottom Section (Fixed)</strong>: The navigation tab bar.
+- <strong>Result</strong>: Reader text is physically separated from controls and never overlaps under any text length, scrolling, or screen orientation.
+
+<span class="keyword">###</span> 2. Dialogue & Narrative Formatting
+- <strong>Dialogue Block</strong>:
+  - Flex Row layout with an Avatar circle on the left (<span class="string">`width: 32px`</span>, initials centered).
+  - Right content: A small speaker name label, and a speech bubble with a translucent background colored by speaker accent.
+  - Bubble width stretches up to 86% of container width (no excessive empty space).
+  - Narrative carrier clause (e.g. <span class="string">"asked Lily"</span>) is rendered below the bubble in small italic.
+- <strong>Narrative Block</strong>:
+  - Rendered as standard text block with <span class="string">`margin-left: 40px`</span> (aligned with the bubble text to prevent eye jumping).
+- <strong>Vocabulary highlights</strong>:
+  - Ensure inline tap-to-translate annotations still work inside the speech bubble chunks! Text must be mapped to <span class="string">`buildSentenceTextChunks`</span>.
+
+<span class="keyword">###</span> 3. Integration with TTS & Focus Dimming
+- During TTS playback, keep the active block (whether narrative block or speech bubble) at <span class="string">`opacity: 1`</span>.
+- Dim inactive blocks to <span class="string">`opacity: 0.45`</span>.
+- Make sure tapping any word inside a dialogue box opens the translation sheet.</pre>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- RIGHT COLUMN: INTERACTIVE DEVICE SIMULATOR -->
+        <aside class="simulator-panel">
+            <div class="sticky-simulator">
+                
+                <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--db-text-secondary);">Интерактивный симулятор</h3>
+                
+                <div class="iphone-15">
+                    
+                    <!-- Dynamic Island -->
+                    <div class="dynamic-island"></div>
+
+                    <!-- Status Bar -->
+                    <div class="status-bar">
+                        <span>17:45</span>
+                        <div class="status-icons">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h20V2z"/></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h.01M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 14 0M1.5 9.5a15 15 0 0 1 21 0"/></svg>
+                            <svg width="16" height="10" viewBox="0 0 24 14" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="1" width="18" height="12" rx="2"/><line x1="22" y1="4" x2="22" y2="10" stroke-linecap="round"/><rect x="3" y="3" width="10" height="8" fill="currentColor" stroke="none"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Screen View -->
+                    <div class="iphone-screen">
+                        
+                        <!-- 1. FIXED TOP DOCK (Houses header and player card at the top) -->
+                        <div class="top-dock">
+                            <!-- Header -->
+                            <div class="app-header">
+                                <div class="app-title-group">
+                                    <span class="app-category">DAILY CONTEXT</span>
+                                    <h3 class="app-main-title" id="story-title-label">Story Reader v3.0</h3>
+                                </div>
+                                <span class="cefr-badge" id="story-cefr-label">CEFR A2</span>
+                            </div>
+
+                            <!-- AUDIO CONTROLLER CARD -->
+                            <div class="audio-controller-card">
+                                <div class="audio-track-info">
+                                    <span class="audio-track-title" id="audio-title">The Shadow Door</span>
+                                    <span class="audio-track-sub" id="audio-sub">Tap Play to read aloud</span>
+                                </div>
+                                <div class="audio-buttons">
+                                    <button class="audio-btn-circle" id="audio-prev-btn">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>
+                                    </button>
+                                    <button class="audio-btn-circle main-play" id="audio-play-btn">
+                                        <svg id="play-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                        <svg id="pause-icon" style="display:none;" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                                    </button>
+                                    <button class="audio-btn-circle" id="audio-next-btn">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. ZONE 2: SCROLLABLE CONTENT (Occupies flex space between top and bottom dock) -->
+                        <div class="screen-container" id="iphone-scroll-area">
+                            <!-- STORY CONTENT CONTAINER (No border/background card to prevent clipping) -->
+                            <div class="story-container-card" id="story-viewport">
+                                <!-- Will be dynamically populated -->
+                            </div>
+                        </div> <!-- /screen-container -->
+
+                        <!-- 3. ZONE 3: FIXED BOTTOM DOCK (Only houses navigation tab bar) -->
+                        <div class="bottom-dock">
+                            <!-- Navigation Tab Bar -->
+                            <nav class="simulator-nav">
+                                <div class="nav-item active">
+                                    <div class="nav-icon-wrapper">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                                    </div>
+                                    <span>Чтение</span>
+                                </div>
+                                <div class="nav-item">
+                                    <div class="nav-icon-wrapper">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                                    </div>
+                                    <span>Квиз</span>
+                                </div>
+                                <div class="nav-item">
+                                    <div class="nav-icon-wrapper">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                    </div>
+                                    <span>Настройки</span>
+                                </div>
+                            </nav>
+                        </div> <!-- /bottom-dock -->
+
+                        <!-- Home Indicator Safe Area bottom -->
+                        <div class="home-indicator"></div>
+
+                        <!-- Translation Tooltip (Bounded to iphone-screen) -->
+                        <div class="word-tooltip" id="trans-tooltip">
+                            <div class="tooltip-word" id="tip-word">artifact</div>
+                            <div class="tooltip-ipa" id="tip-ipa">/ˈɑː.tɪ.fækt/</div>
+                            <div class="tooltip-trans" id="tip-trans">Артефакт (древний предмет)</div>
+                        </div>
+
+                    </div> <!-- /iphone-screen -->
+                </div> <!-- /iphone-frame -->
+
+            </div>
+        </aside>
+
+    </div> <!-- /dashboard-container -->
+
+    <script>
+        // --- Dark/Light Mode Switcher Logic ---
+        const themeBtn = document.getElementById('theme-toggle');
+        const body = document.body;
+        const themeText = document.getElementById('theme-text');
+
+        themeBtn.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+            const isDark = body.classList.contains('dark-theme');
+            themeText.textContent = isDark ? "Светлая тема" : "Темная тема";
+        });
+
+        // Copy prompt to clipboard
+        document.getElementById('copy-prompt-btn').addEventListener('click', () => {
+            const codeBox = document.getElementById('prompt-code-box');
+            const textToCopy = codeBox.innerText || codeBox.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const copyBtn = document.getElementById('copy-prompt-btn');
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+            });
+        });
+
+        // --- PRESETS STORES ---
+        const stories = {
+            daily: {
+                title: "Cafe Meeting",
+                cefr: "CEFR A2",
+                sentences: [
+                    "Alex walked into the crowded cafe, looking around for Lily.",
+                    "He found her sitting by the window, sipping a hot latte.",
+                    "\"Hey Lily, sorry I'm late!\" Alex said as he sat down.",
+                    "Lily smiled warmly and put her cup down on the table.",
+                    "\"Don't worry about it, I just ordered a minute ago,\" she replied.",
+                    "\"The traffic was absolutely terrible near the bridge,\" Alex explained."
+                ]
+            },
+            fantasy: {
+                title: "The Wizard's Call",
+                cefr: "CEFR B1",
+                sentences: [
+                    "The wizard stood before the glowing crystal, his voice echoing in the stone chamber.",
+                    "\"You have traveled far to seek my counsel, young warrior,\" he spoke slowly.",
+                    "\"But the path ahead is filled with great dangers that will test your spirit, your mind, and your courage to the limit.\"",
+                    "\"Is there no other way to save my people?\" Lily asked, holding her steel sword tight.",
+                    "The wizard shook his head, his ancient face filled with deep sorrow.",
+                    "\"No, child,\" he whispered, \"only you can face the dark shadow at the edge of the world.\""
+                ]
+            },
+            detective: {
+                title: "The Interrogation",
+                cefr: "CEFR B2",
+                sentences: [
+                    "Detective Jones turned on the bright desk lamp, staring at the suspect.",
+                    "\"Where were you on the night of the robbery?\" he demanded.",
+                    "The suspect looked down at his metal cuffs, nervously shifting in his chair.",
+                    "\"I was home alone, sleeping in my bed,\" he muttered, refusing to look up.",
+                    "\"That is a lie,\" the detective said, throwing a photograph on the table.",
+                    "\"Our cameras spotted your blue car near the bank at midnight.\""
+                ]
+            }
+        };
+
+        // Simulated vocabulary tooltips
+        const vocabDb = {
+            artifact: { word: "artifact", ipa: "/ˈɑː.tɪ.fækt/", trans: "Артефакт (древний, исторически ценный предмет)." },
+            crowded: { word: "crowded", ipa: "/ˈkraʊ.dɪd/", trans: "Переполненный (людьми), людный." },
+            counsel: { word: "counsel", ipa: "/ˈkraʊn.səl/", trans: "Совет, рекомендация (мудрого человека)." },
+            interrogation: { word: "interrogation", ipa: "/ɪnˌter.əˈɡeɪ.ʃən/", trans: "Допрос (официальный опрос подозреваемого)." },
+            shadow: { word: "shadow", ipa: "/ˈʃæd.əʊ/", trans: "Тень, темный силуэт." },
+            whispered: { word: "whispered", ipa: "/ˈwɪs.pəd/", trans: "Прошептал (сказал тихим голосом)." }
+        };
+
+        const charNames = ["Alex", "Lily", "Wizard", "Jones", "Detective"];
+        
+        let currentSentences = [...stories.daily.sentences];
+        let currentActiveIndex = 0;
+        let isPlaying = false;
+        let playInterval = null;
+
+        // --- Parser Logic ---
+        function parseSentence(sentence) {
+            const quoteCount = (sentence.match(/"/g) || []).length;
+            if (quoteCount < 2) {
+                return {
+                    type: 'narrative',
+                    narrativeText: sentence
+                };
+            }
+
+            // Extract text in quotes
+            const quotes = [];
+            const regex = /"([^"]+)"/g;
+            let match;
+            while ((match = regex.exec(sentence)) !== null) {
+                quotes.push(match[1]);
+            }
+            const dialogueText = quotes.join(' ... ');
+
+            // Find non-quoted parts
+            const nonQuotedPart = sentence.replace(/"[^"]+"/g, ' ').trim();
+
+            // Find speaker
+            let speaker = null;
+            for (const name of charNames) {
+                const nameRegex = new RegExp('\\b' + name + '\\b', 'i');
+                if (nameRegex.test(nonQuotedPart) || nameRegex.test(sentence)) {
+                    speaker = name;
+                    break;
+                }
+            }
+
+            if (!speaker) {
+                if (/\b(you)\b/i.test(nonQuotedPart)) {
+                    speaker = "You";
+                } else if (/\b(voice|shadow|crystal)\b/i.test(nonQuotedPart)) {
+                    speaker = "Voice";
+                } else if (/\b(he)\b/i.test(nonQuotedPart)) {
+                    speaker = "He";
+                } else if (/\b(she)\b/i.test(nonQuotedPart)) {
+                    speaker = "She";
+                } else {
+                    speaker = "Stranger";
+                }
+            }
+
+            return {
+                type: 'dialogue',
+                speaker: speaker,
+                dialogueText: dialogueText,
+                narrativeText: nonQuotedPart
+            };
+        }
+
+        // Decorate words with translations dynamically
+        function decorateWords(text) {
+            let decorated = text;
+            Object.keys(vocabDb).forEach(wordKey => {
+                const regex = new RegExp(`\\b(${wordKey})\\b`, 'i');
+                decorated = decorated.replace(regex, `<span class="trans-word" data-word-id="${wordKey}">$1</span>`);
+            });
+            return decorated;
+        }
+
+        // --- Main Renderer ---
+        const storyViewport = document.getElementById('story-viewport');
+        const tooltip = document.getElementById('trans-tooltip');
+
+        function renderStory() {
+            storyViewport.innerHTML = '';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'dialogue-view';
+
+            // Parsing all sentences
+            const parsedList = currentSentences.map(s => parseSentence(s));
+
+            parsedList.forEach((parsed, index) => {
+                const isActive = index === currentActiveIndex;
+                const isDim = currentActiveIndex !== -1 && index !== currentActiveIndex;
+
+                if (parsed.type === 'narrative') {
+                    // Narrative block style
+                    const div = document.createElement('div');
+                    div.className = `narrative-block ${isActive ? 'active-sentence' : ''} ${isDim ? 'is-dimmed' : ''}`;
+                    div.innerHTML = decorateWords(parsed.narrativeText);
+                    div.addEventListener('click', () => selectSentence(index));
+                    wrapper.appendChild(div);
+                } else {
+                    // Dialogue block style (Chat Bubble Layout)
+                    const block = document.createElement('div');
+                    block.className = `chat-bubble-block ${isActive ? 'active-sentence' : ''} ${isDim ? 'is-dimmed' : ''}`;
+                    
+                    const avatar = document.createElement('div');
+                    avatar.className = `chat-avatar avatar-${parsed.speaker.toLowerCase()}`;
+                    avatar.textContent = parsed.speaker.substring(0, 1).toUpperCase();
+
+                    const content = document.createElement('div');
+                    content.className = 'chat-bubble-wrapper';
+
+                    const name = document.createElement('span');
+                    name.className = 'chat-speaker-label';
+                    name.textContent = parsed.speaker;
+
+                    const bubble = document.createElement('div');
+                    bubble.className = `chat-bubble bubble-${parsed.speaker.toLowerCase()}`;
+                    
+                    const text = document.createElement('span');
+                    text.className = 'chat-bubble-text';
+                    text.innerHTML = `"${decorateWords(parsed.dialogueText)}"`;
+
+                    bubble.appendChild(text);
+                    content.appendChild(name);
+                    content.appendChild(bubble);
+
+                    if (parsed.narrativeText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").trim().length > 2) {
+                        const narrativeClause = document.createElement('span');
+                        narrativeClause.className = 'chat-narrative-clause';
+                        narrativeClause.textContent = parsed.narrativeText;
+                        content.appendChild(narrativeClause);
+                    }
+
+                    block.appendChild(avatar);
+                    block.appendChild(content);
+                    block.addEventListener('click', () => selectSentence(index));
+                    wrapper.appendChild(block);
+                }
+            });
+
+            storyViewport.appendChild(wrapper);
+            setupTooltipListeners();
+        }
+
+        // --- Select & Highlight Sentence ---
+        function selectSentence(index) {
+            currentActiveIndex = index;
+            renderStory();
+
+            // Sync with Audio Bar info
+            document.getElementById('audio-sub').textContent = `Sentence ${index + 1} of ${currentSentences.length}`;
+            
+            // Auto scroll inside simulated screen container to keep active sentence visible
+            const activeEl = document.querySelector('.active-sentence');
+            if (activeEl) {
+                activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // --- Load Story Presets ---
+        function loadPresetStory(key) {
+            const preset = stories[key];
+            if (preset) {
+                currentSentences = [...preset.sentences];
+                document.getElementById('story-title-label').textContent = preset.title;
+                document.getElementById('story-cefr-label').textContent = preset.cefr;
+                document.getElementById('audio-title').textContent = preset.title;
+                
+                // Add words from preset to DB
+                if (key === 'daily') {
+                    vocabDb.crowded = { word: "crowded", ipa: "/ˈkraʊ.dɪd/", trans: "Переполненный людьми, людный." };
+                } else if (key === 'fantasy') {
+                    vocabDb.counsel = { word: "counsel", ipa: "/ˈkraʊn.səl/", trans: "Совет или наставление мудреца." };
+                    vocabDb.whispered = { word: "whispered", ipa: "/ˈwɪs.pəd/", trans: "Прошептал (сказал тихим голосом)." };
+                } else if (key === 'detective') {
+                    vocabDb.interrogation = { word: "interrogation", ipa: "/ɪnˌter.əˈɡeɪ.ʃən/", trans: "Допрос обвиняемого или свидетеля." };
+                }
+                
+                currentActiveIndex = 0;
+                pausePlayback();
+                renderStory();
+                selectSentence(0);
+            }
+        }
+
+        // --- Render Custom User Text ---
+        document.getElementById('editor-render-btn').addEventListener('click', () => {
+            const rawText = document.getElementById('custom-text-editor').value;
+            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length > 0) {
+                currentSentences = lines;
+                document.getElementById('story-title-label').textContent = "Custom Story";
+                document.getElementById('story-cefr-label').textContent = "Custom";
+                document.getElementById('audio-title').textContent = "Custom Parse";
+                currentActiveIndex = 0;
+                pausePlayback();
+                renderStory();
+                selectSentence(0);
+            }
+        });
+
+        // --- Tooltip Event Listeners (Correct relative boundaries) ---
+        function setupTooltipListeners() {
+            const words = document.querySelectorAll('.trans-word');
+            const screen = document.querySelector('.iphone-screen');
+            words.forEach(w => {
+                w.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = w.getAttribute('data-word-id');
+                    const data = vocabDb[id];
+                    if (data) {
+                        document.getElementById('tip-word').textContent = data.word;
+                        document.getElementById('tip-ipa').textContent = data.ipa;
+                        document.getElementById('tip-trans').textContent = data.trans;
+
+                        // Position tooltip relative to the iphone screen
+                        const rect = w.getBoundingClientRect();
+                        const screenRect = screen.getBoundingClientRect();
+
+                        let left = rect.left - screenRect.left - (110 - rect.width / 2);
+                        let top = rect.top - screenRect.top + rect.height + 6;
+
+                        const screenWidth = 353; // width minus borders
+                        const screenHeight = 758; // height minus borders
+
+                        if (left < 10) left = 10;
+                        if (left > screenWidth - 230) left = screenWidth - 230;
+
+                        // If tooltip overlaps the player area at bottom, display above the word
+                        if (top > screenHeight - 170) {
+                            top = rect.top - screenRect.top - 76;
+                        }
+
+                        tooltip.style.left = `${left}px`;
+                        tooltip.style.top = `${top}px`;
+                        tooltip.classList.add('active');
+                    }
+                });
+            });
+        }
+
+        document.addEventListener('click', () => {
+            tooltip.classList.remove('active');
+        });
+
+        // --- Audio Controls ---
+        const audioPlayBtn = document.getElementById('audio-play-btn');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+
+        audioPlayBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                pausePlayback();
+            } else {
+                startPlayback();
+            }
+        });
+
+        document.getElementById('audio-next-btn').addEventListener('click', () => {
+            if (currentActiveIndex < currentSentences.length - 1) {
+                selectSentence(currentActiveIndex + 1);
+            } else {
+                selectSentence(0);
+            }
+        });
+
+        document.getElementById('audio-prev-btn').addEventListener('click', () => {
+            if (currentActiveIndex > 0) {
+                selectSentence(currentActiveIndex - 1);
+            } else {
+                selectSentence(0);
+            }
+        });
+
+        function startPlayback() {
+            isPlaying = true;
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+            
+            playInterval = setInterval(() => {
+                if (currentActiveIndex < currentSentences.length - 1) {
+                    selectSentence(currentActiveIndex + 1);
+                } else {
+                    pausePlayback();
+                    selectSentence(0);
+                }
+            }, 3000);
+        }
+
+        function pausePlayback() {
+            isPlaying = false;
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+            clearInterval(playInterval);
+        }
+
+
+
+        // Initialize Simulator
+        loadPresetStory('daily');
+    </script>
+</body>
+</html>

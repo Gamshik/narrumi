@@ -107,9 +107,9 @@ A generated learning unit linked to a series:
 
 Domain rules:
 
-- Episode length is adaptive. It must be concise enough for a comfortable learning session and substantial enough to develop the scene, use Story Words naturally, and support meaningful interaction. Do not enforce a fixed word-count range.
+- Episode length is adaptive. It must be concise enough for a comfortable learning session and substantial enough to develop the scene, use Story Words naturally across the episode arc, and support meaningful interaction. Do not enforce a fixed word-count range.
 - The episode must respect the series CEFR level.
-- The episode must use selected Story Words naturally.
+- The episode must use selected Story Words naturally across the full episode arc. The initial generated scene may use only part of the selected set, and later same-episode continuations should introduce remaining words naturally.
 - An episode normally contains 5-10 meaningful learner interactions and must not end after only a few routine decisions.
 - Every AI continuation must consider the remaining interaction budget so the same episode can close inside the 5-10 interaction window.
 - The AI decides when the current episode arc is complete.
@@ -290,6 +290,7 @@ Responsibilities:
 - Never send unbounded full series history.
 - Call OpenRouter using server-side secrets only.
 - Use Vercel AI SDK structured JSON output.
+- For weak or budget models, decompose complex continuation generation into smaller model tasks such as core continuation, next-choice writing, sentence-frame labeling, and translation enrichment, then assemble one final validated payload inside the Edge Function.
 - Run Episode Writer and Language/Safety Validator flow when required.
 - Validate episode length, CEFR fit, word usage, continuity, interaction point, cliffhanger, annotations, feedback, and memory update.
 - Return typed error categories safe for the client.

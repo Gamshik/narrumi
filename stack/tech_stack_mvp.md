@@ -31,9 +31,9 @@
 #### AI Layer & Serverless: Supabase Edge Functions + OpenRouter
 - **Serverless Compute:** Supabase Edge Functions (Deno 2.0+ / TypeScript runtime) handle secure LLM API orchestration. Client applications must never call LLM APIs directly.
 - **AI Aggregator:** OpenRouter API (Access to multiple LLMs via a single API key, utilizing cost-efficient models such as DeepSeek-V3 or GPT-4o-mini when quality is acceptable).
-- **AI SDK:** Vercel AI SDK (via Deno native `npm:` specifier, e.g., `npm:ai` and `npm:@ai-sdk/openai`) for structured JSON outputs such as generated episodes, interaction choices, correction payloads, translation annotations, and series-memory updates.
+- **AI SDK:** Vercel AI SDK (via Deno native `npm:` specifier, e.g., `npm:ai` and `npm:@ai-sdk/openai`) for structured JSON outputs such as generated episodes, interaction choices, correction payloads, translation annotations, and series-memory updates. Complex continuation flows may be decomposed into smaller model calls and then assembled by the Edge Function into one final validated response.
 - **Online-Only AI:** Episode generation, AI continuation, AI correction, and grammar-style explanations require an internet connection. Do not attempt to run LLM generation on device for the MVP.
-- **Controlled Context:** Edge Functions must send compact series memory, recent episode summary, selected Story Words, user level, safety constraints, and output schema to the model. Do not send unbounded full series history.
+- **Controlled Context:** Edge Functions must send compact series memory, recent episode summary, selected Story Words, already encountered Story Word ids, user level, safety constraints, and output schema to the model. Do not send unbounded full series history.
 
 #### Audio (TTS): Native Device Integration
 - **Implementation:** Expo Speech (`expo-speech`) API.

@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Context-English — рыночный и конкурентный анализ</title>
+  <style>
+    :root{
+      --bg:#0d1117;
+      --card:#151b24;
+      --card2:#111823;
+      --text:#e9edf3;
+      --muted:#aeb8c7;
+      --line:#283244;
+      --accent:#7cc7ff;
+      --accent2:#9cffd0;
+      --warn:#ffd166;
+      --bad:#ff7a90;
+      --good:#5ee4a1;
+      --violet:#caa8ff;
+      --shadow:0 18px 50px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(124,199,255,.18), transparent 28%),
+        radial-gradient(circle at 86% 4%, rgba(156,255,208,.10), transparent 26%),
+        radial-gradient(circle at 70% 80%, rgba(202,168,255,.12), transparent 28%),
+        var(--bg);
+      color:var(--text);
+      line-height:1.55;
+    }
+    a{color:var(--accent)}
+    .wrap{max-width:1180px;margin:0 auto;padding:38px 22px 70px}
+    header{
+      padding:34px;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:28px;
+      background:linear-gradient(135deg, rgba(21,27,36,.94), rgba(17,24,35,.82));
+      box-shadow:var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+    header:after{
+      content:"";
+      position:absolute; right:-80px; top:-80px;
+      width:260px; height:260px; border-radius:50%;
+      background:radial-gradient(circle, rgba(124,199,255,.25), transparent 65%);
+    }
+    h1{font-size:42px;line-height:1.08;margin:0 0 12px;letter-spacing:-.03em}
+    h2{font-size:26px;margin:42px 0 16px;letter-spacing:-.02em}
+    h3{font-size:18px;margin:22px 0 10px}
+    .lead{font-size:18px;color:var(--muted);max-width:880px;margin:0}
+    .meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+    .pill{
+      display:inline-flex;align-items:center;gap:7px;
+      padding:8px 12px;border:1px solid rgba(255,255,255,.1);
+      border-radius:999px;background:rgba(255,255,255,.045);color:#d9e2ee;font-size:13px
+    }
+    .grid{display:grid;gap:16px}
+    .grid.cols3{grid-template-columns:repeat(3,1fr)}
+    .grid.cols2{grid-template-columns:repeat(2,1fr)}
+    .card{
+      background:linear-gradient(180deg, rgba(21,27,36,.95), rgba(17,24,35,.92));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:22px;padding:22px;box-shadow:0 12px 35px rgba(0,0,0,.22)
+    }
+    .card.soft{background:rgba(255,255,255,.04)}
+    .kpi{font-size:34px;font-weight:800;letter-spacing:-.03em}
+    .kpi small{font-size:14px;color:var(--muted);font-weight:600}
+    .muted{color:var(--muted)}
+    .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+    .score{
+      width:128px;height:128px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      background:conic-gradient(var(--good) 0 73%, rgba(255,255,255,.10) 73% 100%);
+      margin:4px auto 16px;position:relative
+    }
+    .score:after{content:"";position:absolute;inset:10px;background:var(--card);border-radius:50%}
+    .score span{position:relative;z-index:1;font-size:28px;font-weight:800}
+    table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:18px}
+    th,td{padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+    th{color:#dce9f8;text-align:left;background:rgba(255,255,255,.05);font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+    td{color:#d4dbe6;font-size:14px}
+    tr:last-child td{border-bottom:none}
+    .tag{display:inline-block;border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.045);border-radius:999px;padding:4px 8px;font-size:12px;margin:2px 2px 0 0;color:#dce7f4}
+    .bar{height:13px;border-radius:999px;background:rgba(255,255,255,.09);overflow:hidden}
+    .bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .barrow{display:grid;grid-template-columns:180px 1fr 44px;gap:12px;align-items:center;margin:11px 0}
+    .axis{
+      position:relative;height:470px;background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08);border-radius:22px;overflow:hidden
+    }
+    .axis:before,.axis:after{content:"";position:absolute;background:rgba(255,255,255,.12)}
+    .axis:before{left:50%;top:28px;bottom:48px;width:1px}
+    .axis:after{left:46px;right:26px;top:50%;height:1px}
+    .dot{
+      position:absolute;transform:translate(-50%,-50%);padding:6px 9px;
+      border-radius:999px;font-size:12px;font-weight:650;white-space:nowrap;
+      border:1px solid rgba(255,255,255,.16);background:rgba(13,17,23,.92);box-shadow:0 8px 22px rgba(0,0,0,.28)
+    }
+    .dot.me{background:linear-gradient(135deg, rgba(94,228,161,.28), rgba(124,199,255,.20));border-color:rgba(156,255,208,.55);font-size:13px}
+    .xlabel,.ylabel{position:absolute;color:var(--muted);font-size:12px}
+    .xlabel{bottom:14px;left:50%;transform:translateX(-50%)}
+    .ylabel{transform:rotate(-90deg);left:-16px;top:50%}
+    .note{border-left:4px solid var(--accent);padding:14px 16px;background:rgba(124,199,255,.07);border-radius:14px;color:#dce8f7}
+    .risk{border-left:4px solid var(--warn);padding:12px 14px;background:rgba(255,209,102,.08);border-radius:14px;margin:10px 0}
+    .footer{margin-top:48px;color:var(--muted);font-size:13px}
+    ol.sources li{margin:8px 0;color:#c9d2df;font-size:13px}
+    .toc{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0 2px}
+    .toc a{text-decoration:none;color:#dce7f4;border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.04);font-size:13px}
+    .mini{font-size:12px;color:var(--muted)}
+    .verdict{font-size:20px;line-height:1.45}
+    .scenario td:nth-child(2), .scenario td:nth-child(3), .scenario td:nth-child(4){white-space:nowrap}
+    @media (max-width:900px){.grid.cols3,.grid.cols2{grid-template-columns:1fr}.barrow{grid-template-columns:1fr}.axis{height:420px}h1{font-size:32px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Context-English: рыночный и конкурентный анализ</h1>
+    <p class="lead">Лаконичный отчёт по приложению: интерактивные AI‑сериалы для изучения английского через сюжет, Story Words, чтение/аудио, выборы и мягкую коррекцию. Анализ сделан по приложенным PRD/архитектуре/пользовательским потокам и свежему обзору рынка на 8 июня 2026.</p>
+    <div class="meta">
+      <span class="pill">Сегмент: AI language learning + story-based learning</span>
+      <span class="pill">ЦА: взрослые A2–B2, которым нужны контекст и мотивация</span>
+      <span class="pill">Риск: высокий по качеству AI и retention</span>
+      <span class="pill">Потенциал: средне-высокий при фокусе на нише</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#summary">Вывод</a>
+    <a href="#product">Продукт</a>
+    <a href="#market">Рынок</a>
+    <a href="#competitors">Конкуренты</a>
+    <a href="#pains">Боли пользователей</a>
+    <a href="#position">Позиционирование</a>
+    <a href="#chance">Шансы</a>
+    <a href="#recommendations">Рекомендации</a>
+    <a href="#sources">Источники</a>
+  </nav>
+
+  <section id="summary">
+    <h2>1. Короткий вердикт</h2>
+    <div class="grid cols3">
+      <div class="card">
+        <div class="score"><span>73/100</span></div>
+        <h3>Оценка рыночной силы идеи</h3>
+        <p class="muted">Идея попадает в реальные боли: «знаю слова, но не использую», «карточки надоели», «нет контекста», «страшно говорить». Но продукту нужно доказать, что серия действительно удерживает лучше, чем обычный AI‑чат.</p>
+      </div>
+      <div class="card">
+        <div class="kpi">55–70% <small>вероятность понравиться нише</small></div>
+        <p class="muted">Если MVP быстро даёт «вау, это мой сериал, и я хочу следующую серию», шанс понравиться части adult learners хороший. Особенно тем, кто устал от Duolingo/Anki, но ещё не готов к живым урокам.</p>
+      </div>
+      <div class="card">
+        <div class="kpi">15–25% <small>шанс “выстрелить” массово</small></div>
+        <p class="muted">Без сильного маркетинга и идеального UX массовый взлёт маловероятен: рынок перегрет, конкуренты уже крупные, AI‑tutors быстро копируют функции. Но «маленький PMF» реалистичен.</p>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:18px">
+      <strong>Главный вывод:</strong> приложение имеет смысл запускать, но не как «универсальный Duolingo‑killer». Его лучше позиционировать как <strong>AI‑story companion для английского словаря в контексте</strong>: персональные эпизоды, выбранные слова, продолжение сюжета, мягкая коррекция и отсутствие долга повторений.
+    </div>
+  </section>
+
+  <section id="product">
+    <h2>2. Что у приложения уже сильное</h2>
+    <div class="grid cols2">
+      <div class="card">
+        <h3>Суть продукта</h3>
+        <p>Пользователь создаёт или продолжает персональный сериал, выбирает небольшой набор Story Words, читает и слушает короткий AI‑эпизод, влияет на сюжет через выбор или короткий ответ, получает мягкую коррекцию и заканчивает эпизод на cliffhanger.</p>
+        <p class="muted">Это правильный отход от flashcard-first модели: продукт продаёт не «ещё одну очередь слов», а ощущение персонального сериала.</p>
+      </div>
+      <div class="card">
+        <h3>Уникальные элементы</h3>
+        <span class="tag">персональная история</span>
+        <span class="tag">слова в сюжете</span>
+        <span class="tag">нет review debt</span>
+        <span class="tag">CEFR-контроль</span>
+        <span class="tag">tap-to-translate</span>
+        <span class="tag">sentence TTS</span>
+        <span class="tag">AI continuation</span>
+        <span class="tag">offline reading</span>
+      </div>
+    </div>
+
+    <h3>Сильные стороны против рынка</h3>
+    <div class="barrow"><span>Дифференциация идеи</span><div class="bar"><i style="width:78%"></i></div><b>78</b></div>
+    <div class="barrow"><span>Попадание в боль</span><div class="bar"><i style="width:82%"></i></div><b>82</b></div>
+    <div class="barrow"><span>Retention loop</span><div class="bar"><i style="width:72%"></i></div><b>72</b></div>
+    <div class="barrow"><span>Защищённость от копирования</span><div class="bar"><i style="width:42%"></i></div><b>42</b></div>
+    <div class="barrow"><span>Сложность реализации</span><div class="bar"><i style="width:78%"></i></div><b>78</b></div>
+    <p class="mini">Оценки субъективные: 100 = максимально сильный фактор; для сложности 100 = сложнее/рискованнее.</p>
+  </section>
+
+  <section id="market">
+    <h2>3. Общий анализ рынка</h2>
+    <div class="grid cols3">
+      <div class="card">
+        <div class="kpi">$1.54B</div>
+        <p class="muted">оценка выручки language learning app-сектора за 2025 год по Business of Apps.</p>
+      </div>
+      <div class="card">
+        <div class="kpi">$22.1B → $54.8B</div>
+        <p class="muted">онлайн-рынок language learning: оценка 2024 и прогноз 2030 по Grand View Research, CAGR 16.6%.</p>
+      </div>
+      <div class="card">
+        <div class="kpi">$7.36B → $28.33B</div>
+        <p class="muted">рынок language learning apps: оценка 2025 и прогноз 2034 по Straits Research, CAGR 16.15%.</p>
+      </div>
+    </div>
+
+    <h3>Что происходит в сегменте</h3>
+    <table>
+      <tr><th>Тренд</th><th>Что значит для Context-English</th><th>Вывод</th></tr>
+      <tr>
+        <td>AI‑tutors стали нормой</td>
+        <td>Speak, Praktika, TalkPal, Langotalk, Duolingo Max уже обещают разговор, рольплей и мгновенную обратную связь.</td>
+        <td>Нельзя продавать просто “AI для английского”; нужно продавать конкретный сценарий: “учишь слова внутри своего сериала”.</td>
+      </tr>
+      <tr>
+        <td>Пользователи хотят реальное применение</td>
+        <td>Self-study apps критикуют за отсутствие живого/реального контекста и перехода к использованию языка.</td>
+        <td>Ваш core loop хорошо закрывает gap между пассивным чтением и активным употреблением.</td>
+      </tr>
+      <tr>
+        <td>Классические SRS/карточки перегружают</td>
+        <td>На форумах регулярно встречается проблема backlog/review debt.</td>
+        <td>Отсутствие долга повторений — сильная эмоциональная фича, особенно для “возвращающихся” пользователей.</td>
+      </tr>
+      <tr>
+        <td>Контент и мотивация важнее “правильной методики”</td>
+        <td>Duolingo выигрывает привычкой и игровым циклом, LingQ/EWA/Beelinguapp — контентом, AI tutors — разговором.</td>
+        <td>Вашему приложению нужен не только метод, но и очень сильный first episode moment.</td>
+      </tr>
+    </table>
+  </section>
+
+  <section id="competitors">
+    <h2>4. Конкурентная карта</h2>
+    <table>
+      <tr>
+        <th>Конкурент</th>
+        <th>Позиция</th>
+        <th>Сильные стороны</th>
+        <th>Слабые места / окно для вас</th>
+      </tr>
+      <tr>
+        <td><strong>Duolingo / Duolingo Max</strong></td>
+        <td>Массовый gamified learning, AI features: Roleplay, Explain My Answer, Video Call.</td>
+        <td>Огромная база: Q1 2026 — 56.5M DAU и 12.5M paid subscribers; бренд, привычка, бесплатный вход.</td>
+        <td>Много критики за поверхностность, gamification и спорное AI‑качество. История не является персональным долгим сериалом.</td>
+      </tr>
+      <tr>
+        <td><strong>Speak</strong></td>
+        <td>AI speaking tutor, разговор вслух и instant feedback.</td>
+        <td>Очень чёткая ценность: “get speaking”; серьёзное финансирование и AI‑позиционирование.</td>
+        <td>Фокус на speaking, а не на словаре через narrative memory. Ваш wedge — чтение+сюжет+слова.</td>
+      </tr>
+      <tr>
+        <td><strong>Praktika</strong></td>
+        <td>AI avatars для разговорной практики.</td>
+        <td>Визуально понятная идея “личного AI‑репетитора”; заявляет 20M+ learners и 900k+ ratings.</td>
+        <td>Пользовательские обсуждения отмечают задержки, качество и спорные биллинговые практики. Не про сериальность словаря.</td>
+      </tr>
+      <tr>
+        <td><strong>TalkPal / Langotalk / Langua</strong></td>
+        <td>AI conversation practice: чаты, рольплеи, исправления.</td>
+        <td>Закрывают страх общения и дают гибкую практику 24/7.</td>
+        <td>Часто мало структуры, дорого, нет сильного сюжетного retention loop.</td>
+      </tr>
+      <tr>
+        <td><strong>LingQ / Readlang</strong></td>
+        <td>Reading input: импорт контента, tap-to-translate, словарь из прочитанного.</td>
+        <td>Сильная методика input-based learning, настоящий контент, контекст.</td>
+        <td>Меньше AI‑сюжета и интерактива; UX и импорт часто критикуются. Ваше преимущество — готовый персональный контент без поиска материалов.</td>
+      </tr>
+      <tr>
+        <td><strong>Beelinguapp / EWA</strong></td>
+        <td>Истории, книги, билингвальные тексты, аудио, перевод слов.</td>
+        <td>Развлекательное чтение и слушание, понятный casual-пакет.</td>
+        <td>Контент в основном не “мой” и не реагирует на мои слова/выборы. Меньше agency.</td>
+      </tr>
+      <tr>
+        <td><strong>Aimigo / Gymglish</strong></td>
+        <td>Самый близкий конкурент: learning series, персонажи, AI coach, daily activities.</td>
+        <td>Доказанная любовь пользователей к эпизодам, юмору, персонажам и ежедневным сериям.</td>
+        <td>Ваш шанс — более персональные сериалы, свободный выбор Story Words и ощущение “я влияю на сюжет”.</td>
+      </tr>
+      <tr>
+        <td><strong>WordUp / Anki / Drops</strong></td>
+        <td>Vocabulary/SRS/memory apps.</td>
+        <td>Сильны в retention слов, простые привычки, понятная задача.</td>
+        <td>Именно от них вы отличаетесь отсутствием review debt и фокусом на употреблении в истории.</td>
+      </tr>
+    </table>
+  </section>
+
+  <section id="pains">
+    <h2>5. Что говорят пользователи и форумы: ключевые боли</h2>
+    <div class="grid cols2">
+      <div class="card">
+        <h3>1) “Я понимаю слова, но не могу использовать”</h3>
+        <p>Главная боль рынка: приложения дают распознавание, но не уверенность в активном применении. Preply в исследовании self-learning app users сообщает, что 54% считают отсутствие real-world engagement ограничением прогресса.</p>
+      </div>
+      <div class="card">
+        <h3>2) “Карточки превращаются в долг”</h3>
+        <p>Anki/SRS дают мощное запоминание, но форумы полны вопросов про 300, 1000+ overdue reviews и чувство завала. Ваше “без долга повторений” — не мелочь, а эмоциональное облегчение.</p>
+      </div>
+      <div class="card">
+        <h3>3) “Duolingo мотивирует, но не всегда учит глубоко”</h3>
+        <p>Пользователи ценят привычку и низкий порог входа, но критикуют поверхностность, игровые стимулы и недоверие к AI‑контенту. Это открывает место для спокойного, “взрослого” продукта.</p>
+      </div>
+      <div class="card">
+        <h3>4) “AI‑tutors интересные, но часто пустые/дорогие/тормозят”</h3>
+        <p>В обсуждениях AI speaking apps встречаются жалобы на задержки, скриптовость, цену и недостаток структуры. Ваше приложение может выиграть структурой эпизода и контролем уровня.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="position">
+    <h2>6. Позиционирование среди конкурентов</h2>
+    <p class="muted">Карта ниже условная. Горизонталь: от drill/карточек к контексту и истории. Вертикаль: от пассивного контента к интерактивному AI.</p>
+    <div class="axis">
+      <span class="ylabel">AI-интерактивность ↑</span>
+      <span class="xlabel">Контекст / история →</span>
+      <span class="dot" style="left:16%;top:74%">Anki</span>
+      <span class="dot" style="left:25%;top:54%">Duolingo</span>
+      <span class="dot" style="left:70%;top:68%">LingQ</span>
+      <span class="dot" style="left:74%;top:60%">EWA / Beelinguapp</span>
+      <span class="dot" style="left:50%;top:28%">Speak</span>
+      <span class="dot" style="left:58%;top:24%">Praktika</span>
+      <span class="dot" style="left:62%;top:20%">TalkPal / Langotalk</span>
+      <span class="dot" style="left:76%;top:30%">Aimigo</span>
+      <span class="dot me" style="left:86%;top:18%">Context-English</span>
+    </div>
+
+    <h3>Идеальная формулировка позиционирования</h3>
+    <div class="note">
+      <strong>“Учите английские слова не карточками, а в своём интерактивном сериале: выберите слова, прочитайте и прослушайте эпизод, влияйте на сюжет и получайте мягкую коррекцию без долга повторений.”</strong>
+    </div>
+  </section>
+
+  <section id="chance">
+    <h2>7. Шансы и сценарии</h2>
+    <div class="grid cols3">
+      <div class="card">
+        <h3 class="good">Оптимистичный сценарий</h3>
+        <p>Первые серии генерируются быстро, сюжет цепляет, выбранные слова реально ощущаются “моими”, correction не мешает чтению, пользователь нажимает “следующая серия”.</p>
+        <p><strong>Итог:</strong> нишевой PMF, органические рекомендации, сильная retention‑метрика.</p>
+      </div>
+      <div class="card">
+        <h3 class="warn">Базовый сценарий</h3>
+        <p>Идея нравится, но часть пользователей отваливается на настройке сериала или из-за слабого качества эпизодов. Приложение полезно, но не становится привычкой.</p>
+        <p><strong>Итог:</strong> маленькая платящая аудитория, нужен резкий UX‑фокус.</p>
+      </div>
+      <div class="card">
+        <h3 class="bad">Негативный сценарий</h3>
+        <p>AI пишет скучно/сложно, уровни плавают, история не запоминается, пользователю проще открыть ChatGPT, Duolingo или Speak.</p>
+        <p><strong>Итог:</strong> “интересный концепт”, но слабое удержание.</p>
+      </div>
+    </div>
+
+    <h3>Условная bottom-up экономика</h3>
+    <table class="scenario">
+      <tr><th>Сценарий</th><th>MAU</th><th>Конверсия в оплату</th><th>ARPPU/мес</th><th>MRR</th><th>Комментарий</th></tr>
+      <tr><td>Ниша</td><td>10 000</td><td>4%</td><td>$7</td><td>$2 800</td><td>Доказательство спроса, но не бизнес.</td></tr>
+      <tr><td>Малый PMF</td><td>100 000</td><td>4%</td><td>$8</td><td>$32 000</td><td>Уже можно оптимизировать LTV/CAC и AI costs.</td></tr>
+      <tr><td>Сильная ниша</td><td>500 000</td><td>4%</td><td>$8</td><td>$160 000</td><td>Реальный independent app бизнес.</td></tr>
+      <tr><td>Широкий успех</td><td>1 000 000</td><td>5%</td><td>$9</td><td>$450 000</td><td>Требует бренда, контента, маркетинга и retention.</td></tr>
+    </table>
+    <p class="mini">Это не прогноз, а ориентир чувствительности. Главный вопрос — не TAM, а удержание и стоимость генерации эпизодов.</p>
+  </section>
+
+  <section id="recommendations">
+    <h2>8. Что улучшить до запуска</h2>
+    <div class="grid cols2">
+      <div class="card">
+        <h3>Must-have для MVP</h3>
+        <ul>
+          <li><strong>Первый эпизод за 60–90 секунд:</strong> минимум полей, auto-suggest жанра и слов.</li>
+          <li><strong>Автовыбор Story Words по умолчанию:</strong> пользователь должен редактировать, а не собирать всё вручную.</li>
+          <li><strong>Качество уровня:</strong> жёсткий CEFR validator, запрет слишком сложной грамматики и длинных сцен.</li>
+          <li><strong>Ощутимый cliffhanger:</strong> кнопка “следующая серия” должна быть эмоционально очевидной.</li>
+          <li><strong>AI cost guardrails:</strong> лимиты длины, кэш TTS, staged generation, paid caps.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Что не делать в начале</h3>
+        <ul>
+          <li>Не конкурировать напрямую со Speak/Praktika по voice-first разговору.</li>
+          <li>Не превращать Story Words в Anki-клон.</li>
+          <li>Не делать слишком много настроек сериала до первого результата.</li>
+          <li>Не обещать “fluency” — обещать “слова в контексте и привычку читать/отвечать”.</li>
+          <li>Не давать пользователю копировать чужие франшизы: это риск safety/copyright.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Метрики, по которым решать, есть ли PMF</h3>
+    <table>
+      <tr><th>Метрика</th><th>Хороший ранний сигнал</th><th>Почему важно</th></tr>
+      <tr><td>First episode completion</td><td>60%+</td><td>Доказывает, что UX и контент не отпугивают.</td></tr>
+      <tr><td>Next episode intent</td><td>35–45% нажимают/создают следующую серию</td><td>Главная проверка cliffhanger loop.</td></tr>
+      <tr><td>D1 retention</td><td>30%+</td><td>Для consumer learning это сильный ранний сигнал.</td></tr>
+      <tr><td>Story Words usage</td><td>Пользователь замечает/тапает/использует 3–7 слов</td><td>Показывает, что фича не декоративная.</td></tr>
+      <tr><td>AI correction acceptance</td><td>Низкая доля dismiss/negative feedback</td><td>Коррекция должна помогать, а не ломать immersion.</td></tr>
+    </table>
+
+    <h3>Итоговое решение</h3>
+    <div class="note verdict">
+      <strong>Делать MVP стоит.</strong> Но успех зависит не от широты функций, а от одного ядра: “я выбрал слова → получил интересный эпизод → сам повлиял на сцену → хочу продолжение”. Если это работает, приложение может занять заметную нишу между Duolingo, LingQ и AI‑speaking tutors. Если первый эпизод слабый, рынок быстро сравнит продукт с ChatGPT и уйдёт.
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2>Источники</h2>
+    <ol class="sources">
+      <li>Business of Apps — Language Learning Revenue and Usage Statistics (2026): https://www.businessofapps.com/data/language-learning-app-market/</li>
+      <li>Grand View Research — Online Language Learning Market Report: https://www.grandviewresearch.com/industry-analysis/online-language-learning-market-report</li>
+      <li>Straits Research — Language Learning Apps Market: https://straitsresearch.com/report/language-learning-apps-market</li>
+      <li>Reuters — Duolingo Q1 2026 results and user metrics: https://www.reuters.com/business/duolingos-growth-outlook-moderates-it-prioritizes-engagement-over-monetization-2026-05-04/</li>
+      <li>Duolingo Investor Relations / Strategy Overview: https://investors.duolingo.com/company-strategy-overview-0</li>
+      <li>Duolingo Help — What is Duolingo Max?: https://www.duolingo.com/help/what-is-duolingo-max</li>
+      <li>Speak — official site and Series C announcement: https://www.speak.com/ ; https://www.speak.com/blog/series-c</li>
+      <li>Praktika — official site and Google Play listing: https://praktika.ai/ ; https://play.google.com/store/apps/details?id=ai.praktika.android</li>
+      <li>TalkPal official: https://talkpal.ai/</li>
+      <li>Langotalk official: https://www.langotalk.org/</li>
+      <li>LingQ official: https://www.lingq.com/en/</li>
+      <li>Readlang official: https://readlang.com/</li>
+      <li>Beelinguapp official: https://beelinguapp.com/</li>
+      <li>EWA official / Google Play: https://appewa.com/ ; https://play.google.com/store/apps/details?id=com.ewa.ewaapp</li>
+      <li>Aimigo / Gymglish references: https://www.aimigo.coach/en ; https://www.trustpilot.com/review/gymglish.com</li>
+      <li>Preply — Self-learning app users study: https://preply.com/en/blog/self-learning-app-users-study/</li>
+      <li>Reddit discussions: Duolingo serious learners, Anki review debt, LingQ flaws, AI speaking app comparisons.</li>
+      <li>Research: “When Gamification Spoils Your Learning” (2022); “Storyfier” (2023); “SRS-Stories” (2025).</li>
+    </ol>
+    <div class="footer">Отчёт носит стратегический характер: цифры рынка отличаются между исследовательскими компаниями, поэтому использованы диапазоны и качественная интерпретация, а не точный финансовый прогноз.</div>
+  </section>
+</div>
+</body>
+</html>

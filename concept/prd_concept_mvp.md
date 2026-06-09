@@ -25,7 +25,7 @@ The product should feel like creating and watching a personal English series, no
 2. **Continue Series:** User opens an existing series or creates a new one.
 3. **Story Words:** Before generating an episode, the app proposes a small word set from the bundled vocabulary.
 4. **Word Choice:** User accepts the proposed words or makes light edits: add, remove, skip, or keep words.
-5. **Episode Generation:** The app generates a short episode that continues the series, uses selected Story Words naturally, respects the user's level, and ends with a narrative hook.
+5. **Episode Generation:** The app generates a short episode that continues the series, uses selected Story Words naturally across the episode arc, respects the user's level, and ends with a narrative hook.
 6. **Read & Listen:** User reads the episode, listens to sentence-by-sentence audio, and can tap words for translation and transcription without leaving the episode.
 7. **Interact:** User influences the same episode through several choices or short replies while the scene continues.
 8. **Feedback And Continuation:** After every reply, the app provides concise correction or support, continues the same episode, and presents another interaction when the episode arc is not complete.
@@ -55,7 +55,7 @@ The product should feel like creating and watching a personal English series, no
 - The generated episode must include:
   - optional short "previously" recap when useful for continuity;
   - main scene or dialogue;
-  - selected Story Words used naturally;
+  - selected Story Words used naturally across the episode arc;
   - several interaction points that let the user influence the same episode;
   - concise feedback or correction after each user input when applicable;
   - an AI-controlled episode completion decision;
@@ -65,7 +65,8 @@ The product should feel like creating and watching a personal English series, no
 - The AI may choose the ending within this range when the current episode arc reaches a meaningful closing beat, but it must not end after only a few routine interactions.
 - Every continuation and next interaction must be paced toward this 5-10 interaction ending. Early turns establish and complicate the local goal, middle turns develop consequences, and late turns converge toward closure instead of opening large new branches.
 - Episode completion means the current episode ends; it does not mean the personal series is permanently complete.
-- **Episode Length:** The episode should be concise enough for a comfortable learning session, but substantial enough to develop the scene, use Story Words naturally, and lead to meaningful interaction. Do not enforce a fixed word-count range; adapt length to the user's CEFR level, the current scene, and narrative needs.
+- **Episode Length:** The episode should be concise enough for a comfortable learning session, but substantial enough to develop the scene, use Story Words naturally across the episode arc, and lead to meaningful interaction. Do not enforce a fixed word-count range; adapt length to the user's CEFR level, the current scene, and narrative needs.
+- **Story Word Distribution:** The initial generated scene may use only part of the selected Episode Words when the set is large. Later same-episode continuations should introduce remaining selected words naturally instead of forcing all selected words into the first scene.
 - **Grammar Control:** Strict compliance with the target CEFR level. No complex grammatical structures above the user's current level.
 - **Controlled Freedom:** The user can influence the story, but the app must keep level, safety, continuity, word usage, and episode structure under control.
 
