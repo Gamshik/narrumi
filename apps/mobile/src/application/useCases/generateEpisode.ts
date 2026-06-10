@@ -14,6 +14,7 @@ import type {
 import type {
   CefrLevel,
   Episode,
+  LearningGenre,
   LearningSignal,
   SeriesMemory,
   SyncMetadata,
@@ -27,6 +28,8 @@ import { isStoryWordCandidate } from "./storyWordSelection";
 export type GenerateEpisodeInput = {
   // seriesId identifies the local story that receives the generated episode.
   readonly seriesId: string;
+  // genre overrides the saved series genre for this explicit episode generation.
+  readonly genre?: LearningGenre;
   // episodeWordSet is the editable current Story Words selection.
   readonly episodeWordSet: WordSet;
 };
@@ -54,7 +57,7 @@ export function createGenerateEpisode(
   clock: Clock,
 ): GenerateEpisode {
   return {
-    execute: async ({ episodeWordSet, seriesId }) => {
+    execute: async ({ episodeWordSet, genre, seriesId }) => {
       const connectivity = await networkStatus.getCurrentState();
 
       if (!connectivity.isOnline) {
@@ -80,11 +83,17 @@ export function createGenerateEpisode(
         wordIds: episodeWordSet.wordIds,
       });
       const orderIndex = episodes.length + 1;
+      const generationGenre = genre ?? series.genre;
+      const compactSeriesMemory = {
+        ...buildCompactSeriesMemoryPayload(memory),
+        genre: generationGenre,
+      };
       const payload = await gateway.generateEpisode({
         seriesId,
+        seriesTitle: series.title,
         orderIndex,
         cefrLevel: series.cefrLevel,
-        genre: series.genre,
+        genre: generationGenre,
         tone: series.tone,
         premise: series.premise,
         mainCharacters: series.mainCharacters,
@@ -95,7 +104,7 @@ export function createGenerateEpisode(
           partOfSpeech: word.partOfSpeech,
           level: word.level,
         })),
-        compactSeriesMemory: buildCompactSeriesMemoryPayload(memory),
+        compactSeriesMemory,
         ...(memory.lastEpisodeSummary
           ? { lastEpisodeSummary: memory.lastEpisodeSummary }
           : {}),

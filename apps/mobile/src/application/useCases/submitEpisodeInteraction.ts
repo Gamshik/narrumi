@@ -130,6 +130,7 @@ export function createSubmitEpisodeInteraction(
         episodeId,
         interactionId: activeInteraction.id,
         seriesId: episode.seriesId,
+        seriesTitle: series.title,
         cefrLevel: series.cefrLevel,
         genre: series.genre,
         tone: series.tone,

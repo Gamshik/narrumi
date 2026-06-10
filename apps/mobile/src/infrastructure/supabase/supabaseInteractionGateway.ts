@@ -7,6 +7,8 @@ import {
 } from '@application/ai/episodeAiPayload';
 import type { InteractionGateway } from '@application/ports';
 
+import { toSupabaseFunctionError } from './supabaseFunctionError';
+
 // SupabaseInteractionGateway invokes the submit-interaction Edge Function.
 export class SupabaseInteractionGateway implements InteractionGateway {
   // client owns Supabase transport details outside application use cases.
@@ -29,7 +31,10 @@ export class SupabaseInteractionGateway implements InteractionGateway {
     );
 
     if (error) {
-      throw new Error('Story interaction service is unavailable.');
+      throw (
+        (await toSupabaseFunctionError(error)) ??
+        new Error('Story interaction service is unavailable.')
+      );
     }
 
     return parseInteractionAiPayload(data);

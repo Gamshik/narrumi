@@ -49,6 +49,8 @@ export type CompactSeriesMemoryPayload = Pick<
 export type GenerateEpisodeRequest = {
   // seriesId keeps the response scoped to the local continuity root.
   readonly seriesId: string;
+  // seriesTitle is the user-written story name that should shape generation.
+  readonly seriesTitle: string;
   // orderIndex tells the model which episode number is being generated.
   readonly orderIndex: number;
   // cefrLevel controls grammar and vocabulary difficulty.
@@ -114,6 +116,8 @@ export type SubmitInteractionRequest = {
   readonly interactionId: string;
   // seriesId scopes the answer to one continuity root.
   readonly seriesId: string;
+  // seriesTitle keeps continuation aligned with the user-written story name.
+  readonly seriesTitle: string;
   // cefrLevel controls correction and continuation complexity.
   readonly cefrLevel: CefrLevel;
   // genre is passed for bounded story continuity.

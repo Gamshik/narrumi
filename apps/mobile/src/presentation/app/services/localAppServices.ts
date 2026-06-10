@@ -28,6 +28,7 @@ import type {
   EpisodeGenerationGateway,
   InteractionGateway,
   RemoteSeriesStore,
+  SeriesSetupModerationGateway,
 } from '@application/ports';
 import {
   AsyncStorageSyncQueue,
@@ -41,6 +42,7 @@ import {
   SupabaseEpisodeGenerationGateway,
   SupabaseInteractionGateway,
   SupabaseRemoteSeriesStore,
+  SupabaseSeriesSetupModerationGateway,
   SystemClock,
 } from '@infrastructure/index';
 
@@ -78,7 +80,11 @@ const chooseEpisodeStoryWord = createChooseEpisodeStoryWord(
   vocabularyCatalog,
   systemClock,
 );
-const createSeries = createCreateSeries(localSeriesStore, systemClock);
+const createSeries = createCreateSeries(
+  localSeriesStore,
+  systemClock,
+  supabaseServices.seriesSetupModerationGateway,
+);
 const deleteEpisode = createDeleteEpisode(localSeriesStore, systemClock);
 const deleteSeries = createDeleteSeries(localSeriesStore, systemClock);
 const listSeries = createListSeries(localSeriesStore);
@@ -201,6 +207,8 @@ type SupabaseServices = {
   readonly episodeGenerationGateway: EpisodeGenerationGateway;
   // interactionGateway calls submit-interaction or reports missing config.
   readonly interactionGateway: InteractionGateway;
+  // seriesSetupModerationGateway validates setup fields before local series creation.
+  readonly seriesSetupModerationGateway?: SeriesSetupModerationGateway;
   // authSessionProvider exposes the active user without Supabase types.
   readonly authSessionProvider: AuthSessionProvider;
   // remoteSeriesStore persists the authenticated cloud copy behind RLS.
@@ -218,6 +226,9 @@ function createSupabaseServices(): SupabaseServices {
         supabaseClient,
       ),
       interactionGateway: new SupabaseInteractionGateway(supabaseClient),
+      seriesSetupModerationGateway: new SupabaseSeriesSetupModerationGateway(
+        supabaseClient,
+      ),
       authSessionProvider: new SupabaseAuthSessionProvider(supabaseClient),
       remoteSeriesStore: new SupabaseRemoteSeriesStore(supabaseClient),
     };

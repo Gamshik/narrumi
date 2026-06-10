@@ -153,6 +153,7 @@ describe('submitEpisodeInteraction', () => {
     // gateway returns a valid continuing turn with another learner decision.
     const gateway: InteractionGateway = {
       submitInteraction: async (request) => {
+        assert.equal(request.seriesTitle, 'The Blue Door');
         assert.equal(request.interactionCount, 1);
         assert.equal(request.previousDecisions.length, 0);
         assert.deepEqual(request.selectedStoryWords.map((word) => word.id), [
@@ -295,6 +296,7 @@ describe('submitEpisodeInteraction', () => {
     // gateway asserts the request is bounded while preserving total turn count.
     const gateway: InteractionGateway = {
       submitInteraction: async (request) => {
+        assert.equal(request.seriesTitle, 'The Blue Door');
         assert.equal(request.interactionCount, 14);
         assert.equal(request.previousDecisions.length, 10);
         assert.equal(request.previousDecisions[0]?.prompt, 'Previous prompt 4');

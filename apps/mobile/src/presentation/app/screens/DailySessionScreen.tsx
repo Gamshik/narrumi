@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import {
   learningGenres,
@@ -15,6 +15,7 @@ import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
 import { DictionaryPickerPanel } from './dailySession/components/DictionaryPickerPanel';
 import { EpisodeReaderScreen } from './EpisodeReaderScreen';
+import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
 // genreLabels maps domain genre values to user-facing labels from the PRD.
 const genreLabels: Record<LearningGenre, string> = {
@@ -250,18 +251,35 @@ export function DailySessionScreen({
     try {
       const result = await localAppServices.generateEpisode.execute({
         episodeWordSet: selectionState.episodeWordSet,
+        ...(selectedGenre ? { genre: selectedGenre } : {}),
         seriesId,
       });
 
       setGeneratedEpisodeId(result.episode.id);
       setStage('reader');
     } catch (error) {
-      console.error('generateEpisode error:', error);
-      setErrorMessage(
+      const isModerationError =
+        error instanceof SupabaseFunctionError &&
+        (error.kind === 'moderation_warning' ||
+          error.kind === 'moderation_banned');
+      const message =
         error instanceof Error
           ? error.message
-          : 'Episode generation is online-only and requires configured Supabase Edge Functions.',
-      );
+          : 'Episode generation is online-only and requires configured Supabase Edge Functions.';
+
+      if (isModerationError) {
+        Alert.alert(
+          error.kind === 'moderation_banned'
+            ? 'You are banned'
+            : 'Warning',
+          message,
+        );
+        return;
+      }
+
+      console.error('generateEpisode error:', error);
+      Alert.alert('Episode generation stopped', message);
+      setErrorMessage(message);
     }
   };
 

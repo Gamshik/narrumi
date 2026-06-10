@@ -1,4 +1,8 @@
-import type { Clock, LocalSeriesStore } from '@application/ports';
+import type {
+  Clock,
+  LocalSeriesStore,
+  SeriesSetupModerationGateway,
+} from '@application/ports';
 import type {
   CefrLevel,
   LearningGenre,
@@ -41,19 +45,30 @@ export type CreateSeries = {
 export function createCreateSeries(
   store: LocalSeriesStore,
   clock: Clock,
+  seriesSetupModerationGateway?: SeriesSetupModerationGateway,
 ): CreateSeries {
   return {
     execute: async (input) => {
-      const timestamp = clock.now().toISOString();
-      const seriesId = `series:${Date.parse(timestamp)}`;
-      const sync = createDirtySync(timestamp, seriesId);
       const title = requireText(input.title, 'Series title');
       const tone = requireText(input.tone, 'Series tone');
-      const premise = optionalText(input.premise) ?? 'The AI should infer the opening premise from the selected genre, tone, level, and Story Words.';
+      const userPremise = optionalText(input.premise);
+      const premise = userPremise ?? 'The AI should infer the opening premise from the selected genre, tone, level, and Story Words.';
       const mainCharacters = input.mainCharacters
         .map((character) => character.trim())
         .filter((character) => character.length > 0);
       const userRole = input.userRole?.trim();
+
+      await seriesSetupModerationGateway?.validateSeriesSetup({
+        title,
+        tone,
+        ...(userPremise ? { premise: userPremise } : {}),
+        mainCharacters,
+        ...(userRole ? { userRole } : {}),
+      });
+
+      const timestamp = clock.now().toISOString();
+      const seriesId = `series:${Date.parse(timestamp)}`;
+      const sync = createDirtySync(timestamp, seriesId);
       const memory: SeriesMemory = {
         id: seriesId,
         seriesId,

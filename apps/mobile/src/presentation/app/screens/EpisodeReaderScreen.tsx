@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import type {
   Episode,
@@ -15,6 +15,7 @@ import {
   EpisodeSentence,
   TranslationSheet,
 } from './episodeReader/components';
+import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
 // EpisodeReaderScreenProps carries route input and series reader behavior.
 type EpisodeReaderScreenProps = {
@@ -187,12 +188,28 @@ export function EpisodeReaderScreen({
       );
       setInteractionErrorMessage(undefined);
     } catch (error) {
-      console.error('submitChoice error:', error);
-      setInteractionErrorMessage(
+      const isModerationError =
+        error instanceof SupabaseFunctionError &&
+        (error.kind === 'moderation_warning' ||
+          error.kind === 'moderation_banned');
+      const message =
         error instanceof Error
           ? error.message
-          : 'Story interaction is online-only and requires configured Supabase Edge Functions.',
-      );
+          : 'Story interaction is online-only and requires configured Supabase Edge Functions.';
+
+      if (isModerationError) {
+        Alert.alert(
+          error.kind === 'moderation_banned'
+            ? 'You are banned'
+            : 'Warning',
+          message,
+        );
+        return;
+      }
+
+      console.error('submitChoice error:', error);
+      Alert.alert('Story interaction stopped', message);
+      setInteractionErrorMessage(message);
       // The answer is persisted before the network call, so reload its draft state.
       await loadReader();
     } finally {

@@ -18,6 +18,7 @@ import {
   type LearningGenre,
   type Series,
 } from '@domain/index';
+import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
@@ -129,8 +130,28 @@ export function HomeScreen({
       setFormErrors({});
       setIsCreateOpen(false);
       await loadSeries();
-    } catch {
-      setErrorMessage('Series could not be saved. Check required fields.');
+    } catch (error) {
+      const isModerationError =
+        error instanceof SupabaseFunctionError &&
+        (error.kind === 'moderation_soft_block' ||
+          error.kind === 'moderation_warning' ||
+          error.kind === 'moderation_banned');
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Series could not be saved. Check required fields.';
+
+      if (isModerationError) {
+        Alert.alert(
+          error.kind === 'moderation_banned'
+            ? 'You are banned'
+            : 'Series not saved',
+          message,
+        );
+        return;
+      }
+
+      setErrorMessage(message);
     } finally {
       setIsSaving(false);
     }

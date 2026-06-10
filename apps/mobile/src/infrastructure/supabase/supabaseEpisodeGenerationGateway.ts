@@ -7,6 +7,8 @@ import {
 } from '@application/ai/episodeAiPayload';
 import type { EpisodeGenerationGateway } from '@application/ports';
 
+import { toSupabaseFunctionError } from './supabaseFunctionError';
+
 // SupabaseEpisodeGenerationGateway invokes the generate-episode Edge Function.
 export class SupabaseEpisodeGenerationGateway implements EpisodeGenerationGateway {
   // client owns Supabase transport details outside application use cases.
@@ -29,7 +31,10 @@ export class SupabaseEpisodeGenerationGateway implements EpisodeGenerationGatewa
     );
 
     if (error) {
-      throw new Error('Episode generation service is unavailable.');
+      throw (
+        (await toSupabaseFunctionError(error)) ??
+        new Error('Episode generation service is unavailable.')
+      );
     }
 
     return parseEpisodeAiPayload(data);
