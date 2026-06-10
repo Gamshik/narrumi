@@ -58,6 +58,14 @@
             --fallback-bg: rgba(142, 142, 147, 0.04);
             --fallback-border: rgba(142, 142, 147, 0.12);
             --fallback-accent: #8e8e93;
+
+            --pink-bg: rgba(255, 45, 85, 0.04);
+            --pink-border: rgba(255, 45, 85, 0.12);
+            --pink-accent: #ff2d55;
+
+            --teal-bg: rgba(48, 176, 199, 0.04);
+            --teal-border: rgba(48, 176, 199, 0.12);
+            --teal-accent: #30b0c7;
             
             --glass-bg: rgba(255, 255, 255, 0.7);
             --glass-border: rgba(255, 255, 255, 0.4);
@@ -104,6 +112,14 @@
             --fallback-bg: rgba(142, 142, 147, 0.08);
             --fallback-border: rgba(142, 142, 147, 0.2);
             --fallback-accent: #8e8e93;
+
+            --pink-bg: rgba(255, 55, 95, 0.08);
+            --pink-border: rgba(255, 55, 95, 0.2);
+            --pink-accent: #ff375f;
+
+            --teal-bg: rgba(100, 210, 255, 0.08);
+            --teal-border: rgba(100, 210, 255, 0.2);
+            --teal-accent: #64d2ff;
         }
 
         * {
@@ -542,6 +558,8 @@
         .avatar-voice { background-color: var(--voice-accent); }
         .avatar-user { background-color: var(--user-accent); }
         .avatar-stranger { background-color: var(--fallback-accent); }
+        .avatar-pink { background-color: var(--pink-accent); }
+        .avatar-teal { background-color: var(--teal-accent); }
 
         .chat-bubble-wrapper {
             flex: 1;
@@ -565,10 +583,12 @@
         .label-voice { color: var(--voice-accent); }
         .label-user { color: var(--user-accent); }
         .label-stranger { color: var(--fallback-accent); }
+        .label-pink { color: var(--pink-accent); }
+        .label-teal { color: var(--teal-accent); }
 
         /* Sleek dialogue bubble card floating on the screen background */
         .chat-bubble {
-            background-color: rgba(120, 120, 128, 0.06); /* Neutral iOS-like translucent grey */
+            background-color: rgba(120, 120, 128, 0.06); /* Neutral iOS-like translucent grey default */
             border: 1px solid rgba(120, 120, 128, 0.12); /* Hair-thin border for visual crispness */
             border-radius: 4px 12px 12px 12px; /* Asymmetric top-left sharp corner for speech tail effect */
             padding: 6px 10px;
@@ -577,11 +597,35 @@
             align-self: flex-start;
         }
 
-        /* Specific highlight for User speech bubble to visually separate it */
-        .chat-bubble.bubble-user {
+        /* Color-coded backings and borders for character dialogue bubbles */
+        .bubble-mira {
+            background-color: var(--mira-bg);
+            border-color: var(--mira-border);
+        }
+        .bubble-lily {
+            background-color: var(--lily-bg);
+            border-color: var(--lily-border);
+        }
+        .bubble-voice {
+            background-color: var(--voice-bg);
+            border-color: var(--voice-border);
+        }
+        .bubble-user {
             background-color: var(--user-bg);
-            border: 1px solid var(--user-border);
+            border-color: var(--user-border);
             border-radius: 12px 4px 12px 12px; /* Asymmetric top-right sharp corner for outgoing effect */
+        }
+        .bubble-stranger {
+            background-color: var(--fallback-bg);
+            border-color: var(--fallback-border);
+        }
+        .bubble-pink {
+            background-color: var(--pink-bg);
+            border-color: var(--pink-border);
+        }
+        .bubble-teal {
+            background-color: var(--teal-bg);
+            border-color: var(--teal-border);
         }
 
         .chat-bubble-text {
@@ -597,6 +641,13 @@
             color: var(--phone-text-tertiary);
             margin-top: 1px;
             margin-left: 0px;
+        }
+
+        /* Narrative action user selection formatting */
+        .user-action-block em {
+            color: var(--sys-blue);
+            font-style: italic;
+            font-weight: 500;
         }
 
         /* Vocabulary annotations */
@@ -691,15 +742,15 @@
             background-color: var(--user-bg);
             border: 1px solid var(--user-border);
             padding: 8px 12px;
-            border-radius: 14px;
-            border-top-right-radius: 4px;
+            border-radius: 14px 4px 14px 14px; /* Asymmetric right-aligned outgoing bubble */
             max-width: 86%;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            box-shadow: 0 2px 6px rgba(52, 199, 89, 0.08);
+            transition: var(--spring-transition);
         }
 
         .user-bubble-text {
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 1.5;
             color: var(--phone-text-primary);
         }
 
@@ -947,27 +998,32 @@ He sighed and sat on the wooden bench.</textarea>
                 
                 <div class="prompt-box-wrapper">
                     <button class="copy-btn" id="copy-prompt-btn">Copy</button>
-                    <pre class="prompt-box" id="prompt-code-box"><span class="comment"># GOAL: Redesign Dialogues, Questions & Spacing in React Native</span>
+                    <pre class="prompt-box" id="prompt-code-box"><span class="comment"># GOAL: Redesign Dialogue Reader UI & Spacing in React Native / Expo</span>
 
-We want to enhance the UI/UX of the story reader screens.
+We are updating the Story Reader screen to a high-utility layout that balances narration with dialogue, supports speech/narrative choices, dynamically color-codes characters, and features an inline shimmer loading transition during story continuation.
 
-<span class="keyword">###</span> 1. Layout & Spacing (High Utility, Low Air)
-- Remove any sticky player cards or overlay audio player bars from the UI.
-- Use tight vertical paddings (`paddingVertical: 6` for speech bubbles, `paddingHorizontal: 10`).
-- Gaps between chat bubbles and narrative blocks are set to `8px`.
-- ScrollView horizontal padding is reduced to `12px` to let text expand.
+<span class="keyword">###</span> 1. Spacing & Unified Typography (High Utility, Equal Weight)
+- <strong>Grid Layout</strong>: Screen padding is `12px`. Vertical gap between dialogue rows and narrative blocks is set to `8px`.
+- <strong>Narration vs. Speech Bubble Text</strong>: Both blocks MUST share identical font sizes (`13px`), line-heights (`1.6`), and primary text color tokens (e.g., solid `#000000` / `#ffffff`) so narration is not visually diminished.
+- <strong>Alignment Grid</strong>: Narrative blocks have `marginLeft: 36` to perfectly line up with dialogue speech bubbles (which sit next to `28x28` avatars plus `8px` flexbox gap).
 
-<span class="keyword">###</span> 2. Dialogue Bubble & Avatar Specs
-- <strong>Dialogue Row</strong>: Flex Row structure. Left side: Avatar (`28x28`, colored based on character). Right side: Speaker Name above Speech Bubble (`borderRadius: 12`).
-- <strong>Narration Row</strong>: Standard text block indented with `marginLeft: 36` to perfectly line up with bubble text.
+<span class="keyword">###</span> 2. Dialogue Bubble Geometry & Color-Coding
+- <strong>Asymmetric Incoming Tail</strong>: Dialogue bubbles use `borderRadius: 12` except for the top-left corner (near the avatar) which is set to `4` (`borderTopLeftRadius: 4`) to form a clean incoming speech tail.
+- <strong>Translucent Tint Backing</strong>: Bubble styles must use a soft background fill (4% opacity in light mode, 8% in dark mode) and a matching thin `1px` border (12% opacity in light mode, 20% in dark mode) matching the character's accent theme. No heavy shadows.
+- <strong>Dynamic Speaker Color Mapping</strong>: Map character names dynamically as they are encountered in the story sentences to one of 5 visual theme colors (blue, orange, purple, pink, teal) to ensure different characters never share the same bubble highlights.
+- <strong>Dialogue Speaker Inheritance</strong>: Consecutive dialogue paragraphs without speaker attributes must programmatically inherit the speaker of the previous dialogue line to prevent split character names/colors.
 
-<span class="keyword">###</span> 3. Choice Collapse & Answer Transition
-- <strong>Active Question</strong>: Rendered inside a Card at the end of the text list. Contains vertical option buttons.
-- <strong>Answer Click Behavior</strong>:
-  - Fade out and collapse the options container.
-  - Insert the user's selected choice as a bubble aligned to the right, styled with `user-accent` theme colors.
-  - Render the AI Feedback Block (`ai-feedback-card`) below it.
-  - Dynamically load and append the next story sentences (continuation) below the feedback block.</pre>
+<span class="keyword">###</span> 3. Speech vs. Narrative User Selection
+- <strong>Clean Quote Stripping</strong>: Clean all double-quotes from the user's selected choice reply string dynamically at runtime.
+- <strong>Spoken Choice</strong>: Rendered inside a right-aligned outgoing bubble (`.user-bubble`) styled with a soft green background fill, green border, generous padding (`8px 12px`), asymmetric outgoing corner radius (`borderTopRightRadius: 4`), and a soft green shadow glow (`shadowColor: '#34c759', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6`).
+- <strong>Narrative Choice</strong>: If a choice represents a non-spoken action (e.g., `isSpeech: false`), render it inline as a regular narrative block in italics highlighted in accent blue (*You decided to: [action text]*), aligned to the `36px` left margin.
+
+<span class="keyword">###</span> 4. Inline Generation Loading Shimmer (Network Latency)
+- <strong>Transition Flow</strong>:
+  1. Collapsing: User clicks a choice button -> collapse/fade out choices container.
+  2. Answer Insert: Immediately append the user reply (bubble or action block) and trigger a smooth viewport scroll.
+  3. Shimmer Loading: Instantly render a compact inline skeleton loader below the user reply. The loader must fade in smoothly and represent: a feedback card placeholder, a dialogue row placeholder (avatar + bubble), and a narrative line.
+  4. Resolving: Simulate 1.5s latency, swap the shimmer with actual AI feedback and continuation lines, then scroll the view down smoothly.</pre>
                 </div>
             </section>
 
@@ -1104,18 +1160,21 @@ We want to enhance the UI/UX of the story reader screens.
                         { 
                             id: "choice_a", 
                             label: "Apologize again and buy her coffee", 
-                            reply: "\"Let me at least buy you another coffee to make up for it,\"", 
+                            reply: "Let me at least buy you another coffee to make up for it.", 
+                            isSpeech: true,
                             feedback: "Great polite phrasing! Using 'make up for it' shows good conversational flexibility.",
                             continuation: [
                                 "Lily laughed and waved her hand dismissively.",
                                 "\"Only if you promise to try their new cinnamon rolls next time!\" she joked.",
-                                "The barista called their order, and they carried the warm cups to a corner table."
+                                "\"Order for Lily!\" Sam the barista called out with a warm smile.",
+                                "They carried the warm cups to a corner table."
                             ]
                         },
                         { 
                             id: "choice_b", 
                             label: "Change the topic and ask about her day", 
-                            reply: "\"So, what have you been up to since last week?\"", 
+                            reply: "change the topic and ask Lily about her week.", 
+                            isSpeech: false,
                             feedback: "Very natural! Changing the topic with 'what have you been up to' is a standard informal transition.",
                             continuation: [
                                 "Lily leaned forward, resting her chin on her hands.",
@@ -1140,7 +1199,8 @@ We want to enhance the UI/UX of the story reader screens.
                         { 
                             id: "choice_a", 
                             label: "Declare she is ready for any challenge", 
-                            reply: "\"I don't care about the danger, I will save my kingdom!\"", 
+                            reply: "I don't care about the danger, I will save my kingdom!", 
+                            isSpeech: true,
                             feedback: "Strong stance! Using exclamation highlights direct character emotions.",
                             continuation: [
                                 "The wizard's ancient face softened slightly, a rare hint of approval in his eyes.",
@@ -1151,7 +1211,8 @@ We want to enhance the UI/UX of the story reader screens.
                         { 
                             id: "choice_b", 
                             label: "Ask if there is another way to solve the crisis", 
-                            reply: "\"Is there truly no other path we can choose?\"", 
+                            reply: "Is there truly no other path we can choose?", 
+                            isSpeech: true,
                             feedback: "Excellent B1 structure using 'is there truly no other path' for advanced inquiry.",
                             continuation: [
                                 "The wizard shook his head, his ancient face filled with deep sorrow.",
@@ -1176,7 +1237,8 @@ We want to enhance the UI/UX of the story reader screens.
                         { 
                             id: "choice_a", 
                             label: "Give a detailed alibi sleeping at home", 
-                            reply: "\"I was asleep in my bed. You have the wrong person.\"", 
+                            reply: "I was asleep in my bed. You have the wrong person.", 
+                            isSpeech: true,
                             feedback: "Direct alibi. Short sentences show defensiveness, typical of B2 interrogation texts.",
                             continuation: [
                                 "Detective Jones leaned in close, the glare of the lamp reflecting in his eyes.",
@@ -1187,7 +1249,8 @@ We want to enhance the UI/UX of the story reader screens.
                         { 
                             id: "choice_b", 
                             label: "Ask for a lawyer immediately", 
-                            reply: "\"I won't say a single word until my lawyer arrives here.\"", 
+                            reply: "I won't say a single word until my lawyer arrives here.", 
+                            isSpeech: true,
                             feedback: "Assertive phrasing. 'Won't say a single word' is a high-utility idiom.",
                             continuation: [
                                 "Detective Jones sighed and stood up, sliding his hands into his pockets.",
@@ -1219,14 +1282,30 @@ We want to enhance the UI/UX of the story reader screens.
         // Choice states
         let resolvedChoiceId = null;
 
-        // Get character theme category to map arbitrary preset names to unified styles
+        let speakerMap = {};
+        let nextColorIndex = 0;
+
+        function resetSpeakerColors() {
+            speakerMap = {};
+            nextColorIndex = 0;
+        }
+
+        // Get character theme category dynamically assigned as they appear in the story
         function getSpeakerClass(speaker) {
             const name = speaker.toLowerCase();
-            if (name === 'alex' || name === 'mira') return 'mira';
-            if (name === 'lily') return 'lily';
-            if (name === 'wizard' || name === 'voice') return 'voice';
-            if (name === 'user' || name === 'you') return 'user';
-            return 'stranger';
+            if (name === 'user' || name === 'you') return 'user'; // green is reserved for user selection
+            
+            // Map pronouns to main characters if name matches
+            if (name === 'alex' || name === 'mira') return 'mira'; // Keep Alex/Mira blue
+            if (name === 'lily') return 'lily'; // Keep Lily orange
+            if (name === 'wizard' || name === 'voice') return 'voice'; // Keep Wizard purple
+            
+            if (!speakerMap[name]) {
+                const availableClasses = ['pink', 'teal', 'stranger'];
+                speakerMap[name] = availableClasses[nextColorIndex % availableClasses.length];
+                nextColorIndex++;
+            }
+            return speakerMap[name];
         }
 
         // --- Parser Logic ---
@@ -1307,8 +1386,22 @@ We want to enhance the UI/UX of the story reader screens.
             const wrapper = document.createElement('div');
             wrapper.className = 'dialogue-view';
 
-            // Parsing all sentences
-            const parsedList = currentSentences.map(s => parseSentence(s));
+            // Reset speaker color coding mapping for this story
+            resetSpeakerColors();
+
+            // Parsing all sentences with speaker continuation inheritance
+            let lastSpeaker = null;
+            const parsedList = currentSentences.map(s => {
+                const parsed = parseSentence(s);
+                if (parsed.type === 'dialogue') {
+                    if (parsed.speaker === 'Stranger' && lastSpeaker) {
+                        parsed.speaker = lastSpeaker;
+                    } else {
+                        lastSpeaker = parsed.speaker;
+                    }
+                }
+                return parsed;
+            });
 
             parsedList.forEach((parsed, index) => {
                 if (parsed.type === 'narrative') {
@@ -1383,25 +1476,36 @@ We want to enhance the UI/UX of the story reader screens.
 
         // Render User Selected Answer
         function renderUserAnswer(choice) {
-            const bubbleBlock = document.createElement('div');
-            bubbleBlock.className = 'user-answer-bubble-block';
+            const cleanedReply = choice.reply.replace(/^["'\"“]+|["'\"”]+$/g, '');
 
-            const name = document.createElement('span');
-            name.className = 'chat-speaker-label';
-            name.style.marginRight = '4px';
-            name.textContent = 'YOU (ANSWER)';
+            if (choice.isSpeech !== false) {
+                const bubbleBlock = document.createElement('div');
+                bubbleBlock.className = 'user-answer-bubble-block';
 
-            const bubble = document.createElement('div');
-            bubble.className = 'user-bubble';
+                const name = document.createElement('span');
+                name.className = 'chat-speaker-label label-user';
+                name.style.marginRight = '4px';
+                name.textContent = 'YOU';
 
-            const text = document.createElement('span');
-            text.className = 'user-bubble-text';
-            text.innerHTML = choice.reply;
+                const bubble = document.createElement('div');
+                bubble.className = 'user-bubble';
 
-            bubble.appendChild(text);
-            bubbleBlock.appendChild(name);
-            bubbleBlock.appendChild(bubble);
-            storyViewport.appendChild(bubbleBlock);
+                const text = document.createElement('span');
+                text.className = 'user-bubble-text';
+                text.innerHTML = decorateWords(cleanedReply);
+
+                bubble.appendChild(text);
+                bubbleBlock.appendChild(name);
+                bubbleBlock.appendChild(bubble);
+                storyViewport.appendChild(bubbleBlock);
+            } else {
+                // Render as a narrative action block
+                const actionBlock = document.createElement('div');
+                actionBlock.className = 'narrative-block user-action-block';
+                actionBlock.style.marginLeft = '36px'; // Align with narrative blocks
+                actionBlock.innerHTML = `<em>You decided to: ${decorateWords(cleanedReply)}</em>`;
+                storyViewport.appendChild(actionBlock);
+            }
         }
 
         // Render AI Feedback
@@ -1454,7 +1558,19 @@ We want to enhance the UI/UX of the story reader screens.
             continuationWrapper.className = 'dialogue-view';
             continuationWrapper.style.marginTop = '12px';
 
-            const parsedContinuation = continuation.map(s => parseSentence(s));
+            // Continuation sentences with speaker inheritance
+            let lastSpeaker = null;
+            const parsedContinuation = continuation.map(s => {
+                const parsed = parseSentence(s);
+                if (parsed.type === 'dialogue') {
+                    if (parsed.speaker === 'Stranger' && lastSpeaker) {
+                        parsed.speaker = lastSpeaker;
+                    } else {
+                        lastSpeaker = parsed.speaker;
+                    }
+                }
+                return parsed;
+            });
             parsedContinuation.forEach(parsed => {
                 if (parsed.type === 'narrative') {
                     const div = document.createElement('div');
