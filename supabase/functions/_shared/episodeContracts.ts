@@ -117,6 +117,7 @@ export const episodePayloadSchema = z.object({
       z.object({
         id: z.string().trim().min(1),
         label: readableTextSchema.pipe(z.string().max(120)),
+        isSpeech: z.boolean().optional(),
         outcomeHint: optionalReadableTextSchema.pipe(z.string().max(240).optional()),
       }),
     ).min(2).max(3),
@@ -148,6 +149,7 @@ export const interactionPayloadSchema = z.object({
             z.object({
               id: z.string().trim().min(1),
               label: readableTextSchema.pipe(z.string().max(120)),
+              isSpeech: z.boolean().optional(),
               outcomeHint: optionalReadableTextSchema.pipe(
                 z.string().max(240).optional(),
               ),

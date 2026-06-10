@@ -676,10 +676,12 @@ function parseInteractionChoice(
   }
 
   const outcomeHint = readOptionalString(value, 'outcomeHint');
+  const isSpeech = readOptionalBoolean(value, 'isSpeech');
 
   return {
     id: readString(value, 'id'),
     label: readString(value, 'label'),
+    ...(isSpeech === false ? { isSpeech: false } : {}),
     ...(outcomeHint ? { outcomeHint } : {}),
   };
 }

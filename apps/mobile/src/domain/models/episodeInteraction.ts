@@ -15,6 +15,8 @@ export type EpisodeInteractionChoice = {
   readonly id: string;
   // label is the short visible option text.
   readonly label: string;
+  // isSpeech distinguishes spoken learner replies from narrative actions.
+  readonly isSpeech?: boolean;
   // outcomeHint is optional internal context for story continuation.
   readonly outcomeHint?: string;
 };

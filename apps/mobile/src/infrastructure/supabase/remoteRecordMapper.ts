@@ -65,6 +65,7 @@ const ownedColumnsSchema = syncColumnsSchema.extend({
 const interactionChoiceSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
+  isSpeech: z.boolean().optional(),
   outcomeHint: z.string().min(1).optional(),
 });
 const interactionSchema = z.object({
@@ -547,6 +548,7 @@ function mapInteraction(
     choices: interaction.choices.map((choice) => ({
       id: choice.id,
       label: choice.label,
+      ...(choice.isSpeech === false ? { isSpeech: false } : {}),
       ...(choice.outcomeHint ? { outcomeHint: choice.outcomeHint } : {}),
     })),
     sentenceEndIndex: interaction.sentenceEndIndex,

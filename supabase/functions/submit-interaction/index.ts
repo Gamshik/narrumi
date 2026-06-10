@@ -94,7 +94,15 @@ const directSpeechDraftSchema = z.object({
 // choiceDraftSchema is the small AI contract for the next creative decision.
 const choiceDraftSchema = z.object({
   prompt: z.string().trim().min(1).max(300),
-  choiceLabels: z.array(z.string().trim().min(1).max(120)).min(2).max(3),
+  choices: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1).max(120),
+        isSpeech: z.boolean().optional(),
+      }),
+    )
+    .min(2)
+    .max(3),
 });
 
 // translationDraftSchema is the small AI contract for Russian annotation translations.
@@ -524,9 +532,10 @@ function assembleInteractionPayload({
           nextInteraction: {
             kind: 'choice',
             prompt: choiceDraft?.prompt ?? '',
-            choices: (choiceDraft?.choiceLabels ?? []).map((label, index) => ({
-              id: createChoiceId(label, index),
-              label,
+            choices: (choiceDraft?.choices ?? []).map((choice, index) => ({
+              id: createChoiceId(choice.label, index),
+              label: choice.label,
+              ...(choice.isSpeech === false ? { isSpeech: false } : {}),
             })),
           },
         }),
@@ -718,9 +727,10 @@ function buildChoiceSystemPrompt(): string {
   return [
     'You write the next learner choice for an interactive English-learning episode.',
     'Return exactly one raw JSON object. Do not wrap it in Markdown fences.',
-    'Return only prompt and two or three creative choiceLabels.',
+    'Return only prompt and two or three creative choices.',
     'Do not generate ids or kind fields.',
     'Choices must be meaningful, story-specific, and help the episode move toward closure.',
+    'Set isSpeech false only when a choice is a non-spoken physical action or internal decision.',
   ].join('\n');
 }
 
@@ -914,8 +924,8 @@ function buildChoicePrompt(
         -PREVIOUS_DECISION_PROMPT_LIMIT,
       ),
       outputRules: [
-        'Return { "prompt": string, "choiceLabels": string[] }.',
-        'Return two or three choiceLabels.',
+        'Return { "prompt": string, "choices": [{ "label": string, "isSpeech": boolean }] }.',
+        'Return two or three choices.',
         'Do not include ids or kind.',
         'Choices must be short, concrete, and story-specific.',
         'Choices must move this episode toward a closing beat inside 5-10 interactions.',

@@ -96,6 +96,7 @@ const interactionDraftSchema = z.object({
     .array(
       z.object({
         label: z.string().trim().min(1).max(120),
+        isSpeech: z.boolean().optional(),
         outcomeHint: z.string().trim().min(1).max(240).optional(),
       }),
     )
@@ -494,6 +495,7 @@ function assembleEpisodePayload({
       choices: interactionDraft.choices.map((choice, index) => ({
         id: createChoiceId(choice.label, index),
         label: choice.label,
+        ...(choice.isSpeech === false ? { isSpeech: false } : {}),
         ...(choice.outcomeHint ? { outcomeHint: choice.outcomeHint } : {}),
       })),
     },
@@ -691,6 +693,7 @@ function buildInteractionSystemPrompt(): string {
     'Return only prompt and two or three choices.',
     'Do not generate ids, kind fields, story text, memory, or annotations.',
     'Choices must be meaningful, story-specific, and not quizzes.',
+    'Set isSpeech false only when a choice is a non-spoken physical action or internal decision.',
   ].join('\n');
 }
 
@@ -838,7 +841,7 @@ function buildInteractionPrompt(
       sceneSummary: coreDraft.summaryUpdate,
       sceneText: coreDraft.sceneText,
       outputRules: [
-        'Return { "prompt": string, "choices": [{ "label": string, "outcomeHint": string }] }.',
+        'Return { "prompt": string, "choices": [{ "label": string, "isSpeech": boolean, "outcomeHint": string }] }.',
         'Return two or three choices.',
         'Do not include ids or kind.',
         'Choices must be short, concrete, and story-specific.',

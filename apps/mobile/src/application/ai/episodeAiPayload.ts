@@ -228,6 +228,7 @@ export function parseEpisodeAiPayload(value: unknown): EpisodeAiPayload {
       choices: parsed.interaction.choices.map((choice) => ({
         id: choice.id,
         label: choice.label,
+        ...(choice.isSpeech === false ? { isSpeech: false } : {}),
         ...(choice.outcomeHint ? { outcomeHint: choice.outcomeHint } : {}),
       })),
     },
@@ -264,6 +265,7 @@ export function parseInteractionAiPayload(value: unknown): InteractionAiPayload 
             choices: parsed.nextInteraction.choices.map((choice) => ({
               id: choice.id,
               label: choice.label,
+              ...(choice.isSpeech === false ? { isSpeech: false } : {}),
               ...(choice.outcomeHint
                 ? { outcomeHint: choice.outcomeHint }
                 : {}),
@@ -359,6 +361,7 @@ const episodeAiPayloadSchema = z
         z.object({
           id: z.string().trim().min(1),
           label: z.string().trim().min(1),
+          isSpeech: z.boolean().optional(),
           outcomeHint: z.string().trim().min(1).optional(),
         }),
       ),
@@ -437,6 +440,7 @@ const interactionAiPayloadSchema = z
             z.object({
               id: z.string().trim().min(1),
               label: z.string().trim().min(1),
+              isSpeech: z.boolean().optional(),
               outcomeHint: z.string().trim().min(1).optional(),
             }),
           )
