@@ -10,6 +10,9 @@ import type { AppStyles } from '../../../../types';
 import { buildSentenceTextChunks } from '../../episodeReaderText';
 import type { SentenceTextChunk } from '../../episodeReaderText';
 
+// SpeakerThemeName is the limited dialogue palette assigned by encounter order.
+export type SpeakerThemeName = 'blue' | 'orange' | 'purple' | 'pink' | 'teal';
+
 // EpisodeSentenceProps carries one sentence row and its annotation actions.
 type EpisodeSentenceProps = {
   // annotations are validated inline translation hints for the whole episode.
@@ -22,6 +25,8 @@ type EpisodeSentenceProps = {
   readonly sentenceFrame: EpisodeSentenceFrame;
   // sentenceIndex is the stable sentence order from the episode payload.
   readonly sentenceIndex: number;
+  // speakerThemeName selects the already-resolved visual accent for dialogue.
+  readonly speakerThemeName?: SpeakerThemeName;
   // styles is the shared themed StyleSheet contract.
   readonly styles: AppStyles;
   // onPressAnnotation opens the inline translation sheet.
@@ -30,34 +35,24 @@ type EpisodeSentenceProps = {
   readonly onSelectSentence: (sentenceIndex: number) => void;
 };
 
-/**
- * Resolves the semantic theme accent color for a specific character speaker.
- *
- * @param speaker - The name of the speaker to resolve.
- * @param themeColors - The active application theme colors.
- * @returns The resolved hex color string.
- */
-function getSpeakerColor(speaker: string, themeColors: AppColors): string {
-  // Normalize speaker name to lowercase for matching
-  const normalized: string = speaker.toLowerCase().trim();
-
-  if (normalized.includes('lily') || normalized.includes('alex')) {
-    return themeColors.systemOrange;
+// getSpeakerColor resolves one semantic dialogue theme to the active color token.
+function getSpeakerColor(
+  themeName: SpeakerThemeName | undefined,
+  themeColors: AppColors,
+): string {
+  switch (themeName) {
+    case 'blue':
+      return themeColors.systemBlue;
+    case 'orange':
+      return themeColors.systemOrange;
+    case 'pink':
+      return themeColors.systemPink;
+    case 'teal':
+      return themeColors.systemTeal;
+    case 'purple':
+    default:
+      return themeColors.systemPurple;
   }
-  if (normalized.includes('mira') || normalized.includes('detective') || normalized.includes('jones')) {
-    return themeColors.systemBlue;
-  }
-  if (normalized.includes('voice') || normalized.includes('wizard') || normalized.includes('shadow')) {
-    return themeColors.systemPurple;
-  }
-  if (normalized.includes('user') || normalized.includes('you')) {
-    return themeColors.systemGreen;
-  }
-  if (normalized.includes('suspect')) {
-    return themeColors.systemRed;
-  }
-  // Default fallback for unnamed or unknown speakers
-  return themeColors.systemPurple;
 }
 
 // EpisodeSentence renders one sentence with dimming and tappable hint fragments.
@@ -67,6 +62,7 @@ export function EpisodeSentence({
   isDimmed,
   sentenceFrame,
   sentenceIndex,
+  speakerThemeName,
   styles,
   onPressAnnotation,
   onSelectSentence,
@@ -74,11 +70,13 @@ export function EpisodeSentence({
   const { isDark } = useAppTheme();
   const themeColors: AppColors = isDark ? darkColors : lightColors;
 
-  // Resolves the character speaker color to style the chat avatar and bubble.
+  // speakerColor styles the avatar, label, border, and translucent bubble fill.
   const speakerColor: string =
     sentenceFrame.kind === 'dialogue'
-      ? getSpeakerColor(sentenceFrame.speaker, themeColors)
+      ? getSpeakerColor(speakerThemeName, themeColors)
       : themeColors.systemPurple;
+  const bubbleBackgroundOpacity: string = isDark ? '14' : '0a';
+  const bubbleBorderOpacity: string = isDark ? '33' : '1f';
 
   return (
     <Pressable
@@ -99,50 +97,51 @@ export function EpisodeSentence({
       ]}
     >
       {sentenceFrame.kind === 'dialogue' ? (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-          {/* Avatar circle containing the first initial of the speaker */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: 8,
+          }}
+        >
           <View
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
+              width: 28,
+              height: 28,
+              borderRadius: 14,
               backgroundColor: speakerColor,
               justifyContent: 'center',
               alignItems: 'center',
-              marginTop: 13, // aligns avatar center with the first text line of the bubble
             }}
           >
-            <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 13 }}>
+            <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 11 }}>
               {sentenceFrame.speaker.substring(0, 1).toUpperCase()}
             </Text>
           </View>
 
-          {/* Chat bubble message area */}
-          <View style={{ flex: 1, marginLeft: 8, maxWidth: '86%' }}>
+          <View style={{ flex: 1, maxWidth: '86%', gap: 2 }}>
             <Text
               style={{
-                fontSize: 10,
-                fontWeight: 'bold',
-                color: themeColors.labelSecondary,
+                fontSize: 9,
+                fontWeight: '700',
+                color: speakerColor,
                 textTransform: 'uppercase',
-                marginBottom: 3,
-                marginLeft: 4,
+                marginLeft: 1,
               }}
             >
               {sentenceFrame.speaker}
             </Text>
             <View
               style={{
-                backgroundColor: isActive
-                  ? speakerColor + '22' // 13% opacity accent color when active
-                  : speakerColor + '14', // 8% opacity accent color when inactive
+                backgroundColor: `${speakerColor}${bubbleBackgroundOpacity}`,
                 borderColor: isActive
                   ? speakerColor
-                  : speakerColor + '2b', // subtle border outline
+                  : `${speakerColor}${bubbleBorderOpacity}`,
                 borderWidth: 1,
-                borderRadius: 16,
-                paddingHorizontal: 14,
-                paddingVertical: 10,
+                borderRadius: 12,
+                borderTopLeftRadius: 4,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
                 alignSelf: 'flex-start',
               }}
             >
@@ -158,8 +157,7 @@ export function EpisodeSentence({
           </View>
         </View>
       ) : (
-        /* Standard narrative prose paragraph aligned with bubble text */
-        <View style={{ marginLeft: 40 }}>
+        <View style={{ marginLeft: 36, paddingHorizontal: 2, paddingVertical: 4 }}>
           <SentenceText
             annotations={annotations}
             sentenceIndex={sentenceIndex}

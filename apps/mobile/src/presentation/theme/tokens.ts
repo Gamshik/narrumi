@@ -10,6 +10,10 @@ type AppColorTokens = {
   readonly systemOrange: string;
   // systemPurple is the secondary learning accent color.
   readonly systemPurple: string;
+  // systemPink is a dialogue accent used to distinguish recurring speakers.
+  readonly systemPink: string;
+  // systemTeal is a dialogue accent used to distinguish recurring speakers.
+  readonly systemTeal: string;
   // backgroundPrimary is the route-level background color.
   readonly backgroundPrimary: string;
   // backgroundSecondary is the card and list row background color.
@@ -35,6 +39,8 @@ export const lightColors: AppColorTokens = {
   systemRed: '#ff3b30',
   systemOrange: '#ff9500',
   systemPurple: '#af52de',
+  systemPink: '#ff2d55',
+  systemTeal: '#30b0c7',
   backgroundPrimary: '#f2f2f7',
   backgroundSecondary: '#ffffff',
   backgroundTertiary: '#f2f2f7',
@@ -52,6 +58,8 @@ export const darkColors: AppColorTokens = {
   systemRed: '#ff453a',
   systemOrange: '#ff9f0a',
   systemPurple: '#bf5af2',
+  systemPink: '#ff375f',
+  systemTeal: '#64d2ff',
   backgroundPrimary: '#000000',
   backgroundSecondary: '#1c1c1e',
   backgroundTertiary: '#2c2c2e',

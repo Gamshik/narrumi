@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import type {
   Episode,
+  EpisodeSentenceFrame,
   EpisodeInteraction,
   TranslationAnnotation,
 } from '@domain/index';
@@ -11,11 +12,23 @@ import type {
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
 import {
-  AudioControls,
   EpisodeSentence,
   TranslationSheet,
 } from './episodeReader/components';
+import type { SpeakerThemeName } from './episodeReader/components/EpisodeSentence/EpisodeSentence';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
+
+// SPEAKER_THEME_ORDER assigns distinct dialogue accents by first encounter.
+const SPEAKER_THEME_ORDER: readonly SpeakerThemeName[] = [
+  'blue',
+  'orange',
+  'purple',
+  'pink',
+  'teal',
+] as const;
+
+// CONTINUATION_MINIMUM_LATENCY_MS keeps the inline shimmer visible during fast responses.
+const CONTINUATION_MINIMUM_LATENCY_MS = 1500;
 
 // EpisodeReaderScreenProps carries route input and series reader behavior.
 type EpisodeReaderScreenProps = {
@@ -44,11 +57,10 @@ export function EpisodeReaderScreen({
   const [errorMessage, setErrorMessage] = useState<string>();
   const [interactionErrorMessage, setInteractionErrorMessage] =
     useState<string>();
-  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isSubmittingInteraction, setIsSubmittingInteraction] = useState(false);
   const [selectedAnnotation, setSelectedAnnotation] =
     useState<TranslationAnnotation>();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const activeEpisode = episodes[activeEpisodeIndex];
 
@@ -61,7 +73,6 @@ export function EpisodeReaderScreen({
 
         setEpisodes([result.episode]);
         setActiveEpisodeIndex(0);
-        setCurrentSentenceIndex(0);
         setErrorMessage(undefined);
 
         return;
@@ -75,7 +86,6 @@ export function EpisodeReaderScreen({
         if (details.episodes.length > 0) {
           setEpisodes(details.episodes);
           setActiveEpisodeIndex(0);
-          setCurrentSentenceIndex(0);
           setErrorMessage(undefined);
 
           return;
@@ -88,74 +98,9 @@ export function EpisodeReaderScreen({
     }
   }, [episodeId, seriesId]);
 
-  const pauseNarration = useCallback(async (): Promise<void> => {
-    await localAppServices.audioNarrator.pause();
-    setIsPlaying(false);
-  }, []);
-
   useEffect(() => {
     void loadReader();
   }, [loadReader]);
-
-  useEffect(() => {
-    const sentence = activeEpisode?.sentences[currentSentenceIndex];
-
-    if (!isPlaying || !activeEpisode || sentence === undefined) {
-      return undefined;
-    }
-
-    void localAppServices.audioNarrator.speak({
-      sentence,
-      sentenceIndex: currentSentenceIndex,
-      onDone: (completedIndex) => {
-        const nextSentenceIndex = completedIndex + 1;
-
-        if (nextSentenceIndex < activeEpisode.sentences.length) {
-          setCurrentSentenceIndex(nextSentenceIndex);
-
-          return;
-        }
-
-        const nextEpisodeIndex = activeEpisodeIndex + 1;
-
-        if (nextEpisodeIndex < episodes.length) {
-          setActiveEpisodeIndex(nextEpisodeIndex);
-          setCurrentSentenceIndex(0);
-        } else {
-          setIsPlaying(false);
-        }
-      },
-    });
-
-    return () => {
-      void localAppServices.audioNarrator.pause();
-    };
-  }, [
-    activeEpisode,
-    activeEpisodeIndex,
-    currentSentenceIndex,
-    episodes.length,
-    isPlaying,
-  ]);
-
-  const togglePlayback = async (): Promise<void> => {
-    if (isPlaying) {
-      await pauseNarration();
-
-      return;
-    }
-
-    setIsPlaying(true);
-  };
-
-  const selectSentence = async (
-    episodeIndex: number,
-    sentenceIndex: number,
-  ): Promise<void> => {
-    await localAppServices.audioNarrator.pause();
-    setActiveEpisodeIndex(episodeIndex);
-    setCurrentSentenceIndex(sentenceIndex);
-  };
 
   const submitChoice = async (
     interactionId: string,
@@ -165,10 +110,23 @@ export function EpisodeReaderScreen({
       return;
     }
 
-    const previousSentenceCount = activeEpisode.sentences.length;
+    const selectedChoice = activeEpisode.interactions
+      .find((interaction) => interaction.id === interactionId)
+      ?.choices.find((choice) => choice.id === choiceId);
+    const submittedText = cleanSelectedReply(selectedChoice?.label);
+    const startedAt = Date.now();
 
     setIsSubmittingInteraction(true);
-    await pauseNarration();
+    setEpisodes((currentEpisodes) =>
+      applyOptimisticChoice({
+        activeEpisodeIndex,
+        choiceId,
+        currentEpisodes,
+        interactionId,
+        submittedText,
+      }),
+    );
+    requestScrollToEnd();
 
     try {
       const result = await localAppServices.submitEpisodeInteraction.execute({
@@ -176,17 +134,15 @@ export function EpisodeReaderScreen({
         episodeId: activeEpisode.id,
         interactionId,
       });
+      await waitForRemainingLatency(startedAt);
       const updatedEpisodes = episodes.map((episode, episodeIndex) =>
         episodeIndex === activeEpisodeIndex ? result.episode : episode,
       );
 
       setEpisodes(updatedEpisodes);
-      setCurrentSentenceIndex(
-        previousSentenceCount < result.episode.sentences.length
-          ? previousSentenceCount
-          : 0,
-      );
+      setActiveEpisodeIndex(activeEpisodeIndex);
       setInteractionErrorMessage(undefined);
+      requestScrollToEnd();
     } catch (error) {
       const isModerationError =
         error instanceof SupabaseFunctionError &&
@@ -239,7 +195,10 @@ export function EpisodeReaderScreen({
 
   return (
     <>
-      <ScrollView contentContainerStyle={styles.readerContent}>
+      <ScrollView
+        contentContainerStyle={styles.readerContent}
+        ref={scrollViewRef}
+      >
         <View style={styles.readerHeader}>
           <View style={styles.flex}>
             <Text style={styles.appCategory}>SERIES READER</Text>
@@ -259,11 +218,14 @@ export function EpisodeReaderScreen({
         ) : null}
 
         {episodes.map((episode, episodeIndex) => {
-          const isActiveEpisode = episodeIndex === activeEpisodeIndex;
           const isLastEpisode = episodeIndex === episodes.length - 1;
           const pendingInteraction = [...episode.interactions]
             .reverse()
             .find((interaction) => interaction.feedback === undefined);
+          const renderedFrames = buildReaderSentenceFrames(
+            episode.sentenceFrames,
+          );
+          const speakerThemes = buildSpeakerThemes(renderedFrames);
 
           return (
             <View key={episode.id} style={styles.readerEpisodeBlock}>
@@ -282,32 +244,34 @@ export function EpisodeReaderScreen({
               </View>
 
               <View style={styles.readerStory}>
-                {episode.sentences.map((sentence, sentenceIndex) => {
+                {episode.sentences.map((_sentence, sentenceIndex) => {
                   const sentenceEndIndex = sentenceIndex + 1;
                   const interactionsAtBoundary = episode.interactions.filter(
                     (interaction) =>
                       interaction.sentenceEndIndex === sentenceEndIndex,
                   );
+                  const sentenceFrame =
+                    renderedFrames[sentenceIndex] ??
+                    episode.sentenceFrames[sentenceIndex]!;
+                  const speakerThemeName =
+                    sentenceFrame.kind === 'dialogue'
+                      ? speakerThemes.get(
+                          normalizeSpeakerName(sentenceFrame.speaker),
+                        )
+                      : undefined;
 
                   return (
                     <View key={`${episode.id}:${sentenceIndex}`}>
                       <EpisodeSentence
                         annotations={episode.annotations}
-                        isActive={
-                          isActiveEpisode &&
-                          sentenceIndex === currentSentenceIndex
-                        }
-                        isDimmed={
-                          isActiveEpisode &&
-                          sentenceIndex !== currentSentenceIndex
-                        }
-                        sentenceFrame={episode.sentenceFrames[sentenceIndex]!}
+                        isActive={false}
+                        isDimmed={false}
+                        sentenceFrame={sentenceFrame}
                         sentenceIndex={sentenceIndex}
+                        {...(speakerThemeName ? { speakerThemeName } : {})}
                         styles={styles}
                         onPressAnnotation={setSelectedAnnotation}
-                        onSelectSentence={(nextSentenceIndex) => {
-                          void selectSentence(episodeIndex, nextSentenceIndex);
-                        }}
+                        onSelectSentence={() => undefined}
                       />
                       {interactionsAtBoundary.map((interaction) => (
                         <EpisodeInteractionBlock
@@ -358,15 +322,6 @@ export function EpisodeReaderScreen({
         ) : null}
       </ScrollView>
 
-      <AudioControls
-        currentSentenceIndex={currentSentenceIndex}
-        isPlaying={isPlaying}
-        sentenceCount={activeEpisode.sentences.length}
-        styles={styles}
-        onPlayPause={() => {
-          void togglePlayback();
-        }}
-      />
       <TranslationSheet
         annotation={selectedAnnotation}
         styles={styles}
@@ -374,6 +329,132 @@ export function EpisodeReaderScreen({
       />
     </>
   );
+
+  // requestScrollToEnd schedules scroll after React Native applies the new row.
+  function requestScrollToEnd(): void {
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    });
+  }
+}
+
+// ReaderSentenceFrame stores the display-safe frame after speaker inheritance.
+type ReaderSentenceFrame = EpisodeSentenceFrame;
+
+// buildReaderSentenceFrames applies speaker inheritance for underspecified dialogue.
+function buildReaderSentenceFrames(
+  frames: readonly EpisodeSentenceFrame[],
+): readonly ReaderSentenceFrame[] {
+  let lastSpeaker: string | undefined;
+
+  return frames.map((frame) => {
+    if (frame.kind === 'narration') {
+      return frame;
+    }
+
+    const speaker = shouldInheritSpeaker(frame.speaker)
+      ? lastSpeaker ?? frame.speaker
+      : frame.speaker;
+
+    lastSpeaker = speaker;
+
+    return {
+      ...frame,
+      speaker,
+    };
+  });
+}
+
+// buildSpeakerThemes assigns each encountered speaker a stable visual accent.
+function buildSpeakerThemes(
+  frames: readonly ReaderSentenceFrame[],
+): ReadonlyMap<string, SpeakerThemeName> {
+  const themes = new Map<string, SpeakerThemeName>();
+
+  frames.forEach((frame) => {
+    if (frame.kind !== 'dialogue') {
+      return;
+    }
+
+    const speakerKey = normalizeSpeakerName(frame.speaker);
+
+    if (themes.has(speakerKey)) {
+      return;
+    }
+
+    const themeName =
+      SPEAKER_THEME_ORDER[themes.size % SPEAKER_THEME_ORDER.length] ?? 'blue';
+
+    themes.set(speakerKey, themeName);
+  });
+
+  return themes;
+}
+
+// shouldInheritSpeaker treats generic speaker labels as missing speaker metadata.
+function shouldInheritSpeaker(speaker: string): boolean {
+  return /^(speaker|unknown|stranger|voice)$/i.test(speaker.trim());
+}
+
+// normalizeSpeakerName makes speaker matching resilient to casing and spacing.
+function normalizeSpeakerName(speaker: string): string {
+  return speaker.trim().toLocaleLowerCase();
+}
+
+// cleanSelectedReply removes quote marks that should not appear in answer bubbles.
+function cleanSelectedReply(reply: string | undefined): string {
+  return reply?.replace(/["“”]/g, '').trim() ?? '';
+}
+
+// waitForRemainingLatency keeps the compact shimmer from flashing too quickly.
+async function waitForRemainingLatency(startedAt: number): Promise<void> {
+  const elapsed = Date.now() - startedAt;
+  const remaining = CONTINUATION_MINIMUM_LATENCY_MS - elapsed;
+
+  if (remaining <= 0) {
+    return;
+  }
+
+  await new Promise<void>((resolve) => setTimeout(resolve, remaining));
+}
+
+// applyOptimisticChoice inserts the learner answer before the network response.
+function applyOptimisticChoice({
+  activeEpisodeIndex,
+  choiceId,
+  currentEpisodes,
+  interactionId,
+  submittedText,
+}: {
+  // activeEpisodeIndex identifies the locally visible episode to update.
+  readonly activeEpisodeIndex: number;
+  // choiceId stores the chosen option while continuation is pending.
+  readonly choiceId: string;
+  // currentEpisodes is the current immutable reader state.
+  readonly currentEpisodes: readonly Episode[];
+  // interactionId identifies the active turn being answered.
+  readonly interactionId: string;
+  // submittedText is the visible answer after quote stripping.
+  readonly submittedText: string;
+}): readonly Episode[] {
+  return currentEpisodes.map((episode, episodeIndex) => {
+    if (episodeIndex !== activeEpisodeIndex) {
+      return episode;
+    }
+
+    return {
+      ...episode,
+      interactions: episode.interactions.map((interaction) =>
+        interaction.id === interactionId
+          ? {
+              ...interaction,
+              selectedChoiceId: choiceId,
+              ...(submittedText ? { userReply: submittedText } : {}),
+            }
+          : interaction,
+      ),
+    };
+  });
 }
 
 // EpisodeInteractionBlock chooses read-only, answered, or active interaction UI.
@@ -409,6 +490,20 @@ function EpisodeInteractionBlock({
       <View style={styles.readerInteraction}>
         <SavedEpisodeAnswer
           interaction={interaction}
+          isGenerating={false}
+          savedChoiceLabel={savedChoice?.label}
+          styles={styles}
+        />
+      </View>
+    );
+  }
+
+  if (hasSavedAnswer) {
+    return (
+      <View style={styles.readerInteraction}>
+        <SavedEpisodeAnswer
+          interaction={interaction}
+          isGenerating={isSubmitting}
           savedChoiceLabel={savedChoice?.label}
           styles={styles}
         />
@@ -424,18 +519,6 @@ function EpisodeInteractionBlock({
           isSubmitting={isSubmitting}
           styles={styles}
           onSelectChoice={onSelectChoice}
-        />
-      </View>
-    );
-  }
-
-  if (hasSavedAnswer) {
-    return (
-      <View style={styles.readerInteraction}>
-        <SavedEpisodeAnswer
-          interaction={interaction}
-          savedChoiceLabel={savedChoice?.label}
-          styles={styles}
         />
       </View>
     );
@@ -494,24 +577,42 @@ function EpisodeChoice({
 // SavedEpisodeAnswer renders one persisted answer and its language feedback.
 function SavedEpisodeAnswer({
   interaction,
+  isGenerating,
   savedChoiceLabel,
   styles,
 }: {
   // interaction contains the persisted learner answer and feedback.
   readonly interaction: EpisodeInteraction;
+  // isGenerating shows the inline continuation skeleton below the saved answer.
+  readonly isGenerating: boolean;
   // savedChoiceLabel resolves the selected choice id for display.
   readonly savedChoiceLabel: string | undefined;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
 }): ReactElement {
   const answer = interaction.userReply ?? savedChoiceLabel;
+  const savedChoice = interaction.choices.find(
+    (choice) => choice.id === interaction.selectedChoiceId,
+  );
+  const isSpeechAnswer = savedChoice?.isSpeech !== false;
 
   return (
     <>
       <Text style={styles.sectionLabel}>YOUR ANSWER</Text>
-      <View style={styles.readerSavedAnswer}>
-        <Text style={styles.actionTitle}>{answer ?? 'No answer was saved.'}</Text>
-      </View>
+      {isSpeechAnswer ? (
+        <View style={styles.readerSavedAnswer}>
+          <Text style={styles.readerSavedAnswerText}>
+            {cleanSelectedReply(answer) || 'No answer was saved.'}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.readerNarrativeAnswer}>
+          <Text style={styles.readerNarrativeAnswerText}>
+            You decided to: {cleanSelectedReply(answer) || 'No action was saved.'}
+          </Text>
+        </View>
+      )}
+      {isGenerating ? <InlineGenerationShimmer styles={styles} /> : null}
       {interaction.feedback ? (
         <View style={styles.readerFeedback}>
           <Text style={styles.sectionLabel}>FEEDBACK</Text>
@@ -519,5 +620,31 @@ function SavedEpisodeAnswer({
         </View>
       ) : null}
     </>
+  );
+}
+
+// InlineGenerationShimmer previews feedback and continuation while online AI resolves.
+function InlineGenerationShimmer({
+  styles,
+}: {
+  // styles is the shared themed StyleSheet contract.
+  readonly styles: AppStyles;
+}): ReactElement {
+  return (
+    <View style={styles.readerGenerationShimmer}>
+      <View style={styles.readerShimmerCard}>
+        <View style={[styles.readerShimmerLine, { width: 104 }]} />
+        <View style={[styles.readerShimmerLine, { width: '92%' }]} />
+        <View style={[styles.readerShimmerLine, { width: '70%' }]} />
+      </View>
+      <View style={styles.readerShimmerRow}>
+        <View style={styles.readerShimmerAvatar} />
+        <View style={styles.readerShimmerBubbleWrapper}>
+          <View style={[styles.readerShimmerLine, { width: 74 }]} />
+          <View style={styles.readerShimmerBubble} />
+        </View>
+      </View>
+      <View style={styles.readerShimmerNarrative} />
+    </View>
   );
 }
