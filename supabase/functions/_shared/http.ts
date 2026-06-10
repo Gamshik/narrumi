@@ -36,6 +36,41 @@ export function safeErrorResponse(
   );
 }
 
+// moderationResponse reports a blocked request without exposing hidden detection internals.
+export function moderationResponse(
+  kind: "warning" | "banned",
+  warningsRemaining: number,
+  message: string,
+): Response {
+  return jsonResponse(
+    {
+      error: {
+        kind: kind === "warning" ? "moderation_warning" : "moderation_banned",
+        message,
+        warningsRemaining,
+      },
+    },
+    kind === "warning" ? 429 : 403,
+  );
+}
+
+// softModerationResponse blocks a validation-only action before it becomes a warning.
+export function softModerationResponse(
+  attemptsRemaining: number,
+  message: string,
+): Response {
+  return jsonResponse(
+    {
+      error: {
+        kind: "moderation_soft_block",
+        message,
+        attemptsRemaining,
+      },
+    },
+    422,
+  );
+}
+
 // logSafeError writes server-side diagnostics without returning provider details to clients.
 export function logSafeError(
   label: string,

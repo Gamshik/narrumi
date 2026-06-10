@@ -12,6 +12,7 @@ import {
 // generateRequest is bounded context used by episode finalizer regression tests.
 const generateRequest: GenerateEpisodeRequest = {
   seriesId: 'series:test',
+  seriesTitle: 'The Blue Door',
   orderIndex: 1,
   cefrLevel: 'B1',
   genre: 'short-fiction',
@@ -64,6 +65,7 @@ const submitRequest: SubmitInteractionRequest = {
   episodeId: 'episode:test',
   interactionId: 'interaction:test:1',
   seriesId: 'series:test',
+  seriesTitle: generateRequest.seriesTitle,
   cefrLevel: 'B1',
   genre: 'short-fiction',
   tone: 'mysterious but friendly',

@@ -10,10 +10,19 @@ import {
 import { finalizeEpisodePayload } from '../_shared/episodeFinalizers.ts';
 import {
   corsHeaders,
+  moderationResponse,
   jsonResponse,
   logSafeError,
   safeErrorResponse,
 } from '../_shared/http.ts';
+import { readAuthenticatedUserId } from '../_shared/auth.ts';
+import {
+  buildModerationReview,
+  collectModerationEntries,
+  createModerationStore,
+  getEffectiveWarningCount,
+  scanModerationEntries,
+} from '../_shared/moderation.ts';
 
 // openrouterApiKey is the server-only secret used by the AI boundary.
 const openrouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
@@ -173,7 +182,52 @@ Deno.serve(async (request: Request): Promise<Response> => {
   }
 
   try {
+    const authResult = await readAuthenticatedUserId(request);
+
+    if ('errorResponse' in authResult) {
+      return authResult.errorResponse;
+    }
+
+    const authorization = request.headers.get('Authorization') ?? '';
+    const moderationStore = createModerationStore(authorization);
+    const activeRestriction = await moderationStore.getActiveRestriction(
+      authResult.user.userId,
+    );
+
+    if (activeRestriction) {
+      return moderationResponse(
+        'banned',
+        0,
+        'This account is currently blocked from generating new episodes.',
+      );
+    }
+
     const payload = normalizeGenerationRequest(parsedRequest.data);
+    const moderationEntries = collectModerationEntries(payload);
+    const moderationSignals = scanModerationEntries(moderationEntries);
+
+    if (moderationSignals.length > 0) {
+      const currentState = await moderationStore.getState(authResult.user.userId);
+      const review = buildModerationReview({
+        previousWarningCount: getEffectiveWarningCount(currentState),
+        signals: moderationSignals,
+      });
+
+      await moderationStore.recordWarning(
+        authResult.user.userId,
+        'generate-episode',
+        review,
+      );
+
+      return moderationResponse(
+        review.shouldBan ? 'banned' : 'warning',
+        review.warningsRemaining,
+        review.shouldBan
+          ? 'This request matched blocked content rules again and the account has been banned.'
+          : `This request matched blocked content rules. ${review.warningsRemaining} warning${review.warningsRemaining === 1 ? '' : 's'} remain before a ban.`,
+      );
+    }
+
     const validatedPayload = await generateValidatedEpisode(payload);
 
     return jsonResponse(validatedPayload);
@@ -678,6 +732,7 @@ function buildCorePrompt(
           }
         : {}),
       requirements: {
+        seriesTitle: payload.seriesTitle,
         episodeLength:
           'Keep the opening concise enough for a comfortable mobile learning session, but substantial enough to develop the scene and lead to a meaningful interaction. Do not target or enforce a fixed word-count range.',
         cefr: payload.cefrLevel,
@@ -696,6 +751,7 @@ function buildCorePrompt(
       },
       outputRules: [
         'Return exactly these top-level fields: title, previouslyRecap, sceneText, cliffhanger, summaryUpdate.',
+        'Use seriesTitle as the story identity. The episode title may be different, but it must clearly belong to that series.',
         'sceneText must be one coherent opening scene or short passage.',
         'Do not return sentences, sentenceFrames, annotations, interaction, or memoryUpdate.',
         'Use 2-4 selected Story Words in the initial scene, or fewer when the selected set is smaller.',
@@ -777,6 +833,7 @@ function buildInteractionPrompt(
     {
       task: 'write-first-interaction-choice',
       cefr: payload.cefrLevel,
+      seriesTitle: payload.seriesTitle,
       tone: payload.tone,
       sceneSummary: coreDraft.summaryUpdate,
       sceneText: coreDraft.sceneText,
@@ -801,6 +858,7 @@ function buildMemoryPrompt(
   return JSON.stringify(
     {
       task: 'update-episode-memory',
+      seriesTitle: payload.seriesTitle,
       sceneText: coreDraft.sceneText,
       summaryUpdate: coreDraft.summaryUpdate,
       cliffhanger: coreDraft.cliffhanger,

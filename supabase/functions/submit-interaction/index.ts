@@ -10,10 +10,19 @@ import {
 import { finalizeInteractionPayload } from '../_shared/episodeFinalizers.ts';
 import {
   corsHeaders,
+  moderationResponse,
   jsonResponse,
   logSafeError,
   safeErrorResponse,
 } from '../_shared/http.ts';
+import { readAuthenticatedUserId } from '../_shared/auth.ts';
+import {
+  buildModerationReview,
+  collectModerationEntries,
+  createModerationStore,
+  getEffectiveWarningCount,
+  scanModerationEntries,
+} from '../_shared/moderation.ts';
 
 // openrouterApiKey is the server-only secret used by the AI boundary.
 const openrouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
@@ -184,7 +193,52 @@ Deno.serve(async (request: Request): Promise<Response> => {
   }
 
   try {
+    const authResult = await readAuthenticatedUserId(request);
+
+    if ('errorResponse' in authResult) {
+      return authResult.errorResponse;
+    }
+
+    const authorization = request.headers.get('Authorization') ?? '';
+    const moderationStore = createModerationStore(authorization);
+    const activeRestriction = await moderationStore.getActiveRestriction(
+      authResult.user.userId,
+    );
+
+    if (activeRestriction) {
+      return moderationResponse(
+        'banned',
+        0,
+        'This account is currently blocked from continuing episodes.',
+      );
+    }
+
     const payload = parsedRequest.data;
+    const moderationEntries = collectModerationEntries(payload);
+    const moderationSignals = scanModerationEntries(moderationEntries);
+
+    if (moderationSignals.length > 0) {
+      const currentState = await moderationStore.getState(authResult.user.userId);
+      const review = buildModerationReview({
+        previousWarningCount: getEffectiveWarningCount(currentState),
+        signals: moderationSignals,
+      });
+
+      await moderationStore.recordWarning(
+        authResult.user.userId,
+        'submit-interaction',
+        review,
+      );
+
+      return moderationResponse(
+        review.shouldBan ? 'banned' : 'warning',
+        review.warningsRemaining,
+        review.shouldBan
+          ? 'This request matched blocked content rules again and the account has been banned.'
+          : `This request matched blocked content rules. ${review.warningsRemaining} warning${review.warningsRemaining === 1 ? '' : 's'} remain before a ban.`,
+      );
+    }
+
     const validatedPayload = await generateValidatedInteraction(payload);
 
     return jsonResponse(validatedPayload);
@@ -696,6 +750,7 @@ function buildCorePrompt(
           }
         : {}),
       requirements: {
+        seriesTitle: payload.seriesTitle,
         cefr: payload.cefrLevel,
         genre: payload.genre,
         tone: payload.tone,
@@ -811,6 +866,7 @@ function buildMemoryPrompt(
   return JSON.stringify(
     {
       task: 'update-interaction-memory',
+      seriesTitle: payload.seriesTitle,
       continuationText: coreDraft.continuationText,
       summaryUpdate: coreDraft.summaryUpdate,
       isEpisodeComplete: coreDraft.isEpisodeComplete,
@@ -848,6 +904,7 @@ function buildChoicePrompt(
     {
       task: 'write-next-interaction-choice',
       cefr: payload.cefrLevel,
+      seriesTitle: payload.seriesTitle,
       tone: payload.tone,
       interactionCount: payload.interactionCount,
       episodePacingStage: getEpisodePacingStage(payload.interactionCount),

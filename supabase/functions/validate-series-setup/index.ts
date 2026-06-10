@@ -1,0 +1,153 @@
+import { z } from 'npm:zod';
+
+import { readAuthenticatedUserId } from '../_shared/auth.ts';
+import {
+  corsHeaders,
+  jsonResponse,
+  logSafeError,
+  moderationResponse,
+  safeErrorResponse,
+  softModerationResponse,
+} from '../_shared/http.ts';
+import {
+  buildModerationReview,
+  createModerationStore,
+  scanModerationEntries,
+  type ModerationEntry,
+} from '../_shared/moderation.ts';
+
+// SERIES_SETUP_SOFT_BLOCK_LIMIT is the number of blocked setup attempts allowed per hour before warnings start.
+const SERIES_SETUP_SOFT_BLOCK_LIMIT = 10;
+
+// seriesSetupSchema validates user-filled setup fields before local series creation.
+const seriesSetupSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  tone: z.string().trim().min(1).max(120),
+  premise: z.string().trim().max(1000).optional(),
+  mainCharacters: z.array(z.string().trim().max(160)).max(8),
+  userRole: z.string().trim().max(160).optional(),
+});
+
+// SeriesSetupRequest is the safe request shape sent by the mobile create-series use case.
+type SeriesSetupRequest = z.infer<typeof seriesSetupSchema>;
+
+Deno.serve(async (request: Request): Promise<Response> => {
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (request.method !== 'POST') {
+    return safeErrorResponse('validation', 405);
+  }
+
+  const requestBody = await readJsonBody(request);
+  const parsedRequest = seriesSetupSchema.safeParse(requestBody);
+
+  if (!parsedRequest.success) {
+    logSafeError('validate-series-setup request validation failed', parsedRequest.error, {
+      function: 'validate-series-setup',
+    });
+
+    return safeErrorResponse('validation', 400);
+  }
+
+  try {
+    const authResult = await readAuthenticatedUserId(request);
+
+    if ('errorResponse' in authResult) {
+      return authResult.errorResponse;
+    }
+
+    const authorization = request.headers.get('Authorization') ?? '';
+    const moderationStore = createModerationStore(authorization);
+    const activeRestriction = await moderationStore.getActiveRestriction(
+      authResult.user.userId,
+    );
+
+    if (activeRestriction) {
+      return moderationResponse(
+        'banned',
+        0,
+        'This account is currently blocked from creating new series.',
+      );
+    }
+
+    const moderationSignals = scanModerationEntries(
+      collectSeriesSetupModerationEntries(parsedRequest.data),
+    );
+
+    if (moderationSignals.length === 0) {
+      return jsonResponse({ ok: true });
+    }
+
+    const review = buildModerationReview({
+      previousWarningCount: 0,
+      signals: moderationSignals,
+    });
+    const result = await moderationStore.recordSoftBlock(
+      'validate-series-setup',
+      'series_setup',
+      review,
+      SERIES_SETUP_SOFT_BLOCK_LIMIT,
+    );
+
+    if (!result.didRecordWarning) {
+      return softModerationResponse(
+        result.attemptsRemaining,
+        'This series setup matched blocked content rules and was not saved.',
+      );
+    }
+
+    return moderationResponse(
+      result.bannedAt ? 'banned' : 'warning',
+      result.warningsRemaining ?? 0,
+      result.bannedAt
+        ? 'This series setup matched blocked content rules again and the account has been banned.'
+        : `This series setup matched blocked content rules too many times in the last hour. ${result.warningsRemaining ?? 0} warning${result.warningsRemaining === 1 ? '' : 's'} remain before a ban.`,
+    );
+  } catch (error) {
+    logSafeError('validate-series-setup failed', error, {
+      function: 'validate-series-setup',
+    });
+
+    return safeErrorResponse('unavailable', 502);
+  }
+});
+
+// collectSeriesSetupModerationEntries scans only fields the learner can write or choose.
+function collectSeriesSetupModerationEntries(
+  payload: SeriesSetupRequest,
+): ModerationEntry[] {
+  const entries: ModerationEntry[] = [
+    { sourceLabel: 'title', text: payload.title },
+    { sourceLabel: 'tone', text: payload.tone },
+  ];
+
+  if (payload.premise?.trim()) {
+    entries.push({ sourceLabel: 'premise', text: payload.premise });
+  }
+
+  payload.mainCharacters.forEach((character, index) => {
+    if (character.trim()) {
+      entries.push({
+        sourceLabel: `mainCharacters.[${index}]`,
+        text: character,
+      });
+    }
+  });
+
+  if (payload.userRole?.trim()) {
+    entries.push({ sourceLabel: 'userRole', text: payload.userRole });
+  }
+
+  return entries;
+}
+
+// readJsonBody parses untrusted request JSON without leaking transport details.
+async function readJsonBody(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    return undefined;
+  }
+}

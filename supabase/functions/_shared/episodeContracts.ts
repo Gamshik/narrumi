@@ -198,6 +198,7 @@ export const interactionPayloadSchema = z.object({
 // generateEpisodeRequestSchema validates untrusted mobile generation requests.
 export const generateEpisodeRequestSchema = z.object({
   seriesId: z.string().trim().min(1),
+  seriesTitle: z.string().trim().min(1).max(160),
   orderIndex: z.number().int().positive(),
   cefrLevel: z.enum(cefrLevels),
   genre: z.enum(learningGenres),
@@ -216,6 +217,7 @@ export const submitInteractionRequestSchema = z.object({
   episodeId: z.string().trim().min(1),
   interactionId: z.string().trim().min(1),
   seriesId: z.string().trim().min(1),
+  seriesTitle: z.string().trim().min(1).max(160),
   cefrLevel: z.enum(cefrLevels),
   genre: z.enum(learningGenres),
   tone: z.string().trim().min(1).max(120),
