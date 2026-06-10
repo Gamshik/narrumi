@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Context-English: Dialogue & Narrative Story Reader UI</title>
+    <title>Context-English: Modern Dialogue & Interactive Choice UI</title>
     <!-- Outfit & Inter Google Fonts for high-fidelity Apple typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,29 +40,27 @@
             
             /* Dialogue Bubble Colors (Light Mode) */
             --mira-bg: rgba(0, 122, 255, 0.04);
-            --mira-border: rgba(0, 122, 255, 0.15);
+            --mira-border: rgba(0, 122, 255, 0.12);
             --mira-accent: #007aff;
             
             --lily-bg: rgba(255, 149, 0, 0.04);
-            --lily-border: rgba(255, 149, 0, 0.15);
+            --lily-border: rgba(255, 149, 0, 0.12);
             --lily-accent: #ff9500;
             
             --voice-bg: rgba(175, 82, 222, 0.04);
-            --voice-border: rgba(175, 82, 222, 0.15);
+            --voice-border: rgba(175, 82, 222, 0.12);
             --voice-accent: #af52de;
             
             --user-bg: rgba(52, 199, 89, 0.04);
-            --user-border: rgba(52, 199, 89, 0.15);
+            --user-border: rgba(52, 199, 89, 0.12);
             --user-accent: #34c759;
             
             --fallback-bg: rgba(142, 142, 147, 0.04);
-            --fallback-border: rgba(142, 142, 147, 0.15);
+            --fallback-border: rgba(142, 142, 147, 0.12);
             --fallback-accent: #8e8e93;
             
-            /* Glassmorphism Formulas */
             --glass-bg: rgba(255, 255, 255, 0.7);
             --glass-border: rgba(255, 255, 255, 0.4);
-            --glass-shadow: rgba(0, 0, 0, 0.06);
             
             --spring-easing: cubic-bezier(0.16, 1, 0.3, 1);
             --spring-transition: all 0.35s var(--spring-easing);
@@ -88,29 +86,24 @@
             
             /* Dialogue Bubble Colors (Dark Mode) */
             --mira-bg: rgba(10, 132, 255, 0.08);
-            --mira-border: rgba(10, 132, 255, 0.25);
+            --mira-border: rgba(10, 132, 255, 0.2);
             --mira-accent: #0a84ff;
             
             --lily-bg: rgba(255, 159, 10, 0.08);
-            --lily-border: rgba(255, 159, 10, 0.25);
+            --lily-border: rgba(255, 159, 10, 0.2);
             --lily-accent: #ff9f0a;
             
             --voice-bg: rgba(191, 90, 242, 0.08);
-            --voice-border: rgba(191, 90, 242, 0.25);
+            --voice-border: rgba(191, 90, 242, 0.2);
             --voice-accent: #bf5af2;
             
             --user-bg: rgba(48, 209, 88, 0.08);
-            --user-border: rgba(48, 209, 88, 0.25);
+            --user-border: rgba(48, 209, 88, 0.2);
             --user-accent: #30d158;
             
             --fallback-bg: rgba(142, 142, 147, 0.08);
-            --fallback-border: rgba(142, 142, 147, 0.25);
+            --fallback-border: rgba(142, 142, 147, 0.2);
             --fallback-accent: #8e8e93;
-            
-            /* Glassmorphism Formulas (Dark) */
-            --glass-bg: rgba(28, 28, 30, 0.65);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --glass-shadow: rgba(0, 0, 0, 0.35);
         }
 
         * {
@@ -250,7 +243,7 @@
         /* LIVE TEXT EDITOR */
         .editor-textarea {
             width: 100%;
-            height: 120px;
+            height: 100px;
             font-family: 'Inter', sans-serif;
             font-size: 13px;
             padding: 12px;
@@ -305,36 +298,6 @@
         .prompt-box span.comment { color: #7f848e; font-style: italic; }
         .prompt-box span.string { color: #98c379; }
         .prompt-box span.keyword { color: #c678dd; }
-
-        .spec-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .spec-item {
-            display: flex;
-            gap: 12px;
-            font-size: 13.5px;
-            line-height: 1.45;
-        }
-
-        .spec-icon {
-            color: var(--sys-blue);
-            flex-shrink: 0;
-            margin-top: 2px;
-            font-size: 15px;
-        }
-
-        .spec-content strong {
-            color: var(--db-text-primary);
-        }
-
-        .spec-content p {
-            margin: 2px 0 0 0;
-            font-size: 12.5px;
-            color: var(--db-text-secondary);
-        }
 
         /* SIMULATOR PANEL (RIGHT COLUMN) */
         .simulator-panel {
@@ -439,14 +402,48 @@
             pointer-events: none;
         }
 
-        /* Screen Container - Scrolls STRICTLY above the bottom dock */
+        /* FIXED TOP DOCK (Optimized spacing to reduce visual air) */
+        .top-dock {
+            background-color: var(--phone-card);
+            border-bottom: 1px solid var(--phone-separator);
+            padding: 10px 12px 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 950;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .dark-theme .top-dock {
+            background-color: #121214;
+            border-bottom-color: var(--phone-border);
+        }
+
+        /* FIXED BOTTOM DOCK (Locks bottom tab navigation only) */
+        .bottom-dock {
+            background-color: var(--phone-card);
+            border-top: 1px solid var(--phone-separator);
+            padding: 8px 14px 24px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.02);
+            z-index: 950;
+        }
+
+        .dark-theme .bottom-dock {
+            background-color: #121214;
+            border-top-color: var(--phone-border);
+        }
+
+        /* Screen Container - Scrolls under top dock, stops at bottom dock (reduced padding) */
         .screen-container {
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow-y: auto;
             scrollbar-width: none;
-            padding: 16px 14px 16px 14px;
+            padding: 10px 12px;
         }
 
         .screen-container::-webkit-scrollbar {
@@ -458,8 +455,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 14px;
-            padding: 0 4px;
         }
 
         .app-title-group {
@@ -468,16 +463,16 @@
         }
 
         .app-category {
-            font-size: 10px;
-            font-weight: 700;
+            font-size: 8.5px;
+            font-weight: 800;
             color: var(--sys-blue);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
         }
 
         .app-main-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 19px;
+            font-size: 18px;
             font-weight: 800;
             color: var(--phone-text-primary);
             letter-spacing: -0.02em;
@@ -485,134 +480,36 @@
         }
 
         .cefr-badge {
-            font-size: 9px;
-            font-weight: 700;
-            padding: 3px 8px;
-            border-radius: 6px;
+            font-size: 8.5px;
+            font-weight: 800;
+            padding: 2.5px 7px;
+            border-radius: 5px;
             background-color: rgba(0, 122, 255, 0.1);
             color: var(--sys-blue);
             text-transform: uppercase;
-        }
-
-        /* CONFIGURATION SWITCH CARD */
-        .config-card {
-            background-color: var(--phone-card);
-            border: 1px solid var(--phone-border);
-            border-radius: 14px;
-            padding: 12px 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.01);
-        }
-
-        .config-label-group {
-            display: flex;
-            flex-direction: column;
-            gap: 1px;
-        }
-
-        .config-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--phone-text-primary);
-        }
-
-        .config-desc {
-            font-size: 10.5px;
-            color: var(--phone-text-secondary);
-        }
-
-        /* iOS Switch */
-        .ios-switch {
-            position: relative;
-            display: inline-block;
-            width: 48px;
-            height: 28px;
-        }
-
-        .ios-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .ios-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: var(--sys-gray);
-            transition: .3s;
-            border-radius: 28px;
-        }
-
-        .ios-slider:before {
-            position: absolute;
-            content: "";
-            height: 24px;
-            width: 24px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: .3s var(--spring-easing);
-            border-radius: 50%;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-        }
-
-        input:checked + .ios-slider {
-            background-color: var(--sys-green);
-        }
-
-        input:checked + .ios-slider:before {
-            transform: translateX(20px);
         }
 
         /* STORY VIEWPORT CANVAS */
         .story-container-card {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            min-height: 200px;
+            gap: 8px; /* Tighter layout - reduced from 14px */
             position: relative;
         }
 
-        /* TRADITIONAL SOLID TEXT VIEW */
-        .traditional-view {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .story-sentence-plain {
-            font-size: 15px;
-            line-height: 1.65;
-            color: var(--phone-text-primary);
-            cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 8px;
-            transition: var(--spring-transition);
-        }
-
-        /* DIALOGUE & NARRATIVE HIGHLIGHTS VIEW */
         .dialogue-view {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 8px; /* Tighter dialogue gaps - reduced from 14px */
         }
 
-        /* Standard Narrative Paragraph Block */
+        /* Standard Narrative Paragraph Block (Indented to match dialogue bubbles) */
         .narrative-block {
-            font-size: 14.5px;
+            font-size: 13px;
             line-height: 1.6;
             color: var(--phone-text-primary);
-            padding: 6px 8px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-left: 40px; /* Align text with dialogue bubble content */
+            padding: 4px 2px;
+            margin-left: 36px; /* 28px avatar + 8px gap = 36px */
             transition: var(--spring-transition);
         }
 
@@ -621,25 +518,23 @@
             display: flex;
             gap: 8px;
             align-items: flex-start;
-            padding: 4px;
-            border-radius: 10px;
-            cursor: pointer;
+            padding: 2px 2px;
             transition: var(--spring-transition);
         }
 
-        /* Avatar styling */
+        /* Avatar styling - reduced to 28x28 to fit more text and reduce horizontal air */
         .chat-avatar {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 12px;
+            font-size: 11px;
             color: #ffffff;
             flex-shrink: 0;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .avatar-mira { background-color: var(--mira-accent); }
@@ -647,114 +542,296 @@
         .avatar-voice { background-color: var(--voice-accent); }
         .avatar-user { background-color: var(--user-accent); }
         .avatar-stranger { background-color: var(--fallback-accent); }
-        .avatar-wizard { background-color: var(--sys-purple); }
-        .avatar-detective { background-color: var(--sys-blue); }
-        .avatar-suspect { background-color: var(--sys-red); }
-        .avatar-alex { background-color: var(--sys-orange); }
 
         .chat-bubble-wrapper {
             flex: 1;
             max-width: 86%;
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 2px;
         }
 
         .chat-speaker-label {
-            font-size: 9.5px;
+            font-size: 8.5px;
             font-weight: 700;
-            color: var(--phone-text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-left: 4px;
+            margin-left: 0px;
+            margin-bottom: 2px;
         }
+
+        .label-mira { color: var(--mira-accent); }
+        .label-lily { color: var(--lily-accent); }
+        .label-voice { color: var(--voice-accent); }
+        .label-user { color: var(--user-accent); }
+        .label-stranger { color: var(--fallback-accent); }
 
         /* Sleek dialogue bubble card floating on the screen background */
         .chat-bubble {
-            background-color: var(--phone-card);
-            border: 1px solid var(--phone-separator);
-            padding: 10px 14px;
-            border-radius: 16px;
-            border-top-left-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.015);
+            background-color: rgba(120, 120, 128, 0.06); /* Neutral iOS-like translucent grey */
+            border: 1px solid rgba(120, 120, 128, 0.12); /* Hair-thin border for visual crispness */
+            border-radius: 4px 12px 12px 12px; /* Asymmetric top-left sharp corner for speech tail effect */
+            padding: 6px 10px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
             transition: var(--spring-transition);
+            align-self: flex-start;
         }
 
-        .bubble-mira { background-color: var(--mira-bg); border-color: var(--mira-border); }
-        .bubble-lily { background-color: var(--lily-bg); border-color: var(--lily-border); }
-        .bubble-voice { background-color: var(--voice-bg); border-color: var(--voice-border); }
-        .bubble-user { background-color: var(--user-bg); border-color: var(--user-border); }
-        .bubble-stranger { background-color: var(--fallback-bg); border-color: var(--fallback-border); }
-        .bubble-wizard { background-color: rgba(175, 82, 222, 0.06); border-color: rgba(175, 82, 222, 0.15); }
-        .bubble-detective { background-color: rgba(0, 122, 255, 0.06); border-color: rgba(0, 122, 255, 0.15); }
-        .bubble-suspect { background-color: rgba(255, 59, 48, 0.06); border-color: rgba(255, 59, 48, 0.15); }
-        .bubble-alex { background-color: rgba(255, 149, 0, 0.06); border-color: rgba(255, 149, 0, 0.15); }
+        /* Specific highlight for User speech bubble to visually separate it */
+        .chat-bubble.bubble-user {
+            background-color: var(--user-bg);
+            border: 1px solid var(--user-border);
+            border-radius: 12px 4px 12px 12px; /* Asymmetric top-right sharp corner for outgoing effect */
+        }
 
         .chat-bubble-text {
-            font-size: 14.5px;
-            line-height: 1.55;
+            font-size: 13px;
+            line-height: 1.6;
             color: var(--phone-text-primary);
         }
 
         /* Small italicized carrier clause label below the bubble */
         .chat-narrative-clause {
-            font-size: 11.5px;
+            font-size: 10.5px;
             font-style: italic;
-            color: var(--phone-text-secondary);
+            color: var(--phone-text-tertiary);
             margin-top: 1px;
-            margin-left: 4px;
-        }
-
-        /* PLAYBACK AND HIGHLIGHT STATES */
-        .active-sentence {
-            opacity: 1 !important;
-            transform: scale(1.006);
-        }
-
-        .traditional-view .story-sentence-plain.active-sentence {
-            background-color: rgba(0, 122, 255, 0.12);
-            border-left: 3px solid var(--sys-blue);
-            padding-left: 8px;
-        }
-
-        .dialogue-view .narrative-block.active-sentence {
-            background-color: rgba(142, 142, 147, 0.08);
-            border-left: 3px solid var(--sys-gray);
-            padding-left: 8px;
-        }
-
-        /* Active bubble highlight */
-        .dialogue-view .chat-bubble-block.active-sentence .chat-bubble {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-            transform: translateY(-1px);
-        }
-        .dialogue-view .chat-bubble-block.active-sentence .bubble-mira { border-color: var(--mira-accent); background-color: rgba(0, 122, 255, 0.1); }
-        .dialogue-view .chat-bubble-block.active-sentence .bubble-lily { border-color: var(--lily-accent); background-color: rgba(255, 149, 0, 0.1); }
-        .dialogue-view .chat-bubble-block.active-sentence .bubble-voice { border-color: var(--voice-accent); background-color: rgba(175, 82, 222, 0.1); }
-        .dialogue-view .chat-bubble-block.active-sentence .bubble-wizard { border-color: var(--sys-purple); background-color: rgba(175, 82, 222, 0.1); }
-        .dialogue-view .chat-bubble-block.active-sentence .bubble-detective { border-color: var(--sys-blue); background-color: rgba(0, 122, 255, 0.1); }
-        .dialogue-view .chat-bubble-block.active-sentence .bubble-suspect { border-color: var(--sys-red); background-color: rgba(255, 59, 48, 0.1); }
-        .dialogue-view .chat-bubble-block.active-sentence .bubble-alex { border-color: var(--sys-orange); background-color: rgba(255, 149, 0, 0.1); }
-
-        /* Inactive dimmed reading focus */
-        .is-dimmed {
-            opacity: 0.45;
+            margin-left: 0px;
         }
 
         /* Vocabulary annotations */
         .trans-word {
-            border-bottom: 1px dashed var(--sys-blue);
+            border-bottom: 1.5px dashed var(--sys-blue);
             color: var(--sys-blue);
             font-weight: 600;
             cursor: pointer;
             padding: 0 1px;
         }
 
-        .trans-word:hover {
-            background-color: rgba(0, 122, 255, 0.05);
+        /* INTERACTIVE CHOICE WINDOW (Tighter spacing) */
+        .choices-container {
+            margin-top: 12px;
+            padding: 12px 14px;
+            background-color: var(--phone-card);
+            border: 1px solid var(--phone-separator);
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.4s var(--spring-easing);
+            opacity: 1;
+            transform: translateY(0);
         }
 
-        /* TOOLTIP FOR INLINE TRANSLATION (Relative to phone screen) */
+        .choices-container.collapsing {
+            opacity: 0;
+            transform: translateY(15px) scale(0.95);
+            max-height: 0;
+            padding: 0;
+            margin: 0;
+            border: none;
+            overflow: hidden;
+        }
+
+        .choice-title {
+            font-size: 8.5px;
+            font-weight: 800;
+            color: var(--sys-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .choice-prompt {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--phone-text-primary);
+            line-height: 1.4;
+        }
+
+        .choice-options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .choice-btn {
+            background-color: var(--phone-bg);
+            border: 1px solid var(--phone-separator);
+            color: var(--phone-text-primary);
+            padding: 9px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            transition: var(--spring-transition);
+            line-height: 1.35;
+        }
+
+        .choice-btn:hover {
+            border-color: var(--sys-blue);
+            background-color: rgba(0, 122, 255, 0.04);
+        }
+
+        .choice-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* TRANSITIONED SELECTED USER ANSWER */
+        .user-answer-bubble-block {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            margin-top: 10px;
+            animation: slideInRight 0.35s var(--spring-easing) both;
+        }
+
+        .user-bubble {
+            background-color: var(--user-bg);
+            border: 1px solid var(--user-border);
+            padding: 8px 12px;
+            border-radius: 14px;
+            border-top-right-radius: 4px;
+            max-width: 86%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .user-bubble-text {
+            font-size: 13px;
+            line-height: 1.4;
+            color: var(--phone-text-primary);
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(24px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* TRANSITIONED LANGUAGE FEEDBACK CARD (Tighter spacing) */
+        .ai-feedback-card {
+            margin-top: 8px;
+            background-color: rgba(52, 199, 89, 0.04);
+            border: 1px solid rgba(52, 199, 89, 0.12);
+            border-radius: 12px;
+            padding: 10px 12px;
+            animation: fadeIn 0.45s ease both;
+        }
+
+        .ai-feedback-title {
+            font-size: 8.5px;
+            font-weight: 800;
+            color: var(--sys-green);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 3px;
+        }
+
+        .ai-feedback-text {
+            font-size: 12px;
+            line-height: 1.4;
+            color: var(--phone-text-secondary);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* SHIMMER LOADING STATES (SKELETONS) */
+        .shimmer-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            animation: fadeIn 0.3s ease both;
+        }
+
+        .shimmer-block-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            padding: 1px 2px;
+        }
+
+        .shimmer-wave {
+            background: linear-gradient(90deg, var(--phone-card) 25%, var(--phone-bg) 50%, var(--phone-card) 75%);
+            background-size: 200% 100%;
+            animation: shimmer-animation 1.5s infinite linear;
+            border-radius: 6px;
+        }
+
+        .shimmer-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .shimmer-bubble-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .shimmer-label {
+            width: 60px;
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        .shimmer-bubble {
+            width: 180px;
+            height: 36px;
+            border-radius: 14px;
+        }
+
+        .shimmer-bubble-large {
+            width: 230px;
+            height: 54px;
+            border-radius: 14px;
+        }
+
+        .shimmer-narrative-line {
+            margin-left: 36px;
+            height: 14px;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer-animation {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Navigation Tab Bar */
+        .simulator-nav {
+            background-color: var(--phone-bg);
+            border: 1px solid var(--phone-separator);
+            border-radius: 99px;
+            height: 44px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 4px;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--phone-text-secondary);
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        .nav-item.active {
+            color: var(--sys-blue);
+        }
+
+        /* TOOLTIP FOR INLINE TRANSLATION */
         .word-tooltip {
             position: absolute;
             width: 220px;
@@ -798,129 +875,9 @@
             line-height: 1.4;
             margin-top: 1px;
         }
-
-        /* FIXED TOP DOCK (Houses header and player card at the top, preventing overlap and saving scroll space) */
-        .top-dock {
-            background-color: var(--phone-card);
-            border-bottom: 1px solid var(--phone-separator);
-            padding: 14px 14px 12px 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 950;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-        }
-
-        .dark-theme .top-dock {
-            background-color: #121214;
-            border-bottom-color: var(--phone-border);
-        }
-
-        /* FIXED BOTTOM DOCK (Locks bottom navigation only) */
-        .bottom-dock {
-            background-color: var(--phone-card);
-            border-top: 1px solid var(--phone-separator);
-            padding: 8px 14px 24px 14px; /* Padding bottom leaves safe area for home indicator */
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.02);
-            z-index: 950;
-        }
-
-        .dark-theme .bottom-dock {
-            background-color: #121214;
-            border-top-color: var(--phone-border);
-        }
-
-        /* AUDIO CONTROLLER CARD (Compact version for top dock) */
-        .audio-controller-card {
-            background-color: var(--phone-bg);
-            border: 1px solid var(--phone-separator);
-            border-radius: 12px;
-            padding: 8px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 48px;
-        }
-
-        .audio-track-info {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .audio-track-title {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--phone-text-primary);
-        }
-
-        .audio-track-sub {
-            font-size: 10px;
-            color: var(--phone-text-secondary);
-        }
-
-        .audio-buttons {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .audio-btn-circle {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background-color: var(--phone-card);
-            border: 1px solid var(--phone-separator);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: var(--phone-text-primary);
-            transition: var(--spring-transition);
-        }
-
-        .audio-btn-circle:active {
-            transform: scale(0.92);
-        }
-
-        .audio-btn-circle.main-play {
-            background-color: var(--sys-blue);
-            border-color: var(--sys-blue);
-            color: #ffffff;
-        }
-
-        /* Navigation Tab Bar */
-        .simulator-nav {
-            background-color: var(--phone-bg);
-            border: 1px solid var(--phone-separator);
-            border-radius: 99px;
-            height: 44px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 4px;
-        }
-
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: var(--phone-text-secondary);
-            cursor: pointer;
-            font-size: 9px;
-            font-weight: 600;
-        }
-
-        .nav-item.active {
-            color: var(--sys-blue);
-        }
     </style>
 </head>
-<body class="dark-theme"> <!-- Default to premium Dark mode -->
+<body class="dark-theme">
 
     <div class="dashboard-container">
         
@@ -928,13 +885,12 @@
         <header class="dashboard-header">
             <div class="dashboard-title-group">
                 <h1>
-                    <!-- Apple SVG Icon -->
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block; vertical-align:middle; margin-right:4px;">
                         <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM13 17H11V15H13V17ZM13 13H11V7H13V13Z" fill="var(--sys-blue)"/>
                     </svg>
-                    Context-English: Dialogue Reader Design
+                    Context-English: Dialogue & Choice Redesign
                 </h1>
-                <p>Фиксированная нижняя панель (Bottom Dock) полностью изолирует плеер от текста, исключая наложения</p>
+                <p>Высокая плотность текста, уменьшены отступы, добавлено динамическое продолжение сюжета</p>
             </div>
             
             <button class="theme-toggle-btn" id="theme-toggle">
@@ -949,36 +905,33 @@
                 <!-- 1. LIVE TEXT EDITOR CARD -->
                 <section class="prompt-card">
                     <h2>
-                        <!-- Edit Icon -->
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                        Живой парсер-редактор (Live Parser)
+                        Живой парсер-редактор
                     </h2>
-                    <p>Вставь любой текст с кавычками, чтобы посмотреть, как он распознается. Например, <code>John said: "Hi!"</code></p>
+                    <p>Вставь текст. Кавычки автоматически превратятся в диалоговые пузыри.</p>
                     <textarea class="editor-textarea" id="custom-text-editor">Alex walked into the quiet room.
 "Have you found the ancient artifact?" Lily asked quickly.
 "No," Alex replied, "the room was completely empty."
-He sighed and sat on the wooden bench.
-A deep, booming voice echoed from the ceiling: "Who dares enter my sanctuary without permission?!"</textarea>
+He sighed and sat on the wooden bench.</textarea>
                     <button class="editor-btn" id="editor-render-btn">Render Text</button>
                 </section>
 
                 <!-- 2. STORY SELECTOR & PRESETS -->
                 <section class="prompt-card">
                     <h2>
-                        <!-- Books Icon -->
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5v-15z"></path></svg>
-                        Предустановленные жанры (Presets)
+                        Предустановленные жанры
                     </h2>
-                    <p>Посмотри, как разные типы диалогов и длинные фразы смотрятся в симуляторе.</p>
+                    <p>Кликая по жанрам, вы можете симулировать прогрузку с помощью Shimmer.</p>
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         <button class="theme-toggle-btn" style="width: 100%; justify-content: flex-start;" onclick="loadPresetStory('daily')">
-                            📅 Daily Life (Разговор в кафе, короткий диалог)
+                            📅 Daily Life Preset
                         </button>
                         <button class="theme-toggle-btn" style="width: 100%; justify-content: flex-start;" onclick="loadPresetStory('fantasy')">
-                            🔮 Fantasy (Длинная речь мага, описание сцен)
+                            🔮 Fantasy Preset
                         </button>
                         <button class="theme-toggle-btn" style="width: 100%; justify-content: flex-start;" onclick="loadPresetStory('detective')">
-                            🔍 Detective (Допрос, частая смена говорящих)
+                            🔍 Detective Preset
                         </button>
                     </div>
                 </section>
@@ -987,40 +940,34 @@ A deep, booming voice echoed from the ceiling: "Who dares enter my sanctuary wit
             <!-- 3. DETAILED IMPLEMENTATION PROMPT -->
             <section class="prompt-card">
                 <h2>
-                    <!-- Code Icon -->
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                    Промпт для реализации (Implementation Prompt)
+                    Промпт для реализации в React Native
                 </h2>
-                <p>Скопируй этот промпт для реализации кода в проекте. Он содержит логику для диалогового стиля.</p>
+                <p>Этот промпт детально описывает логику коллапса вариантов выбора и отображение фидбека.</p>
                 
                 <div class="prompt-box-wrapper">
                     <button class="copy-btn" id="copy-prompt-btn">Copy</button>
-                    <pre class="prompt-box" id="prompt-code-box"><span class="comment"># GOAL: Implement Dialogue & Narrative styles in EpisodeReaderScreen with Top-Fixed Player</span>
+                    <pre class="prompt-box" id="prompt-code-box"><span class="comment"># GOAL: Redesign Dialogues, Questions & Spacing in React Native</span>
 
-We want to enhance the UI/UX of the story reader in `apps/mobile` by automatically rendering character dialogues inside speech bubble blocks, formatting narrative as indented paragraphs, and placing the audio player statically at the top of the screen (below the header) to prevent text overlap.
+We want to enhance the UI/UX of the story reader screens.
 
-<span class="keyword">###</span> 1. Layout Architecture (UX Overlap Protection)
-- Restructure the screen layout using a vertical Flex column inside a SafeAreaView.
-- <strong>Top Section (Fixed)</strong>: Sleek top dock containing the Screen Title and the compact AudioControls card.
-- <strong>Middle Section (ScrollView - flex: 1)</strong>: The story reader text scrolls inside this area, flowing cleanly under the top player.
-- <strong>Bottom Section (Fixed)</strong>: The navigation tab bar.
-- <strong>Result</strong>: Reader text is physically separated from controls and never overlaps under any text length, scrolling, or screen orientation.
+<span class="keyword">###</span> 1. Layout & Spacing (High Utility, Low Air)
+- Remove any sticky player cards or overlay audio player bars from the UI.
+- Use tight vertical paddings (`paddingVertical: 6` for speech bubbles, `paddingHorizontal: 10`).
+- Gaps between chat bubbles and narrative blocks are set to `8px`.
+- ScrollView horizontal padding is reduced to `12px` to let text expand.
 
-<span class="keyword">###</span> 2. Dialogue & Narrative Formatting
-- <strong>Dialogue Block</strong>:
-  - Flex Row layout with an Avatar circle on the left (<span class="string">`width: 32px`</span>, initials centered).
-  - Right content: A small speaker name label, and a speech bubble with a translucent background colored by speaker accent.
-  - Bubble width stretches up to 86% of container width (no excessive empty space).
-  - Narrative carrier clause (e.g. <span class="string">"asked Lily"</span>) is rendered below the bubble in small italic.
-- <strong>Narrative Block</strong>:
-  - Rendered as standard text block with <span class="string">`margin-left: 40px`</span> (aligned with the bubble text to prevent eye jumping).
-- <strong>Vocabulary highlights</strong>:
-  - Ensure inline tap-to-translate annotations still work inside the speech bubble chunks! Text must be mapped to <span class="string">`buildSentenceTextChunks`</span>.
+<span class="keyword">###</span> 2. Dialogue Bubble & Avatar Specs
+- <strong>Dialogue Row</strong>: Flex Row structure. Left side: Avatar (`28x28`, colored based on character). Right side: Speaker Name above Speech Bubble (`borderRadius: 12`).
+- <strong>Narration Row</strong>: Standard text block indented with `marginLeft: 36` to perfectly line up with bubble text.
 
-<span class="keyword">###</span> 3. Integration with TTS & Focus Dimming
-- During TTS playback, keep the active block (whether narrative block or speech bubble) at <span class="string">`opacity: 1`</span>.
-- Dim inactive blocks to <span class="string">`opacity: 0.45`</span>.
-- Make sure tapping any word inside a dialogue box opens the translation sheet.</pre>
+<span class="keyword">###</span> 3. Choice Collapse & Answer Transition
+- <strong>Active Question</strong>: Rendered inside a Card at the end of the text list. Contains vertical option buttons.
+- <strong>Answer Click Behavior</strong>:
+  - Fade out and collapse the options container.
+  - Insert the user's selected choice as a bubble aligned to the right, styled with `user-accent` theme colors.
+  - Render the AI Feedback Block (`ai-feedback-card`) below it.
+  - Dynamically load and append the next story sentences (continuation) below the feedback block.</pre>
                 </div>
             </section>
 
@@ -1030,7 +977,10 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
         <aside class="simulator-panel">
             <div class="sticky-simulator">
                 
-                <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--db-text-secondary);">Интерактивный симулятор</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 0 4px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--db-text-secondary);">Интерактивный симулятор</h3>
+                    <button class="theme-toggle-btn" style="padding: 4px 10px; font-size: 11px;" id="sim-shimmer-trigger">Симулировать Shimmer</button>
+                </div>
                 
                 <div class="iphone-15">
                     
@@ -1050,41 +1000,21 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
                     <!-- Screen View -->
                     <div class="iphone-screen">
                         
-                        <!-- 1. FIXED TOP DOCK (Houses header and player card at the top) -->
+                        <!-- 1. FIXED TOP DOCK (Only header, player removed!) -->
                         <div class="top-dock">
                             <!-- Header -->
                             <div class="app-header">
                                 <div class="app-title-group">
                                     <span class="app-category">DAILY CONTEXT</span>
-                                    <h3 class="app-main-title" id="story-title-label">Story Reader v3.0</h3>
+                                    <h3 class="app-main-title" id="story-title-label">Story Reader v4.0</h3>
                                 </div>
                                 <span class="cefr-badge" id="story-cefr-label">CEFR A2</span>
                             </div>
-
-                            <!-- AUDIO CONTROLLER CARD -->
-                            <div class="audio-controller-card">
-                                <div class="audio-track-info">
-                                    <span class="audio-track-title" id="audio-title">The Shadow Door</span>
-                                    <span class="audio-track-sub" id="audio-sub">Tap Play to read aloud</span>
-                                </div>
-                                <div class="audio-buttons">
-                                    <button class="audio-btn-circle" id="audio-prev-btn">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>
-                                    </button>
-                                    <button class="audio-btn-circle main-play" id="audio-play-btn">
-                                        <svg id="play-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                                        <svg id="pause-icon" style="display:none;" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-                                    </button>
-                                    <button class="audio-btn-circle" id="audio-next-btn">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
-                                    </button>
-                                </div>
-                            </div>
                         </div>
 
-                        <!-- 2. ZONE 2: SCROLLABLE CONTENT (Occupies flex space between top and bottom dock) -->
+                        <!-- 2. ZONE 2: SCROLLABLE CONTENT (Occupies full space) -->
                         <div class="screen-container" id="iphone-scroll-area">
-                            <!-- STORY CONTENT CONTAINER (No border/background card to prevent clipping) -->
+                            <!-- STORY CONTENT CONTAINER -->
                             <div class="story-container-card" id="story-viewport">
                                 <!-- Will be dynamically populated -->
                             </div>
@@ -1118,7 +1048,7 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
                         <!-- Home Indicator Safe Area bottom -->
                         <div class="home-indicator"></div>
 
-                        <!-- Translation Tooltip (Bounded to iphone-screen) -->
+                        <!-- Translation Tooltip -->
                         <div class="word-tooltip" id="trans-tooltip">
                             <div class="tooltip-word" id="tip-word">artifact</div>
                             <div class="tooltip-ipa" id="tip-ipa">/ˈɑː.tɪ.fækt/</div>
@@ -1131,7 +1061,7 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
             </div>
         </aside>
 
-    </div> <!-- /dashboard-container -->
+    </div>
 
     <script>
         // --- Dark/Light Mode Switcher Logic ---
@@ -1166,9 +1096,35 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
                     "He found her sitting by the window, sipping a hot latte.",
                     "\"Hey Lily, sorry I'm late!\" Alex said as he sat down.",
                     "Lily smiled warmly and put her cup down on the table.",
-                    "\"Don't worry about it, I just ordered a minute ago,\" she replied.",
-                    "\"The traffic was absolutely terrible near the bridge,\" Alex explained."
-                ]
+                    "\"Don't worry about it, I just ordered a minute ago,\" she replied."
+                ],
+                question: {
+                    prompt: "How should Alex respond to Lily's greeting?",
+                    choices: [
+                        { 
+                            id: "choice_a", 
+                            label: "Apologize again and buy her coffee", 
+                            reply: "\"Let me at least buy you another coffee to make up for it,\"", 
+                            feedback: "Great polite phrasing! Using 'make up for it' shows good conversational flexibility.",
+                            continuation: [
+                                "Lily laughed and waved her hand dismissively.",
+                                "\"Only if you promise to try their new cinnamon rolls next time!\" she joked.",
+                                "The barista called their order, and they carried the warm cups to a corner table."
+                            ]
+                        },
+                        { 
+                            id: "choice_b", 
+                            label: "Change the topic and ask about her day", 
+                            reply: "\"So, what have you been up to since last week?\"", 
+                            feedback: "Very natural! Changing the topic with 'what have you been up to' is a standard informal transition.",
+                            continuation: [
+                                "Lily leaned forward, resting her chin on her hands.",
+                                "\"You won't believe what happened at the office on Monday,\" she started.",
+                                "Alex listened intently as the cafe around them hummed with low conversation."
+                            ]
+                        }
+                    ]
+                }
             },
             fantasy: {
                 title: "The Wizard's Call",
@@ -1176,11 +1132,35 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
                 sentences: [
                     "The wizard stood before the glowing crystal, his voice echoing in the stone chamber.",
                     "\"You have traveled far to seek my counsel, young warrior,\" he spoke slowly.",
-                    "\"But the path ahead is filled with great dangers that will test your spirit, your mind, and your courage to the limit.\"",
-                    "\"Is there no other way to save my people?\" Lily asked, holding her steel sword tight.",
-                    "The wizard shook his head, his ancient face filled with deep sorrow.",
-                    "\"No, child,\" he whispered, \"only you can face the dark shadow at the edge of the world.\""
-                ]
+                    "\"But the path ahead is filled with great dangers that will test your spirit, your mind, and your courage to the limit.\""
+                ],
+                question: {
+                    prompt: "What should Lily say to show her determination?",
+                    choices: [
+                        { 
+                            id: "choice_a", 
+                            label: "Declare she is ready for any challenge", 
+                            reply: "\"I don't care about the danger, I will save my kingdom!\"", 
+                            feedback: "Strong stance! Using exclamation highlights direct character emotions.",
+                            continuation: [
+                                "The wizard's ancient face softened slightly, a rare hint of approval in his eyes.",
+                                "\"Your spirit is bright, child,\" he whispered, raised his wooden staff high.",
+                                "A soft purple light enveloped her sword, humming with newfound magical energy."
+                            ]
+                        },
+                        { 
+                            id: "choice_b", 
+                            label: "Ask if there is another way to solve the crisis", 
+                            reply: "\"Is there truly no other path we can choose?\"", 
+                            feedback: "Excellent B1 structure using 'is there truly no other path' for advanced inquiry.",
+                            continuation: [
+                                "The wizard shook his head, his ancient face filled with deep sorrow.",
+                                "\"No, child,\" he whispered, \"only you can face the dark shadow at the edge of the world.\"",
+                                "He pointed toward the heavy iron door, signaling it was time for her journey to begin."
+                            ]
+                        }
+                    ]
+                }
             },
             detective: {
                 title: "The Interrogation",
@@ -1188,30 +1168,66 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
                 sentences: [
                     "Detective Jones turned on the bright desk lamp, staring at the suspect.",
                     "\"Where were you on the night of the robbery?\" he demanded.",
-                    "The suspect looked down at his metal cuffs, nervously shifting in his chair.",
-                    "\"I was home alone, sleeping in my bed,\" he muttered, refusing to look up.",
-                    "\"That is a lie,\" the detective said, throwing a photograph on the table.",
-                    "\"Our cameras spotted your blue car near the bank at midnight.\""
-                ]
+                    "The suspect looked down at his metal cuffs, nervously shifting in his chair."
+                ],
+                question: {
+                    prompt: "How should the suspect reply to lower the detective's suspicion?",
+                    choices: [
+                        { 
+                            id: "choice_a", 
+                            label: "Give a detailed alibi sleeping at home", 
+                            reply: "\"I was asleep in my bed. You have the wrong person.\"", 
+                            feedback: "Direct alibi. Short sentences show defensiveness, typical of B2 interrogation texts.",
+                            continuation: [
+                                "Detective Jones leaned in close, the glare of the lamp reflecting in his eyes.",
+                                "\"That is a lie,\" the detective said, throwing a glossy photograph on the table.",
+                                "\"Our cameras spotted your blue car near the bank at midnight.\""
+                            ]
+                        },
+                        { 
+                            id: "choice_b", 
+                            label: "Ask for a lawyer immediately", 
+                            reply: "\"I won't say a single word until my lawyer arrives here.\"", 
+                            feedback: "Assertive phrasing. 'Won't say a single word' is a high-utility idiom.",
+                            continuation: [
+                                "Detective Jones sighed and stood up, sliding his hands into his pockets.",
+                                "\"Fine, play it your way,\" he muttered, walking toward the heavy metal door.",
+                                "\"But remember, the clock is ticking, and your time is running out.\""
+                            ]
+                        }
+                    ]
+                }
             }
         };
 
         // Simulated vocabulary tooltips
         const vocabDb = {
-            artifact: { word: "artifact", ipa: "/ˈɑː.tɪ.fækt/", trans: "Артефакт (древний, исторически ценный предмет)." },
+            artifact: { word: "artifact", ipa: "/ˈɑː.tɪ.fækt/", trans: "Артефакт (исторически ценный предмет)." },
             crowded: { word: "crowded", ipa: "/ˈkraʊ.dɪd/", trans: "Переполненный (людьми), людный." },
             counsel: { word: "counsel", ipa: "/ˈkraʊn.səl/", trans: "Совет, рекомендация (мудрого человека)." },
-            interrogation: { word: "interrogation", ipa: "/ɪnˌter.əˈɡeɪ.ʃən/", trans: "Допрос (официальный опрос подозреваемого)." },
-            shadow: { word: "shadow", ipa: "/ˈʃæd.əʊ/", trans: "Тень, темный силуэт." },
-            whispered: { word: "whispered", ipa: "/ˈwɪs.pəd/", trans: "Прошептал (сказал тихим голосом)." }
+            interrogation: { word: "interrogation", ipa: "/ɪnˌter.əˈɡeɪ.ʃən/", trans: "Допрос (официальный опрос подозреваемого)." }
         };
 
         const charNames = ["Alex", "Lily", "Wizard", "Jones", "Detective"];
         
+        let currentStoryKey = 'daily';
         let currentSentences = [...stories.daily.sentences];
-        let currentActiveIndex = 0;
-        let isPlaying = false;
-        let playInterval = null;
+        let currentQuestion = stories.daily.question;
+        let isSimulatingShimmer = false;
+        let isGeneratingContinuation = false;
+
+        // Choice states
+        let resolvedChoiceId = null;
+
+        // Get character theme category to map arbitrary preset names to unified styles
+        function getSpeakerClass(speaker) {
+            const name = speaker.toLowerCase();
+            if (name === 'alex' || name === 'mira') return 'mira';
+            if (name === 'lily') return 'lily';
+            if (name === 'wizard' || name === 'voice') return 'voice';
+            if (name === 'user' || name === 'you') return 'user';
+            return 'stranger';
+        }
 
         // --- Parser Logic ---
         function parseSentence(sentence) {
@@ -1267,7 +1283,6 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
             };
         }
 
-        // Decorate words with translations dynamically
         function decorateWords(text) {
             let decorated = text;
             Object.keys(vocabDb).forEach(wordKey => {
@@ -1284,6 +1299,11 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
         function renderStory() {
             storyViewport.innerHTML = '';
 
+            if (isSimulatingShimmer) {
+                renderShimmers();
+                return;
+            }
+
             const wrapper = document.createElement('div');
             wrapper.className = 'dialogue-view';
 
@@ -1291,38 +1311,32 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
             const parsedList = currentSentences.map(s => parseSentence(s));
 
             parsedList.forEach((parsed, index) => {
-                const isActive = index === currentActiveIndex;
-                const isDim = currentActiveIndex !== -1 && index !== currentActiveIndex;
-
                 if (parsed.type === 'narrative') {
-                    // Narrative block style
                     const div = document.createElement('div');
-                    div.className = `narrative-block ${isActive ? 'active-sentence' : ''} ${isDim ? 'is-dimmed' : ''}`;
+                    div.className = `narrative-block`;
                     div.innerHTML = decorateWords(parsed.narrativeText);
-                    div.addEventListener('click', () => selectSentence(index));
                     wrapper.appendChild(div);
                 } else {
-                    // Dialogue block style (Chat Bubble Layout)
                     const block = document.createElement('div');
-                    block.className = `chat-bubble-block ${isActive ? 'active-sentence' : ''} ${isDim ? 'is-dimmed' : ''}`;
+                    block.className = `chat-bubble-block`;
                     
                     const avatar = document.createElement('div');
-                    avatar.className = `chat-avatar avatar-${parsed.speaker.toLowerCase()}`;
+                    avatar.className = `chat-avatar avatar-${getSpeakerClass(parsed.speaker)}`;
                     avatar.textContent = parsed.speaker.substring(0, 1).toUpperCase();
 
                     const content = document.createElement('div');
                     content.className = 'chat-bubble-wrapper';
 
                     const name = document.createElement('span');
-                    name.className = 'chat-speaker-label';
+                    name.className = `chat-speaker-label label-${getSpeakerClass(parsed.speaker)}`;
                     name.textContent = parsed.speaker;
 
                     const bubble = document.createElement('div');
-                    bubble.className = `chat-bubble bubble-${parsed.speaker.toLowerCase()}`;
+                    bubble.className = `chat-bubble bubble-${getSpeakerClass(parsed.speaker)}`;
                     
                     const text = document.createElement('span');
                     text.className = 'chat-bubble-text';
-                    text.innerHTML = `"${decorateWords(parsed.dialogueText)}"`;
+                    text.innerHTML = decorateWords(parsed.dialogueText);
 
                     bubble.appendChild(text);
                     content.appendChild(name);
@@ -1337,54 +1351,268 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
 
                     block.appendChild(avatar);
                     block.appendChild(content);
-                    block.addEventListener('click', () => selectSentence(index));
                     wrapper.appendChild(block);
                 }
             });
 
             storyViewport.appendChild(wrapper);
+
+            // Append Resolved Answer & Feedback / Generation Shimmer
+            if (resolvedChoiceId && currentQuestion) {
+                const choice = currentQuestion.choices.find(c => c.id === resolvedChoiceId);
+                if (choice) {
+                    renderUserAnswer(choice);
+                    
+                    if (isGeneratingContinuation) {
+                        renderInlineGenerationShimmer();
+                    } else {
+                        renderAIFeedback(choice);
+                        
+                        // Render dynamically appended continuation after answer!
+                        if (choice.continuation) {
+                            renderContinuationStory(choice.continuation);
+                        }
+                    }
+                }
+            } else if (currentQuestion) {
+                renderChoicesCard();
+            }
+
             setupTooltipListeners();
         }
 
-        // --- Select & Highlight Sentence ---
-        function selectSentence(index) {
-            currentActiveIndex = index;
-            renderStory();
+        // Render User Selected Answer
+        function renderUserAnswer(choice) {
+            const bubbleBlock = document.createElement('div');
+            bubbleBlock.className = 'user-answer-bubble-block';
 
-            // Sync with Audio Bar info
-            document.getElementById('audio-sub').textContent = `Sentence ${index + 1} of ${currentSentences.length}`;
-            
-            // Auto scroll inside simulated screen container to keep active sentence visible
-            const activeEl = document.querySelector('.active-sentence');
-            if (activeEl) {
-                activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            const name = document.createElement('span');
+            name.className = 'chat-speaker-label';
+            name.style.marginRight = '4px';
+            name.textContent = 'YOU (ANSWER)';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'user-bubble';
+
+            const text = document.createElement('span');
+            text.className = 'user-bubble-text';
+            text.innerHTML = choice.reply;
+
+            bubble.appendChild(text);
+            bubbleBlock.appendChild(name);
+            bubbleBlock.appendChild(bubble);
+            storyViewport.appendChild(bubbleBlock);
+        }
+
+        // Render AI Feedback
+        function renderAIFeedback(choice) {
+            const feedbackCard = document.createElement('div');
+            feedbackCard.className = 'ai-feedback-card';
+
+            const fTitle = document.createElement('div');
+            fTitle.className = 'ai-feedback-title';
+            fTitle.textContent = 'Language Feedback';
+
+            const fText = document.createElement('p');
+            fText.className = 'ai-feedback-text';
+            fText.textContent = choice.feedback;
+
+            feedbackCard.appendChild(fTitle);
+            feedbackCard.appendChild(fText);
+            storyViewport.appendChild(feedbackCard);
+        }
+
+        // Render inline generation shimmer during story continuation generation
+        function renderInlineGenerationShimmer() {
+            const container = document.createElement('div');
+            container.className = 'shimmer-container';
+            container.style.marginTop = '12px';
+            container.innerHTML = `
+                <!-- Feedback Shimmer -->
+                <div class="ai-feedback-card" style="margin-top: 0; background-color: var(--phone-card); border-color: var(--phone-separator);">
+                    <div class="shimmer-wave shimmer-label" style="width: 100px; height: 8px;"></div>
+                    <div class="shimmer-wave" style="width: 90%; height: 12px; border-radius: 4px; margin-top: 6px;"></div>
+                    <div class="shimmer-wave" style="width: 70%; height: 12px; border-radius: 4px; margin-top: 4px;"></div>
+                </div>
+                <!-- Continuation Dialogue Shimmer -->
+                <div class="shimmer-block-row" style="margin-top: 8px;">
+                    <div class="shimmer-wave shimmer-avatar"></div>
+                    <div class="shimmer-bubble-wrapper">
+                        <div class="shimmer-wave shimmer-label"></div>
+                        <div class="shimmer-wave shimmer-bubble-large"></div>
+                    </div>
+                </div>
+                <!-- Continuation Narrative Shimmer -->
+                <div class="shimmer-wave shimmer-narrative-line" style="width: 75%; margin-top: 4px;"></div>
+            `;
+            storyViewport.appendChild(container);
+        }
+
+        // Render parsed story continuation lines
+        function renderContinuationStory(continuation) {
+            const continuationWrapper = document.createElement('div');
+            continuationWrapper.className = 'dialogue-view';
+            continuationWrapper.style.marginTop = '12px';
+
+            const parsedContinuation = continuation.map(s => parseSentence(s));
+            parsedContinuation.forEach(parsed => {
+                if (parsed.type === 'narrative') {
+                    const div = document.createElement('div');
+                    div.className = `narrative-block`;
+                    div.innerHTML = decorateWords(parsed.narrativeText);
+                    continuationWrapper.appendChild(div);
+                } else {
+                    const block = document.createElement('div');
+                    block.className = `chat-bubble-block`;
+                    
+                    const avatar = document.createElement('div');
+                    avatar.className = `chat-avatar avatar-${getSpeakerClass(parsed.speaker)}`;
+                    avatar.textContent = parsed.speaker.substring(0, 1).toUpperCase();
+
+                    const content = document.createElement('div');
+                    content.className = 'chat-bubble-wrapper';
+
+                    const name = document.createElement('span');
+                    name.className = `chat-speaker-label label-${getSpeakerClass(parsed.speaker)}`;
+                    name.textContent = parsed.speaker;
+
+                    const bubble = document.createElement('div');
+                    bubble.className = `chat-bubble bubble-${getSpeakerClass(parsed.speaker)}`;
+                    
+                    const text = document.createElement('span');
+                    text.className = 'chat-bubble-text';
+                    text.innerHTML = decorateWords(parsed.dialogueText);
+
+                    bubble.appendChild(text);
+                    content.appendChild(name);
+                    content.appendChild(bubble);
+
+                    if (parsed.narrativeText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").trim().length > 2) {
+                        const narrativeClause = document.createElement('span');
+                        narrativeClause.className = 'chat-narrative-clause';
+                        narrativeClause.textContent = parsed.narrativeText;
+                        content.appendChild(narrativeClause);
+                    }
+
+                    block.appendChild(avatar);
+                    block.appendChild(content);
+                    continuationWrapper.appendChild(block);
+                }
+            });
+            storyViewport.appendChild(continuationWrapper);
+        }
+
+        // Render Shimmer Skeletons (Reduced air version)
+        function renderShimmers() {
+            const shimmerContainer = document.createElement('div');
+            shimmerContainer.className = 'shimmer-container';
+
+            shimmerContainer.innerHTML = `
+                <div class="shimmer-block-row">
+                    <div class="shimmer-wave shimmer-avatar"></div>
+                    <div class="shimmer-bubble-wrapper">
+                        <div class="shimmer-wave shimmer-label"></div>
+                        <div class="shimmer-wave shimmer-bubble"></div>
+                    </div>
+                </div>
+                <div class="shimmer-wave shimmer-narrative-line" style="width: 75%;"></div>
+                <div class="shimmer-wave shimmer-narrative-line" style="width: 60%;"></div>
+                <div class="shimmer-block-row">
+                    <div class="shimmer-wave shimmer-avatar"></div>
+                    <div class="shimmer-bubble-wrapper">
+                        <div class="shimmer-wave shimmer-label"></div>
+                        <div class="shimmer-wave shimmer-bubble-large"></div>
+                    </div>
+                </div>
+            `;
+            storyViewport.appendChild(shimmerContainer);
+        }
+
+        // Render Interactive Choices Card
+        function renderChoicesCard() {
+            const card = document.createElement('div');
+            card.className = 'choices-container';
+            card.id = 'active-choices-container';
+
+            const title = document.createElement('span');
+            title.className = 'choice-title';
+            title.textContent = 'Story Choice';
+
+            const prompt = document.createElement('p');
+            prompt.className = 'choice-prompt';
+            prompt.textContent = currentQuestion.prompt;
+
+            const list = document.createElement('div');
+            list.className = 'choice-options-list';
+
+            currentQuestion.choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                btn.textContent = choice.label;
+                btn.addEventListener('click', () => selectChoice(choice.id));
+                list.appendChild(btn);
+            });
+
+            card.appendChild(title);
+            card.appendChild(prompt);
+            card.appendChild(list);
+            storyViewport.appendChild(card);
+        }
+
+        // Select Choice Action & Collapsing Transition with inline generation shimmer
+        function selectChoice(choiceId) {
+            const card = document.getElementById('active-choices-container');
+            if (card) {
+                card.classList.add('collapsing');
+                setTimeout(() => {
+                    resolvedChoiceId = choiceId;
+                    isGeneratingContinuation = true;
+                    renderStory();
+                    
+                    // Auto scroll to the end
+                    const scrollArea = document.getElementById('iphone-scroll-area');
+                    scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: 'smooth' });
+
+                    // Simulate AI continuation generation latency
+                    setTimeout(() => {
+                        isGeneratingContinuation = false;
+                        renderStory();
+                        
+                        // Scroll to reveal the newly generated continuation content
+                        setTimeout(() => {
+                            scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: 'smooth' });
+                        }, 50);
+                    }, 1500);
+                }, 380);
             }
         }
 
         // --- Load Story Presets ---
         function loadPresetStory(key) {
+            currentStoryKey = key;
             const preset = stories[key];
             if (preset) {
                 currentSentences = [...preset.sentences];
+                currentQuestion = preset.question;
+                resolvedChoiceId = null;
+                isGeneratingContinuation = false;
+                
                 document.getElementById('story-title-label').textContent = preset.title;
                 document.getElementById('story-cefr-label').textContent = preset.cefr;
-                document.getElementById('audio-title').textContent = preset.title;
-                
-                // Add words from preset to DB
-                if (key === 'daily') {
-                    vocabDb.crowded = { word: "crowded", ipa: "/ˈkraʊ.dɪd/", trans: "Переполненный людьми, людный." };
-                } else if (key === 'fantasy') {
-                    vocabDb.counsel = { word: "counsel", ipa: "/ˈkraʊn.səl/", trans: "Совет или наставление мудреца." };
-                    vocabDb.whispered = { word: "whispered", ipa: "/ˈwɪs.pəd/", trans: "Прошептал (сказал тихим голосом)." };
-                } else if (key === 'detective') {
-                    vocabDb.interrogation = { word: "interrogation", ipa: "/ɪnˌter.əˈɡeɪ.ʃən/", trans: "Допрос обвиняемого или свидетеля." };
-                }
-                
-                currentActiveIndex = 0;
-                pausePlayback();
-                renderStory();
-                selectSentence(0);
+
+                triggerShimmerLoading();
             }
+        }
+
+        // Trigger Shimmer Loading Effect
+        function triggerShimmerLoading() {
+            isSimulatingShimmer = true;
+            renderStory();
+
+            setTimeout(() => {
+                isSimulatingShimmer = false;
+                renderStory();
+            }, 1000);
         }
 
         // --- Render Custom User Text ---
@@ -1393,17 +1621,16 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
             const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             if (lines.length > 0) {
                 currentSentences = lines;
+                currentQuestion = null;
+                resolvedChoiceId = null;
+                isGeneratingContinuation = false;
                 document.getElementById('story-title-label').textContent = "Custom Story";
                 document.getElementById('story-cefr-label').textContent = "Custom";
-                document.getElementById('audio-title').textContent = "Custom Parse";
-                currentActiveIndex = 0;
-                pausePlayback();
-                renderStory();
-                selectSentence(0);
+                triggerShimmerLoading();
             }
         });
 
-        // --- Tooltip Event Listeners (Correct relative boundaries) ---
+        // --- Tooltip Event Listeners ---
         function setupTooltipListeners() {
             const words = document.querySelectorAll('.trans-word');
             const screen = document.querySelector('.iphone-screen');
@@ -1417,21 +1644,19 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
                         document.getElementById('tip-ipa').textContent = data.ipa;
                         document.getElementById('tip-trans').textContent = data.trans;
 
-                        // Position tooltip relative to the iphone screen
                         const rect = w.getBoundingClientRect();
                         const screenRect = screen.getBoundingClientRect();
 
                         let left = rect.left - screenRect.left - (110 - rect.width / 2);
                         let top = rect.top - screenRect.top + rect.height + 6;
 
-                        const screenWidth = 353; // width minus borders
-                        const screenHeight = 758; // height minus borders
+                        const screenWidth = 353;
+                        const screenHeight = 758;
 
                         if (left < 10) left = 10;
                         if (left > screenWidth - 230) left = screenWidth - 230;
 
-                        // If tooltip overlaps the player area at bottom, display above the word
-                        if (top > screenHeight - 170) {
+                        if (top > screenHeight - 140) {
                             top = rect.top - screenRect.top - 76;
                         }
 
@@ -1447,58 +1672,9 @@ We want to enhance the UI/UX of the story reader in `apps/mobile` by automatical
             tooltip.classList.remove('active');
         });
 
-        // --- Audio Controls ---
-        const audioPlayBtn = document.getElementById('audio-play-btn');
-        const playIcon = document.getElementById('play-icon');
-        const pauseIcon = document.getElementById('pause-icon');
-
-        audioPlayBtn.addEventListener('click', () => {
-            if (isPlaying) {
-                pausePlayback();
-            } else {
-                startPlayback();
-            }
+        document.getElementById('sim-shimmer-trigger').addEventListener('click', () => {
+            triggerShimmerLoading();
         });
-
-        document.getElementById('audio-next-btn').addEventListener('click', () => {
-            if (currentActiveIndex < currentSentences.length - 1) {
-                selectSentence(currentActiveIndex + 1);
-            } else {
-                selectSentence(0);
-            }
-        });
-
-        document.getElementById('audio-prev-btn').addEventListener('click', () => {
-            if (currentActiveIndex > 0) {
-                selectSentence(currentActiveIndex - 1);
-            } else {
-                selectSentence(0);
-            }
-        });
-
-        function startPlayback() {
-            isPlaying = true;
-            playIcon.style.display = 'none';
-            pauseIcon.style.display = 'block';
-            
-            playInterval = setInterval(() => {
-                if (currentActiveIndex < currentSentences.length - 1) {
-                    selectSentence(currentActiveIndex + 1);
-                } else {
-                    pausePlayback();
-                    selectSentence(0);
-                }
-            }, 3000);
-        }
-
-        function pausePlayback() {
-            isPlaying = false;
-            playIcon.style.display = 'block';
-            pauseIcon.style.display = 'none';
-            clearInterval(playInterval);
-        }
-
-
 
         // Initialize Simulator
         loadPresetStory('daily');
