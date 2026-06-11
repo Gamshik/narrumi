@@ -697,6 +697,27 @@ function buildInteractionSystemPrompt(): string {
   ].join('\n');
 }
 
+// buildParticipationRules keeps learner agency consistent with the saved series setup.
+function buildParticipationRules(
+  payload: Pick<GenerateEpisodeRequest, 'participationMode' | 'userRole'>,
+): readonly string[] {
+  if (payload.participationMode === 'character') {
+    return [
+      `The learner is inside the story as: ${payload.userRole}.`,
+      'Interaction prompts must address what the learner says or does in that role.',
+      'Choices must be in-character actions or speech for the learner role.',
+      'Do not ask the learner to decide unrelated characters actions like an outside author.',
+    ];
+  }
+
+  return [
+    'The learner is outside the story as a story director.',
+    'Interaction prompts must ask how events should unfold or what a character should do next.',
+    'Choices may direct scene events, character decisions, or story consequences.',
+    'Do not address the learner as a physical character inside the story.',
+  ];
+}
+
 // buildMemorySystemPrompt keeps compact memory generation separate from story prose.
 function buildMemorySystemPrompt(): string {
   return [
@@ -742,6 +763,8 @@ function buildCorePrompt(
         genre: payload.genre,
         tone: payload.tone,
         premise: payload.premise,
+        participationMode: payload.participationMode,
+        participationRules: buildParticipationRules(payload),
         mainCharacters: payload.mainCharacters,
         userRole: payload.userRole,
         episodeNumber: payload.orderIndex,
@@ -764,6 +787,7 @@ function buildCorePrompt(
         'summaryUpdate must summarize the story state after this opening scene.',
         'Do not write meta text such as "Added interaction point" or "The episode introduces".',
         'Do not use asterisks, markdown emphasis, curly quotes, curly apostrophes, or ellipsis characters.',
+        ...buildParticipationRules(payload),
       ],
     },
     null,
@@ -838,6 +862,8 @@ function buildInteractionPrompt(
       cefr: payload.cefrLevel,
       seriesTitle: payload.seriesTitle,
       tone: payload.tone,
+      participationMode: payload.participationMode,
+      participationRules: buildParticipationRules(payload),
       sceneSummary: coreDraft.summaryUpdate,
       sceneText: coreDraft.sceneText,
       outputRules: [
@@ -846,6 +872,7 @@ function buildInteractionPrompt(
         'Do not include ids or kind.',
         'Choices must be short, concrete, and story-specific.',
         'Choices must continue the same episode and not start a new story.',
+        ...buildParticipationRules(payload),
       ],
     },
     null,
@@ -866,6 +893,8 @@ function buildMemoryPrompt(
       summaryUpdate: coreDraft.summaryUpdate,
       cliffhanger: coreDraft.cliffhanger,
       selectedStoryWordIds: payload.selectedStoryWords.map((word) => word.id),
+      participationMode: payload.participationMode,
+      participationRules: buildParticipationRules(payload),
       boundedContext: {
         compactSeriesMemory: payload.compactSeriesMemory,
         lastEpisodeSummary: payload.lastEpisodeSummary,

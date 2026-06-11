@@ -3,6 +3,7 @@
 Production AI calls are routed through these functions:
 
 - `generate-episode`
+- `generate-series-setup`
 - `submit-interaction`
 - `validate-series-setup`
 

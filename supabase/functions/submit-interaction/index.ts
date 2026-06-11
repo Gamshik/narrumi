@@ -734,6 +734,27 @@ function buildChoiceSystemPrompt(): string {
   ].join('\n');
 }
 
+// buildParticipationRules keeps every continuation aligned with the saved series mode.
+function buildParticipationRules(
+  payload: Pick<SubmitInteractionRequest, 'participationMode' | 'compactSeriesMemory'>,
+): readonly string[] {
+  if (payload.participationMode === 'character') {
+    return [
+      `The learner is inside the story as: ${payload.compactSeriesMemory.userRole}.`,
+      'Interpret the learner answer as that character speech, action, plan, or question.',
+      'Next choices must be in-character actions or speech for the learner role.',
+      'Do not ask the learner to decide unrelated characters actions like an outside author.',
+    ];
+  }
+
+  return [
+    'The learner is outside the story as a story director.',
+    'Interpret the learner answer as direction for how events should unfold.',
+    'Next choices may direct scene events, character decisions, or story consequences.',
+    'Do not address the learner as a physical character inside the story.',
+  ];
+}
+
 // buildTranslationSystemPrompt keeps annotation generation bounded to exact targets.
 function buildTranslationSystemPrompt(): string {
   return [
@@ -764,6 +785,8 @@ function buildCorePrompt(
         cefr: payload.cefrLevel,
         genre: payload.genre,
         tone: payload.tone,
+        participationMode: payload.participationMode,
+        participationRules: buildParticipationRules(payload),
         interactionPrompt: payload.interactionPrompt,
         selectedChoiceLabel: payload.selectedChoiceLabel,
         userReply: payload.userReply,
@@ -805,6 +828,7 @@ function buildCorePrompt(
         'Do not complete before interactionCount reaches 5.',
         'If interactionCount is 10 or higher, isEpisodeComplete must be true.',
         'Do not return memoryUpdate.',
+        ...buildParticipationRules(payload),
       ],
     },
     null,
@@ -882,6 +906,8 @@ function buildMemoryPrompt(
       isEpisodeComplete: coreDraft.isEpisodeComplete,
       cliffhanger: coreDraft.cliffhanger,
       selectedStoryWordIds: payload.selectedStoryWords.map((word) => word.id),
+      participationMode: payload.participationMode,
+      participationRules: buildParticipationRules(payload),
       boundedContext: {
         compactSeriesMemory: payload.compactSeriesMemory,
         episodeSummary: payload.episodeSummary,
@@ -916,6 +942,8 @@ function buildChoicePrompt(
       cefr: payload.cefrLevel,
       seriesTitle: payload.seriesTitle,
       tone: payload.tone,
+      participationMode: payload.participationMode,
+      participationRules: buildParticipationRules(payload),
       interactionCount: payload.interactionCount,
       episodePacingStage: getEpisodePacingStage(payload.interactionCount),
       episodeSummaryAfterContinuation: coreDraft.summaryUpdate,
@@ -929,6 +957,7 @@ function buildChoicePrompt(
         'Do not include ids or kind.',
         'Choices must be short, concrete, and story-specific.',
         'Choices must move this episode toward a closing beat inside 5-10 interactions.',
+        ...buildParticipationRules(payload),
       ],
     },
     null,

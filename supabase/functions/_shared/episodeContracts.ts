@@ -37,6 +37,9 @@ const learningGenres = [
   'short-fiction',
 ] as const;
 
+// seriesParticipationModes is the Edge-side copy of supported learner influence modes.
+const seriesParticipationModes = ['director', 'character'] as const;
+
 // sentenceFrameSchema is the explicit display contract for one playback sentence.
 const sentenceFrameSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -72,6 +75,7 @@ const compactSeriesMemorySchema = z.object({
   premise: z.string().trim().min(1),
   genre: z.string().trim().min(1),
   tone: z.string().trim().min(1),
+  participationMode: z.enum(seriesParticipationModes).default('director'),
   mainCharacters: z.array(z.string().trim().min(1)),
   userRole: z.string().trim().min(1).optional(),
   currentConflict: z.string().trim().min(1).optional(),
@@ -206,12 +210,29 @@ export const generateEpisodeRequestSchema = z.object({
   genre: z.enum(learningGenres),
   tone: z.string().trim().min(1).max(120),
   premise: z.string().trim().min(1).max(1000),
+  participationMode: z.enum(seriesParticipationModes),
   mainCharacters: z.array(z.string().trim().min(1)).max(8),
   userRole: z.string().trim().min(1).max(160).optional(),
   selectedStoryWords: z.array(storyWordSchema).max(24),
   compactSeriesMemory: compactSeriesMemorySchema,
   lastEpisodeSummary: z.string().trim().min(1).max(600).optional(),
   safetyAndCopyrightConstraints: z.array(z.string().trim().min(1)).min(1),
+}).superRefine((payload, context) => {
+  if (payload.participationMode !== payload.compactSeriesMemory.participationMode) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Participation mode must match compact series memory.',
+      path: ['compactSeriesMemory', 'participationMode'],
+    });
+  }
+
+  if (payload.participationMode === 'character' && !payload.userRole) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Character mode requires userRole.',
+      path: ['userRole'],
+    });
+  }
 });
 
 // submitInteractionRequestSchema validates untrusted mobile interaction requests.
@@ -223,6 +244,7 @@ export const submitInteractionRequestSchema = z.object({
   cefrLevel: z.enum(cefrLevels),
   genre: z.enum(learningGenres),
   tone: z.string().trim().min(1).max(120),
+  participationMode: z.enum(seriesParticipationModes),
   compactSeriesMemory: compactSeriesMemorySchema,
   episodeSummary: z.string().trim().min(1).max(600),
   interactionPrompt: z.string().trim().min(1).max(300),
@@ -242,6 +264,22 @@ export const submitInteractionRequestSchema = z.object({
   selectedChoiceLabel: z.string().trim().min(1).max(120).optional(),
   userReply: z.string().trim().min(1).max(500).optional(),
   safetyAndCopyrightConstraints: z.array(z.string().trim().min(1)).min(1),
+}).superRefine((payload, context) => {
+  if (payload.participationMode !== payload.compactSeriesMemory.participationMode) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Participation mode must match compact series memory.',
+      path: ['compactSeriesMemory', 'participationMode'],
+    });
+  }
+
+  if (payload.participationMode === 'character' && !payload.compactSeriesMemory.userRole) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Character mode requires compact memory userRole.',
+      path: ['compactSeriesMemory', 'userRole'],
+    });
+  }
 });
 
 // GenerateEpisodeRequest is the parsed Edge request contract.

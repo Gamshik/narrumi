@@ -23,9 +23,18 @@ const SERIES_SETUP_SOFT_BLOCK_LIMIT = 10;
 const seriesSetupSchema = z.object({
   title: z.string().trim().min(1).max(160),
   tone: z.string().trim().min(1).max(120),
-  premise: z.string().trim().max(1000).optional(),
-  mainCharacters: z.array(z.string().trim().max(160)).max(8),
+  premise: z.string().trim().min(1).max(1000),
+  participationMode: z.enum(['director', 'character']),
+  mainCharacters: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
   userRole: z.string().trim().max(160).optional(),
+}).superRefine((payload, context) => {
+  if (payload.participationMode === 'character' && !payload.userRole?.trim()) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Character mode requires userRole.',
+      path: ['userRole'],
+    });
+  }
 });
 
 // SeriesSetupRequest is the safe request shape sent by the mobile create-series use case.
