@@ -440,6 +440,11 @@ function createAppStylesImpl(colors: AppColors) {
       paddingTop: 13,
       lineHeight: 21,
     },
+    formCompactTextArea: {
+      minHeight: 76,
+      paddingTop: 13,
+      lineHeight: 21,
+    },
     formErrorText: {
       color: colors.systemRed,
       fontSize: 12,

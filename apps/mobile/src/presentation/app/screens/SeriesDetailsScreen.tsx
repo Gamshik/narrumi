@@ -1,8 +1,29 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { Episode, Series, SeriesMemory } from '@domain/index';
+import {
+  cefrLevels,
+  learningGenres,
+  seriesParticipationModes,
+  type CefrLevel,
+  type Episode,
+  type LearningGenre,
+  type Series,
+  type SeriesMemory,
+  type SeriesParticipationMode,
+} from '@domain/index';
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
@@ -33,6 +54,52 @@ type SeriesDetailsState = {
   readonly memory?: SeriesMemory;
 };
 
+// SeriesSetupFormState stores editable setup values before the first episode.
+type SeriesSetupFormState = {
+  // title is the visible series name.
+  readonly title: string;
+  // genre is the selected broad story category.
+  readonly genre: LearningGenre;
+  // cefrLevel controls grammar and vocabulary complexity.
+  readonly cefrLevel: CefrLevel;
+  // tone stores the selected story mood.
+  readonly tone: string;
+  // premise stores the bounded starting idea.
+  readonly premise: string;
+  // participationMode decides whether answers direct events or roleplay the learner.
+  readonly participationMode: SeriesParticipationMode;
+  // mainCharacters stores comma-separated recurring character names.
+  readonly mainCharacters: string;
+  // userRole stores the learner role for character mode.
+  readonly userRole: string;
+};
+
+// SeriesSetupFormErrors stores visible validation messages by setup field.
+type SeriesSetupFormErrors = Partial<Record<keyof SeriesSetupFormState, string>>;
+
+// storyToneOptions matches the bounded setup tones from series creation.
+const storyToneOptions = [
+  'Warm and curious',
+  'Calm detective',
+  'Light adventure',
+  'Everyday realistic',
+  'Cinematic mystery',
+] as const;
+
+// genreLabels maps domain genre values to compact labels for setup controls.
+const genreLabels: Record<LearningGenre, string> = {
+  'daily-life': 'Daily Life',
+  'short-fiction': 'Short Fiction',
+  'travel-leisure': 'Travel',
+  'work-it': 'Work & IT',
+};
+
+// participationModeLabels keeps the locked series setup readable in details.
+const participationModeLabels: Record<Series['participationMode'], string> = {
+  director: 'Producer mode',
+  character: 'Character mode',
+};
+
 // SeriesDetailsScreen shows one series, its memory, and completed episodes.
 export function SeriesDetailsScreen({
   onBack,
@@ -43,6 +110,11 @@ export function SeriesDetailsScreen({
   styles,
 }: SeriesDetailsScreenProps): ReactElement {
   const [state, setState] = useState<SeriesDetailsState>();
+  const [setupForm, setSetupForm] = useState<SeriesSetupFormState>();
+  const [setupErrors, setSetupErrors] = useState<SeriesSetupFormErrors>({});
+  const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [isSavingSetup, setIsSavingSetup] = useState(false);
+  const [isGeneratingSetup, setIsGeneratingSetup] = useState(false);
   const [deletingEpisodeId, setDeletingEpisodeId] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -51,6 +123,7 @@ export function SeriesDetailsScreen({
       const details = await localAppServices.loadSeriesDetails.execute({ seriesId });
 
       setState(details);
+      setSetupForm(createSetupForm(details.series));
       setErrorMessage(undefined);
     } catch {
       setErrorMessage('Series details could not be loaded.');
@@ -92,6 +165,96 @@ export function SeriesDetailsScreen({
     }
   };
 
+  const canEditSetup = (state?.episodes.length ?? 1) === 0;
+
+  const saveSetup = async (): Promise<void> => {
+    if (!setupForm || !state) {
+      return;
+    }
+
+    const validationErrors = validateSetupForm(setupForm);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setSetupErrors(validationErrors);
+
+      return;
+    }
+
+    setIsSavingSetup(true);
+    setErrorMessage(undefined);
+
+    try {
+      await localAppServices.updateSeriesSetup.execute({
+        seriesId: state.series.id,
+        title: setupForm.title,
+        genre: setupForm.genre,
+        cefrLevel: setupForm.cefrLevel,
+        tone: setupForm.tone,
+        premise: setupForm.premise,
+        participationMode: setupForm.participationMode,
+        mainCharacters: parseCharacterList(setupForm.mainCharacters),
+        ...(setupForm.participationMode === 'character' &&
+        setupForm.userRole.trim()
+          ? { userRole: setupForm.userRole }
+          : {}),
+      });
+      setIsSetupOpen(false);
+      setSetupErrors({});
+      await loadDetails();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Series setup could not be saved.',
+      );
+    } finally {
+      setIsSavingSetup(false);
+    }
+  };
+
+  const generateSetup = async (): Promise<void> => {
+    if (!setupForm) {
+      return;
+    }
+
+    setIsGeneratingSetup(true);
+    setErrorMessage(undefined);
+
+    try {
+      const result = await localAppServices.generateSeriesSetupDraft.execute({
+        genre: setupForm.genre,
+        cefrLevel: setupForm.cefrLevel,
+        tone: setupForm.tone,
+        participationMode: setupForm.participationMode,
+        ...(setupForm.title.trim() ? { title: setupForm.title } : {}),
+        ...(setupForm.premise.trim() ? { premise: setupForm.premise } : {}),
+        mainCharacters: parseCharacterList(setupForm.mainCharacters),
+        ...(setupForm.participationMode === 'character' &&
+        setupForm.userRole.trim()
+          ? { userRole: setupForm.userRole }
+          : {}),
+      });
+
+      setSetupForm({
+        ...setupForm,
+        title: result.draft.title,
+        premise: result.draft.premise,
+        mainCharacters: result.draft.mainCharacters.join(', '),
+        userRole:
+          setupForm.participationMode === 'character'
+            ? result.draft.userRole ?? setupForm.userRole
+            : '',
+      });
+      setSetupErrors({});
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Series setup could not be generated.',
+      );
+    } finally {
+      setIsGeneratingSetup(false);
+    }
+  };
+
   if (errorMessage) {
     return (
       <View style={styles.screenContent}>
@@ -128,11 +291,21 @@ export function SeriesDetailsScreen({
         <Pressable onPress={onBack} style={styles.smallPrimaryButton}>
           <Text style={styles.smallPrimaryButtonText}>Back</Text>
         </Pressable>
+        <Pressable
+          onPress={() => setIsSetupOpen(true)}
+          style={styles.secondarySmallButton}
+        >
+          <Text style={styles.secondarySmallButtonText}>Setup</Text>
+        </Pressable>
       </View>
 
       <View style={styles.seriesDetailsHeader}>
         <Text style={styles.readerBadge}>{state.series.genre}</Text>
         <Text style={styles.largeTitle}>{state.series.title}</Text>
+        <Text style={styles.sectionLabel}>
+          {participationModeLabels[state.series.participationMode]}
+          {state.series.userRole ? ` - ${state.series.userRole}` : ''}
+        </Text>
         <Text style={styles.secondaryText}>{state.series.premise}</Text>
       </View>
 
@@ -214,8 +387,444 @@ export function SeriesDetailsScreen({
           ))}
         </View>
       )}
+      {setupForm ? (
+        <SeriesSetupModal
+          canEdit={canEditSetup}
+          errors={setupErrors}
+          form={setupForm}
+          isGenerating={isGeneratingSetup}
+          isSaving={isSavingSetup}
+          isVisible={isSetupOpen}
+          styles={styles}
+          onChangeForm={(nextForm) => {
+            setSetupForm(nextForm);
+            setSetupErrors((currentErrors) =>
+              Object.keys(currentErrors).length > 0
+                ? validateSetupForm(nextForm)
+                : {},
+            );
+          }}
+          onClose={() => {
+            setSetupErrors({});
+            setIsSetupOpen(false);
+          }}
+          onGenerate={generateSetup}
+          onSave={saveSetup}
+        />
+      ) : null}
     </ScrollView>
   );
+}
+
+// SeriesSetupModal shows the locked or editable setup contract for one series.
+function SeriesSetupModal({
+  canEdit,
+  errors,
+  form,
+  isGenerating,
+  isSaving,
+  isVisible,
+  styles,
+  onChangeForm,
+  onClose,
+  onGenerate,
+  onSave,
+}: {
+  // canEdit is true only before the first generated episode exists.
+  readonly canEdit: boolean;
+  // errors are validation messages for editable setup fields.
+  readonly errors: SeriesSetupFormErrors;
+  // form stores the visible setup values.
+  readonly form: SeriesSetupFormState;
+  // isGenerating disables duplicate AI setup generation.
+  readonly isGenerating: boolean;
+  // isSaving disables duplicate local writes.
+  readonly isSaving: boolean;
+  // isVisible controls the native modal presentation.
+  readonly isVisible: boolean;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // onChangeForm updates one or more setup fields.
+  readonly onChangeForm: (form: SeriesSetupFormState) => void;
+  // onClose dismisses the setup sheet.
+  readonly onClose: () => void;
+  // onGenerate fills missing setup text through the AI boundary.
+  readonly onGenerate: () => void;
+  // onSave persists editable setup changes.
+  readonly onSave: () => void;
+}): ReactElement {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, 62);
+  const bottomInset = Math.max(insets.bottom, 18);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const fieldOffsetsRef = useRef<Record<string, number>>({});
+  const updateForm = (patch: Partial<SeriesSetupFormState>): void => {
+    onChangeForm({ ...form, ...patch });
+  };
+  const registerFieldOffset = (fieldId: string, offsetY: number): void => {
+    fieldOffsetsRef.current[fieldId] = offsetY;
+  };
+  const scrollToField = (fieldId: string): void => {
+    setTimeout(() => {
+      const offsetY = fieldOffsetsRef.current[fieldId];
+
+      if (offsetY !== undefined) {
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, offsetY - 72),
+          animated: true,
+        });
+      }
+    }, 120);
+  };
+
+  return (
+    <Modal animationType="slide" visible={isVisible} onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+        style={[styles.modalScreen, { paddingTop: topInset }]}
+      >
+        <View style={styles.modalHeader}>
+          <Pressable onPress={onClose} style={styles.modalTextButton}>
+            <Text style={styles.modalCancel}>Close</Text>
+          </Pressable>
+          <Text style={styles.modalTitle}>Series Setup</Text>
+          <Pressable
+            disabled={!canEdit || isSaving || isGenerating}
+            onPress={onSave}
+            style={styles.modalTextButton}
+          >
+            <Text
+              style={[
+                styles.modalSave,
+                (!canEdit || isSaving || isGenerating) && styles.disabledControl,
+              ]}
+            >
+              Save
+            </Text>
+          </Pressable>
+        </View>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={[
+            styles.modalContent,
+            { paddingBottom: bottomInset + 12 },
+          ]}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="always"
+        >
+          <SetupFormField
+            {...(errors.title ? { error: errors.title } : {})}
+            fieldId="title"
+            isEditable={canEdit}
+            label="Title"
+            placeholder="Orbit Letters"
+            styles={styles}
+            value={form.title}
+            onFocus={scrollToField}
+            onLayout={registerFieldOffset}
+            onChangeText={(title) => updateForm({ title })}
+          />
+          <SetupChoiceGroup
+            isDisabled={!canEdit}
+            label="CEFR Level"
+            options={cefrLevels}
+            selected={form.cefrLevel}
+            styles={styles}
+            onSelect={(cefrLevel) => updateForm({ cefrLevel })}
+          />
+          <SetupChoiceGroup
+            isDisabled={!canEdit}
+            label="Genre"
+            options={learningGenres}
+            selected={form.genre}
+            styles={styles}
+            labels={genreLabels}
+            onSelect={(genre) => updateForm({ genre })}
+          />
+          <SetupChoiceGroup
+            isDisabled={!canEdit}
+            label="Tone"
+            options={storyToneOptions}
+            selected={form.tone}
+            styles={styles}
+            onSelect={(tone) => updateForm({ tone })}
+          />
+          <SetupChoiceGroup
+            isDisabled={!canEdit}
+            label="Mode"
+            options={seriesParticipationModes}
+            selected={form.participationMode}
+            styles={styles}
+            labels={participationModeLabels}
+            onSelect={(participationMode) =>
+              updateForm({
+                participationMode,
+                ...(participationMode === 'director' ? { userRole: '' } : {}),
+              })
+            }
+          />
+          <SetupFormField
+            {...(errors.premise ? { error: errors.premise } : {})}
+            {...(canEdit
+              ? {
+                  helper:
+                    'Required. Use Generate if you want the AI to fill it.',
+                }
+              : {})}
+            isEditable={canEdit}
+            fieldId="premise"
+            isMultiline
+            label="Premise"
+            placeholder="A learner receives strange English notes from a future city."
+            styles={styles}
+            value={form.premise}
+            onFocus={scrollToField}
+            onLayout={registerFieldOffset}
+            onChangeText={(premise) => updateForm({ premise })}
+          />
+          <SetupFormField
+            {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
+            {...(canEdit
+              ? {
+                  helper:
+                    'Required. Add names separated by commas or use Generate.',
+                }
+              : {})}
+            isEditable={canEdit}
+            fieldId="mainCharacters"
+            isCompactMultiline
+            label="Main Characters"
+            placeholder="Mira, Alex"
+            styles={styles}
+            value={form.mainCharacters}
+            onFocus={scrollToField}
+            onLayout={registerFieldOffset}
+            onChangeText={(mainCharacters) => updateForm({ mainCharacters })}
+          />
+          {form.participationMode === 'character' ? (
+            <SetupFormField
+              {...(errors.userRole ? { error: errors.userRole } : {})}
+              {...(canEdit
+                ? {
+                    helper:
+                      'Required. This role becomes read-only after the first episode.',
+                  }
+                : {})}
+              isEditable={canEdit}
+              fieldId="userRole"
+              isCompactMultiline
+              label="Your Role"
+              placeholder="New analyst"
+              styles={styles}
+              value={form.userRole}
+              onFocus={scrollToField}
+              onLayout={registerFieldOffset}
+              onChangeText={(userRole) => updateForm({ userRole })}
+            />
+          ) : null}
+          {canEdit ? (
+            <Pressable
+              disabled={isGenerating || isSaving}
+              onPress={onGenerate}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.pressed,
+                (isGenerating || isSaving) && styles.disabledControl,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {isGenerating ? 'Generating...' : 'Generate'}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={styles.stateMessage}>
+              <Text style={styles.stateMessageTitle}>
+                Setup is read-only after the first episode.
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// SetupFormField renders one editable or read-only setup text field.
+function SetupFormField({
+  error,
+  fieldId,
+  helper,
+  isEditable,
+  isCompactMultiline = false,
+  isMultiline = false,
+  label,
+  placeholder,
+  styles,
+  value,
+  onFocus,
+  onLayout,
+  onChangeText,
+}: {
+  // error is the visible validation message for this field.
+  readonly error?: string;
+  // fieldId identifies the field for keyboard-aware autoscroll.
+  readonly fieldId: string;
+  // helper explains required generation behavior for editable fields.
+  readonly helper?: string;
+  // isEditable disables input after the first episode.
+  readonly isEditable: boolean;
+  // isCompactMultiline gives short multi-line fields more touch and reading space.
+  readonly isCompactMultiline?: boolean;
+  // isMultiline selects paragraph input behavior for premise text.
+  readonly isMultiline?: boolean;
+  // label is the visible form field title.
+  readonly label: string;
+  // placeholder is a concrete example, not stored as data.
+  readonly placeholder: string;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // value is the controlled input value.
+  readonly value: string;
+  // onFocus scrolls the field above the keyboard when editing starts.
+  readonly onFocus: (fieldId: string) => void;
+  // onLayout registers the field position inside the modal scroll view.
+  readonly onLayout: (fieldId: string, offsetY: number) => void;
+  // onChangeText updates the controlled value.
+  readonly onChangeText: (value: string) => void;
+}): ReactElement {
+  return (
+    <View
+      onLayout={(event) => onLayout(fieldId, event.nativeEvent.layout.y)}
+      style={styles.formGroup}
+    >
+      <Text style={styles.sectionLabel}>{label}</Text>
+      <TextInput
+        editable={isEditable}
+        multiline={isMultiline || isCompactMultiline}
+        onChangeText={onChangeText}
+        onFocus={() => onFocus(fieldId)}
+        placeholder={placeholder}
+        placeholderTextColor={styles.placeholder.color}
+        style={[
+          styles.formInput,
+          isMultiline && styles.formTextArea,
+          isCompactMultiline && styles.formCompactTextArea,
+          !isEditable && styles.disabledControl,
+        ]}
+        textAlignVertical={isMultiline || isCompactMultiline ? 'top' : 'center'}
+        value={value}
+      />
+      {error ? <Text style={styles.formErrorText}>{error}</Text> : null}
+      {!error && helper ? (
+        <Text style={styles.formHelperText}>{helper}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+// SetupChoiceGroup renders bounded setup options with read-only support.
+function SetupChoiceGroup<T extends string>({
+  isDisabled,
+  label,
+  labels,
+  options,
+  selected,
+  styles,
+  onSelect,
+}: {
+  // isDisabled prevents changes after the first episode.
+  readonly isDisabled: boolean;
+  // label names the option group for the form.
+  readonly label: string;
+  // labels optionally maps domain values to user-facing text.
+  readonly labels?: Partial<Record<T, string>>;
+  // options are the allowed typed values.
+  readonly options: readonly T[];
+  // selected is the currently selected typed value.
+  readonly selected: T;
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // onSelect updates the selected typed value.
+  readonly onSelect: (value: T) => void;
+}): ReactElement {
+  return (
+    <View style={styles.formGroup}>
+      <Text style={styles.sectionLabel}>{label}</Text>
+      <View style={styles.choiceRow}>
+        {options.map((option) => (
+          <Pressable
+            disabled={isDisabled}
+            key={option}
+            onPress={() => onSelect(option)}
+            style={({ pressed }) => [
+              styles.goalChoice,
+              option === selected && styles.activeGoalChoice,
+              pressed && styles.pressed,
+              isDisabled && option !== selected && styles.disabledControl,
+            ]}
+          >
+            <Text
+              style={[
+                styles.goalChoiceText,
+                option === selected && styles.activeGoalChoiceText,
+              ]}
+            >
+              {labels?.[option] ?? option}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// createSetupForm maps the saved series into modal form values.
+function createSetupForm(series: Series): SeriesSetupFormState {
+  return {
+    title: series.title,
+    genre: series.genre,
+    cefrLevel: series.cefrLevel,
+    tone: series.tone,
+    premise: series.premise,
+    participationMode: series.participationMode,
+    mainCharacters: series.mainCharacters.join(', '),
+    userRole: series.userRole ?? '',
+  };
+}
+
+// validateSetupForm keeps local setup errors visible before persistence.
+function validateSetupForm(form: SeriesSetupFormState): SeriesSetupFormErrors {
+  const errors: SeriesSetupFormErrors = {};
+
+  if (form.title.trim().length === 0) {
+    errors.title = 'Enter a series title.';
+  }
+
+  if (form.premise.trim().length === 0) {
+    errors.premise = 'Enter a premise or use Generate.';
+  }
+
+  if (parseCharacterList(form.mainCharacters).length === 0) {
+    errors.mainCharacters = 'Enter at least one character or use Generate.';
+  }
+
+  if (
+    form.participationMode === 'character' &&
+    form.userRole.trim().length === 0
+  ) {
+    errors.userRole = 'Enter your role for character mode.';
+  }
+
+  return errors;
+}
+
+// parseCharacterList converts the comma-separated setup field to trimmed names.
+function parseCharacterList(value: string): readonly string[] {
+  return value
+    .split(',')
+    .map((character) => character.trim())
+    .filter((character) => character.length > 0);
 }
 
 // EpisodeHistoryRow opens one completed local episode in read/listen mode.

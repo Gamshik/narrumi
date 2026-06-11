@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -14,9 +16,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   cefrLevels,
   learningGenres,
+  seriesParticipationModes,
   type CefrLevel,
   type LearningGenre,
   type Series,
+  type SeriesParticipationMode,
 } from '@domain/index';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
@@ -43,6 +47,8 @@ type SeriesFormState = {
   readonly tone: string;
   // premise is the required initial story setup.
   readonly premise: string;
+  // participationMode controls whether the learner directs events or roleplays.
+  readonly participationMode: SeriesParticipationMode;
   // mainCharacters is a comma-separated form value converted on submit.
   readonly mainCharacters: string;
   // userRole is the learner's optional role inside the story.
@@ -69,6 +75,12 @@ const genreLabels: Record<LearningGenre, string> = {
   'work-it': 'Work & IT',
 };
 
+// participationModeLabels keeps the setup mode wording compact in mobile controls.
+const participationModeLabels: Record<SeriesParticipationMode, string> = {
+  director: 'Producer',
+  character: 'Character',
+};
+
 // emptySeriesForm is the initial create-series sheet state.
 const emptySeriesForm: SeriesFormState = {
   title: '',
@@ -76,6 +88,7 @@ const emptySeriesForm: SeriesFormState = {
   cefrLevel: 'B1',
   tone: storyToneOptions[0],
   premise: '',
+  participationMode: 'director',
   mainCharacters: '',
   userRole: '',
 };
@@ -91,6 +104,7 @@ export function HomeScreen({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deletingSeriesId, setDeletingSeriesId] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingSetup, setIsGeneratingSetup] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
 
   const loadSeries = useCallback(async (): Promise<void> => {
@@ -122,9 +136,16 @@ export function HomeScreen({
 
     try {
       await localAppServices.createSeries.execute({
-        ...form,
-        mainCharacters: form.mainCharacters.split(','),
-        ...(form.userRole.trim() ? { userRole: form.userRole } : {}),
+        title: form.title,
+        genre: form.genre,
+        cefrLevel: form.cefrLevel,
+        tone: form.tone,
+        premise: form.premise,
+        participationMode: form.participationMode,
+        mainCharacters: parseCharacterList(form.mainCharacters),
+        ...(form.participationMode === 'character' && form.userRole.trim()
+          ? { userRole: form.userRole }
+          : {}),
       });
       setForm(emptySeriesForm);
       setFormErrors({});
@@ -154,6 +175,47 @@ export function HomeScreen({
       setErrorMessage(message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const generateSetupDraft = async (): Promise<void> => {
+    setIsGeneratingSetup(true);
+    setErrorMessage(undefined);
+
+    try {
+      const result = await localAppServices.generateSeriesSetupDraft.execute({
+        genre: form.genre,
+        cefrLevel: form.cefrLevel,
+        tone: form.tone,
+        participationMode: form.participationMode,
+        ...(form.title.trim() ? { title: form.title } : {}),
+        ...(form.premise.trim() ? { premise: form.premise } : {}),
+        mainCharacters: parseCharacterList(form.mainCharacters),
+        ...(form.participationMode === 'character' && form.userRole.trim()
+          ? { userRole: form.userRole }
+          : {}),
+      });
+
+      setForm({
+        ...form,
+        title: result.draft.title,
+        premise: result.draft.premise,
+        mainCharacters: result.draft.mainCharacters.join(', '),
+        userRole:
+          form.participationMode === 'character'
+            ? result.draft.userRole ?? form.userRole
+            : '',
+      });
+      setFormErrors({});
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Series setup could not be generated.';
+
+      setErrorMessage(message);
+    } finally {
+      setIsGeneratingSetup(false);
     }
   };
 
@@ -217,6 +279,7 @@ export function HomeScreen({
       </ScrollView>
       <CreateSeriesModal
         form={form}
+        isGeneratingSetup={isGeneratingSetup}
         isSaving={isSaving}
         isVisible={isCreateOpen}
         errors={formErrors}
@@ -233,6 +296,7 @@ export function HomeScreen({
           setFormErrors({});
           setIsCreateOpen(false);
         }}
+        onGenerate={generateSetupDraft}
         onSubmit={submitSeries}
       />
     </>
@@ -335,7 +399,7 @@ function SeriesList({
         >
           <Text style={styles.actionTitle}>No saved series yet</Text>
           <Text style={styles.secondaryText}>
-            Add a title, genre, level, tone, premise, characters, and your role.
+            Add or generate a complete setup before saving a series.
           </Text>
         </Pressable>
       ) : (
@@ -383,7 +447,8 @@ function SeriesRow({
           <Text style={styles.seriesMeta}>{series.cefrLevel}</Text>
         </View>
         <Text style={styles.secondaryText}>
-          {genreLabels[series.genre]} · {series.tone}
+          {genreLabels[series.genre]} · {series.tone} ·{' '}
+          {participationModeLabels[series.participationMode]}
         </Text>
         <Text style={styles.seriesPremise} numberOfLines={2}>
           {series.premise}
@@ -416,17 +481,21 @@ function SeriesRow({
 function CreateSeriesModal({
   errors,
   form,
+  isGeneratingSetup,
   isSaving,
   isVisible,
   styles,
   onChangeForm,
   onClose,
+  onGenerate,
   onSubmit,
 }: {
   // errors are the visible validation messages for current form values.
   readonly errors: SeriesFormErrors;
   // form is the controlled create-series state.
   readonly form: SeriesFormState;
+  // isGeneratingSetup disables duplicate AI setup generation.
+  readonly isGeneratingSetup: boolean;
   // isSaving disables duplicate local writes.
   readonly isSaving: boolean;
   // isVisible controls the native modal presentation.
@@ -437,48 +506,81 @@ function CreateSeriesModal({
   readonly onChangeForm: (form: SeriesFormState) => void;
   // onClose dismisses the form without saving.
   readonly onClose: () => void;
+  // onGenerate fills missing setup text through the AI boundary.
+  readonly onGenerate: () => void;
   // onSubmit persists the series locally.
   readonly onSubmit: () => void;
 }): ReactElement {
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, 62);
   const bottomInset = Math.max(insets.bottom, 18);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const fieldOffsetsRef = useRef<Record<string, number>>({});
 
   const updateForm = (patch: Partial<SeriesFormState>): void => {
     onChangeForm({ ...form, ...patch });
   };
+  const registerFieldOffset = (fieldId: string, offsetY: number): void => {
+    fieldOffsetsRef.current[fieldId] = offsetY;
+  };
+  const scrollToField = (fieldId: string): void => {
+    setTimeout(() => {
+      const offsetY = fieldOffsetsRef.current[fieldId];
+
+      if (offsetY !== undefined) {
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, offsetY - 72),
+          animated: true,
+        });
+      }
+    }, 120);
+  };
 
   return (
     <Modal animationType="slide" visible={isVisible} onRequestClose={onClose}>
-      <View style={[styles.modalScreen, { paddingTop: topInset }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+        style={[styles.modalScreen, { paddingTop: topInset }]}
+      >
         <View style={styles.modalHeader}>
           <Pressable onPress={onClose} style={styles.modalTextButton}>
             <Text style={styles.modalCancel}>Cancel</Text>
           </Pressable>
           <Text style={styles.modalTitle}>New Series</Text>
           <Pressable
-            disabled={isSaving}
+            disabled={isSaving || isGeneratingSetup}
             onPress={onSubmit}
             style={styles.modalTextButton}
           >
-            <Text style={[styles.modalSave, isSaving && styles.disabledControl]}>
+            <Text
+              style={[
+                styles.modalSave,
+                (isSaving || isGeneratingSetup) && styles.disabledControl,
+              ]}
+            >
               Save
             </Text>
           </Pressable>
         </View>
         <ScrollView
+          ref={scrollViewRef}
           contentContainerStyle={[
             styles.modalContent,
-            { paddingBottom: bottomInset + 28 },
+            { paddingBottom: bottomInset + 12 },
           ]}
-          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="always"
         >
           <FormField
             {...(errors.title ? { error: errors.title } : {})}
+            fieldId="title"
             label="Title"
             placeholder="Orbit Letters"
             styles={styles}
             value={form.title}
+            onFocus={scrollToField}
+            onLayout={registerFieldOffset}
             onChangeText={(title) => updateForm({ title })}
           />
           <ChoiceGroup
@@ -503,33 +605,75 @@ function CreateSeriesModal({
             styles={styles}
             onSelect={(tone) => updateForm({ tone })}
           />
+          <ChoiceGroup
+            label="Mode"
+            options={seriesParticipationModes}
+            selected={form.participationMode}
+            styles={styles}
+            labels={participationModeLabels}
+            onSelect={(participationMode) =>
+              updateForm({
+                participationMode,
+                ...(participationMode === 'director' ? { userRole: '' } : {}),
+              })
+            }
+          />
           <FormField
-            helper="Optional. The AI can infer the opening setup later."
+            {...(errors.premise ? { error: errors.premise } : {})}
+            fieldId="premise"
+            helper="Required. Use Generate if you want the AI to fill it."
             isMultiline
             label="Premise"
             placeholder="A learner receives strange English notes from a future city."
             styles={styles}
             value={form.premise}
+            onFocus={scrollToField}
+            onLayout={registerFieldOffset}
             onChangeText={(premise) => updateForm({ premise })}
           />
           <FormField
-            helper="Optional. Add names separated by commas if you already have them."
+            {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
+            fieldId="mainCharacters"
+            helper="Required. Add names separated by commas or use Generate."
+            isCompactMultiline
             label="Main Characters"
             placeholder="Mira, Alex"
             styles={styles}
             value={form.mainCharacters}
+            onFocus={scrollToField}
+            onLayout={registerFieldOffset}
             onChangeText={(mainCharacters) => updateForm({ mainCharacters })}
           />
-          <FormField
-            helper="Optional. Leave blank if the AI should choose your role."
-            label="Your Role"
-            placeholder="New analyst"
-            styles={styles}
-            value={form.userRole}
-            onChangeText={(userRole) => updateForm({ userRole })}
-          />
+          {form.participationMode === 'character' ? (
+            <FormField
+              {...(errors.userRole ? { error: errors.userRole } : {})}
+              fieldId="userRole"
+              helper="Required. This role becomes read-only after the first episode."
+              isCompactMultiline
+              label="Your Role"
+              placeholder="New analyst"
+              styles={styles}
+              value={form.userRole}
+              onFocus={scrollToField}
+              onLayout={registerFieldOffset}
+              onChangeText={(userRole) => updateForm({ userRole })}
+            />
+          ) : null}
+          <Pressable
+            disabled={isGeneratingSetup || isSaving}
+            onPress={onGenerate}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed && styles.pressed,
+              (isGeneratingSetup || isSaving) && styles.disabledControl,
+            ]}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isGeneratingSetup ? 'Generating...' : 'Generate'}
+            </Text>
+          </Pressable>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -537,18 +681,26 @@ function CreateSeriesModal({
 // FormField renders one native text input row in the create-series sheet.
 function FormField({
   error,
+  fieldId,
   helper,
+  isCompactMultiline = false,
   isMultiline = false,
   label,
   placeholder,
   styles,
   value,
+  onFocus,
+  onLayout,
   onChangeText,
 }: {
   // error is the visible validation message for this field.
   readonly error?: string;
+  // fieldId identifies the field for keyboard-aware autoscroll.
+  readonly fieldId: string;
   // helper explains optional fields without blocking submission.
   readonly helper?: string;
+  // isCompactMultiline gives short multi-line fields more touch and reading space.
+  readonly isCompactMultiline?: boolean;
   // isMultiline selects paragraph input behavior for premise text.
   readonly isMultiline?: boolean;
   // label is the visible form field title.
@@ -559,19 +711,31 @@ function FormField({
   readonly styles: AppStyles;
   // value is the controlled input value.
   readonly value: string;
+  // onFocus scrolls the field above the keyboard when editing starts.
+  readonly onFocus: (fieldId: string) => void;
+  // onLayout registers the field position inside the modal scroll view.
+  readonly onLayout: (fieldId: string, offsetY: number) => void;
   // onChangeText updates the controlled value.
   readonly onChangeText: (value: string) => void;
 }): ReactElement {
   return (
-    <View style={styles.formGroup}>
+    <View
+      onLayout={(event) => onLayout(fieldId, event.nativeEvent.layout.y)}
+      style={styles.formGroup}
+    >
       <Text style={styles.sectionLabel}>{label}</Text>
       <TextInput
-        multiline={isMultiline}
+        multiline={isMultiline || isCompactMultiline}
         onChangeText={onChangeText}
+        onFocus={() => onFocus(fieldId)}
         placeholder={placeholder}
         placeholderTextColor={styles.placeholder.color}
-        style={[styles.formInput, isMultiline && styles.formTextArea]}
-        textAlignVertical={isMultiline ? 'top' : 'center'}
+        style={[
+          styles.formInput,
+          isMultiline && styles.formTextArea,
+          isCompactMultiline && styles.formCompactTextArea,
+        ]}
+        textAlignVertical={isMultiline || isCompactMultiline ? 'top' : 'center'}
         value={value}
       />
       {error ? <Text style={styles.formErrorText}>{error}</Text> : null}
@@ -641,5 +805,28 @@ function validateSeriesForm(form: SeriesFormState): SeriesFormErrors {
     errors.title = 'Enter a series title.';
   }
 
+  if (form.premise.trim().length === 0) {
+    errors.premise = 'Enter a premise or use Generate.';
+  }
+
+  if (parseCharacterList(form.mainCharacters).length === 0) {
+    errors.mainCharacters = 'Enter at least one character or use Generate.';
+  }
+
+  if (
+    form.participationMode === 'character' &&
+    form.userRole.trim().length === 0
+  ) {
+    errors.userRole = 'Enter your role for character mode.';
+  }
+
   return errors;
+}
+
+// parseCharacterList converts the comma-separated setup field to trimmed names.
+function parseCharacterList(value: string): readonly string[] {
+  return value
+    .split(',')
+    .map((character) => character.trim())
+    .filter((character) => character.length > 0);
 }
