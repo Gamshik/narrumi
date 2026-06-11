@@ -75,6 +75,7 @@ A user-created story container:
 - CEFR level;
 - tone or mood;
 - premise;
+- participation mode;
 - main characters or user role;
 - compact series memory;
 - sync metadata.
@@ -85,6 +86,14 @@ Domain rules:
 - New episodes continue the same series instead of starting unrelated texts.
 - Series memory is compact and bounded; do not model full unbounded chat history as required AI context.
 - Series settings must support safe original stories, not direct copies of copyrighted worlds.
+- Participation mode is either `director` or `character`.
+- `director` is the internal code value for Producer mode and means learner input directs events from outside the story.
+- `character` means learner input is interpreted as the user's character speech, action, question, or plan.
+- Participation mode can be changed only before the first generated episode. After the first episode exists, it is read-only for that series.
+- Series setup text fields are required before saving: title, premise, main characters, and `userRole` for `character`.
+- Generate setup draft is an online-only AI action before the first episode. It may generate missing text fields, including title, but must not generate or change CEFR level, genre, tone, or participation mode.
+- Character mode requires `userRole` before episode generation. If role or setup context is missing before the first episode, Generate may create a complete bounded setup draft; the user may regenerate or edit that draft before the first episode.
+- Opening an existing series must expose a setup menu with the same fields. It is editable only while the series has no episodes and read-only after the first generated episode.
 
 ### Episode
 
@@ -166,6 +175,7 @@ Compact continuity state:
 - premise;
 - genre;
 - tone;
+- participation mode;
 - main characters;
 - user role;
 - current conflict;
@@ -362,7 +372,7 @@ Records that must sync when implemented:
 ### Series Creation Flow
 
 ```text
-User enters title, genre, CEFR level, tone, premise, role
+User enters title, genre, CEFR level, tone, participation mode, premise, role
   -> CreateSeries use case
   -> validate scope and safety-sensitive inputs
   -> create compact initial memory

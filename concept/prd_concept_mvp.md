@@ -21,7 +21,7 @@ The product should feel like creating and watching a personal English series, no
 ---
 
 ### 3. Target User Flow
-1. **Series Creation:** User creates a series by choosing a title, genre, CEFR level, tone, and initial premise or role.
+1. **Series Creation:** User creates a series by choosing a title, genre, CEFR level, tone, participation mode, and initial premise or role.
 2. **Continue Series:** User opens an existing series or creates a new one.
 3. **Story Words:** Before generating an episode, the app proposes a small word set from the bundled vocabulary.
 4. **Word Choice:** User accepts the proposed words or makes light edits: add, remove, skip, or keep words.
@@ -44,8 +44,19 @@ The product should feel like creating and watching a personal English series, no
   - CEFR level;
   - tone or mood;
   - premise;
+  - participation mode;
   - main characters or user role;
   - current story memory.
+- A series supports two participation modes:
+  - **Producer mode:** the user influences how events unfold from outside the story;
+  - **Character mode:** the user plays a specific role inside the story.
+- Participation mode is selected during series setup and becomes read-only after the first episode is generated.
+- In Producer mode, interaction prompts and choices must ask how events unfold, what a character does next, or how the scene changes.
+- In Character mode, interaction prompts and choices must address what the user's character says, does, asks, or plans.
+- Series setup text fields are required before a series can be saved: title, premise, main characters, and user role for Character mode.
+- The setup screen provides a Generate action that can fill all missing text fields, including title, while preserving any text fields the user already entered. Generate must not create or change list-selected fields: CEFR level, genre, tone, or participation mode; it may only use them as constraints.
+- Character mode requires a user role before the first episode is generated. If the user leaves role or setup details blank, Generate may create a complete AI setup draft before the first episode. This draft may be regenerated until the first episode is created.
+- Opening an existing series must provide a setup menu with the same fields. The menu is editable only while the series has no generated episodes and read-only after the first episode.
 - A series can contain any number of episodes.
 - Each new episode continues the same series instead of starting an unrelated text.
 - The primary motivation is narrative curiosity: every episode should end with a clear reason to continue.
@@ -100,6 +111,7 @@ The product should feel like creating and watching a personal English series, no
   - premise;
   - genre;
   - tone;
+  - participation mode;
   - main characters;
   - user role;
   - current conflict;
