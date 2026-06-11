@@ -1,4 +1,5 @@
 import type { SyncMetadata } from './syncMetadata';
+import type { SeriesParticipationMode } from './seriesParticipationMode';
 
 // SeriesMemory stores bounded continuity context instead of full episode history.
 export type SeriesMemory = {
@@ -12,6 +13,8 @@ export type SeriesMemory = {
   readonly genre: string;
   // tone stores the selected mood or narrative feel.
   readonly tone: string;
+  // participationMode keeps episode prompts consistent after the series begins.
+  readonly participationMode: SeriesParticipationMode;
   // mainCharacters names recurring characters without storing full transcripts.
   readonly mainCharacters: readonly string[];
   // userRole records who the learner is inside the story when applicable.

@@ -15,8 +15,10 @@ import {
   type LearningSignal,
   learningGenres,
   learningSignalKinds,
+  seriesParticipationModes,
   type Series,
   type SeriesMemory,
+  type SeriesParticipationMode,
   type SyncMetadata,
   type WordSet,
   wordSetKinds,
@@ -439,6 +441,7 @@ function parseSeries(value: unknown): Series {
   const cefrLevel = readString(value, 'cefrLevel');
   const ownerId = readOptionalString(value, 'ownerId');
   const userRole = readOptionalString(value, 'userRole');
+  const participationMode = readParticipationMode(value);
 
   if (!isLearningGenre(genre)) {
     throw new Error('Series genre is unsupported');
@@ -456,6 +459,7 @@ function parseSeries(value: unknown): Series {
     cefrLevel: cefrLevel as Series['cefrLevel'],
     tone: readString(value, 'tone'),
     premise: readString(value, 'premise'),
+    participationMode,
     mainCharacters: readStringArray(value, 'mainCharacters'),
     ...(userRole ? { userRole } : {}),
     memory: parseSeriesMemory(value.memory),
@@ -472,6 +476,7 @@ function parseSeriesMemory(value: unknown): SeriesMemory {
   }
 
   const userRole = readOptionalString(value, 'userRole');
+  const participationMode = readParticipationMode(value);
   const currentConflict = readOptionalString(value, 'currentConflict');
   const lastEpisodeSummary = readOptionalString(value, 'lastEpisodeSummary');
   const unresolvedCliffhanger = readOptionalString(value, 'unresolvedCliffhanger');
@@ -482,6 +487,7 @@ function parseSeriesMemory(value: unknown): SeriesMemory {
     premise: readString(value, 'premise'),
     genre: readString(value, 'genre'),
     tone: readString(value, 'tone'),
+    participationMode,
     mainCharacters: readStringArray(value, 'mainCharacters'),
     ...(userRole ? { userRole } : {}),
     ...(currentConflict ? { currentConflict } : {}),
@@ -497,6 +503,24 @@ function parseSeriesMemory(value: unknown): SeriesMemory {
     updatedAt: readString(value, 'updatedAt'),
     sync: parseSyncMetadata(value.sync),
   };
+}
+
+// readParticipationMode migrates legacy series records to director mode.
+function readParticipationMode(record: UnknownRecord): SeriesParticipationMode {
+  const value = record.participationMode;
+
+  if (value === undefined) {
+    return 'director';
+  }
+
+  if (
+    typeof value === 'string' &&
+    seriesParticipationModes.includes(value as SeriesParticipationMode)
+  ) {
+    return value as SeriesParticipationMode;
+  }
+
+  throw new Error('Series participation mode is unsupported');
 }
 
 // parseEpisode validates one generated learning unit before rendering or sync.

@@ -1,6 +1,7 @@
 import type { CefrLevel } from './cefrLevel';
 import type { LearningGenre } from './learningGenre';
 import type { SeriesMemory } from './seriesMemory';
+import type { SeriesParticipationMode } from './seriesParticipationMode';
 import type { SyncMetadata } from './syncMetadata';
 
 // Series is the continuity root for a user's personal English story.
@@ -19,6 +20,8 @@ export type Series = {
   readonly tone: string;
   // premise stores the original story setup in bounded form.
   readonly premise: string;
+  // participationMode defines whether the learner directs events or roleplays a character.
+  readonly participationMode: SeriesParticipationMode;
   // mainCharacters names recurring characters or the user's role context.
   readonly mainCharacters: readonly string[];
   // userRole records who the learner is inside the story when applicable.

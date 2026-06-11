@@ -6,6 +6,7 @@ export * from './models/learningGenre';
 export * from './models/learningSignal';
 export * from './models/series';
 export * from './models/seriesMemory';
+export * from './models/seriesParticipationMode';
 export * from './models/syncMetadata';
 export * from './models/vocabularyItem';
 export * from './models/wordSet';
