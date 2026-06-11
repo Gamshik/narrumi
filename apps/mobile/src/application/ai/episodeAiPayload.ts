@@ -34,6 +34,7 @@ export type CompactSeriesMemoryPayload = Pick<
   | 'premise'
   | 'genre'
   | 'tone'
+  | 'participationMode'
   | 'mainCharacters'
   | 'userRole'
   | 'currentConflict'
@@ -61,6 +62,8 @@ export type GenerateEpisodeRequest = {
   readonly tone: string;
   // premise is the bounded series setup.
   readonly premise: string;
+  // participationMode determines whether learner input directs events or roleplays.
+  readonly participationMode: SeriesMemory['participationMode'];
   // mainCharacters names recurring characters without full history.
   readonly mainCharacters: readonly string[];
   // userRole records the learner role when present.
@@ -124,6 +127,8 @@ export type SubmitInteractionRequest = {
   readonly genre: LearningGenre;
   // tone keeps the feedback story-friendly.
   readonly tone: string;
+  // participationMode keeps continuation prompts aligned with the series setup.
+  readonly participationMode: SeriesMemory['participationMode'];
   // compactSeriesMemory is the bounded memory context, not full history.
   readonly compactSeriesMemory: CompactSeriesMemoryPayload;
   // episodeSummary is the current episode summary before applying the answer.
@@ -304,6 +309,7 @@ export function buildCompactSeriesMemoryPayload(
     premise: memory.premise,
     genre: memory.genre,
     tone: memory.tone,
+    participationMode: memory.participationMode,
     mainCharacters: memory.mainCharacters,
     ...(memory.userRole ? { userRole: memory.userRole } : {}),
     ...(memory.currentConflict

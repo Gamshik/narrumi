@@ -5,6 +5,7 @@ import {
   createDeleteEpisode,
   createDeleteSeries,
   createGenerateEpisode,
+  createGenerateSeriesSetupDraft,
   createLoadLearningPreferences,
   createLoadEpisodeReader,
   createLoadLearningSignals,
@@ -20,6 +21,7 @@ import {
   createSyncLocalChanges,
   type SyncLocalChanges,
   createUpdateLearningPreferences,
+  createUpdateSeriesSetup,
   createUpdateWordSet,
 } from '@application/index';
 import type {
@@ -28,6 +30,7 @@ import type {
   EpisodeGenerationGateway,
   InteractionGateway,
   RemoteSeriesStore,
+  SeriesSetupDraftGateway,
   SeriesSetupModerationGateway,
 } from '@application/ports';
 import {
@@ -42,6 +45,7 @@ import {
   SupabaseEpisodeGenerationGateway,
   SupabaseInteractionGateway,
   SupabaseRemoteSeriesStore,
+  SupabaseSeriesSetupDraftGateway,
   SupabaseSeriesSetupModerationGateway,
   SystemClock,
 } from '@infrastructure/index';
@@ -84,6 +88,10 @@ const createSeries = createCreateSeries(
   localSeriesStore,
   systemClock,
   supabaseServices.seriesSetupModerationGateway,
+);
+const generateSeriesSetupDraft = createGenerateSeriesSetupDraft(
+  networkStatus,
+  supabaseServices.seriesSetupDraftGateway,
 );
 const deleteEpisode = createDeleteEpisode(localSeriesStore, systemClock);
 const deleteSeries = createDeleteSeries(localSeriesStore, systemClock);
@@ -137,6 +145,11 @@ const updateLearningPreferences = createUpdateLearningPreferences(
   localSeriesStore,
   systemClock,
 );
+const updateSeriesSetup = createUpdateSeriesSetup(
+  localSeriesStore,
+  systemClock,
+  supabaseServices.seriesSetupModerationGateway,
+);
 const updateWordSet = createUpdateWordSet(localSeriesStore, systemClock);
 const manageAuthSession = createManageAuthSession(
   supabaseServices.authGateway,
@@ -187,6 +200,7 @@ export const localAppServices = {
     generateEpisode,
     syncLocalChanges,
   ),
+  generateSeriesSetupDraft,
   submitEpisodeInteraction: withBackgroundSync(
     submitEpisodeInteraction,
     syncLocalChanges,
@@ -196,6 +210,7 @@ export const localAppServices = {
     updateLearningPreferences,
     syncLocalChanges,
   ),
+  updateSeriesSetup: withBackgroundSync(updateSeriesSetup, syncLocalChanges),
   updateWordSet: withBackgroundSync(updateWordSet, syncLocalChanges),
 } as const;
 
@@ -213,6 +228,8 @@ type SupabaseServices = {
   readonly authSessionProvider: AuthSessionProvider;
   // remoteSeriesStore persists the authenticated cloud copy behind RLS.
   readonly remoteSeriesStore: RemoteSeriesStore;
+  // seriesSetupDraftGateway fills missing setup fields through an Edge Function.
+  readonly seriesSetupDraftGateway: SeriesSetupDraftGateway;
 };
 
 // createSupabaseServices keeps local use available without public environment config.
@@ -231,6 +248,9 @@ function createSupabaseServices(): SupabaseServices {
       ),
       authSessionProvider: new SupabaseAuthSessionProvider(supabaseClient),
       remoteSeriesStore: new SupabaseRemoteSeriesStore(supabaseClient),
+      seriesSetupDraftGateway: new SupabaseSeriesSetupDraftGateway(
+        supabaseClient,
+      ),
     };
   } catch {
     return {
@@ -239,6 +259,7 @@ function createSupabaseServices(): SupabaseServices {
       interactionGateway: unavailableInteractionGateway,
       authSessionProvider: unauthenticatedSessionProvider,
       remoteSeriesStore: unavailableRemoteSeriesStore,
+      seriesSetupDraftGateway: unavailableSeriesSetupDraftGateway,
     };
   }
 }
@@ -289,6 +310,13 @@ const unavailableEpisodeGenerationGateway: EpisodeGenerationGateway = {
 // unavailableInteractionGateway fails only server-backed interaction actions.
 const unavailableInteractionGateway: InteractionGateway = {
   submitInteraction: async () => {
+    throw new Error('Supabase Edge Functions are not configured.');
+  },
+};
+
+// unavailableSeriesSetupDraftGateway fails only server-backed setup generation.
+const unavailableSeriesSetupDraftGateway: SeriesSetupDraftGateway = {
+  generateSeriesSetupDraft: async () => {
     throw new Error('Supabase Edge Functions are not configured.');
   },
 };

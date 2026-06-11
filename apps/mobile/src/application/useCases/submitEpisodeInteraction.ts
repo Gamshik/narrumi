@@ -134,6 +134,7 @@ export function createSubmitEpisodeInteraction(
         cefrLevel: series.cefrLevel,
         genre: series.genre,
         tone: series.tone,
+        participationMode: series.participationMode,
         compactSeriesMemory: buildCompactSeriesMemoryPayload(memory),
         episodeSummary: episode.summaryUpdate,
         interactionPrompt: activeInteraction.prompt,

@@ -26,6 +26,7 @@ const memory: SeriesMemory = {
   premise: 'Mira wants to find a hidden city garden.',
   genre: 'short-fiction',
   tone: 'mysterious but friendly',
+  participationMode: 'director',
   mainCharacters: ['Mira'],
   knownFacts: [],
   openQuestions: [],
@@ -46,6 +47,7 @@ const series: Series = {
   cefrLevel: 'B1',
   tone: memory.tone,
   premise: memory.premise,
+  participationMode: memory.participationMode,
   mainCharacters: memory.mainCharacters,
   memory,
   createdAt: timestamp,
@@ -123,7 +125,9 @@ describe('generateEpisode', () => {
       generateEpisode: async (request) => {
         assert.equal(request.seriesTitle, 'Garden After Midnight');
         assert.equal(request.genre, 'travel-leisure');
+        assert.equal(request.participationMode, 'director');
         assert.equal(request.compactSeriesMemory.genre, 'travel-leisure');
+        assert.equal(request.compactSeriesMemory.participationMode, 'director');
 
         return {
           title: 'The Midnight Gate',

@@ -7,6 +7,7 @@ export * from './interactionGateway';
 export * from './localSeriesStore';
 export * from './networkStatus';
 export * from './remoteSeriesStore';
+export * from './seriesSetupDraftGateway';
 export * from './seriesSetupModerationGateway';
 export * from './syncQueue';
 export * from './userAccessPolicy';

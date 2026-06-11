@@ -77,6 +77,10 @@ export function createGenerateEpisode(
         );
       }
 
+      if (series.participationMode === 'character' && !series.userRole) {
+        throw new Error('Your role is required before generating a character-mode episode.');
+      }
+
       const words = resolveStoryWords({
         maxLevel: series.cefrLevel,
         vocabulary,
@@ -96,6 +100,7 @@ export function createGenerateEpisode(
         genre: generationGenre,
         tone: series.tone,
         premise: series.premise,
+        participationMode: series.participationMode,
         mainCharacters: series.mainCharacters,
         ...(series.userRole ? { userRole: series.userRole } : {}),
         selectedStoryWords: words.map((word) => ({

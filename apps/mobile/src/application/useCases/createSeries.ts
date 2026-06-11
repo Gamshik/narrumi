@@ -8,6 +8,7 @@ import type {
   LearningGenre,
   Series,
   SeriesMemory,
+  SeriesParticipationMode,
   SyncMetadata,
 } from '@domain/index';
 
@@ -23,6 +24,8 @@ export type CreateSeriesInput = {
   readonly tone: string;
   // premise stores the bounded starting idea for the series.
   readonly premise: string;
+  // participationMode decides whether answers direct events or roleplay the learner.
+  readonly participationMode: SeriesParticipationMode;
   // mainCharacters names recurring people or roles for continuity.
   readonly mainCharacters: readonly string[];
   // userRole records who the learner is in the story when provided.
@@ -51,17 +54,26 @@ export function createCreateSeries(
     execute: async (input) => {
       const title = requireText(input.title, 'Series title');
       const tone = requireText(input.tone, 'Series tone');
-      const userPremise = optionalText(input.premise);
-      const premise = userPremise ?? 'The AI should infer the opening premise from the selected genre, tone, level, and Story Words.';
+      const premise = requireText(input.premise, 'Series premise');
       const mainCharacters = input.mainCharacters
         .map((character) => character.trim())
         .filter((character) => character.length > 0);
       const userRole = input.userRole?.trim();
+      const participationMode = input.participationMode;
+
+      if (participationMode === 'character' && !userRole) {
+        throw new Error('Your role is required for character mode.');
+      }
+
+      if (mainCharacters.length === 0) {
+        throw new Error('Main characters are required.');
+      }
 
       await seriesSetupModerationGateway?.validateSeriesSetup({
         title,
         tone,
-        ...(userPremise ? { premise: userPremise } : {}),
+        premise,
+        participationMode,
         mainCharacters,
         ...(userRole ? { userRole } : {}),
       });
@@ -75,6 +87,7 @@ export function createCreateSeries(
         premise,
         genre: input.genre,
         tone,
+        participationMode,
         mainCharacters,
         ...(userRole ? { userRole } : {}),
         currentConflict: 'The opening episode has not been generated yet.',
@@ -93,6 +106,7 @@ export function createCreateSeries(
         cefrLevel: input.cefrLevel,
         tone,
         premise,
+        participationMode,
         mainCharacters,
         ...(userRole ? { userRole } : {}),
         memory,
@@ -107,13 +121,6 @@ export function createCreateSeries(
       return { series };
     },
   };
-}
-
-// optionalText returns undefined for blank optional setup fields.
-function optionalText(value: string): string | undefined {
-  const trimmed = value.trim();
-
-  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 // createDirtySync creates pending metadata for future Supabase reconciliation.

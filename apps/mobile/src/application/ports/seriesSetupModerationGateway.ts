@@ -1,3 +1,5 @@
+import type { SeriesParticipationMode } from '@domain/index';
+
 // ValidateSeriesSetupRequest contains user-controlled setup fields checked before local persistence.
 export type ValidateSeriesSetupRequest = {
   // title is the learner-written visible series name.
@@ -6,6 +8,8 @@ export type ValidateSeriesSetupRequest = {
   readonly tone: string;
   // premise is the optional learner-written story setup.
   readonly premise?: string;
+  // participationMode is persisted setup context and validated as a bounded option.
+  readonly participationMode: SeriesParticipationMode;
   // mainCharacters contains learner-written character names or roles.
   readonly mainCharacters: readonly string[];
   // userRole is the optional learner-written role in the story.

@@ -26,6 +26,7 @@ describe('createSeries', () => {
     const moderationGateway: SeriesSetupModerationGateway = {
       validateSeriesSetup: async (request) => {
         assert.equal(request.title, 'Bomb, garry potter');
+        assert.equal(request.participationMode, 'director');
         assert.equal(request.mainCharacters[0], 'Mira');
         throw new Error('Series setup matched blocked content rules.');
       },
@@ -43,10 +44,67 @@ describe('createSeries', () => {
           genre: 'short-fiction',
           cefrLevel: 'A2',
           tone: 'Light adventure',
-          premise: '',
+          premise: 'Mira finds a strange school map.',
+          participationMode: 'director',
           mainCharacters: ['Mira'],
         }),
       /blocked content/,
+    );
+
+    assert.equal(savedSeries.length, 0);
+    assert.equal(savedMemory.length, 0);
+  });
+
+  it('requires a learner role for character mode', async () => {
+    // savedSeries confirms validation stops before persistence.
+    const savedSeries: Series[] = [];
+    // savedMemory confirms validation stops before memory persistence.
+    const savedMemory: SeriesMemory[] = [];
+    const createSeries = createCreateSeries(
+      createMemoryStore(savedSeries, savedMemory),
+      { now: () => new Date('2026-06-10T10:00:00.000Z') },
+    );
+
+    await assert.rejects(
+      () =>
+        createSeries.execute({
+          title: 'The Door',
+          genre: 'short-fiction',
+          cefrLevel: 'B1',
+          tone: 'Calm detective',
+          premise: 'Mira finds a quiet blue door.',
+          participationMode: 'character',
+          mainCharacters: ['Mira'],
+        }),
+      /role is required/,
+    );
+
+    assert.equal(savedSeries.length, 0);
+    assert.equal(savedMemory.length, 0);
+  });
+
+  it('requires complete text setup before local persistence', async () => {
+    // savedSeries confirms required-field validation stops before persistence.
+    const savedSeries: Series[] = [];
+    // savedMemory confirms required-field validation stops before memory persistence.
+    const savedMemory: SeriesMemory[] = [];
+    const createSeries = createCreateSeries(
+      createMemoryStore(savedSeries, savedMemory),
+      { now: () => new Date('2026-06-10T10:00:00.000Z') },
+    );
+
+    await assert.rejects(
+      () =>
+        createSeries.execute({
+          title: 'The Door',
+          genre: 'short-fiction',
+          cefrLevel: 'B1',
+          tone: 'Calm detective',
+          premise: '',
+          participationMode: 'director',
+          mainCharacters: [],
+        }),
+      /premise is required/,
     );
 
     assert.equal(savedSeries.length, 0);

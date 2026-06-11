@@ -20,6 +20,7 @@ const memory: SeriesMemory = {
   premise: 'Mira finds a hidden door.',
   genre: 'short-fiction',
   tone: 'mysterious but friendly',
+  participationMode: 'director',
   mainCharacters: ['Mira'],
   knownFacts: [],
   openQuestions: ['What is behind the door?'],
@@ -40,6 +41,7 @@ const series: Series = {
   cefrLevel: 'B1',
   tone: 'mysterious but friendly',
   premise: memory.premise,
+  participationMode: memory.participationMode,
   mainCharacters: memory.mainCharacters,
   memory,
   createdAt: timestamp,
@@ -154,6 +156,8 @@ describe('submitEpisodeInteraction', () => {
     const gateway: InteractionGateway = {
       submitInteraction: async (request) => {
         assert.equal(request.seriesTitle, 'The Blue Door');
+        assert.equal(request.participationMode, 'director');
+        assert.equal(request.compactSeriesMemory.participationMode, 'director');
         assert.equal(request.interactionCount, 1);
         assert.equal(request.previousDecisions.length, 0);
         assert.deepEqual(request.selectedStoryWords.map((word) => word.id), [
@@ -297,6 +301,7 @@ describe('submitEpisodeInteraction', () => {
     const gateway: InteractionGateway = {
       submitInteraction: async (request) => {
         assert.equal(request.seriesTitle, 'The Blue Door');
+        assert.equal(request.participationMode, 'director');
         assert.equal(request.interactionCount, 14);
         assert.equal(request.previousDecisions.length, 10);
         assert.equal(request.previousDecisions[0]?.prompt, 'Previous prompt 4');
