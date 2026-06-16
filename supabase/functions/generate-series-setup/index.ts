@@ -78,6 +78,30 @@ type SeriesSetupTextField = (typeof setupTextFields)[number];
 // SetupDraft is the validated complete setup response.
 type SetupDraft = z.infer<typeof setupDraftSchema>;
 
+// modelSetupDraftSchema leniently parses raw model output so imperfect non-target
+// fields never throw before finalizeDraft assembles the final draft. Empty strings
+// and missing fields are normalized to undefined; the strict setupDraftSchema runs
+// only after preservation, so the model just has to get the regenerated field right.
+const modelSetupDraftSchema = z
+  .object({
+    title: z.string().trim().max(160).optional(),
+    premise: z.string().trim().max(1000).optional(),
+    mainCharacters: z.array(z.string().trim().max(160)).max(8).optional(),
+    userRole: z.string().trim().max(160).optional(),
+  })
+  .transform((draft) => ({
+    title: draft.title && draft.title.length > 0 ? draft.title : undefined,
+    premise: draft.premise && draft.premise.length > 0 ? draft.premise : undefined,
+    mainCharacters: (draft.mainCharacters ?? []).filter(
+      (character) => character.length > 0,
+    ),
+    userRole:
+      draft.userRole && draft.userRole.length > 0 ? draft.userRole : undefined,
+  }));
+
+// ModelSetupDraft is the normalized, not-yet-validated text returned by the model.
+type ModelSetupDraft = z.infer<typeof modelSetupDraftSchema>;
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -185,7 +209,12 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
     });
 
     try {
-      return finalizeDraft(request, setupDraftSchema.parse(parseJsonObject(result.text)));
+      // Parse the model output leniently, then preserve provided fields and
+      // strictly validate only the assembled draft inside finalizeDraft.
+      return finalizeDraft(
+        request,
+        modelSetupDraftSchema.parse(parseJsonObject(result.text)),
+      );
     } catch (error) {
       validationError = error instanceof Error ? error : new Error(String(error));
 
@@ -279,26 +308,30 @@ function describePreviousValue(
   }
 }
 
-// finalizeDraft enforces preservation and mode-specific fields after AI generation.
-function finalizeDraft(request: SetupDraftRequest, draft: SetupDraft): SetupDraft {
-  // keepProvided returns true when a field must be preserved instead of taking the AI value.
-  // The single regenerate target always takes the freshly generated value.
-  const keepProvided = (field: SeriesSetupTextField): boolean =>
-    request.regenerateField !== field;
+// finalizeDraft preserves provided fields, applies the regenerated field, and
+// strictly validates the assembled result. The regenerate target always takes the
+// model value; every other field keeps the user's provided value when present.
+function finalizeDraft(
+  request: SetupDraftRequest,
+  draft: ModelSetupDraft,
+): SetupDraft {
+  // isRegenerated reports whether a field is the single regeneration target.
+  const isRegenerated = (field: SeriesSetupTextField): boolean =>
+    request.regenerateField === field;
 
-  const title = keepProvided('title') ? request.title ?? draft.title : draft.title;
-  const premise = keepProvided('premise')
-    ? request.premise ?? draft.premise
-    : draft.premise;
+  const title = isRegenerated('title') ? draft.title : request.title ?? draft.title;
+  const premise = isRegenerated('premise')
+    ? draft.premise
+    : request.premise ?? draft.premise;
   const mainCharacters =
-    keepProvided('mainCharacters') && request.mainCharacters.length > 0
+    !isRegenerated('mainCharacters') && request.mainCharacters.length > 0
       ? request.mainCharacters
       : draft.mainCharacters;
   const userRole =
     request.participationMode === 'character'
-      ? keepProvided('userRole')
-        ? request.userRole ?? draft.userRole
-        : draft.userRole
+      ? isRegenerated('userRole')
+        ? draft.userRole
+        : request.userRole ?? draft.userRole
       : undefined;
 
   return setupDraftSchema.parse({
