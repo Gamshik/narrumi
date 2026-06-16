@@ -224,7 +224,7 @@ function buildPrompt(request: SetupDraftRequest): string {
         'Return exactly: title, premise, mainCharacters, userRole.',
         'title must be short and memorable.',
         'premise must be one compact paragraph suitable for the first episode.',
-        'mainCharacters must contain one to four recurring original characters.',
+        'mainCharacters must be an array of strings containing one to four recurring original characters.',
         'For character mode, userRole is required and must describe who the learner is inside the story.',
         'For director mode, omit userRole.',
         'Keep all text suitable for the selected CEFR level and tone.',
