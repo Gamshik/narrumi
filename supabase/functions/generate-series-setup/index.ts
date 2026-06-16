@@ -179,7 +179,8 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
       prompt: validationError
         ? `${buildPrompt(request)}\n\nPrevious validation error: ${validationError.message}\nRegenerate the JSON object from scratch.`
         : buildPrompt(request),
-      temperature: 0.4,
+      // Single-field regeneration needs more variety so the new value differs from the existing one.
+      temperature: request.regenerateField ? 0.9 : 0.4,
       maxOutputTokens: 900,
     });
 
@@ -215,11 +216,16 @@ function buildSystemPrompt(): string {
 
 // buildPrompt sends selected constraints and optional user-provided setup text.
 function buildPrompt(request: SetupDraftRequest): string {
+  const target = request.regenerateField;
+
   return JSON.stringify(
     {
       task: 'generate-series-setup',
       // regenerateField marks the only field that must change; absent means fill all missing fields.
-      regenerateField: request.regenerateField,
+      regenerateField: target,
+      // regenerateFrom is the current value of the target field; the new value must differ from it.
+      // The target is intentionally excluded from providedText so it is not treated as "preserve exactly".
+      regenerateFrom: target ? describePreviousValue(request, target) : undefined,
       selectedConstraints: {
         cefrLevel: request.cefrLevel,
         genre: request.genre,
@@ -227,10 +233,11 @@ function buildPrompt(request: SetupDraftRequest): string {
         participationMode: request.participationMode,
       },
       providedText: {
-        title: request.title,
-        premise: request.premise,
-        mainCharacters: request.mainCharacters,
-        userRole: request.userRole,
+        title: target === 'title' ? undefined : request.title,
+        premise: target === 'premise' ? undefined : request.premise,
+        mainCharacters:
+          target === 'mainCharacters' ? undefined : request.mainCharacters,
+        userRole: target === 'userRole' ? undefined : request.userRole,
       },
       outputRules: [
         'Return exactly: title, premise, mainCharacters, userRole.',
@@ -240,10 +247,10 @@ function buildPrompt(request: SetupDraftRequest): string {
         'For character mode, userRole is required and must describe who the learner is inside the story.',
         'For director mode, omit userRole.',
         'Keep all text suitable for the selected CEFR level and tone.',
-        ...(request.regenerateField
+        ...(target
           ? [
-              `Regenerate only ${request.regenerateField} with a new value different from the provided one.`,
-              'Copy every other provided field exactly and do not alter it.',
+              `Generate a fresh ${target} that is clearly different from regenerateFrom; never repeat it.`,
+              'Copy every field listed in providedText exactly and do not alter it.',
             ]
           : []),
       ],
@@ -251,6 +258,25 @@ function buildPrompt(request: SetupDraftRequest): string {
     null,
     2,
   );
+}
+
+// describePreviousValue renders the current target value so the model can avoid repeating it.
+function describePreviousValue(
+  request: SetupDraftRequest,
+  field: SeriesSetupTextField,
+): string | undefined {
+  switch (field) {
+    case 'title':
+      return request.title;
+    case 'premise':
+      return request.premise;
+    case 'mainCharacters':
+      return request.mainCharacters.length > 0
+        ? request.mainCharacters.join(', ')
+        : undefined;
+    case 'userRole':
+      return request.userRole;
+  }
 }
 
 // finalizeDraft enforces preservation and mode-specific fields after AI generation.
