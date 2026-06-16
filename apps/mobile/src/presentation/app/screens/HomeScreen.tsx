@@ -293,6 +293,7 @@ export function HomeScreen({
           );
         }}
         onClose={() => {
+          setForm(emptySeriesForm);
           setFormErrors({});
           setIsCreateOpen(false);
         }}
