@@ -40,6 +40,8 @@ type SeriesDetailsScreenProps = {
   readonly onPrepareEpisode: (seriesId: string) => void;
   // onOpenEpisode reopens a saved episode in the reader.
   readonly onOpenEpisode: (episodeId: string) => void;
+  // onContinueEpisode reopens an unfinished episode in editable mode to resume it.
+  readonly onContinueEpisode: (episodeId: string) => void;
   // onReadSeries opens the complete saved series timeline.
   readonly onReadSeries: (seriesId: string) => void;
 };
@@ -103,6 +105,7 @@ const participationModeLabels: Record<Series['participationMode'], string> = {
 // SeriesDetailsScreen shows one series, its memory, and completed episodes.
 export function SeriesDetailsScreen({
   onBack,
+  onContinueEpisode,
   onOpenEpisode,
   onPrepareEpisode,
   onReadSeries,
@@ -312,7 +315,7 @@ export function SeriesDetailsScreen({
       <Pressable
         onPress={() => {
           if (latestEpisode && !latestEpisode.isComplete) {
-            onOpenEpisode(latestEpisode.id);
+            onContinueEpisode(latestEpisode.id);
 
             return;
           }

@@ -33,6 +33,16 @@ export default function SeriesDetailsRoute(): ReactElement {
             },
           })
         }
+        onContinueEpisode={(episodeId) =>
+          router.push({
+            pathname: '/episode-reader',
+            params: {
+              episodeId,
+              readOnly: 'false',
+              seriesId: normalizedSeriesId,
+            },
+          })
+        }
         onPrepareEpisode={(selectedSeriesId) =>
           router.push({
             pathname: '/daily-session',
