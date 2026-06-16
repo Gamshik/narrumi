@@ -106,7 +106,9 @@ export function EpisodeReaderScreen({
     interactionId: string,
     choiceId: string,
   ): Promise<void> => {
-    if (!activeEpisode || isReadOnly || activeEpisode.isComplete) {
+    // An unfinished episode stays answerable so an interrupted series can resume,
+    // regardless of how the reader was opened (banner, Read, or Read Full Series).
+    if (!activeEpisode || activeEpisode.isComplete) {
       return;
     }
 
@@ -276,7 +278,6 @@ export function EpisodeReaderScreen({
                       {interactionsAtBoundary.map((interaction) => (
                         <EpisodeInteractionBlock
                           canAnswer={
-                            !isReadOnly &&
                             isLastEpisode &&
                             !episode.isComplete &&
                             pendingInteraction?.id === interaction.id
