@@ -609,20 +609,6 @@ function CreateSeriesModal({
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="always"
         >
-          <FormField
-            {...(errors.title ? { error: errors.title } : {})}
-            fieldId="title"
-            isBusy={isBusy}
-            isRegenerating={regeneratingField === 'title'}
-            label="Title"
-            placeholder="Orbit Letters"
-            styles={styles}
-            value={form.title}
-            onFocus={scrollToField}
-            onLayout={registerFieldOffset}
-            onChangeText={(title) => updateForm({ title })}
-            onRegenerate={() => onRegenerateField('title')}
-          />
           <ChoiceGroup
             label="CEFR Level"
             options={cefrLevels}
@@ -681,7 +667,7 @@ function CreateSeriesModal({
             isBusy={isBusy}
             isCompactMultiline
             isRegenerating={regeneratingField === 'mainCharacters'}
-            label="Main Characters"
+            label="Characters"
             placeholder="Mira, Alex"
             styles={styles}
             value={form.mainCharacters}
@@ -708,6 +694,23 @@ function CreateSeriesModal({
               onRegenerate={() => onRegenerateField('userRole')}
             />
           ) : null}
+          {/* Title is placed last so it follows the story decided above (premise, */}
+          {/* characters, learner role). This matches the AI generation order, where */}
+          {/* each field is built from the selected constraints and the fields before it. */}
+          <FormField
+            {...(errors.title ? { error: errors.title } : {})}
+            fieldId="title"
+            isBusy={isBusy}
+            isRegenerating={regeneratingField === 'title'}
+            label="Title"
+            placeholder="Orbit Letters"
+            styles={styles}
+            value={form.title}
+            onFocus={scrollToField}
+            onLayout={registerFieldOffset}
+            onChangeText={(title) => updateForm({ title })}
+            onRegenerate={() => onRegenerateField('title')}
+          />
           <Pressable
             disabled={isBusy}
             onPress={onGenerate}
@@ -776,6 +779,17 @@ function FormField({
   // onRegenerate, when set, exposes a single-field AI regeneration action in the label row.
   readonly onRegenerate?: () => void;
 }): ReactElement {
+  // hasValue switches the AI action between filling an empty field and replacing an existing one.
+  const hasValue = value.trim().length > 0;
+  // actionLabel reads "Generate" for an empty field and "Regenerate" once it holds a value.
+  const actionLabel = isRegenerating
+    ? hasValue
+      ? 'Regenerating...'
+      : 'Generating...'
+    : hasValue
+      ? 'Regenerate'
+      : 'Generate';
+
   return (
     <View
       onLayout={(event) => onLayout(fieldId, event.nativeEvent.layout.y)}
@@ -793,9 +807,7 @@ function FormField({
               isBusy && styles.disabledControl,
             ]}
           >
-            <Text style={styles.fieldRegenerateText}>
-              {isRegenerating ? 'Regenerating...' : 'Regenerate'}
-            </Text>
+            <Text style={styles.fieldRegenerateText}>{actionLabel}</Text>
           </Pressable>
         ) : null}
       </View>

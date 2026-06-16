@@ -6,10 +6,12 @@ import {
   corsHeaders,
   jsonResponse,
   logSafeError,
+  logSafeInfo,
   moderationResponse,
   safeErrorResponse,
 } from '../_shared/http.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
+import { isRepeatedRegeneration } from './regeneration.ts';
 import {
   buildModerationReview,
   collectModerationEntries,
@@ -36,8 +38,12 @@ const openrouterProvider = openrouterApiKey
 // setupDraftAttempts is the maximum retry count for structured setup generation.
 const setupDraftAttempts = 3;
 
-// setupTextFields enumerates the AI-fillable text fields that may be regenerated one at a time.
-const setupTextFields = ['title', 'premise', 'mainCharacters', 'userRole'] as const;
+// setupTextFields lists the AI-fillable text fields in canonical generation order.
+// Generation and single-field regeneration follow this order so each field is produced
+// from the selected constraints plus every field before it. This keeps the premise,
+// characters, learner role, and title connected to one coherent story instead of being
+// invented independently. It is also the enum source for the regeneration target.
+const setupTextFields = ['premise', 'mainCharacters', 'userRole', 'title'] as const;
 
 // setupDraftRequestSchema validates selected constraints and optional user text.
 const setupDraftRequestSchema = z.object({
@@ -196,14 +202,19 @@ async function readJsonBody(request: Request): Promise<unknown> {
 
 // generateSetupDraft asks the model for complete setup text and validates preservation.
 async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraft> {
-  let validationError: Error | undefined;
+  let lastError: Error | undefined;
+  // Regeneration gets one extra attempt because retries can be spent both on
+  // validation failures and on rejecting an unchanged (repeated) field value.
+  const maxAttempts = request.regenerateField
+    ? setupDraftAttempts + 1
+    : setupDraftAttempts;
 
-  for (let attempt = 1; attempt <= setupDraftAttempts; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const result = await generateText({
       model: openrouterProvider!(openrouterModel),
       system: buildSystemPrompt(),
-      prompt: validationError
-        ? `${buildPrompt(request)}\n\nPrevious validation error: ${validationError.message}\nRegenerate the JSON object from scratch.`
+      prompt: lastError
+        ? `${buildPrompt(request)}\n\nPrevious attempt failed: ${lastError.message}\nRegenerate the JSON object from scratch.`
         : buildPrompt(request),
       // Single-field regeneration needs more variety so the new value differs from the existing one.
       temperature: request.regenerateField ? 0.9 : 0.4,
@@ -213,21 +224,53 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
     try {
       // Parse the model output leniently, then preserve provided fields and
       // strictly validate only the assembled draft inside finalizeDraft.
-      return finalizeDraft(
+      const draft = finalizeDraft(
         request,
         modelSetupDraftSchema.parse(parseJsonObject(result.text)),
       );
-    } catch (error) {
-      validationError = error instanceof Error ? error : new Error(String(error));
 
-      logSafeError('generate-series-setup validation failed', validationError, {
+      // Regeneration should change the targeted field. If the model returned the
+      // same value (ignoring case, spacing, or character order) we retry so the
+      // user gets a fresh value. This is an expected retry, not a failure, so on
+      // the final attempt we accept the draft instead of turning a stubborn model
+      // into a hard error — returning the previous value beats returning nothing.
+      const repeatedRegeneration = isRepeatedRegeneration({
+        field: request.regenerateField,
+        previous: {
+          title: request.title,
+          premise: request.premise,
+          userRole: request.userRole,
+          mainCharacters: request.mainCharacters,
+        },
+        next: draft,
+      });
+
+      if (repeatedRegeneration && attempt < maxAttempts) {
+        lastError = new Error(
+          `The regenerated ${request.regenerateField} repeated the previous value; produce a clearly different one.`,
+        );
+
+        logSafeInfo('generate-series-setup retrying repeated regeneration', {
+          attempt: String(attempt),
+          field: String(request.regenerateField),
+          model: openrouterModel,
+        });
+
+        continue;
+      }
+
+      return draft;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      logSafeError('generate-series-setup attempt failed', lastError, {
         attempt: String(attempt),
         model: openrouterModel,
       });
     }
   }
 
-  throw validationError ?? new Error('Series setup draft validation failed.');
+  throw lastError ?? new Error('Series setup draft validation failed.');
 }
 
 // buildSystemPrompt keeps setup generation bounded and original.
@@ -238,6 +281,15 @@ function buildSystemPrompt(): string {
     'Do not generate or change selected list fields: cefrLevel, genre, tone, or participationMode.',
     'Preserve any provided title, premise, mainCharacters, and userRole exactly unless they are unsafe.',
     'Fill only missing text fields with concise, original, safe content.',
+    'Follow generationOrder: build each field from the selected constraints and from every field that',
+    'appears earlier in generationOrder, so the premise, characters, learner role, and title stay',
+    'connected to one story instead of being invented independently.',
+    'In particular, derive mainCharacters and userRole directly from the premise: they must be people who',
+    'plausibly appear in that exact situation and have a clear relationship to it, not unrelated names.',
+    'In character mode, userRole is the character the learner plays and must be exactly one of the',
+    'people listed in mainCharacters: copy that character (its name, optionally with its short role)',
+    'rather than inventing a separate person. Never write userRole as a second-person sentence or',
+    'instruction such as "You are ..." or "You play ...".',
     'When regenerateField is set, produce a fresh, clearly different value for only that one field,',
     'keep it consistent with all other provided fields, and copy every other provided field exactly.',
     'Do not copy protected worlds, names, characters, or plots.',
@@ -257,6 +309,9 @@ function buildPrompt(request: SetupDraftRequest): string {
       // regenerateFrom is the current value of the target field; the new value must differ from it.
       // The target is intentionally excluded from providedText so it is not treated as "preserve exactly".
       regenerateFrom: target ? describePreviousValue(request, target) : undefined,
+      // generationOrder is the canonical dependency order; each field must stay consistent with the
+      // selected constraints and with every field listed before it, whether provided or just generated.
+      generationOrder: setupTextFields,
       selectedConstraints: {
         cefrLevel: request.cefrLevel,
         genre: request.genre,
@@ -272,15 +327,17 @@ function buildPrompt(request: SetupDraftRequest): string {
       },
       outputRules: [
         'Return exactly: title, premise, mainCharacters, userRole.',
-        'title must be short and memorable.',
-        'premise must be one compact paragraph suitable for the first episode.',
-        'mainCharacters must be an array of strings containing one to four recurring original characters.',
-        'For character mode, userRole is required and must describe who the learner is inside the story.',
+        'Build fields in generationOrder; each field must stay consistent with the selected constraints and with every earlier field.',
+        'premise: two to four sentences in one paragraph that set up a concrete situation and hook for the first episode, match the genre and tone, and leave the story open to continue. In character mode, leave a clear place for the learner to act.',
+        'mainCharacters: an array of one to four distinct, original recurring characters who each play a concrete role inside the premise itself and connect to its central situation, conflict, or the learner persona, for example a relative, mentor, rival, colleague, customer, or someone tied to the premise\'s mystery. Choose people who clearly belong to this specific story and setting, not interchangeable generic names. If the premise already names or clearly implies specific people other than the learner persona, include those exact people here instead of inventing unrelated ones. Each entry is one character and must not contain commas; you may add a short role after the name without a comma, for example "Theo the rival baker" or "Aunt Rosa who knew the previous owner", so the link to the premise is visible. In character mode, this list must include the character the learner will play, because userRole has to be one of these characters.',
+        'For character mode, userRole is required and must be exactly one of the entries in mainCharacters: the character the learner plays. Copy that character (its name, optionally with its short role) and do not invent a separate person. Never phrase it as a second-person sentence such as "You are ...".',
         'For director mode, omit userRole.',
-        'Keep all text suitable for the selected CEFR level and tone.',
+        'title: two to five words, evocative and memorable, reflecting the premise and tone, with no surrounding quotation marks.',
+        'Match every generated field to the selected CEFR level and tone: use simpler words and shorter sentences for lower levels (A1, A2) and richer language only for higher levels.',
         ...(target
           ? [
-              `Generate a fresh ${target} that is clearly different from regenerateFrom; never repeat it.`,
+              `Generate a fresh ${target} that is clearly different from regenerateFrom; never return the same value, even reworded or reordered.`,
+              `Base the new ${target} on providedText, especially the premise and the other earlier fields, so it clearly belongs to the same story; do not invent unrelated content.`,
               'Copy every field listed in providedText exactly and do not alter it.',
             ]
           : []),
