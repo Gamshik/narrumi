@@ -6,6 +6,7 @@ import {
   corsHeaders,
   jsonResponse,
   logSafeError,
+  logSafeInfo,
   moderationResponse,
   safeErrorResponse,
 } from '../_shared/http.ts';
@@ -228,24 +229,34 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
         modelSetupDraftSchema.parse(parseJsonObject(result.text)),
       );
 
-      // Regeneration must change the targeted field. If the model returned the
-      // same value (ignoring case, spacing, or character order), reject it and
-      // retry so pressing Regenerate never leaves the field unchanged.
-      if (
-        isRepeatedRegeneration({
-          field: request.regenerateField,
-          previous: {
-            title: request.title,
-            premise: request.premise,
-            userRole: request.userRole,
-            mainCharacters: request.mainCharacters,
-          },
-          next: draft,
-        })
-      ) {
-        throw new Error(
+      // Regeneration should change the targeted field. If the model returned the
+      // same value (ignoring case, spacing, or character order) we retry so the
+      // user gets a fresh value. This is an expected retry, not a failure, so on
+      // the final attempt we accept the draft instead of turning a stubborn model
+      // into a hard error — returning the previous value beats returning nothing.
+      const repeatedRegeneration = isRepeatedRegeneration({
+        field: request.regenerateField,
+        previous: {
+          title: request.title,
+          premise: request.premise,
+          userRole: request.userRole,
+          mainCharacters: request.mainCharacters,
+        },
+        next: draft,
+      });
+
+      if (repeatedRegeneration && attempt < maxAttempts) {
+        lastError = new Error(
           `The regenerated ${request.regenerateField} repeated the previous value; produce a clearly different one.`,
         );
+
+        logSafeInfo('generate-series-setup retrying repeated regeneration', {
+          attempt: String(attempt),
+          field: String(request.regenerateField),
+          model: openrouterModel,
+        });
+
+        continue;
       }
 
       return draft;

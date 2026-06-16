@@ -84,3 +84,9 @@ export function logSafeError(
 
   console.error(label, { ...context, error: details });
 }
+
+// logSafeInfo records expected, non-failing diagnostics (such as a retried attempt)
+// without raising them to the error level reserved for genuine failures.
+export function logSafeInfo(label: string, context: Record<string, string>): void {
+  console.info(label, context);
+}
