@@ -287,12 +287,12 @@ function buildPrompt(request: SetupDraftRequest): string {
       outputRules: [
         'Return exactly: title, premise, mainCharacters, userRole.',
         'Build fields in generationOrder; each field must stay consistent with the selected constraints and with every earlier field.',
-        'premise must be one compact paragraph suitable for the first episode.',
-        'mainCharacters must be an array of strings containing one to four recurring original characters that fit the premise.',
-        'For character mode, userRole is required: a short persona label with an optional name and role, for example "Mara, a junior nurse", consistent with the premise and main characters. Never phrase it as a second-person sentence such as "You are ...".',
+        'premise: two to four sentences in one paragraph that set up a concrete situation and hook for the first episode, match the genre and tone, and leave the story open to continue. In character mode, leave a clear place for the learner to act.',
+        'mainCharacters: an array of one to four distinct, original recurring characters that fit the premise and setting. Each entry is a single character name and must not contain commas. Do not list the learner persona here.',
+        'For character mode, userRole is required: a short persona label with an optional name and role, for example "Mara, a junior nurse", consistent with the premise and main characters and distinct from them. Never phrase it as a second-person sentence such as "You are ...".',
         'For director mode, omit userRole.',
-        'title must be short and memorable and reflect the premise.',
-        'Keep all text suitable for the selected CEFR level and tone.',
+        'title: two to five words, evocative and memorable, reflecting the premise and tone, with no surrounding quotation marks.',
+        'Match every generated field to the selected CEFR level and tone: use simpler words and shorter sentences for lower levels (A1, A2) and richer language only for higher levels.',
         ...(target
           ? [
               `Generate a fresh ${target} that is clearly different from regenerateFrom; never repeat it.`,
