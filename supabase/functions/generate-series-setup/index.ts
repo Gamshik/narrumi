@@ -84,19 +84,21 @@ type SetupDraft = z.infer<typeof setupDraftSchema>;
 // only after preservation, so the model just has to get the regenerated field right.
 const modelSetupDraftSchema = z
   .object({
-    title: z.string().trim().max(160).optional(),
-    premise: z.string().trim().max(1000).optional(),
-    mainCharacters: z.array(z.string().trim().max(160)).max(8).optional(),
-    userRole: z.string().trim().max(160).optional(),
+    // nullish() tolerates both missing fields and explicit null, which models emit
+    // for omitted text (e.g. userRole: null in director mode); they normalize below.
+    title: z.string().trim().max(160).nullish(),
+    premise: z.string().trim().max(1000).nullish(),
+    mainCharacters: z.array(z.string().trim().max(160).nullish()).max(8).nullish(),
+    userRole: z.string().trim().max(160).nullish(),
   })
   .transform((draft) => ({
-    title: draft.title && draft.title.length > 0 ? draft.title : undefined,
-    premise: draft.premise && draft.premise.length > 0 ? draft.premise : undefined,
+    title: draft.title ? draft.title : undefined,
+    premise: draft.premise ? draft.premise : undefined,
     mainCharacters: (draft.mainCharacters ?? []).filter(
-      (character) => character.length > 0,
+      (character): character is string =>
+        typeof character === 'string' && character.length > 0,
     ),
-    userRole:
-      draft.userRole && draft.userRole.length > 0 ? draft.userRole : undefined,
+    userRole: draft.userRole ? draft.userRole : undefined,
   }));
 
 // ModelSetupDraft is the normalized, not-yet-validated text returned by the model.
