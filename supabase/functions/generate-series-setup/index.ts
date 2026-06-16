@@ -10,6 +10,7 @@ import {
   safeErrorResponse,
 } from '../_shared/http.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
+import { isRepeatedRegeneration } from './regeneration.ts';
 import {
   buildModerationReview,
   collectModerationEntries,
@@ -200,14 +201,19 @@ async function readJsonBody(request: Request): Promise<unknown> {
 
 // generateSetupDraft asks the model for complete setup text and validates preservation.
 async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraft> {
-  let validationError: Error | undefined;
+  let lastError: Error | undefined;
+  // Regeneration gets one extra attempt because retries can be spent both on
+  // validation failures and on rejecting an unchanged (repeated) field value.
+  const maxAttempts = request.regenerateField
+    ? setupDraftAttempts + 1
+    : setupDraftAttempts;
 
-  for (let attempt = 1; attempt <= setupDraftAttempts; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const result = await generateText({
       model: openrouterProvider!(openrouterModel),
       system: buildSystemPrompt(),
-      prompt: validationError
-        ? `${buildPrompt(request)}\n\nPrevious validation error: ${validationError.message}\nRegenerate the JSON object from scratch.`
+      prompt: lastError
+        ? `${buildPrompt(request)}\n\nPrevious attempt failed: ${lastError.message}\nRegenerate the JSON object from scratch.`
         : buildPrompt(request),
       // Single-field regeneration needs more variety so the new value differs from the existing one.
       temperature: request.regenerateField ? 0.9 : 0.4,
@@ -217,21 +223,43 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
     try {
       // Parse the model output leniently, then preserve provided fields and
       // strictly validate only the assembled draft inside finalizeDraft.
-      return finalizeDraft(
+      const draft = finalizeDraft(
         request,
         modelSetupDraftSchema.parse(parseJsonObject(result.text)),
       );
-    } catch (error) {
-      validationError = error instanceof Error ? error : new Error(String(error));
 
-      logSafeError('generate-series-setup validation failed', validationError, {
+      // Regeneration must change the targeted field. If the model returned the
+      // same value (ignoring case, spacing, or character order), reject it and
+      // retry so pressing Regenerate never leaves the field unchanged.
+      if (
+        isRepeatedRegeneration({
+          field: request.regenerateField,
+          previous: {
+            title: request.title,
+            premise: request.premise,
+            userRole: request.userRole,
+            mainCharacters: request.mainCharacters,
+          },
+          next: draft,
+        })
+      ) {
+        throw new Error(
+          `The regenerated ${request.regenerateField} repeated the previous value; produce a clearly different one.`,
+        );
+      }
+
+      return draft;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      logSafeError('generate-series-setup attempt failed', lastError, {
         attempt: String(attempt),
         model: openrouterModel,
       });
     }
   }
 
-  throw validationError ?? new Error('Series setup draft validation failed.');
+  throw lastError ?? new Error('Series setup draft validation failed.');
 }
 
 // buildSystemPrompt keeps setup generation bounded and original.
@@ -295,7 +323,8 @@ function buildPrompt(request: SetupDraftRequest): string {
         'Match every generated field to the selected CEFR level and tone: use simpler words and shorter sentences for lower levels (A1, A2) and richer language only for higher levels.',
         ...(target
           ? [
-              `Generate a fresh ${target} that is clearly different from regenerateFrom; never repeat it.`,
+              `Generate a fresh ${target} that is clearly different from regenerateFrom; never return the same value, even reworded or reordered.`,
+              `Base the new ${target} on providedText, especially the premise and the other earlier fields, so it clearly belongs to the same story; do not invent unrelated content.`,
               'Copy every field listed in providedText exactly and do not alter it.',
             ]
           : []),
