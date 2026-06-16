@@ -103,14 +103,21 @@ export function EpisodeReaderScreen({
   }, [loadReader]);
 
   const submitChoice = async (
+    targetEpisodeIndex: number,
     interactionId: string,
     choiceId: string,
   ): Promise<void> => {
-    if (!activeEpisode || isReadOnly || activeEpisode.isComplete) {
+    // Answer the episode that owns the tapped interaction, not a fixed active
+    // index — in "Read Full Series" all episodes are loaded and the pending
+    // turn lives in the last one. An unfinished episode stays answerable so an
+    // interrupted series can resume from any reader entry point.
+    const targetEpisode = episodes[targetEpisodeIndex];
+
+    if (!targetEpisode || targetEpisode.isComplete) {
       return;
     }
 
-    const selectedChoice = activeEpisode.interactions
+    const selectedChoice = targetEpisode.interactions
       .find((interaction) => interaction.id === interactionId)
       ?.choices.find((choice) => choice.id === choiceId);
     const submittedText = cleanSelectedReply(selectedChoice?.label);
@@ -119,7 +126,7 @@ export function EpisodeReaderScreen({
     setIsSubmittingInteraction(true);
     setEpisodes((currentEpisodes) =>
       applyOptimisticChoice({
-        activeEpisodeIndex,
+        activeEpisodeIndex: targetEpisodeIndex,
         choiceId,
         currentEpisodes,
         interactionId,
@@ -131,16 +138,15 @@ export function EpisodeReaderScreen({
     try {
       const result = await localAppServices.submitEpisodeInteraction.execute({
         choiceId,
-        episodeId: activeEpisode.id,
+        episodeId: targetEpisode.id,
         interactionId,
       });
       await waitForRemainingLatency(startedAt);
       const updatedEpisodes = episodes.map((episode, episodeIndex) =>
-        episodeIndex === activeEpisodeIndex ? result.episode : episode,
+        episodeIndex === targetEpisodeIndex ? result.episode : episode,
       );
 
       setEpisodes(updatedEpisodes);
-      setActiveEpisodeIndex(activeEpisodeIndex);
       setInteractionErrorMessage(undefined);
       requestScrollToEnd();
     } catch (error) {
@@ -276,7 +282,6 @@ export function EpisodeReaderScreen({
                       {interactionsAtBoundary.map((interaction) => (
                         <EpisodeInteractionBlock
                           canAnswer={
-                            !isReadOnly &&
                             isLastEpisode &&
                             !episode.isComplete &&
                             pendingInteraction?.id === interaction.id
@@ -287,7 +292,11 @@ export function EpisodeReaderScreen({
                           key={interaction.id}
                           styles={styles}
                           onSelectChoice={(choiceId) => {
-                            void submitChoice(interaction.id, choiceId);
+                            void submitChoice(
+                              episodeIndex,
+                              interaction.id,
+                              choiceId,
+                            );
                           }}
                         />
                       ))}

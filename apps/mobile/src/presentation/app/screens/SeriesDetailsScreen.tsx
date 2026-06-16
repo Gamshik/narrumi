@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -40,6 +41,8 @@ type SeriesDetailsScreenProps = {
   readonly onPrepareEpisode: (seriesId: string) => void;
   // onOpenEpisode reopens a saved episode in the reader.
   readonly onOpenEpisode: (episodeId: string) => void;
+  // onContinueEpisode reopens an unfinished episode in editable mode to resume it.
+  readonly onContinueEpisode: (episodeId: string) => void;
   // onReadSeries opens the complete saved series timeline.
   readonly onReadSeries: (seriesId: string) => void;
 };
@@ -103,6 +106,7 @@ const participationModeLabels: Record<Series['participationMode'], string> = {
 // SeriesDetailsScreen shows one series, its memory, and completed episodes.
 export function SeriesDetailsScreen({
   onBack,
+  onContinueEpisode,
   onOpenEpisode,
   onPrepareEpisode,
   onReadSeries,
@@ -130,9 +134,13 @@ export function SeriesDetailsScreen({
     }
   }, [seriesId]);
 
-  useEffect(() => {
-    void loadDetails();
-  }, [loadDetails]);
+  // Reload on every focus so returning from the reader reflects a freshly
+  // completed episode (banner switches from "Continue" to "Prepare next").
+  useFocusEffect(
+    useCallback(() => {
+      void loadDetails();
+    }, [loadDetails]),
+  );
 
   const requestDeleteEpisode = (episode: Episode): void => {
     Alert.alert(
@@ -312,7 +320,7 @@ export function SeriesDetailsScreen({
       <Pressable
         onPress={() => {
           if (latestEpisode && !latestEpisode.isComplete) {
-            onOpenEpisode(latestEpisode.id);
+            onContinueEpisode(latestEpisode.id);
 
             return;
           }
