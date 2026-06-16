@@ -36,8 +36,12 @@ const openrouterProvider = openrouterApiKey
 // setupDraftAttempts is the maximum retry count for structured setup generation.
 const setupDraftAttempts = 3;
 
-// setupTextFields enumerates the AI-fillable text fields that may be regenerated one at a time.
-const setupTextFields = ['title', 'premise', 'mainCharacters', 'userRole'] as const;
+// setupTextFields lists the AI-fillable text fields in canonical generation order.
+// Generation and single-field regeneration follow this order so each field is produced
+// from the selected constraints plus every field before it. This keeps the premise,
+// characters, learner role, and title connected to one coherent story instead of being
+// invented independently. It is also the enum source for the regeneration target.
+const setupTextFields = ['premise', 'mainCharacters', 'userRole', 'title'] as const;
 
 // setupDraftRequestSchema validates selected constraints and optional user text.
 const setupDraftRequestSchema = z.object({
@@ -238,6 +242,13 @@ function buildSystemPrompt(): string {
     'Do not generate or change selected list fields: cefrLevel, genre, tone, or participationMode.',
     'Preserve any provided title, premise, mainCharacters, and userRole exactly unless they are unsafe.',
     'Fill only missing text fields with concise, original, safe content.',
+    'Follow generationOrder: build each field from the selected constraints and from every field that',
+    'appears earlier in generationOrder, so the premise, characters, learner role, and title stay',
+    'connected to one story instead of being invented independently.',
+    'userRole is the learner persona inside the story, written as a short noun phrase with an optional',
+    'name and role, for example "Mara, a junior nurse" or "New analyst". It must fit the premise and',
+    'main characters. Never write userRole as a second-person sentence or instruction such as',
+    '"You are ..." or "You play ...".',
     'When regenerateField is set, produce a fresh, clearly different value for only that one field,',
     'keep it consistent with all other provided fields, and copy every other provided field exactly.',
     'Do not copy protected worlds, names, characters, or plots.',
@@ -257,6 +268,9 @@ function buildPrompt(request: SetupDraftRequest): string {
       // regenerateFrom is the current value of the target field; the new value must differ from it.
       // The target is intentionally excluded from providedText so it is not treated as "preserve exactly".
       regenerateFrom: target ? describePreviousValue(request, target) : undefined,
+      // generationOrder is the canonical dependency order; each field must stay consistent with the
+      // selected constraints and with every field listed before it, whether provided or just generated.
+      generationOrder: setupTextFields,
       selectedConstraints: {
         cefrLevel: request.cefrLevel,
         genre: request.genre,
@@ -272,11 +286,12 @@ function buildPrompt(request: SetupDraftRequest): string {
       },
       outputRules: [
         'Return exactly: title, premise, mainCharacters, userRole.',
-        'title must be short and memorable.',
+        'Build fields in generationOrder; each field must stay consistent with the selected constraints and with every earlier field.',
         'premise must be one compact paragraph suitable for the first episode.',
-        'mainCharacters must be an array of strings containing one to four recurring original characters.',
-        'For character mode, userRole is required and must describe who the learner is inside the story.',
+        'mainCharacters must be an array of strings containing one to four recurring original characters that fit the premise.',
+        'For character mode, userRole is required: a short persona label with an optional name and role, for example "Mara, a junior nurse", consistent with the premise and main characters. Never phrase it as a second-person sentence such as "You are ...".',
         'For director mode, omit userRole.',
+        'title must be short and memorable and reflect the premise.',
         'Keep all text suitable for the selected CEFR level and tone.',
         ...(target
           ? [

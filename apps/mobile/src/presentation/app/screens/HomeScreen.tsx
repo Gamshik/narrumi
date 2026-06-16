@@ -609,20 +609,6 @@ function CreateSeriesModal({
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="always"
         >
-          <FormField
-            {...(errors.title ? { error: errors.title } : {})}
-            fieldId="title"
-            isBusy={isBusy}
-            isRegenerating={regeneratingField === 'title'}
-            label="Title"
-            placeholder="Orbit Letters"
-            styles={styles}
-            value={form.title}
-            onFocus={scrollToField}
-            onLayout={registerFieldOffset}
-            onChangeText={(title) => updateForm({ title })}
-            onRegenerate={() => onRegenerateField('title')}
-          />
           <ChoiceGroup
             label="CEFR Level"
             options={cefrLevels}
@@ -708,6 +694,23 @@ function CreateSeriesModal({
               onRegenerate={() => onRegenerateField('userRole')}
             />
           ) : null}
+          {/* Title is placed last so it follows the story decided above (premise, */}
+          {/* characters, learner role). This matches the AI generation order, where */}
+          {/* each field is built from the selected constraints and the fields before it. */}
+          <FormField
+            {...(errors.title ? { error: errors.title } : {})}
+            fieldId="title"
+            isBusy={isBusy}
+            isRegenerating={regeneratingField === 'title'}
+            label="Title"
+            placeholder="Orbit Letters"
+            styles={styles}
+            value={form.title}
+            onFocus={scrollToField}
+            onLayout={registerFieldOffset}
+            onChangeText={(title) => updateForm({ title })}
+            onRegenerate={() => onRegenerateField('title')}
+          />
           <Pressable
             disabled={isBusy}
             onPress={onGenerate}
