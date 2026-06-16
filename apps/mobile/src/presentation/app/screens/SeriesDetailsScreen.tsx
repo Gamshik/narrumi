@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -133,9 +134,13 @@ export function SeriesDetailsScreen({
     }
   }, [seriesId]);
 
-  useEffect(() => {
-    void loadDetails();
-  }, [loadDetails]);
+  // Reload on every focus so returning from the reader reflects a freshly
+  // completed episode (banner switches from "Continue" to "Prepare next").
+  useFocusEffect(
+    useCallback(() => {
+      void loadDetails();
+    }, [loadDetails]),
+  );
 
   const requestDeleteEpisode = (episode: Episode): void => {
     Alert.alert(
