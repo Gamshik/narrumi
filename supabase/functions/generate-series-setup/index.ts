@@ -36,8 +36,13 @@ const openrouterProvider = openrouterApiKey
 // setupDraftAttempts is the maximum retry count for structured setup generation.
 const setupDraftAttempts = 3;
 
+// setupTextFields enumerates the AI-fillable text fields that may be regenerated one at a time.
+const setupTextFields = ['title', 'premise', 'mainCharacters', 'userRole'] as const;
+
 // setupDraftRequestSchema validates selected constraints and optional user text.
 const setupDraftRequestSchema = z.object({
+  // regenerateField, when present, forces a fresh value for only that field while others are preserved.
+  regenerateField: z.enum(setupTextFields).optional(),
   title: z.string().trim().min(1).max(160).optional(),
   genre: z.enum(['daily-life', 'work-it', 'travel-leisure', 'short-fiction']),
   cefrLevel: z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']),
@@ -67,8 +72,37 @@ const setupDraftSchema = z.object({
 // SetupDraftRequest is the parsed Edge request contract.
 type SetupDraftRequest = z.infer<typeof setupDraftRequestSchema>;
 
+// SeriesSetupTextField names a single AI-fillable text field eligible for individual regeneration.
+type SeriesSetupTextField = (typeof setupTextFields)[number];
+
 // SetupDraft is the validated complete setup response.
 type SetupDraft = z.infer<typeof setupDraftSchema>;
+
+// modelSetupDraftSchema leniently parses raw model output so imperfect non-target
+// fields never throw before finalizeDraft assembles the final draft. Empty strings
+// and missing fields are normalized to undefined; the strict setupDraftSchema runs
+// only after preservation, so the model just has to get the regenerated field right.
+const modelSetupDraftSchema = z
+  .object({
+    // nullish() tolerates both missing fields and explicit null, which models emit
+    // for omitted text (e.g. userRole: null in director mode); they normalize below.
+    title: z.string().trim().max(160).nullish(),
+    premise: z.string().trim().max(1000).nullish(),
+    mainCharacters: z.array(z.string().trim().max(160).nullish()).max(8).nullish(),
+    userRole: z.string().trim().max(160).nullish(),
+  })
+  .transform((draft) => ({
+    title: draft.title ? draft.title : undefined,
+    premise: draft.premise ? draft.premise : undefined,
+    mainCharacters: (draft.mainCharacters ?? []).filter(
+      (character): character is string =>
+        typeof character === 'string' && character.length > 0,
+    ),
+    userRole: draft.userRole ? draft.userRole : undefined,
+  }));
+
+// ModelSetupDraft is the normalized, not-yet-validated text returned by the model.
+type ModelSetupDraft = z.infer<typeof modelSetupDraftSchema>;
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -171,12 +205,18 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
       prompt: validationError
         ? `${buildPrompt(request)}\n\nPrevious validation error: ${validationError.message}\nRegenerate the JSON object from scratch.`
         : buildPrompt(request),
-      temperature: 0.4,
+      // Single-field regeneration needs more variety so the new value differs from the existing one.
+      temperature: request.regenerateField ? 0.9 : 0.4,
       maxOutputTokens: 900,
     });
 
     try {
-      return finalizeDraft(request, setupDraftSchema.parse(parseJsonObject(result.text)));
+      // Parse the model output leniently, then preserve provided fields and
+      // strictly validate only the assembled draft inside finalizeDraft.
+      return finalizeDraft(
+        request,
+        modelSetupDraftSchema.parse(parseJsonObject(result.text)),
+      );
     } catch (error) {
       validationError = error instanceof Error ? error : new Error(String(error));
 
@@ -198,6 +238,8 @@ function buildSystemPrompt(): string {
     'Do not generate or change selected list fields: cefrLevel, genre, tone, or participationMode.',
     'Preserve any provided title, premise, mainCharacters, and userRole exactly unless they are unsafe.',
     'Fill only missing text fields with concise, original, safe content.',
+    'When regenerateField is set, produce a fresh, clearly different value for only that one field,',
+    'keep it consistent with all other provided fields, and copy every other provided field exactly.',
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only: no Markdown, no bullet lists, no typographic quotes.',
   ].join('\n');
@@ -205,9 +247,16 @@ function buildSystemPrompt(): string {
 
 // buildPrompt sends selected constraints and optional user-provided setup text.
 function buildPrompt(request: SetupDraftRequest): string {
+  const target = request.regenerateField;
+
   return JSON.stringify(
     {
       task: 'generate-series-setup',
+      // regenerateField marks the only field that must change; absent means fill all missing fields.
+      regenerateField: target,
+      // regenerateFrom is the current value of the target field; the new value must differ from it.
+      // The target is intentionally excluded from providedText so it is not treated as "preserve exactly".
+      regenerateFrom: target ? describePreviousValue(request, target) : undefined,
       selectedConstraints: {
         cefrLevel: request.cefrLevel,
         genre: request.genre,
@@ -215,10 +264,11 @@ function buildPrompt(request: SetupDraftRequest): string {
         participationMode: request.participationMode,
       },
       providedText: {
-        title: request.title,
-        premise: request.premise,
-        mainCharacters: request.mainCharacters,
-        userRole: request.userRole,
+        title: target === 'title' ? undefined : request.title,
+        premise: target === 'premise' ? undefined : request.premise,
+        mainCharacters:
+          target === 'mainCharacters' ? undefined : request.mainCharacters,
+        userRole: target === 'userRole' ? undefined : request.userRole,
       },
       outputRules: [
         'Return exactly: title, premise, mainCharacters, userRole.',
@@ -228,6 +278,12 @@ function buildPrompt(request: SetupDraftRequest): string {
         'For character mode, userRole is required and must describe who the learner is inside the story.',
         'For director mode, omit userRole.',
         'Keep all text suitable for the selected CEFR level and tone.',
+        ...(target
+          ? [
+              `Generate a fresh ${target} that is clearly different from regenerateFrom; never repeat it.`,
+              'Copy every field listed in providedText exactly and do not alter it.',
+            ]
+          : []),
       ],
     },
     null,
@@ -235,15 +291,49 @@ function buildPrompt(request: SetupDraftRequest): string {
   );
 }
 
-// finalizeDraft enforces preservation and mode-specific fields after AI generation.
-function finalizeDraft(request: SetupDraftRequest, draft: SetupDraft): SetupDraft {
-  const title = request.title ?? draft.title;
-  const premise = request.premise ?? draft.premise;
+// describePreviousValue renders the current target value so the model can avoid repeating it.
+function describePreviousValue(
+  request: SetupDraftRequest,
+  field: SeriesSetupTextField,
+): string | undefined {
+  switch (field) {
+    case 'title':
+      return request.title;
+    case 'premise':
+      return request.premise;
+    case 'mainCharacters':
+      return request.mainCharacters.length > 0
+        ? request.mainCharacters.join(', ')
+        : undefined;
+    case 'userRole':
+      return request.userRole;
+  }
+}
+
+// finalizeDraft preserves provided fields, applies the regenerated field, and
+// strictly validates the assembled result. The regenerate target always takes the
+// model value; every other field keeps the user's provided value when present.
+function finalizeDraft(
+  request: SetupDraftRequest,
+  draft: ModelSetupDraft,
+): SetupDraft {
+  // isRegenerated reports whether a field is the single regeneration target.
+  const isRegenerated = (field: SeriesSetupTextField): boolean =>
+    request.regenerateField === field;
+
+  const title = isRegenerated('title') ? draft.title : request.title ?? draft.title;
+  const premise = isRegenerated('premise')
+    ? draft.premise
+    : request.premise ?? draft.premise;
   const mainCharacters =
-    request.mainCharacters.length > 0 ? request.mainCharacters : draft.mainCharacters;
+    !isRegenerated('mainCharacters') && request.mainCharacters.length > 0
+      ? request.mainCharacters
+      : draft.mainCharacters;
   const userRole =
     request.participationMode === 'character'
-      ? request.userRole ?? draft.userRole
+      ? isRegenerated('userRole')
+        ? draft.userRole
+        : request.userRole ?? draft.userRole
       : undefined;
 
   return setupDraftSchema.parse({
