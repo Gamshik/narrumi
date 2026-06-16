@@ -779,6 +779,17 @@ function FormField({
   // onRegenerate, when set, exposes a single-field AI regeneration action in the label row.
   readonly onRegenerate?: () => void;
 }): ReactElement {
+  // hasValue switches the AI action between filling an empty field and replacing an existing one.
+  const hasValue = value.trim().length > 0;
+  // actionLabel reads "Generate" for an empty field and "Regenerate" once it holds a value.
+  const actionLabel = isRegenerating
+    ? hasValue
+      ? 'Regenerating...'
+      : 'Generating...'
+    : hasValue
+      ? 'Regenerate'
+      : 'Generate';
+
   return (
     <View
       onLayout={(event) => onLayout(fieldId, event.nativeEvent.layout.y)}
@@ -796,9 +807,7 @@ function FormField({
               isBusy && styles.disabledControl,
             ]}
           >
-            <Text style={styles.fieldRegenerateText}>
-              {isRegenerating ? 'Regenerating...' : 'Regenerate'}
-            </Text>
+            <Text style={styles.fieldRegenerateText}>{actionLabel}</Text>
           </Pressable>
         ) : null}
       </View>
