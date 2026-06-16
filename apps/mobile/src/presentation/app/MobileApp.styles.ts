@@ -427,6 +427,24 @@ function createAppStylesImpl(colors: AppColors) {
     },
     activeGoalChoiceText: { color: "#ffffff" },
     formGroup: { gap: 8 },
+    formLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    fieldRegenerateButton: {
+      minHeight: 28,
+      justifyContent: "center",
+      borderRadius: 9,
+      paddingHorizontal: 10,
+      backgroundColor: colors.backgroundTertiary,
+    },
+    fieldRegenerateText: {
+      color: colors.systemBlue,
+      fontSize: 12,
+      fontWeight: "700",
+    },
     formInput: {
       minHeight: 48,
       borderRadius: 14,

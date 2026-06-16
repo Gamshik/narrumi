@@ -36,8 +36,13 @@ const openrouterProvider = openrouterApiKey
 // setupDraftAttempts is the maximum retry count for structured setup generation.
 const setupDraftAttempts = 3;
 
+// setupTextFields enumerates the AI-fillable text fields that may be regenerated one at a time.
+const setupTextFields = ['title', 'premise', 'mainCharacters', 'userRole'] as const;
+
 // setupDraftRequestSchema validates selected constraints and optional user text.
 const setupDraftRequestSchema = z.object({
+  // regenerateField, when present, forces a fresh value for only that field while others are preserved.
+  regenerateField: z.enum(setupTextFields).optional(),
   title: z.string().trim().min(1).max(160).optional(),
   genre: z.enum(['daily-life', 'work-it', 'travel-leisure', 'short-fiction']),
   cefrLevel: z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']),
@@ -66,6 +71,9 @@ const setupDraftSchema = z.object({
 
 // SetupDraftRequest is the parsed Edge request contract.
 type SetupDraftRequest = z.infer<typeof setupDraftRequestSchema>;
+
+// SeriesSetupTextField names a single AI-fillable text field eligible for individual regeneration.
+type SeriesSetupTextField = (typeof setupTextFields)[number];
 
 // SetupDraft is the validated complete setup response.
 type SetupDraft = z.infer<typeof setupDraftSchema>;
@@ -198,6 +206,8 @@ function buildSystemPrompt(): string {
     'Do not generate or change selected list fields: cefrLevel, genre, tone, or participationMode.',
     'Preserve any provided title, premise, mainCharacters, and userRole exactly unless they are unsafe.',
     'Fill only missing text fields with concise, original, safe content.',
+    'When regenerateField is set, produce a fresh, clearly different value for only that one field,',
+    'keep it consistent with all other provided fields, and copy every other provided field exactly.',
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only: no Markdown, no bullet lists, no typographic quotes.',
   ].join('\n');
@@ -208,6 +218,8 @@ function buildPrompt(request: SetupDraftRequest): string {
   return JSON.stringify(
     {
       task: 'generate-series-setup',
+      // regenerateField marks the only field that must change; absent means fill all missing fields.
+      regenerateField: request.regenerateField,
       selectedConstraints: {
         cefrLevel: request.cefrLevel,
         genre: request.genre,
@@ -228,6 +240,12 @@ function buildPrompt(request: SetupDraftRequest): string {
         'For character mode, userRole is required and must describe who the learner is inside the story.',
         'For director mode, omit userRole.',
         'Keep all text suitable for the selected CEFR level and tone.',
+        ...(request.regenerateField
+          ? [
+              `Regenerate only ${request.regenerateField} with a new value different from the provided one.`,
+              'Copy every other provided field exactly and do not alter it.',
+            ]
+          : []),
       ],
     },
     null,
@@ -237,13 +255,24 @@ function buildPrompt(request: SetupDraftRequest): string {
 
 // finalizeDraft enforces preservation and mode-specific fields after AI generation.
 function finalizeDraft(request: SetupDraftRequest, draft: SetupDraft): SetupDraft {
-  const title = request.title ?? draft.title;
-  const premise = request.premise ?? draft.premise;
+  // keepProvided returns true when a field must be preserved instead of taking the AI value.
+  // The single regenerate target always takes the freshly generated value.
+  const keepProvided = (field: SeriesSetupTextField): boolean =>
+    request.regenerateField !== field;
+
+  const title = keepProvided('title') ? request.title ?? draft.title : draft.title;
+  const premise = keepProvided('premise')
+    ? request.premise ?? draft.premise
+    : draft.premise;
   const mainCharacters =
-    request.mainCharacters.length > 0 ? request.mainCharacters : draft.mainCharacters;
+    keepProvided('mainCharacters') && request.mainCharacters.length > 0
+      ? request.mainCharacters
+      : draft.mainCharacters;
   const userRole =
     request.participationMode === 'character'
-      ? request.userRole ?? draft.userRole
+      ? keepProvided('userRole')
+        ? request.userRole ?? draft.userRole
+        : draft.userRole
       : undefined;
 
   return setupDraftSchema.parse({

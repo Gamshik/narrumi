@@ -22,6 +22,11 @@ import {
   type Series,
   type SeriesParticipationMode,
 } from '@domain/index';
+import type {
+  GenerateSeriesSetupDraftRequest,
+  SeriesSetupDraft,
+  SeriesSetupTextField,
+} from '@application/ports';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
 import { localAppServices } from '../services/localAppServices';
@@ -105,6 +110,8 @@ export function HomeScreen({
   const [deletingSeriesId, setDeletingSeriesId] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingSetup, setIsGeneratingSetup] = useState(false);
+  // regeneratingField holds the single field currently being regenerated, or undefined when idle.
+  const [regeneratingField, setRegeneratingField] = useState<SeriesSetupTextField>();
   const [errorMessage, setErrorMessage] = useState<string>();
 
   const loadSeries = useCallback(async (): Promise<void> => {
@@ -183,18 +190,9 @@ export function HomeScreen({
     setErrorMessage(undefined);
 
     try {
-      const result = await localAppServices.generateSeriesSetupDraft.execute({
-        genre: form.genre,
-        cefrLevel: form.cefrLevel,
-        tone: form.tone,
-        participationMode: form.participationMode,
-        ...(form.title.trim() ? { title: form.title } : {}),
-        ...(form.premise.trim() ? { premise: form.premise } : {}),
-        mainCharacters: parseCharacterList(form.mainCharacters),
-        ...(form.participationMode === 'character' && form.userRole.trim()
-          ? { userRole: form.userRole }
-          : {}),
-      });
+      const result = await localAppServices.generateSeriesSetupDraft.execute(
+        buildSetupDraftRequest(form),
+      );
 
       setForm({
         ...form,
@@ -216,6 +214,38 @@ export function HomeScreen({
       setErrorMessage(message);
     } finally {
       setIsGeneratingSetup(false);
+    }
+  };
+
+  // regenerateField replaces a single AI-fillable field while keeping every other field unchanged.
+  const regenerateField = async (field: SeriesSetupTextField): Promise<void> => {
+    setRegeneratingField(field);
+    setErrorMessage(undefined);
+
+    try {
+      const result = await localAppServices.generateSeriesSetupDraft.execute({
+        ...buildSetupDraftRequest(form),
+        regenerateField: field,
+      });
+
+      const nextForm = applyRegeneratedField(form, field, result.draft);
+
+      setForm(nextForm);
+      // Recompute errors only if some were already visible so the refreshed field clears its message.
+      setFormErrors((currentErrors) =>
+        Object.keys(currentErrors).length > 0
+          ? validateSeriesForm(nextForm)
+          : currentErrors,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Series field could not be regenerated.';
+
+      setErrorMessage(message);
+    } finally {
+      setRegeneratingField(undefined);
     }
   };
 
@@ -282,6 +312,7 @@ export function HomeScreen({
         isGeneratingSetup={isGeneratingSetup}
         isSaving={isSaving}
         isVisible={isCreateOpen}
+        regeneratingField={regeneratingField}
         errors={formErrors}
         styles={styles}
         onChangeForm={(nextForm) => {
@@ -298,6 +329,7 @@ export function HomeScreen({
           setIsCreateOpen(false);
         }}
         onGenerate={generateSetupDraft}
+        onRegenerateField={regenerateField}
         onSubmit={submitSeries}
       />
     </>
@@ -485,10 +517,12 @@ function CreateSeriesModal({
   isGeneratingSetup,
   isSaving,
   isVisible,
+  regeneratingField,
   styles,
   onChangeForm,
   onClose,
   onGenerate,
+  onRegenerateField,
   onSubmit,
 }: {
   // errors are the visible validation messages for current form values.
@@ -501,6 +535,8 @@ function CreateSeriesModal({
   readonly isSaving: boolean;
   // isVisible controls the native modal presentation.
   readonly isVisible: boolean;
+  // regeneratingField is the field currently regenerating, or undefined when idle.
+  readonly regeneratingField: SeriesSetupTextField | undefined;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
   // onChangeForm updates one or more form fields.
@@ -509,6 +545,8 @@ function CreateSeriesModal({
   readonly onClose: () => void;
   // onGenerate fills missing setup text through the AI boundary.
   readonly onGenerate: () => void;
+  // onRegenerateField replaces a single AI-fillable field through the AI boundary.
+  readonly onRegenerateField: (field: SeriesSetupTextField) => void;
   // onSubmit persists the series locally.
   readonly onSubmit: () => void;
 }): ReactElement {
@@ -517,6 +555,9 @@ function CreateSeriesModal({
   const bottomInset = Math.max(insets.bottom, 18);
   const scrollViewRef = useRef<ScrollView>(null);
   const fieldOffsetsRef = useRef<Record<string, number>>({});
+
+  // isBusy blocks every setup control while a save, full generation, or single-field regeneration runs.
+  const isBusy = isSaving || isGeneratingSetup || regeneratingField !== undefined;
 
   const updateForm = (patch: Partial<SeriesFormState>): void => {
     onChangeForm({ ...form, ...patch });
@@ -550,16 +591,11 @@ function CreateSeriesModal({
           </Pressable>
           <Text style={styles.modalTitle}>New Series</Text>
           <Pressable
-            disabled={isSaving || isGeneratingSetup}
+            disabled={isBusy}
             onPress={onSubmit}
             style={styles.modalTextButton}
           >
-            <Text
-              style={[
-                styles.modalSave,
-                (isSaving || isGeneratingSetup) && styles.disabledControl,
-              ]}
-            >
+            <Text style={[styles.modalSave, isBusy && styles.disabledControl]}>
               Save
             </Text>
           </Pressable>
@@ -576,6 +612,8 @@ function CreateSeriesModal({
           <FormField
             {...(errors.title ? { error: errors.title } : {})}
             fieldId="title"
+            isBusy={isBusy}
+            isRegenerating={regeneratingField === 'title'}
             label="Title"
             placeholder="Orbit Letters"
             styles={styles}
@@ -583,6 +621,7 @@ function CreateSeriesModal({
             onFocus={scrollToField}
             onLayout={registerFieldOffset}
             onChangeText={(title) => updateForm({ title })}
+            onRegenerate={() => onRegenerateField('title')}
           />
           <ChoiceGroup
             label="CEFR Level"
@@ -623,7 +662,9 @@ function CreateSeriesModal({
             {...(errors.premise ? { error: errors.premise } : {})}
             fieldId="premise"
             helper="Required. Use Generate if you want the AI to fill it."
+            isBusy={isBusy}
             isMultiline
+            isRegenerating={regeneratingField === 'premise'}
             label="Premise"
             placeholder="A learner receives strange English notes from a future city."
             styles={styles}
@@ -631,12 +672,15 @@ function CreateSeriesModal({
             onFocus={scrollToField}
             onLayout={registerFieldOffset}
             onChangeText={(premise) => updateForm({ premise })}
+            onRegenerate={() => onRegenerateField('premise')}
           />
           <FormField
             {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
             fieldId="mainCharacters"
             helper="Required. Add names separated by commas or use Generate."
+            isBusy={isBusy}
             isCompactMultiline
+            isRegenerating={regeneratingField === 'mainCharacters'}
             label="Main Characters"
             placeholder="Mira, Alex"
             styles={styles}
@@ -644,13 +688,16 @@ function CreateSeriesModal({
             onFocus={scrollToField}
             onLayout={registerFieldOffset}
             onChangeText={(mainCharacters) => updateForm({ mainCharacters })}
+            onRegenerate={() => onRegenerateField('mainCharacters')}
           />
           {form.participationMode === 'character' ? (
             <FormField
               {...(errors.userRole ? { error: errors.userRole } : {})}
               fieldId="userRole"
               helper="Required. This role becomes read-only after the first episode."
+              isBusy={isBusy}
               isCompactMultiline
+              isRegenerating={regeneratingField === 'userRole'}
               label="Your Role"
               placeholder="New analyst"
               styles={styles}
@@ -658,15 +705,16 @@ function CreateSeriesModal({
               onFocus={scrollToField}
               onLayout={registerFieldOffset}
               onChangeText={(userRole) => updateForm({ userRole })}
+              onRegenerate={() => onRegenerateField('userRole')}
             />
           ) : null}
           <Pressable
-            disabled={isGeneratingSetup || isSaving}
+            disabled={isBusy}
             onPress={onGenerate}
             style={({ pressed }) => [
               styles.primaryButton,
               pressed && styles.pressed,
-              (isGeneratingSetup || isSaving) && styles.disabledControl,
+              isBusy && styles.disabledControl,
             ]}
           >
             <Text style={styles.primaryButtonText}>
@@ -684,8 +732,10 @@ function FormField({
   error,
   fieldId,
   helper,
+  isBusy = false,
   isCompactMultiline = false,
   isMultiline = false,
+  isRegenerating = false,
   label,
   placeholder,
   styles,
@@ -693,6 +743,7 @@ function FormField({
   onFocus,
   onLayout,
   onChangeText,
+  onRegenerate,
 }: {
   // error is the visible validation message for this field.
   readonly error?: string;
@@ -700,10 +751,14 @@ function FormField({
   readonly fieldId: string;
   // helper explains optional fields without blocking submission.
   readonly helper?: string;
+  // isBusy disables the regenerate action while any setup AI or save work runs.
+  readonly isBusy?: boolean;
   // isCompactMultiline gives short multi-line fields more touch and reading space.
   readonly isCompactMultiline?: boolean;
   // isMultiline selects paragraph input behavior for premise text.
   readonly isMultiline?: boolean;
+  // isRegenerating marks this field as the one currently being regenerated.
+  readonly isRegenerating?: boolean;
   // label is the visible form field title.
   readonly label: string;
   // placeholder is a concrete example, not stored as data.
@@ -718,13 +773,32 @@ function FormField({
   readonly onLayout: (fieldId: string, offsetY: number) => void;
   // onChangeText updates the controlled value.
   readonly onChangeText: (value: string) => void;
+  // onRegenerate, when set, exposes a single-field AI regeneration action in the label row.
+  readonly onRegenerate?: () => void;
 }): ReactElement {
   return (
     <View
       onLayout={(event) => onLayout(fieldId, event.nativeEvent.layout.y)}
       style={styles.formGroup}
     >
-      <Text style={styles.sectionLabel}>{label}</Text>
+      <View style={styles.formLabelRow}>
+        <Text style={styles.sectionLabel}>{label}</Text>
+        {onRegenerate ? (
+          <Pressable
+            disabled={isBusy}
+            onPress={onRegenerate}
+            style={({ pressed }) => [
+              styles.fieldRegenerateButton,
+              pressed && styles.pressed,
+              isBusy && styles.disabledControl,
+            ]}
+          >
+            <Text style={styles.fieldRegenerateText}>
+              {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
       <TextInput
         multiline={isMultiline || isCompactMultiline}
         onChangeText={onChangeText}
@@ -796,6 +870,44 @@ function ChoiceGroup<T extends string>({
       </View>
     </View>
   );
+}
+
+// buildSetupDraftRequest maps the current form into the AI setup request without optional empties.
+// Selected list options are always sent; optional text is included only when the learner filled it.
+function buildSetupDraftRequest(
+  form: SeriesFormState,
+): GenerateSeriesSetupDraftRequest {
+  return {
+    genre: form.genre,
+    cefrLevel: form.cefrLevel,
+    tone: form.tone,
+    participationMode: form.participationMode,
+    ...(form.title.trim() ? { title: form.title } : {}),
+    ...(form.premise.trim() ? { premise: form.premise } : {}),
+    mainCharacters: parseCharacterList(form.mainCharacters),
+    ...(form.participationMode === 'character' && form.userRole.trim()
+      ? { userRole: form.userRole }
+      : {}),
+  };
+}
+
+// applyRegeneratedField writes only the regenerated field back into the form and leaves the rest intact.
+function applyRegeneratedField(
+  form: SeriesFormState,
+  field: SeriesSetupTextField,
+  draft: SeriesSetupDraft,
+): SeriesFormState {
+  switch (field) {
+    case 'title':
+      return { ...form, title: draft.title };
+    case 'premise':
+      return { ...form, premise: draft.premise };
+    case 'mainCharacters':
+      return { ...form, mainCharacters: draft.mainCharacters.join(', ') };
+    case 'userRole':
+      // userRole only exists in character mode; keep the previous value when the AI omits it.
+      return { ...form, userRole: draft.userRole ?? form.userRole };
+  }
 }
 
 // validateSeriesForm keeps local creation errors visible before persistence.
