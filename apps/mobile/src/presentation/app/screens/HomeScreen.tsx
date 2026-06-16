@@ -667,7 +667,7 @@ function CreateSeriesModal({
             isBusy={isBusy}
             isCompactMultiline
             isRegenerating={regeneratingField === 'mainCharacters'}
-            label="Main Characters"
+            label="Characters"
             placeholder="Mira, Alex"
             styles={styles}
             value={form.mainCharacters}
