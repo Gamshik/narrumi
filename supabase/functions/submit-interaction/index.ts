@@ -114,7 +114,7 @@ const translationDraftSchema = z.object({
         sentenceIndex: z.number().int().nonnegative(),
         surfaceText: z.string().trim().min(1),
         translation: z.string().trim().min(1),
-        transcription: z.string().trim().min(1).optional(),
+        transcription: optionalDraftTextSchema.pipe(z.string().max(100).optional()),
       }),
     )
     .max(24),

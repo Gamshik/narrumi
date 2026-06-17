@@ -48,10 +48,16 @@ const DIRECT_SPEECH_TEXT_DRAFT_LIMIT = 1000;
 // FINAL_CLIFFHANGER_LIMIT matches the response contract sent to mobile clients.
 const FINAL_CLIFFHANGER_LIMIT = 300;
 
+// optionalDraftTextSchema accepts common model nulls for absent optional text.
+const optionalDraftTextSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.string().trim().min(1).optional(),
+);
+
 // coreEpisodeDraftSchema is the small AI contract for the creative opening scene.
 const coreEpisodeDraftSchema = z.object({
-  title: z.string().trim().min(1).max(80).optional(),
-  previouslyRecap: z.string().trim().min(1).max(400).optional(),
+  title: optionalDraftTextSchema.pipe(z.string().max(80).optional()),
+  previouslyRecap: optionalDraftTextSchema.pipe(z.string().max(400).optional()),
   sceneText: z.string().trim().min(1).max(1800),
   cliffhanger: z.string().trim().min(1).max(1000),
   summaryUpdate: z.string().trim().min(1).max(600),
@@ -97,7 +103,7 @@ const interactionDraftSchema = z.object({
       z.object({
         label: z.string().trim().min(1).max(120),
         isSpeech: z.boolean().optional(),
-        outcomeHint: z.string().trim().min(1).max(240).optional(),
+        outcomeHint: optionalDraftTextSchema.pipe(z.string().max(240).optional()),
       }),
     )
     .min(2)
@@ -106,7 +112,7 @@ const interactionDraftSchema = z.object({
 
 // memoryDraftSchema is the small AI contract for compact series memory updates.
 const memoryDraftSchema = z.object({
-  currentConflict: z.string().trim().min(1).max(300).optional(),
+  currentConflict: optionalDraftTextSchema.pipe(z.string().max(300).optional()),
   knownFacts: z.array(z.string().trim().min(1)).max(32),
   openQuestions: z.array(z.string().trim().min(1)).max(32),
   importantObjectsOrLocations: z.array(z.string().trim().min(1)).max(32),
@@ -124,7 +130,7 @@ const translationDraftSchema = z.object({
         sentenceIndex: z.number().int().nonnegative(),
         surfaceText: z.string().trim().min(1),
         translation: z.string().trim().min(1),
-        transcription: z.string().trim().min(1).optional(),
+        transcription: optionalDraftTextSchema.pipe(z.string().max(100).optional()),
       }),
     )
     .max(24),
