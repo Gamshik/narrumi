@@ -12,6 +12,7 @@ import {
 } from '../_shared/http.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
 import { isRepeatedRegeneration } from './regeneration.ts';
+import { resolveDraftFields } from './draftPreservation.ts';
 import {
   buildModerationReview,
   collectModerationEntries,
@@ -216,8 +217,10 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
       prompt: lastError
         ? `${buildPrompt(request)}\n\nPrevious attempt failed: ${lastError.message}\nRegenerate the JSON object from scratch.`
         : buildPrompt(request),
-      // Single-field regeneration needs more variety so the new value differs from the existing one.
-      temperature: request.regenerateField ? 0.9 : 0.4,
+      // Both regeneration modes need variety so repeated runs differ: single-field
+      // regeneration must change the targeted value, and the full "Generate" action must
+      // produce a fresh setup each time instead of repeating the current one.
+      temperature: request.regenerateField ? 0.9 : 0.8,
       maxOutputTokens: 900,
     });
 
@@ -300,11 +303,15 @@ function buildSystemPrompt(): string {
 // buildPrompt sends selected constraints and optional user-provided setup text.
 function buildPrompt(request: SetupDraftRequest): string {
   const target = request.regenerateField;
+  // isFullRegeneration marks the full "Generate" action, which regenerates every field
+  // from scratch. No provided text is sent so the model never preserves already-filled
+  // fields; only the learner-selected constraints stay fixed.
+  const isFullRegeneration = target === undefined;
 
   return JSON.stringify(
     {
       task: 'generate-series-setup',
-      // regenerateField marks the only field that must change; absent means fill all missing fields.
+      // regenerateField marks the only field that must change; absent means regenerate every field.
       regenerateField: target,
       // regenerateFrom is the current value of the target field; the new value must differ from it.
       // The target is intentionally excluded from providedText so it is not treated as "preserve exactly".
@@ -318,12 +325,18 @@ function buildPrompt(request: SetupDraftRequest): string {
         tone: request.tone,
         participationMode: request.participationMode,
       },
+      // On a full regeneration every field is intentionally left undefined so the model
+      // produces fresh text for all of them instead of preserving prior values.
       providedText: {
-        title: target === 'title' ? undefined : request.title,
-        premise: target === 'premise' ? undefined : request.premise,
+        title: isFullRegeneration || target === 'title' ? undefined : request.title,
+        premise:
+          isFullRegeneration || target === 'premise' ? undefined : request.premise,
         mainCharacters:
-          target === 'mainCharacters' ? undefined : request.mainCharacters,
-        userRole: target === 'userRole' ? undefined : request.userRole,
+          isFullRegeneration || target === 'mainCharacters'
+            ? undefined
+            : request.mainCharacters,
+        userRole:
+          isFullRegeneration || target === 'userRole' ? undefined : request.userRole,
       },
       outputRules: [
         'Return exactly: title, premise, mainCharacters, userRole.',
@@ -340,7 +353,9 @@ function buildPrompt(request: SetupDraftRequest): string {
               `Base the new ${target} on providedText, especially the premise and the other earlier fields, so it clearly belongs to the same story; do not invent unrelated content.`,
               'Copy every field listed in providedText exactly and do not alter it.',
             ]
-          : []),
+          : [
+              'Generate fresh values for every field from the selected constraints; no text is pre-filled, so do not preserve or assume any previous setup.',
+            ]),
       ],
     },
     null,
@@ -367,38 +382,14 @@ function describePreviousValue(
   }
 }
 
-// finalizeDraft preserves provided fields, applies the regenerated field, and
-// strictly validates the assembled result. The regenerate target always takes the
-// model value; every other field keeps the user's provided value when present.
+// finalizeDraft assembles the kept and regenerated fields, then strictly validates the
+// result. Field preservation lives in resolveDraftFields: a full "Generate" regenerates
+// every field, while a single-field regeneration keeps every other provided field exactly.
 function finalizeDraft(
   request: SetupDraftRequest,
   draft: ModelSetupDraft,
 ): SetupDraft {
-  // isRegenerated reports whether a field is the single regeneration target.
-  const isRegenerated = (field: SeriesSetupTextField): boolean =>
-    request.regenerateField === field;
-
-  const title = isRegenerated('title') ? draft.title : request.title ?? draft.title;
-  const premise = isRegenerated('premise')
-    ? draft.premise
-    : request.premise ?? draft.premise;
-  const mainCharacters =
-    !isRegenerated('mainCharacters') && request.mainCharacters.length > 0
-      ? request.mainCharacters
-      : draft.mainCharacters;
-  const userRole =
-    request.participationMode === 'character'
-      ? isRegenerated('userRole')
-        ? draft.userRole
-        : request.userRole ?? draft.userRole
-      : undefined;
-
-  return setupDraftSchema.parse({
-    title,
-    premise,
-    mainCharacters,
-    ...(userRole ? { userRole } : {}),
-  });
+  return setupDraftSchema.parse(resolveDraftFields(request, draft));
 }
 
 // parseJsonObject extracts a JSON object even when a model adds accidental prose.
