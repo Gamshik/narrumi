@@ -59,6 +59,11 @@ const DIRECT_SPEECH_TEXT_DRAFT_LIMIT = 1000;
 // FINAL_CLIFFHANGER_LIMIT matches the response contract sent to mobile clients.
 const FINAL_CLIFFHANGER_LIMIT = 300;
 
+// optionalDraftTextSchema accepts common model nulls for absent optional text.
+const optionalDraftTextSchema = z.preprocess(
+  (value) => (value === null ? undefined : value),
+  z.string().trim().min(1).optional(),
+);
 // sentenceFrameDraftSchema is the small AI contract for reader dialogue metadata.
 const sentenceFrameDraftSchema = z.object({
   frames: z
@@ -120,11 +125,6 @@ const translationDraftSchema = z.object({
     .max(24),
 });
 
-// optionalDraftTextSchema accepts common model nulls for absent optional text.
-const optionalDraftTextSchema = z.preprocess(
-  (value) => (value === null ? undefined : value),
-  z.string().trim().min(1).optional(),
-);
 
 // memoryDraftSchema is the small AI contract for compact series memory updates.
 const memoryDraftSchema = z.object({
