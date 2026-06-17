@@ -25,6 +25,11 @@ import {
   type SeriesMemory,
   type SeriesParticipationMode,
 } from '@domain/index';
+import type {
+  GenerateSeriesSetupDraftRequest,
+  SeriesSetupDraft,
+  SeriesSetupTextField,
+} from '@application/ports';
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
@@ -119,6 +124,8 @@ export function SeriesDetailsScreen({
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isSavingSetup, setIsSavingSetup] = useState(false);
   const [isGeneratingSetup, setIsGeneratingSetup] = useState(false);
+  // regeneratingField holds the single setup field currently being regenerated, or undefined when idle.
+  const [regeneratingField, setRegeneratingField] = useState<SeriesSetupTextField>();
   const [deletingEpisodeId, setDeletingEpisodeId] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -227,19 +234,9 @@ export function SeriesDetailsScreen({
     setErrorMessage(undefined);
 
     try {
-      const result = await localAppServices.generateSeriesSetupDraft.execute({
-        genre: setupForm.genre,
-        cefrLevel: setupForm.cefrLevel,
-        tone: setupForm.tone,
-        participationMode: setupForm.participationMode,
-        ...(setupForm.title.trim() ? { title: setupForm.title } : {}),
-        ...(setupForm.premise.trim() ? { premise: setupForm.premise } : {}),
-        mainCharacters: parseCharacterList(setupForm.mainCharacters),
-        ...(setupForm.participationMode === 'character' &&
-        setupForm.userRole.trim()
-          ? { userRole: setupForm.userRole }
-          : {}),
-      });
+      const result = await localAppServices.generateSeriesSetupDraft.execute(
+        buildSetupDraftRequest(setupForm),
+      );
 
       setSetupForm({
         ...setupForm,
@@ -260,6 +257,43 @@ export function SeriesDetailsScreen({
       );
     } finally {
       setIsGeneratingSetup(false);
+    }
+  };
+
+  // regenerateSetupField replaces a single AI-fillable setup field while keeping every other field unchanged.
+  const regenerateSetupField = async (
+    field: SeriesSetupTextField,
+  ): Promise<void> => {
+    if (!setupForm) {
+      return;
+    }
+
+    setRegeneratingField(field);
+    setErrorMessage(undefined);
+
+    try {
+      const result = await localAppServices.generateSeriesSetupDraft.execute({
+        ...buildSetupDraftRequest(setupForm),
+        regenerateField: field,
+      });
+
+      const nextForm = applyRegeneratedField(setupForm, field, result.draft);
+
+      setSetupForm(nextForm);
+      // Recompute errors only if some were already visible so the refreshed field clears its message.
+      setSetupErrors((currentErrors) =>
+        Object.keys(currentErrors).length > 0
+          ? validateSetupForm(nextForm)
+          : currentErrors,
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Series field could not be regenerated.',
+      );
+    } finally {
+      setRegeneratingField(undefined);
     }
   };
 
@@ -403,6 +437,7 @@ export function SeriesDetailsScreen({
           isGenerating={isGeneratingSetup}
           isSaving={isSavingSetup}
           isVisible={isSetupOpen}
+          regeneratingField={regeneratingField}
           styles={styles}
           onChangeForm={(nextForm) => {
             setSetupForm(nextForm);
@@ -417,6 +452,7 @@ export function SeriesDetailsScreen({
             setIsSetupOpen(false);
           }}
           onGenerate={generateSetup}
+          onRegenerateField={regenerateSetupField}
           onSave={saveSetup}
         />
       ) : null}
@@ -432,10 +468,12 @@ function SeriesSetupModal({
   isGenerating,
   isSaving,
   isVisible,
+  regeneratingField,
   styles,
   onChangeForm,
   onClose,
   onGenerate,
+  onRegenerateField,
   onSave,
 }: {
   // canEdit is true only before the first generated episode exists.
@@ -450,6 +488,8 @@ function SeriesSetupModal({
   readonly isSaving: boolean;
   // isVisible controls the native modal presentation.
   readonly isVisible: boolean;
+  // regeneratingField is the field currently regenerating, or undefined when idle.
+  readonly regeneratingField: SeriesSetupTextField | undefined;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
   // onChangeForm updates one or more setup fields.
@@ -458,6 +498,8 @@ function SeriesSetupModal({
   readonly onClose: () => void;
   // onGenerate fills missing setup text through the AI boundary.
   readonly onGenerate: () => void;
+  // onRegenerateField replaces a single AI-fillable field through the AI boundary.
+  readonly onRegenerateField: (field: SeriesSetupTextField) => void;
   // onSave persists editable setup changes.
   readonly onSave: () => void;
 }): ReactElement {
@@ -466,6 +508,8 @@ function SeriesSetupModal({
   const bottomInset = Math.max(insets.bottom, 18);
   const scrollViewRef = useRef<ScrollView>(null);
   const fieldOffsetsRef = useRef<Record<string, number>>({});
+  // isBusy blocks every setup control while a save, full generation, or single-field regeneration runs.
+  const isBusy = isSaving || isGenerating || regeneratingField !== undefined;
   const updateForm = (patch: Partial<SeriesSetupFormState>): void => {
     onChangeForm({ ...form, ...patch });
   };
@@ -498,14 +542,14 @@ function SeriesSetupModal({
           </Pressable>
           <Text style={styles.modalTitle}>Series Setup</Text>
           <Pressable
-            disabled={!canEdit || isSaving || isGenerating}
+            disabled={!canEdit || isBusy}
             onPress={onSave}
             style={styles.modalTextButton}
           >
             <Text
               style={[
                 styles.modalSave,
-                (!canEdit || isSaving || isGenerating) && styles.disabledControl,
+                (!canEdit || isBusy) && styles.disabledControl,
               ]}
             >
               Save
@@ -521,18 +565,6 @@ function SeriesSetupModal({
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="always"
         >
-          <SetupFormField
-            {...(errors.title ? { error: errors.title } : {})}
-            fieldId="title"
-            isEditable={canEdit}
-            label="Title"
-            placeholder="Orbit Letters"
-            styles={styles}
-            value={form.title}
-            onFocus={scrollToField}
-            onLayout={registerFieldOffset}
-            onChangeText={(title) => updateForm({ title })}
-          />
           <SetupChoiceGroup
             isDisabled={!canEdit}
             label="CEFR Level"
@@ -578,6 +610,9 @@ function SeriesSetupModal({
               ? {
                   helper:
                     'Required. Use Generate if you want the AI to fill it.',
+                  isBusy,
+                  isRegenerating: regeneratingField === 'premise',
+                  onRegenerate: () => onRegenerateField('premise'),
                 }
               : {})}
             isEditable={canEdit}
@@ -597,6 +632,9 @@ function SeriesSetupModal({
               ? {
                   helper:
                     'Required. Add names separated by commas or use Generate.',
+                  isBusy,
+                  isRegenerating: regeneratingField === 'mainCharacters',
+                  onRegenerate: () => onRegenerateField('mainCharacters'),
                 }
               : {})}
             isEditable={canEdit}
@@ -617,6 +655,9 @@ function SeriesSetupModal({
                 ? {
                     helper:
                       'Required. This role becomes read-only after the first episode.',
+                    isBusy,
+                    isRegenerating: regeneratingField === 'userRole',
+                    onRegenerate: () => onRegenerateField('userRole'),
                   }
                 : {})}
               isEditable={canEdit}
@@ -631,14 +672,36 @@ function SeriesSetupModal({
               onChangeText={(userRole) => updateForm({ userRole })}
             />
           ) : null}
+          {/* Title is placed last so it follows the story decided above (premise, */}
+          {/* characters, learner role). This matches the AI generation order, where */}
+          {/* each field is built from the selected constraints and the fields before it. */}
+          <SetupFormField
+            {...(errors.title ? { error: errors.title } : {})}
+            {...(canEdit
+              ? {
+                  isBusy,
+                  isRegenerating: regeneratingField === 'title',
+                  onRegenerate: () => onRegenerateField('title'),
+                }
+              : {})}
+            isEditable={canEdit}
+            fieldId="title"
+            label="Title"
+            placeholder="Orbit Letters"
+            styles={styles}
+            value={form.title}
+            onFocus={scrollToField}
+            onLayout={registerFieldOffset}
+            onChangeText={(title) => updateForm({ title })}
+          />
           {canEdit ? (
             <Pressable
-              disabled={isGenerating || isSaving}
+              disabled={isBusy}
               onPress={onGenerate}
               style={({ pressed }) => [
                 styles.primaryButton,
                 pressed && styles.pressed,
-                (isGenerating || isSaving) && styles.disabledControl,
+                isBusy && styles.disabledControl,
               ]}
             >
               <Text style={styles.primaryButtonText}>
@@ -663,9 +726,11 @@ function SetupFormField({
   error,
   fieldId,
   helper,
+  isBusy = false,
   isEditable,
   isCompactMultiline = false,
   isMultiline = false,
+  isRegenerating = false,
   label,
   placeholder,
   styles,
@@ -673,6 +738,7 @@ function SetupFormField({
   onFocus,
   onLayout,
   onChangeText,
+  onRegenerate,
 }: {
   // error is the visible validation message for this field.
   readonly error?: string;
@@ -680,12 +746,16 @@ function SetupFormField({
   readonly fieldId: string;
   // helper explains required generation behavior for editable fields.
   readonly helper?: string;
+  // isBusy disables the regenerate action while any setup AI or save work runs.
+  readonly isBusy?: boolean;
   // isEditable disables input after the first episode.
   readonly isEditable: boolean;
   // isCompactMultiline gives short multi-line fields more touch and reading space.
   readonly isCompactMultiline?: boolean;
   // isMultiline selects paragraph input behavior for premise text.
   readonly isMultiline?: boolean;
+  // isRegenerating marks this field as the one currently being regenerated.
+  readonly isRegenerating?: boolean;
   // label is the visible form field title.
   readonly label: string;
   // placeholder is a concrete example, not stored as data.
@@ -700,13 +770,41 @@ function SetupFormField({
   readonly onLayout: (fieldId: string, offsetY: number) => void;
   // onChangeText updates the controlled value.
   readonly onChangeText: (value: string) => void;
+  // onRegenerate, when set, exposes a single-field AI regeneration action in the label row.
+  readonly onRegenerate?: () => void;
 }): ReactElement {
+  // hasValue switches the AI action between filling an empty field and replacing an existing one.
+  const hasValue = value.trim().length > 0;
+  // actionLabel reads "Generate" for an empty field and "Regenerate" once it holds a value.
+  const actionLabel = isRegenerating
+    ? hasValue
+      ? 'Regenerating...'
+      : 'Generating...'
+    : hasValue
+      ? 'Regenerate'
+      : 'Generate';
+
   return (
     <View
       onLayout={(event) => onLayout(fieldId, event.nativeEvent.layout.y)}
       style={styles.formGroup}
     >
-      <Text style={styles.sectionLabel}>{label}</Text>
+      <View style={styles.formLabelRow}>
+        <Text style={styles.sectionLabel}>{label}</Text>
+        {onRegenerate ? (
+          <Pressable
+            disabled={isBusy}
+            onPress={onRegenerate}
+            style={({ pressed }) => [
+              styles.fieldRegenerateButton,
+              pressed && styles.pressed,
+              isBusy && styles.disabledControl,
+            ]}
+          >
+            <Text style={styles.fieldRegenerateText}>{actionLabel}</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <TextInput
         editable={isEditable}
         multiline={isMultiline || isCompactMultiline}
@@ -799,6 +897,44 @@ function createSetupForm(series: Series): SeriesSetupFormState {
     mainCharacters: series.mainCharacters.join(', '),
     userRole: series.userRole ?? '',
   };
+}
+
+// buildSetupDraftRequest maps the current setup form into the AI request without optional empties.
+// Selected list options are always sent; optional text is included only when the learner filled it.
+function buildSetupDraftRequest(
+  form: SeriesSetupFormState,
+): GenerateSeriesSetupDraftRequest {
+  return {
+    genre: form.genre,
+    cefrLevel: form.cefrLevel,
+    tone: form.tone,
+    participationMode: form.participationMode,
+    ...(form.title.trim() ? { title: form.title } : {}),
+    ...(form.premise.trim() ? { premise: form.premise } : {}),
+    mainCharacters: parseCharacterList(form.mainCharacters),
+    ...(form.participationMode === 'character' && form.userRole.trim()
+      ? { userRole: form.userRole }
+      : {}),
+  };
+}
+
+// applyRegeneratedField writes only the regenerated field back into the form and leaves the rest intact.
+function applyRegeneratedField(
+  form: SeriesSetupFormState,
+  field: SeriesSetupTextField,
+  draft: SeriesSetupDraft,
+): SeriesSetupFormState {
+  switch (field) {
+    case 'title':
+      return { ...form, title: draft.title };
+    case 'premise':
+      return { ...form, premise: draft.premise };
+    case 'mainCharacters':
+      return { ...form, mainCharacters: draft.mainCharacters.join(', ') };
+    case 'userRole':
+      // userRole only exists in character mode; keep the previous value when the AI omits it.
+      return { ...form, userRole: draft.userRole ?? form.userRole };
+  }
 }
 
 // validateSetupForm keeps local setup errors visible before persistence.
