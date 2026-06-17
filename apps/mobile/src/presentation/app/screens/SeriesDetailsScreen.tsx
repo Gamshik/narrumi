@@ -297,6 +297,18 @@ export function SeriesDetailsScreen({
     }
   };
 
+  // cancelSetup closes the setup sheet without persisting, discarding unsaved edits
+  // and AI generations so the form reopens with the last saved series values.
+  const cancelSetup = (): void => {
+    setSetupErrors({});
+    setIsSetupOpen(false);
+
+    if (state) {
+      // Revert in-memory edits; persistence only happens through Save.
+      setSetupForm(createSetupForm(state.series));
+    }
+  };
+
   if (errorMessage) {
     return (
       <View style={styles.screenContent}>
@@ -447,10 +459,7 @@ export function SeriesDetailsScreen({
                 : {},
             );
           }}
-          onClose={() => {
-            setSetupErrors({});
-            setIsSetupOpen(false);
-          }}
+          onClose={cancelSetup}
           onGenerate={generateSetup}
           onRegenerateField={regenerateSetupField}
           onSave={saveSetup}
