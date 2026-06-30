@@ -811,6 +811,7 @@ function buildCorePrompt(
       },
       boundedContext: {
         compactSeriesMemory: payload.compactSeriesMemory,
+        characterProfiles: payload.compactSeriesMemory.characterProfiles,
         episodeSummary: payload.episodeSummary,
         previousDecisions: payload.previousDecisions.slice(
           -PREVIOUS_DECISION_PROMPT_LIMIT,
@@ -824,6 +825,8 @@ function buildCorePrompt(
         'Keep summaryUpdate concise (under 500 characters).',
         'Do not split continuationText into an array.',
         'Use 1-2 remainingStoryWords naturally when possible, especially before interaction 8.',
+        'Use compactSeriesMemory.characterProfiles[].description for personality and role context.',
+        'When writing direct speech for a pinned character, the later dialogue speaker label must be exactly compactSeriesMemory.characterProfiles[].name, not a title or description.',
         'Do not force all remainingStoryWords into one continuation.',
         'If isEpisodeComplete is false, omit cliffhanger.',
         'If isEpisodeComplete is true, include cliffhanger.',
@@ -847,12 +850,14 @@ function buildDirectSpeechPrompt(
     {
       task: 'extract-direct-speech',
       cefr: payload.cefrLevel,
+      characterProfiles: payload.compactSeriesMemory.characterProfiles,
       continuationText: coreDraft.continuationText,
       outputRules: [
         'Return { "directSpeech": [...] }.',
         'Each item must include speaker and spokenText.',
         'spokenText must be only what the character says aloud, without quotation marks.',
         'speaker must be the visible speaker name when available.',
+        'For pinned characters, speaker must exactly match characterProfiles[].name. Use "Corbin", not "Detective Corbin", when the pinned name is "Corbin".',
         'For text like Mira whispered open it, return speaker "Mira" and spokenText "Open it".',
         'If one character speaks several sentences, return several adjacent items with the same speaker instead of one long spokenText.',
         'Do not include narration such as "Mira whispered" in spokenText.',
@@ -874,12 +879,14 @@ function buildFramePrompt(
     {
       task: 'split-continuation-into-reader-frames',
       cefr: payload.cefrLevel,
+      characterProfiles: payload.compactSeriesMemory.characterProfiles,
       continuationText: coreDraft.continuationText,
       directSpeech: directSpeechDraft.directSpeech,
       outputRules: [
         'Return { "frames": [...] }.',
         'Each frame must include kind and text.',
         'Dialogue frames must also include speaker.',
+        'For pinned characters, speaker must exactly match characterProfiles[].name. Do not include titles, roles, or descriptions in speaker.',
         'Dialogue frame text must be spokenText from directSpeech without quotation marks.',
         'Narration frame text must be natural reader text, not labels or summaries.',
         'Split on semantic sentence boundaries and dialogue turns.',

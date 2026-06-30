@@ -20,6 +20,18 @@ const generateRequest: GenerateEpisodeRequest = {
   premise: 'Mira and Leo find a hidden door in a city library.',
   participationMode: 'character',
   mainCharacters: ['Mira', 'Leo'],
+  characterProfiles: [
+    {
+      id: 'character:mira',
+      name: 'Mira',
+      description: 'A curious learner investigating the hidden door.',
+    },
+    {
+      id: 'character:leo',
+      name: 'Leo',
+      description: 'A library assistant who listens carefully.',
+    },
+  ],
   userRole: "Mira's friend",
   selectedStoryWords: [
     {
@@ -41,6 +53,18 @@ const generateRequest: GenerateEpisodeRequest = {
     tone: 'mysterious but friendly',
     participationMode: 'character',
     mainCharacters: ['Mira', 'Leo'],
+    characterProfiles: [
+      {
+        id: 'character:mira',
+        name: 'Mira',
+        description: 'A curious learner investigating the hidden door.',
+      },
+      {
+        id: 'character:leo',
+        name: 'Leo',
+        description: 'A library assistant who listens carefully.',
+      },
+    ],
     userRole: "Mira's friend",
     knownFacts: [],
     openQuestions: ['What is behind the door?'],
@@ -79,6 +103,7 @@ const submitRequest: SubmitInteractionRequest = {
     tone: generateRequest.tone,
     participationMode: generateRequest.participationMode,
     mainCharacters: generateRequest.mainCharacters,
+    characterProfiles: generateRequest.characterProfiles,
     userRole: generateRequest.userRole,
     knownFacts: [],
     openQuestions: ['What is behind the door?'],
@@ -153,6 +178,86 @@ Deno.test('finalizeEpisodePayload synchronizes story text and compact memory', (
     'word:curious',
     'word:whisper',
   ]);
+});
+
+Deno.test('finalizeEpisodePayload normalizes only dialogue speaker labels to pinned names', () => {
+  const result = finalizeEpisodePayload({
+    request: {
+      ...generateRequest,
+      mainCharacters: ['Corbin'],
+      characterProfiles: [
+        {
+          id: 'character:corbin',
+          name: 'Corbin',
+          description: 'A careful detective with a quiet voice.',
+        },
+      ],
+      compactSeriesMemory: {
+        ...generateRequest.compactSeriesMemory,
+        mainCharacters: ['Corbin'],
+        characterProfiles: [
+          {
+            id: 'character:corbin',
+            name: 'Corbin',
+            description: 'A careful detective with a quiet voice.',
+          },
+        ],
+      },
+    },
+    payload: {
+      title: 'The Quiet Case',
+      sceneText: 'Detective Corbin raised one hand. Wait here. The hall went quiet.',
+      sentences: [
+        'Detective Corbin raised one hand.',
+        'Wait here.',
+        'The hall went quiet.',
+      ],
+      sentenceFrames: [
+        {
+          kind: 'narration',
+          text: 'Detective Corbin raised one hand.',
+        },
+        {
+          kind: 'dialogue',
+          speaker: 'Detective Corbin',
+          text: 'Wait here.',
+        },
+        {
+          kind: 'narration',
+          text: 'The hall went quiet.',
+        },
+      ],
+      storyWordIds: [],
+      annotations: [],
+      interaction: {
+        kind: 'choice',
+        prompt: 'What should happen next?',
+        choices: [
+          { id: 'follow', label: 'Follow the clue' },
+          { id: 'wait', label: 'Wait near the door' },
+        ],
+      },
+      cliffhanger: 'A second shadow crossed the hall.',
+      summaryUpdate: 'Corbin found a clue in the hall.',
+      memoryUpdate: {
+        knownFacts: ['Corbin found a clue.'],
+        openQuestions: ['Who made the shadow?'],
+        importantObjectsOrLocations: ['hall'],
+        lastEpisodeSummary: 'Corbin found a clue in the hall.',
+        unresolvedCliffhanger: 'A second shadow crossed the hall.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+  const dialogueFrame = result.sentenceFrames[1];
+
+  assertEquals(result.sentences[0], 'Detective Corbin raised one hand.');
+  assertEquals(dialogueFrame?.kind, 'dialogue');
+
+  if (dialogueFrame?.kind === 'dialogue') {
+    assertEquals(dialogueFrame.speaker, 'Corbin');
+    assertEquals(dialogueFrame.text, 'Wait here.');
+  }
 });
 
 Deno.test('finalizeEpisodePayload normalizes frame text to canonical sentences', () => {

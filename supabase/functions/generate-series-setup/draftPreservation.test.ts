@@ -8,6 +8,18 @@ const providedRequest = {
   title: 'Orbit Letters',
   premise: 'Two pen pals trade messages across a divided space colony.',
   mainCharacters: ['Mara', 'Cole'],
+  characterProfiles: [
+    {
+      id: 'character:mara',
+      name: 'Mara',
+      description: 'A junior archivist who finds old colony messages.',
+    },
+    {
+      id: 'character:cole',
+      name: 'Cole',
+      description: 'A patient engineer linked to the divided colony.',
+    },
+  ],
   userRole: 'Mara, a junior archivist',
 };
 
@@ -16,6 +28,18 @@ const modelDraft = {
   title: 'Tidewatch Nights',
   premise: 'A night-shift lighthouse keeper decodes warnings hidden in the tide.',
   mainCharacters: ['Nadia', 'Sam'],
+  characterProfiles: [
+    {
+      id: 'character:nadia',
+      name: 'Nadia',
+      description: 'A new lighthouse keeper learning the tide warnings.',
+    },
+    {
+      id: 'character:sam',
+      name: 'Sam',
+      description: 'A coast guard contact who trusts Nadia.',
+    },
+  ],
   userRole: 'Nadia, the new keeper',
 };
 
@@ -38,6 +62,7 @@ Deno.test('single-field regeneration replaces only the target and preserves the 
     title: providedRequest.title,
     premise: modelDraft.premise,
     mainCharacters: providedRequest.mainCharacters,
+    characterProfiles: providedRequest.characterProfiles,
     userRole: providedRequest.userRole,
   });
 });
@@ -57,6 +82,7 @@ Deno.test('single-field regeneration fills a missing provided field from the mod
     title: modelDraft.title,
     premise: modelDraft.premise,
     mainCharacters: modelDraft.mainCharacters,
+    characterProfiles: modelDraft.characterProfiles,
     userRole: modelDraft.userRole,
   });
 });
@@ -77,5 +103,6 @@ Deno.test('director mode drops userRole on a full regeneration', () => {
     title: modelDraft.title,
     premise: modelDraft.premise,
     mainCharacters: modelDraft.mainCharacters,
+    characterProfiles: modelDraft.characterProfiles,
   });
 });

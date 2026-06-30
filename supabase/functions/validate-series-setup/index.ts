@@ -26,6 +26,16 @@ const seriesSetupSchema = z.object({
   premise: z.string().trim().min(1).max(1000),
   participationMode: z.enum(['director', 'character']),
   mainCharacters: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
+  characterProfiles: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(120),
+        name: z.string().trim().min(1).max(80),
+        description: z.string().trim().max(300),
+      }),
+    )
+    .max(8)
+    .optional(),
   userRole: z.string().trim().max(160).optional(),
 }).superRefine((payload, context) => {
   if (payload.participationMode === 'character' && !payload.userRole?.trim()) {
@@ -141,6 +151,22 @@ function collectSeriesSetupModerationEntries(
       entries.push({
         sourceLabel: `mainCharacters.[${index}]`,
         text: character,
+      });
+    }
+  });
+
+  payload.characterProfiles?.forEach((profile, index) => {
+    if (profile.name.trim()) {
+      entries.push({
+        sourceLabel: `characterProfiles.[${index}].name`,
+        text: profile.name,
+      });
+    }
+
+    if (profile.description.trim()) {
+      entries.push({
+        sourceLabel: `characterProfiles.[${index}].description`,
+        text: profile.description,
       });
     }
   });

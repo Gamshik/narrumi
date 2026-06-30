@@ -61,6 +61,13 @@ const storyWordSchema = z.object({
   level: z.enum(cefrLevels),
 });
 
+// characterProfileSchema pins dialogue labels while carrying role context for generation.
+const characterProfileSchema = z.object({
+  id: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(300),
+});
+
 // annotationSchema validates context-aware translation hints for generated text.
 const annotationSchema = z.object({
   wordId: z.string().trim().min(1).optional(),
@@ -77,6 +84,7 @@ const compactSeriesMemorySchema = z.object({
   tone: z.string().trim().min(1),
   participationMode: z.enum(seriesParticipationModes).default('director'),
   mainCharacters: z.array(z.string().trim().min(1)),
+  characterProfiles: z.array(characterProfileSchema).max(8).default([]),
   userRole: z.string().trim().min(1).optional(),
   currentConflict: z.string().trim().min(1).optional(),
   knownFacts: z.array(z.string().trim().min(1)),
@@ -212,6 +220,7 @@ export const generateEpisodeRequestSchema = z.object({
   premise: z.string().trim().min(1).max(1000),
   participationMode: z.enum(seriesParticipationModes),
   mainCharacters: z.array(z.string().trim().min(1)).max(8),
+  characterProfiles: z.array(characterProfileSchema).max(8).default([]),
   userRole: z.string().trim().min(1).max(160).optional(),
   selectedStoryWords: z.array(storyWordSchema).max(24),
   compactSeriesMemory: compactSeriesMemorySchema,
