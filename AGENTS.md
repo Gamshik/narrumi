@@ -18,7 +18,8 @@ Read the relevant artifacts before implementation:
 | `design/design_system.html` | Canonical visual and interaction reference: colors, typography, themes, controls, states, story reader, genre selection, audio controls, inline translation, grammar sheet, quiz feedback, and navigation. Reproduce the design in React Native; do not copy browser-only implementation details blindly. Some screen examples may still reflect the previous card-first concept; when product behavior conflicts, follow the PRD and stack documents first. |
 | `design/design_system_guidelines.md` | Mandatory design rules for UI work when there is no exact layout or screen-level specification. Read before any free-form layout or visual decision. |
 | `words/oxford-5000.json` | Bundled local vocabulary source for offline word lists, lightweight Story Words suggestions, and non-LLM dictionary lookups. Treat as read-only seed data shipped with the app. |
-| `.codex/gsd-core/` | Mandatory GSD operating system for work management: workflows, gates, verification patterns, anti-patterns, templates, and project execution discipline. Use it as the process reference, not as app runtime code. |
+| `.codex/gsd-core/` | Mandatory GSD operating system for Codex work management: workflows, gates, verification patterns, anti-patterns, templates, and project execution discipline. Use it as the process reference, not as app runtime code. |
+| `.agents/gsd-core/` | Mandatory GSD operating system for Antigravity work management. It mirrors the same process discipline for Antigravity agents and must be treated as equivalent to `.codex/gsd-core/` for workflow rules. |
 
 ## Compliance Rules
 
@@ -51,7 +52,7 @@ Read the relevant artifacts before implementation:
 
 ## GSD Operating Rules
 
-All work must follow GSD principles from `.codex/gsd-core/`. GSD is mandatory process discipline for planning, execution, verification, and recovery.
+All work must follow GSD principles from the available runtime-specific GSD core: `.codex/gsd-core/` for Codex and `.agents/gsd-core/` for Antigravity. GSD is mandatory process discipline for planning, execution, verification, and recovery.
 
 - Always route work by intent before acting: quick tasks stay small, bugs are investigated systematically, complex multi-file work requires planning, and reviews/quality concerns require verification.
 - Do not start coding until the goal, scope, relevant artifacts, affected boundaries, and verification path are understood.
@@ -67,6 +68,7 @@ All work must follow GSD principles from `.codex/gsd-core/`. GSD is mandatory pr
 - Do not bypass verification. A task is not complete until the relevant GSD checks and project lint/typecheck/build/test commands have been run or a precise blocker is reported.
 - Record or report outcomes in a way that the next agent can continue without rediscovery: what changed, what was verified, what remains open, and what is blocked.
 - For GSD-controlled state or roadmap mutations, use the provided GSD tooling when applicable. Do not hand-edit generated GSD state files unless the workflow explicitly allows it.
+- When both Codex and Antigravity GSD cores exist, keep their process meaning aligned. Do not create Codex-only or Antigravity-only exceptions unless the runtime capability itself requires it.
 
 ## Mandatory Code Rules
 
