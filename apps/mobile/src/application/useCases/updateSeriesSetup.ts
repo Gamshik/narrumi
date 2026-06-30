@@ -3,13 +3,17 @@ import type {
   LocalSeriesStore,
   SeriesSetupModerationGateway,
 } from '@application/ports';
-import type {
+import {
   CefrLevel,
+  characterProfileNames,
+  createProfilesFromCharacterNames,
   LearningGenre,
   Series,
+  type SeriesCharacterProfile,
   SeriesMemory,
   SeriesParticipationMode,
   SyncMetadata,
+  normalizeCharacterProfiles,
 } from '@domain/index';
 
 // UpdateSeriesSetupInput contains the editable fields allowed before first episode.
@@ -30,6 +34,8 @@ export type UpdateSeriesSetupInput = {
   readonly participationMode: SeriesParticipationMode;
   // mainCharacters names recurring people or roles for continuity.
   readonly mainCharacters: readonly string[];
+  // characterProfiles pin dialogue names and provide AI-facing descriptions.
+  readonly characterProfiles?: readonly SeriesCharacterProfile[];
   // userRole records who the learner is in the story for character mode.
   readonly userRole?: string;
 };
@@ -78,6 +84,7 @@ export function createUpdateSeriesSetup(
         premise: normalized.premise,
         participationMode: normalized.participationMode,
         mainCharacters: normalized.mainCharacters,
+        characterProfiles: normalized.characterProfiles,
         ...(normalized.userRole ? { userRole: normalized.userRole } : {}),
       });
 
@@ -92,6 +99,7 @@ export function createUpdateSeriesSetup(
         tone: normalized.tone,
         participationMode: normalized.participationMode,
         mainCharacters: normalized.mainCharacters,
+        characterProfiles: normalized.characterProfiles ?? [],
         ...(normalized.userRole ? { userRole: normalized.userRole } : {}),
         currentConflict: 'The opening episode has not been generated yet.',
         knownFacts: [],
@@ -110,6 +118,7 @@ export function createUpdateSeriesSetup(
         premise: normalized.premise,
         participationMode: normalized.participationMode,
         mainCharacters: normalized.mainCharacters,
+        characterProfiles: normalized.characterProfiles ?? [],
         ...(normalized.userRole ? { userRole: normalized.userRole } : {}),
         memory: updatedMemory,
         updatedAt: timestamp,
@@ -132,9 +141,13 @@ function normalizeSetupInput(input: UpdateSeriesSetupInput): RequiredSetup {
   const mainCharacters = input.mainCharacters
     .map((character) => character.trim())
     .filter((character) => character.length > 0);
+  const characterProfiles = normalizeCharacterProfiles(
+    input.characterProfiles ?? createProfilesFromCharacterNames(mainCharacters),
+  );
+  const canonicalCharacterNames = characterProfileNames(characterProfiles);
   const userRole = input.userRole?.trim();
 
-  if (mainCharacters.length === 0) {
+  if (characterProfiles.length === 0) {
     throw new Error('Main characters are required.');
   }
 
@@ -149,13 +162,20 @@ function normalizeSetupInput(input: UpdateSeriesSetupInput): RequiredSetup {
     tone,
     premise,
     participationMode: input.participationMode,
-    mainCharacters,
+    mainCharacters: canonicalCharacterNames,
+    characterProfiles,
     ...(userRole ? { userRole } : {}),
   };
 }
 
 // RequiredSetup is the normalized complete setup contract written locally.
-type RequiredSetup = Omit<UpdateSeriesSetupInput, 'seriesId'>;
+type RequiredSetup = Omit<
+  UpdateSeriesSetupInput,
+  'seriesId' | 'characterProfiles'
+> & {
+  // characterProfiles are guaranteed after setup normalization.
+  readonly characterProfiles: readonly SeriesCharacterProfile[];
+};
 
 // createDirtySync creates pending metadata for future Supabase reconciliation.
 function createDirtySync(timestamp: string, recordId: string): SyncMetadata {

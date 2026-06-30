@@ -9,6 +9,15 @@ import { createUpdateSeriesSetup } from './updateSeriesSetup';
 // timestamp keeps setup update fixtures deterministic.
 const timestamp = '2026-06-10T10:00:00.000Z';
 
+// characterProfiles pin dialogue labels separately from AI-facing descriptions.
+const characterProfiles = [
+  {
+    id: 'character:mira',
+    name: 'Mira',
+    description: 'A curious learner investigating the hidden door.',
+  },
+] as const;
+
 // memory is the editable pre-episode compact setup.
 const memory: SeriesMemory = {
   id: 'series:test',
@@ -18,6 +27,7 @@ const memory: SeriesMemory = {
   tone: 'Calm detective',
   participationMode: 'director',
   mainCharacters: ['Mira'],
+  characterProfiles,
   knownFacts: [],
   openQuestions: [],
   importantObjectsOrLocations: [],
@@ -39,6 +49,7 @@ const series: Series = {
   premise: memory.premise,
   participationMode: 'director',
   mainCharacters: memory.mainCharacters,
+  characterProfiles,
   memory,
   createdAt: timestamp,
   updatedAt: timestamp,

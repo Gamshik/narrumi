@@ -19,6 +19,8 @@ export interface DraftRequestFields {
   readonly premise?: string;
   // mainCharacters are the learner-provided characters, preserved only during single-field regeneration.
   readonly mainCharacters: readonly string[];
+  // characterProfiles are preserved with descriptions during single-field regeneration.
+  readonly characterProfiles?: readonly CharacterProfile[];
   // userRole is the learner-provided character-mode role, preserved only during single-field regeneration.
   readonly userRole?: string;
 }
@@ -28,6 +30,7 @@ export interface ModelDraftFields {
   readonly title?: string;
   readonly premise?: string;
   readonly mainCharacters: readonly string[];
+  readonly characterProfiles: readonly CharacterProfile[];
   readonly userRole?: string;
 }
 
@@ -36,7 +39,15 @@ export interface ResolvedDraftFields {
   readonly title?: string;
   readonly premise?: string;
   readonly mainCharacters: readonly string[];
+  readonly characterProfiles: readonly CharacterProfile[];
   readonly userRole?: string;
+}
+
+// CharacterProfile is the setup draft shape for pinned dialogue labels.
+export interface CharacterProfile {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
 }
 
 // resolveDraftFields decides, per field, whether to keep the learner's provided value
@@ -71,6 +82,12 @@ export function resolveDraftFields(
     shouldPreserve('mainCharacters') && request.mainCharacters.length > 0
       ? request.mainCharacters
       : draft.mainCharacters;
+  const characterProfiles =
+    shouldPreserve('mainCharacters') && request.mainCharacters.length > 0
+      ? request.characterProfiles?.length
+        ? request.characterProfiles
+        : request.mainCharacters.map(createCharacterProfile)
+      : draft.characterProfiles;
   const userRole =
     request.participationMode === 'character'
       ? shouldPreserve('userRole')
@@ -82,6 +99,23 @@ export function resolveDraftFields(
     ...(title !== undefined ? { title } : {}),
     ...(premise !== undefined ? { premise } : {}),
     mainCharacters,
+    characterProfiles,
     ...(userRole !== undefined ? { userRole } : {}),
+  };
+}
+
+// createCharacterProfile preserves legacy character names when profiles were not sent.
+function createCharacterProfile(name: string, index: number): CharacterProfile {
+  const slug = name
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+
+  return {
+    id: `character:${slug || `profile-${index + 1}`}`,
+    name,
+    description: name,
   };
 }

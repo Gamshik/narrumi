@@ -56,6 +56,7 @@ export function finalizeEpisodePayload({
     fieldName: 'sentenceFrames',
     frames: parsed.sentenceFrames,
     sentences: parsed.sentences,
+    speakerNames: getPinnedSpeakerNames(request),
   });
   const sentences = playback.sentences;
   const sentenceFrames = playback.frames;
@@ -127,6 +128,7 @@ export function finalizeInteractionPayload({
     fieldName: 'continuationSentenceFrames',
     frames: parsed.continuationSentenceFrames,
     sentences: parsed.continuationSentences,
+    speakerNames: getPinnedSpeakerNames(request),
   });
   const continuationSentences = playback.sentences;
   const continuationSentenceFrames = playback.frames;
@@ -350,6 +352,7 @@ function normalizePlaybackFrames({
   fieldName,
   frames,
   sentences,
+  speakerNames,
 }: {
   // fieldName identifies the AI field when count validation fails.
   readonly fieldName: string;
@@ -357,6 +360,8 @@ function normalizePlaybackFrames({
   readonly frames: readonly NormalizedSentenceFrame[];
   // sentences are the canonical playback and reader text units.
   readonly sentences: readonly string[];
+  // speakerNames are the canonical labels pinned in the series setup.
+  readonly speakerNames: readonly string[];
 }): {
   // frames are the merged reader units returned to the client.
   frames: NormalizedSentenceFrame[];
@@ -373,6 +378,7 @@ function normalizePlaybackFrames({
     normalizeFrameText({
       frame,
       sentence: sentences[index]!,
+      speakerNames,
     }),
   );
 
@@ -383,16 +389,19 @@ function normalizePlaybackFrames({
 function normalizeFrameText({
   frame,
   sentence,
+  speakerNames,
 }: {
   // frame is the AI-written narration/dialogue marker.
   readonly frame: NormalizedSentenceFrame;
   // sentence is the canonical text for this playback unit.
   readonly sentence: string;
+  // speakerNames are the canonical labels pinned in the series setup.
+  readonly speakerNames: readonly string[];
 }): NormalizedSentenceFrame {
   if (frame.kind === 'dialogue') {
     return {
       kind: 'dialogue',
-      speaker: frame.speaker,
+      speaker: normalizePinnedSpeakerName(frame.speaker, speakerNames),
       text: stripSpeechQuotes(sentence),
     };
   }
@@ -401,6 +410,55 @@ function normalizeFrameText({
     kind: 'narration',
     text: stripSpeechQuotes(sentence),
   };
+}
+
+// getPinnedSpeakerNames selects canonical labels from profiles, falling back to legacy names.
+function getPinnedSpeakerNames(
+  request: GenerateEpisodeRequest | SubmitInteractionRequest,
+): readonly string[] {
+  const profiles =
+    'characterProfiles' in request
+      ? request.characterProfiles
+      : request.compactSeriesMemory.characterProfiles;
+  const profileNames = profiles.map((profile) => profile.name);
+
+  return profileNames.length > 0
+    ? profileNames
+    : request.compactSeriesMemory.mainCharacters;
+}
+
+// normalizePinnedSpeakerName maps variants like "Detective Corbin" to "Corbin".
+function normalizePinnedSpeakerName(
+  speaker: string,
+  speakerNames: readonly string[],
+): string {
+  const normalizedSpeaker = normalizeSpeakerKey(speaker);
+  const exactMatch = speakerNames.find(
+    (name) => normalizeSpeakerKey(name) === normalizedSpeaker,
+  );
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const suffixMatch = speakerNames.find((name) => {
+    const key = normalizeSpeakerKey(name);
+
+    return normalizedSpeaker.endsWith(` ${key}`);
+  });
+
+  return suffixMatch ?? speaker;
+}
+
+// normalizeSpeakerKey makes speaker matching resilient to titles, casing, and spacing.
+function normalizeSpeakerKey(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(mr|mrs|ms|miss|dr|doctor|detective|professor|captain|officer)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // mergeAdjacentDialogueFrames joins consecutive same-speaker dialogue into one playback unit.

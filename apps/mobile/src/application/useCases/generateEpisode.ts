@@ -102,6 +102,7 @@ export function createGenerateEpisode(
         premise: series.premise,
         participationMode: series.participationMode,
         mainCharacters: series.mainCharacters,
+        characterProfiles: series.characterProfiles,
         ...(series.userRole ? { userRole: series.userRole } : {}),
         selectedStoryWords: words.map((word) => ({
           id: word.id,

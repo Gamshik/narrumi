@@ -15,11 +15,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   cefrLevels,
+  characterProfileNames,
+  createCharacterProfileId,
   learningGenres,
+  normalizeCharacterProfiles,
   seriesParticipationModes,
   type CefrLevel,
   type LearningGenre,
   type Series,
+  type SeriesCharacterProfile,
   type SeriesParticipationMode,
 } from '@domain/index';
 import type {
@@ -54,14 +58,16 @@ type SeriesFormState = {
   readonly premise: string;
   // participationMode controls whether the learner directs events or roleplays.
   readonly participationMode: SeriesParticipationMode;
-  // mainCharacters is a comma-separated form value converted on submit.
-  readonly mainCharacters: string;
+  // characterProfiles store pinned dialogue names and AI-facing descriptions.
+  readonly characterProfiles: readonly SeriesCharacterProfile[];
   // userRole is the learner's optional role inside the story.
   readonly userRole: string;
 };
 
 // SeriesFormErrors stores visible validation messages by field.
-type SeriesFormErrors = Partial<Record<keyof SeriesFormState, string>>;
+type SeriesFormErrors = Partial<
+  Record<keyof SeriesFormState | 'mainCharacters', string>
+>;
 
 // storyToneOptions limits tone to safe generation presets.
 const storyToneOptions = [
@@ -94,7 +100,7 @@ const emptySeriesForm: SeriesFormState = {
   tone: storyToneOptions[0],
   premise: '',
   participationMode: 'director',
-  mainCharacters: '',
+  characterProfiles: [],
   userRole: '',
 };
 
@@ -149,7 +155,8 @@ export function HomeScreen({
         tone: form.tone,
         premise: form.premise,
         participationMode: form.participationMode,
-        mainCharacters: parseCharacterList(form.mainCharacters),
+        mainCharacters: characterProfileNames(form.characterProfiles),
+        characterProfiles: form.characterProfiles,
         ...(form.participationMode === 'character' && form.userRole.trim()
           ? { userRole: form.userRole }
           : {}),
@@ -198,7 +205,7 @@ export function HomeScreen({
         ...form,
         title: result.draft.title,
         premise: result.draft.premise,
-        mainCharacters: result.draft.mainCharacters.join(', '),
+        characterProfiles: result.draft.characterProfiles,
         userRole:
           form.participationMode === 'character'
             ? result.draft.userRole ?? form.userRole
@@ -662,19 +669,27 @@ function CreateSeriesModal({
           />
           <FormField
             {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
-            fieldId="mainCharacters"
-            helper="Required. Add names separated by commas or use Generate."
+            fieldId="characterProfiles"
+            helper="Required. Speaker names stay fixed in dialogue; descriptions guide the AI."
             isBusy={isBusy}
-            isCompactMultiline
             isRegenerating={regeneratingField === 'mainCharacters'}
             label="Characters"
-            placeholder="Mira, Alex"
+            placeholder="Mira"
             styles={styles}
-            value={form.mainCharacters}
+            value={characterProfileNames(form.characterProfiles).join(', ')}
             onFocus={scrollToField}
             onLayout={registerFieldOffset}
-            onChangeText={(mainCharacters) => updateForm({ mainCharacters })}
+            onChangeText={(mainCharacters) =>
+              updateForm({
+                characterProfiles: parseCharacterProfilesFromNames(mainCharacters),
+              })
+            }
             onRegenerate={() => onRegenerateField('mainCharacters')}
+          />
+          <CharacterProfilesEditor
+            profiles={form.characterProfiles}
+            styles={styles}
+            onChange={(characterProfiles) => updateForm({ characterProfiles })}
           />
           {form.participationMode === 'character' ? (
             <FormField
@@ -833,6 +848,91 @@ function FormField({
   );
 }
 
+// CharacterProfilesEditor renders pinned speaker names with separate AI descriptions.
+function CharacterProfilesEditor({
+  profiles,
+  styles,
+  onChange,
+}: {
+  // profiles are the editable character rows for the setup form.
+  readonly profiles: readonly SeriesCharacterProfile[];
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // onChange publishes normalized character rows back to the parent form.
+  readonly onChange: (profiles: readonly SeriesCharacterProfile[]) => void;
+}): ReactElement {
+  const updateProfile = (
+    index: number,
+    patch: Partial<SeriesCharacterProfile>,
+  ): void => {
+    onChange(
+      profiles.map((profile, profileIndex) =>
+        profileIndex === index ? { ...profile, ...patch } : profile,
+      ),
+    );
+  };
+  const addProfile = (): void => {
+    const nextIndex = profiles.length;
+    const name = `Character ${nextIndex + 1}`;
+
+    onChange([
+      ...profiles,
+      {
+        id: createCharacterProfileId(name, nextIndex),
+        name,
+        description: '',
+      },
+    ]);
+  };
+  const removeProfile = (index: number): void => {
+    onChange(profiles.filter((_profile, profileIndex) => profileIndex !== index));
+  };
+
+  return (
+    <View style={styles.formGroup}>
+      {profiles.map((profile, index) => (
+        <View key={profile.id} style={styles.formGroup}>
+          <View style={styles.formLabelRow}>
+            <Text style={styles.sectionLabel}>Dialogue name</Text>
+            <Pressable
+              onPress={() => removeProfile(index)}
+              style={({ pressed }) => [
+                styles.fieldRegenerateButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.fieldRegenerateText}>Remove</Text>
+            </Pressable>
+          </View>
+          <TextInput
+            onChangeText={(name) => updateProfile(index, { name })}
+            placeholder="Corbin"
+            placeholderTextColor={styles.placeholder.color}
+            style={styles.formInput}
+            value={profile.name}
+          />
+          <Text style={styles.sectionLabel}>Description</Text>
+          <TextInput
+            multiline
+            onChangeText={(description) => updateProfile(index, { description })}
+            placeholder="A careful detective who notices small contradictions."
+            placeholderTextColor={styles.placeholder.color}
+            style={[styles.formInput, styles.formCompactTextArea]}
+            textAlignVertical="top"
+            value={profile.description}
+          />
+        </View>
+      ))}
+      <Pressable
+        onPress={addProfile}
+        style={({ pressed }) => [styles.secondarySmallButton, pressed && styles.pressed]}
+      >
+        <Text style={styles.secondarySmallButtonText}>Add Character</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // ChoiceGroup renders a compact segmented group for typed string options.
 function ChoiceGroup<T extends string>({
   label,
@@ -896,7 +996,8 @@ function buildSetupDraftRequest(
     participationMode: form.participationMode,
     ...(form.title.trim() ? { title: form.title } : {}),
     ...(form.premise.trim() ? { premise: form.premise } : {}),
-    mainCharacters: parseCharacterList(form.mainCharacters),
+    mainCharacters: characterProfileNames(form.characterProfiles),
+    characterProfiles: form.characterProfiles,
     ...(form.participationMode === 'character' && form.userRole.trim()
       ? { userRole: form.userRole }
       : {}),
@@ -915,7 +1016,7 @@ function applyRegeneratedField(
     case 'premise':
       return { ...form, premise: draft.premise };
     case 'mainCharacters':
-      return { ...form, mainCharacters: draft.mainCharacters.join(', ') };
+      return { ...form, characterProfiles: draft.characterProfiles };
     case 'userRole':
       // userRole only exists in character mode; keep the previous value when the AI omits it.
       return { ...form, userRole: draft.userRole ?? form.userRole };
@@ -934,7 +1035,7 @@ function validateSeriesForm(form: SeriesFormState): SeriesFormErrors {
     errors.premise = 'Enter a premise or use Generate.';
   }
 
-  if (parseCharacterList(form.mainCharacters).length === 0) {
+  if (normalizeCharacterProfiles(form.characterProfiles).length === 0) {
     errors.mainCharacters = 'Enter at least one character or use Generate.';
   }
 
@@ -948,10 +1049,19 @@ function validateSeriesForm(form: SeriesFormState): SeriesFormErrors {
   return errors;
 }
 
-// parseCharacterList converts the comma-separated setup field to trimmed names.
-function parseCharacterList(value: string): readonly string[] {
-  return value
-    .split(',')
-    .map((character) => character.trim())
-    .filter((character) => character.length > 0);
+// parseCharacterProfilesFromNames converts a compact name list into editable profiles.
+function parseCharacterProfilesFromNames(
+  value: string,
+): readonly SeriesCharacterProfile[] {
+  return normalizeCharacterProfiles(
+    value
+      .split(',')
+      .map((character) => character.trim())
+      .filter((character) => character.length > 0)
+      .map((name, index) => ({
+        id: createCharacterProfileId(name, index),
+        name,
+        description: '',
+      })),
+  );
 }

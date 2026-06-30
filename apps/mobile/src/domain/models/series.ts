@@ -1,5 +1,6 @@
 import type { CefrLevel } from './cefrLevel';
 import type { LearningGenre } from './learningGenre';
+import type { SeriesCharacterProfile } from './seriesCharacter';
 import type { SeriesMemory } from './seriesMemory';
 import type { SeriesParticipationMode } from './seriesParticipationMode';
 import type { SyncMetadata } from './syncMetadata';
@@ -24,6 +25,8 @@ export type Series = {
   readonly participationMode: SeriesParticipationMode;
   // mainCharacters names recurring characters or the user's role context.
   readonly mainCharacters: readonly string[];
+  // characterProfiles pin dialogue names while keeping role descriptions separate.
+  readonly characterProfiles: readonly SeriesCharacterProfile[];
   // userRole records who the learner is inside the story when applicable.
   readonly userRole?: string;
   // memory is compact context and must never become unbounded episode history.

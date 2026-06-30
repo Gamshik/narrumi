@@ -1,6 +1,7 @@
 import type {
   CefrLevel,
   LearningGenre,
+  SeriesCharacterProfile,
   SeriesParticipationMode,
 } from '@domain/index';
 
@@ -30,6 +31,8 @@ export type GenerateSeriesSetupDraftRequest = {
   readonly premise?: string;
   // mainCharacters are preserved when the learner already provided characters.
   readonly mainCharacters: readonly string[];
+  // characterProfiles preserve pinned dialogue names and descriptions when provided.
+  readonly characterProfiles?: readonly SeriesCharacterProfile[];
   // userRole is preserved when character mode already has a learner role.
   readonly userRole?: string;
 };
@@ -42,6 +45,8 @@ export type SeriesSetupDraft = {
   readonly premise: string;
   // mainCharacters names recurring story characters.
   readonly mainCharacters: readonly string[];
+  // characterProfiles pins dialogue names and descriptions for the series.
+  readonly characterProfiles: readonly SeriesCharacterProfile[];
   // userRole is returned only for character mode.
   readonly userRole?: string;
 };

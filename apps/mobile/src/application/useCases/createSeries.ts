@@ -3,13 +3,17 @@ import type {
   LocalSeriesStore,
   SeriesSetupModerationGateway,
 } from '@application/ports';
-import type {
+import {
   CefrLevel,
+  characterProfileNames,
+  createProfilesFromCharacterNames,
   LearningGenre,
   Series,
+  type SeriesCharacterProfile,
   SeriesMemory,
   SeriesParticipationMode,
   SyncMetadata,
+  normalizeCharacterProfiles,
 } from '@domain/index';
 
 // CreateSeriesInput contains the full local-first series setup form.
@@ -28,6 +32,8 @@ export type CreateSeriesInput = {
   readonly participationMode: SeriesParticipationMode;
   // mainCharacters names recurring people or roles for continuity.
   readonly mainCharacters: readonly string[];
+  // characterProfiles pin dialogue names and provide AI-facing descriptions.
+  readonly characterProfiles?: readonly SeriesCharacterProfile[];
   // userRole records who the learner is in the story when provided.
   readonly userRole?: string;
 };
@@ -58,6 +64,10 @@ export function createCreateSeries(
       const mainCharacters = input.mainCharacters
         .map((character) => character.trim())
         .filter((character) => character.length > 0);
+      const characterProfiles = normalizeCharacterProfiles(
+        input.characterProfiles ?? createProfilesFromCharacterNames(mainCharacters),
+      );
+      const canonicalCharacterNames = characterProfileNames(characterProfiles);
       const userRole = input.userRole?.trim();
       const participationMode = input.participationMode;
 
@@ -65,7 +75,7 @@ export function createCreateSeries(
         throw new Error('Your role is required for character mode.');
       }
 
-      if (mainCharacters.length === 0) {
+      if (characterProfiles.length === 0) {
         throw new Error('Main characters are required.');
       }
 
@@ -74,7 +84,8 @@ export function createCreateSeries(
         tone,
         premise,
         participationMode,
-        mainCharacters,
+        mainCharacters: canonicalCharacterNames,
+        characterProfiles,
         ...(userRole ? { userRole } : {}),
       });
 
@@ -88,7 +99,8 @@ export function createCreateSeries(
         genre: input.genre,
         tone,
         participationMode,
-        mainCharacters,
+        mainCharacters: canonicalCharacterNames,
+        characterProfiles,
         ...(userRole ? { userRole } : {}),
         currentConflict: 'The opening episode has not been generated yet.',
         knownFacts: [],
@@ -107,7 +119,8 @@ export function createCreateSeries(
         tone,
         premise,
         participationMode,
-        mainCharacters,
+        mainCharacters: canonicalCharacterNames,
+        characterProfiles,
         ...(userRole ? { userRole } : {}),
         memory,
         createdAt: timestamp,

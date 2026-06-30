@@ -57,6 +57,16 @@ const setupDraftRequestSchema = z.object({
   participationMode: z.enum(['director', 'character']),
   premise: z.string().trim().min(1).max(1000).optional(),
   mainCharacters: z.array(z.string().trim().min(1).max(160)).max(8),
+  characterProfiles: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(120),
+        name: z.string().trim().min(1).max(80),
+        description: z.string().trim().max(300),
+      }),
+    )
+    .max(8)
+    .optional(),
   userRole: z.string().trim().min(1).max(160).optional(),
 });
 
@@ -65,6 +75,16 @@ const setupDraftSchema = z.object({
   title: z.string().trim().min(1).max(160),
   premise: z.string().trim().min(1).max(1000),
   mainCharacters: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
+  characterProfiles: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(120),
+        name: z.string().trim().min(1).max(80),
+        description: z.string().trim().max(300),
+      }),
+    )
+    .min(1)
+    .max(8),
   userRole: z.string().trim().min(1).max(160).optional(),
 }).superRefine((draft, context) => {
   if (draft.mainCharacters.length === 0) {
@@ -72,6 +92,14 @@ const setupDraftSchema = z.object({
       code: 'custom',
       message: 'At least one main character is required.',
       path: ['mainCharacters'],
+    });
+  }
+
+  if (draft.characterProfiles.length === 0) {
+    context.addIssue({
+      code: 'custom',
+      message: 'At least one character profile is required.',
+      path: ['characterProfiles'],
     });
   }
 });
@@ -96,6 +124,18 @@ const modelSetupDraftSchema = z
     title: z.string().trim().max(160).nullish(),
     premise: z.string().trim().max(1000).nullish(),
     mainCharacters: z.array(z.string().trim().max(160).nullish()).max(8).nullish(),
+    characterProfiles: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().max(120).nullish(),
+            name: z.string().trim().max(80).nullish(),
+            description: z.string().trim().max(300).nullish(),
+          })
+          .nullish(),
+      )
+      .max(8)
+      .nullish(),
     userRole: z.string().trim().max(160).nullish(),
   })
   .transform((draft) => ({
@@ -105,6 +145,21 @@ const modelSetupDraftSchema = z
       (character): character is string =>
         typeof character === 'string' && character.length > 0,
     ),
+    characterProfiles: (draft.characterProfiles ?? []).flatMap((profile, index) => {
+      if (!profile?.name) {
+        return [];
+      }
+
+      const name = profile.name;
+
+      return [
+        {
+          id: profile.id || createCharacterProfileId(name, index),
+          name,
+          description: profile.description ?? '',
+        },
+      ];
+    }),
     userRole: draft.userRole ? draft.userRole : undefined,
   }));
 
@@ -287,11 +342,10 @@ function buildSystemPrompt(): string {
     'Follow generationOrder: build each field from the selected constraints and from every field that',
     'appears earlier in generationOrder, so the premise, characters, learner role, and title stay',
     'connected to one story instead of being invented independently.',
-    'In particular, derive mainCharacters and userRole directly from the premise: they must be people who',
+    'In particular, derive characterProfiles and userRole directly from the premise: they must be people who',
     'plausibly appear in that exact situation and have a clear relationship to it, not unrelated names.',
-    'In character mode, userRole is the character the learner plays and must be exactly one of the',
-    'people listed in mainCharacters: copy that character (its name, optionally with its short role)',
-    'rather than inventing a separate person. Never write userRole as a second-person sentence or',
+    'In character mode, userRole is the character the learner plays and must exactly match one',
+    'characterProfiles[].name rather than inventing a separate person. Never write userRole as a second-person sentence or',
     'instruction such as "You are ..." or "You play ...".',
     'When regenerateField is set, produce a fresh, clearly different value for only that one field,',
     'keep it consistent with all other provided fields, and copy every other provided field exactly.',
@@ -335,15 +389,20 @@ function buildPrompt(request: SetupDraftRequest): string {
           isFullRegeneration || target === 'mainCharacters'
             ? undefined
             : request.mainCharacters,
+        characterProfiles:
+          isFullRegeneration || target === 'mainCharacters'
+            ? undefined
+            : request.characterProfiles,
         userRole:
           isFullRegeneration || target === 'userRole' ? undefined : request.userRole,
       },
       outputRules: [
-        'Return exactly: title, premise, mainCharacters, userRole.',
+        'Return exactly: title, premise, mainCharacters, characterProfiles, userRole.',
         'Build fields in generationOrder; each field must stay consistent with the selected constraints and with every earlier field.',
         'premise: two to four sentences in one paragraph that set up a concrete situation and hook for the first episode, match the genre and tone, and leave the story open to continue. In character mode, leave a clear place for the learner to act. Keep it under 900 characters.',
-        'mainCharacters: an array of one to four distinct, original recurring characters who each play a concrete role inside the premise itself and connect to its central situation, conflict, or the learner persona, for example a relative, mentor, rival, colleague, customer, or someone tied to the premise\'s mystery. Choose people who clearly belong to this specific story and setting, not interchangeable generic names. If the premise already names or clearly implies specific people other than the learner persona, include those exact people here instead of inventing unrelated ones. Each entry is one character and must not contain commas; you may add a short role after the name without a comma, for example "Theo the rival baker" or "Aunt Rosa who knew the previous owner", so the link to the premise is visible. In character mode, this list must include the character the learner will play, because userRole has to be one of these characters. Keep each character string under 150 characters.',
-        'For character mode, userRole is required and must be exactly one of the entries in mainCharacters: the character the learner plays. Copy that character (its name, optionally with its short role) and do not invent a separate person. Never phrase it as a second-person sentence such as "You are ...". Keep it under 150 characters.',
+        'mainCharacters: an array of one to four distinct, original recurring character names only. Do not include titles, roles, descriptions, commas, or phrases such as "the detective". Good: "Corbin". Bad: "Detective Corbin" or "Corbin the detective".',
+        'characterProfiles: one object per mainCharacters entry, with id, name, and description. name must exactly match a mainCharacters entry. description should explain the character role, personality, or story function in one concise sentence.',
+        'For character mode, userRole is required and must exactly match one characterProfiles[].name: the character the learner plays. Never phrase it as a second-person sentence such as "You are ...". Keep it under 80 characters.',
         'For director mode, omit userRole.',
         'title: two to five words, evocative and memorable, reflecting the premise and tone, with no surrounding quotation marks. Keep it under 150 characters.',
         'Match every generated field to the selected CEFR level and tone: use simpler words and shorter sentences for lower levels (A1, A2) and richer language only for higher levels.',
@@ -389,7 +448,33 @@ function finalizeDraft(
   request: SetupDraftRequest,
   draft: ModelSetupDraft,
 ): SetupDraft {
-  return setupDraftSchema.parse(resolveDraftFields(request, draft));
+  const resolved = resolveDraftFields(request, draft);
+  const characterProfiles =
+    resolved.characterProfiles.length > 0
+      ? resolved.characterProfiles
+      : resolved.mainCharacters.map((name, index) => ({
+          id: createCharacterProfileId(name, index),
+          name,
+          description: name,
+        }));
+
+  return setupDraftSchema.parse({
+    ...resolved,
+    mainCharacters: characterProfiles.map((profile) => profile.name),
+    characterProfiles,
+  });
+}
+
+// createCharacterProfileId produces deterministic ids from generated names.
+function createCharacterProfileId(name: string, index: number): string {
+  const slug = name
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+
+  return `character:${slug || `profile-${index + 1}`}`;
 }
 
 // parseJsonObject extracts a JSON object even when a model adds accidental prose.

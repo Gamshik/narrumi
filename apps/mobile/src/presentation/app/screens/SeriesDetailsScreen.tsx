@@ -16,12 +16,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   cefrLevels,
+  characterProfileNames,
+  createCharacterProfileId,
   learningGenres,
+  normalizeCharacterProfiles,
   seriesParticipationModes,
   type CefrLevel,
   type Episode,
   type LearningGenre,
   type Series,
+  type SeriesCharacterProfile,
   type SeriesMemory,
   type SeriesParticipationMode,
 } from '@domain/index';
@@ -76,14 +80,16 @@ type SeriesSetupFormState = {
   readonly premise: string;
   // participationMode decides whether answers direct events or roleplay the learner.
   readonly participationMode: SeriesParticipationMode;
-  // mainCharacters stores comma-separated recurring character names.
-  readonly mainCharacters: string;
+  // characterProfiles store pinned dialogue names and AI-facing descriptions.
+  readonly characterProfiles: readonly SeriesCharacterProfile[];
   // userRole stores the learner role for character mode.
   readonly userRole: string;
 };
 
 // SeriesSetupFormErrors stores visible validation messages by setup field.
-type SeriesSetupFormErrors = Partial<Record<keyof SeriesSetupFormState, string>>;
+type SeriesSetupFormErrors = Partial<
+  Record<keyof SeriesSetupFormState | 'mainCharacters', string>
+>;
 
 // storyToneOptions matches the bounded setup tones from series creation.
 const storyToneOptions = [
@@ -207,7 +213,8 @@ export function SeriesDetailsScreen({
         tone: setupForm.tone,
         premise: setupForm.premise,
         participationMode: setupForm.participationMode,
-        mainCharacters: parseCharacterList(setupForm.mainCharacters),
+        mainCharacters: characterProfileNames(setupForm.characterProfiles),
+        characterProfiles: setupForm.characterProfiles,
         ...(setupForm.participationMode === 'character' &&
         setupForm.userRole.trim()
           ? { userRole: setupForm.userRole }
@@ -242,7 +249,7 @@ export function SeriesDetailsScreen({
         ...setupForm,
         title: result.draft.title,
         premise: result.draft.premise,
-        mainCharacters: result.draft.mainCharacters.join(', '),
+        characterProfiles: result.draft.characterProfiles,
         userRole:
           setupForm.participationMode === 'character'
             ? result.draft.userRole ?? setupForm.userRole
@@ -639,23 +646,32 @@ function SeriesSetupModal({
             {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
             {...(canEdit
               ? {
-                  helper:
-                    'Required. Add names separated by commas or use Generate.',
+                helper:
+                    'Required. Speaker names stay fixed in dialogue; descriptions guide the AI.',
                   isBusy,
                   isRegenerating: regeneratingField === 'mainCharacters',
                   onRegenerate: () => onRegenerateField('mainCharacters'),
                 }
               : {})}
             isEditable={canEdit}
-            fieldId="mainCharacters"
-            isCompactMultiline
+            fieldId="characterProfiles"
             label="Main Characters"
-            placeholder="Mira, Alex"
+            placeholder="Mira"
             styles={styles}
-            value={form.mainCharacters}
+            value={characterProfileNames(form.characterProfiles).join(', ')}
             onFocus={scrollToField}
             onLayout={registerFieldOffset}
-            onChangeText={(mainCharacters) => updateForm({ mainCharacters })}
+            onChangeText={(mainCharacters) =>
+              updateForm({
+                characterProfiles: parseCharacterProfilesFromNames(mainCharacters),
+              })
+            }
+          />
+          <CharacterProfilesEditor
+            isEditable={canEdit}
+            profiles={form.characterProfiles}
+            styles={styles}
+            onChange={(characterProfiles) => updateForm({ characterProfiles })}
           />
           {form.participationMode === 'character' ? (
             <SetupFormField
@@ -838,6 +854,107 @@ function SetupFormField({
   );
 }
 
+// CharacterProfilesEditor renders pinned speaker names with separate AI descriptions.
+function CharacterProfilesEditor({
+  isEditable,
+  profiles,
+  styles,
+  onChange,
+}: {
+  // isEditable disables profile changes after the first generated episode.
+  readonly isEditable: boolean;
+  // profiles are the editable character rows for the setup form.
+  readonly profiles: readonly SeriesCharacterProfile[];
+  // styles is the current theme StyleSheet contract.
+  readonly styles: AppStyles;
+  // onChange publishes normalized character rows back to the parent form.
+  readonly onChange: (profiles: readonly SeriesCharacterProfile[]) => void;
+}): ReactElement {
+  const updateProfile = (
+    index: number,
+    patch: Partial<SeriesCharacterProfile>,
+  ): void => {
+    onChange(
+      profiles.map((profile, profileIndex) =>
+        profileIndex === index ? { ...profile, ...patch } : profile,
+      ),
+    );
+  };
+  const addProfile = (): void => {
+    const nextIndex = profiles.length;
+    const name = `Character ${nextIndex + 1}`;
+
+    onChange([
+      ...profiles,
+      {
+        id: createCharacterProfileId(name, nextIndex),
+        name,
+        description: '',
+      },
+    ]);
+  };
+  const removeProfile = (index: number): void => {
+    onChange(profiles.filter((_profile, profileIndex) => profileIndex !== index));
+  };
+
+  return (
+    <View style={styles.formGroup}>
+      {profiles.map((profile, index) => (
+        <View key={profile.id} style={styles.formGroup}>
+          <View style={styles.formLabelRow}>
+            <Text style={styles.sectionLabel}>Dialogue name</Text>
+            {isEditable ? (
+              <Pressable
+                onPress={() => removeProfile(index)}
+                style={({ pressed }) => [
+                  styles.fieldRegenerateButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.fieldRegenerateText}>Remove</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <TextInput
+            editable={isEditable}
+            onChangeText={(name) => updateProfile(index, { name })}
+            placeholder="Corbin"
+            placeholderTextColor={styles.placeholder.color}
+            style={[styles.formInput, !isEditable && styles.disabledControl]}
+            value={profile.name}
+          />
+          <Text style={styles.sectionLabel}>Description</Text>
+          <TextInput
+            editable={isEditable}
+            multiline
+            onChangeText={(description) => updateProfile(index, { description })}
+            placeholder="A careful detective who notices small contradictions."
+            placeholderTextColor={styles.placeholder.color}
+            style={[
+              styles.formInput,
+              styles.formCompactTextArea,
+              !isEditable && styles.disabledControl,
+            ]}
+            textAlignVertical="top"
+            value={profile.description}
+          />
+        </View>
+      ))}
+      {isEditable ? (
+        <Pressable
+          onPress={addProfile}
+          style={({ pressed }) => [
+            styles.secondarySmallButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.secondarySmallButtonText}>Add Character</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 // SetupChoiceGroup renders bounded setup options with read-only support.
 function SetupChoiceGroup<T extends string>({
   isDisabled,
@@ -903,7 +1020,7 @@ function createSetupForm(series: Series): SeriesSetupFormState {
     tone: series.tone,
     premise: series.premise,
     participationMode: series.participationMode,
-    mainCharacters: series.mainCharacters.join(', '),
+    characterProfiles: series.characterProfiles,
     userRole: series.userRole ?? '',
   };
 }
@@ -920,7 +1037,8 @@ function buildSetupDraftRequest(
     participationMode: form.participationMode,
     ...(form.title.trim() ? { title: form.title } : {}),
     ...(form.premise.trim() ? { premise: form.premise } : {}),
-    mainCharacters: parseCharacterList(form.mainCharacters),
+    mainCharacters: characterProfileNames(form.characterProfiles),
+    characterProfiles: form.characterProfiles,
     ...(form.participationMode === 'character' && form.userRole.trim()
       ? { userRole: form.userRole }
       : {}),
@@ -939,7 +1057,7 @@ function applyRegeneratedField(
     case 'premise':
       return { ...form, premise: draft.premise };
     case 'mainCharacters':
-      return { ...form, mainCharacters: draft.mainCharacters.join(', ') };
+      return { ...form, characterProfiles: draft.characterProfiles };
     case 'userRole':
       // userRole only exists in character mode; keep the previous value when the AI omits it.
       return { ...form, userRole: draft.userRole ?? form.userRole };
@@ -958,7 +1076,7 @@ function validateSetupForm(form: SeriesSetupFormState): SeriesSetupFormErrors {
     errors.premise = 'Enter a premise or use Generate.';
   }
 
-  if (parseCharacterList(form.mainCharacters).length === 0) {
+  if (normalizeCharacterProfiles(form.characterProfiles).length === 0) {
     errors.mainCharacters = 'Enter at least one character or use Generate.';
   }
 
@@ -972,12 +1090,21 @@ function validateSetupForm(form: SeriesSetupFormState): SeriesSetupFormErrors {
   return errors;
 }
 
-// parseCharacterList converts the comma-separated setup field to trimmed names.
-function parseCharacterList(value: string): readonly string[] {
-  return value
-    .split(',')
-    .map((character) => character.trim())
-    .filter((character) => character.length > 0);
+// parseCharacterProfilesFromNames converts a compact name list into editable profiles.
+function parseCharacterProfilesFromNames(
+  value: string,
+): readonly SeriesCharacterProfile[] {
+  return normalizeCharacterProfiles(
+    value
+      .split(',')
+      .map((character) => character.trim())
+      .filter((character) => character.length > 0)
+      .map((name, index) => ({
+        id: createCharacterProfileId(name, index),
+        name,
+        description: '',
+      })),
+  );
 }
 
 // EpisodeHistoryRow opens one completed local episode in read/listen mode.

@@ -8,6 +8,20 @@ import type {
 
 import { createGenerateSeriesSetupDraft } from './generateSeriesSetupDraft';
 
+// characterProfiles is the structured setup draft returned by the AI boundary.
+const characterProfiles = [
+  {
+    id: 'character:mira',
+    name: 'Mira',
+    description: 'A curious learner investigating the blue door.',
+  },
+  {
+    id: 'character:leo',
+    name: 'Leo',
+    description: 'A library assistant who knows old building stories.',
+  },
+] as const;
+
 describe('generateSeriesSetupDraft', () => {
   it('passes selected fields as constraints and returns a complete draft', async () => {
     // networkStatus keeps the server-backed setup generation path available.
@@ -27,6 +41,7 @@ describe('generateSeriesSetupDraft', () => {
           title: 'Blue Door',
           premise: 'Mira finds a quiet blue door under the library stairs.',
           mainCharacters: ['Mira', 'Leo'],
+          characterProfiles,
         };
       },
     };
@@ -60,6 +75,7 @@ describe('generateSeriesSetupDraft', () => {
           title: 'Door of Echoes',
           premise: 'A quiet blue door appears under the stairs.',
           mainCharacters: ['Mira', 'Leo'],
+          characterProfiles,
         };
       },
     };

@@ -8,6 +8,7 @@ import type {
 import {
   cefrLevels,
   clampStoryWordGoal,
+  createProfilesFromCharacterNames,
   type Episode,
   interactionKinds,
   type LearningGenre,
@@ -17,10 +18,12 @@ import {
   learningSignalKinds,
   seriesParticipationModes,
   type Series,
+  type SeriesCharacterProfile,
   type SeriesMemory,
   type SeriesParticipationMode,
   type SyncMetadata,
   type WordSet,
+  normalizeCharacterProfiles,
   wordSetKinds,
 } from '@domain/index';
 
@@ -461,6 +464,7 @@ function parseSeries(value: unknown): Series {
     premise: readString(value, 'premise'),
     participationMode,
     mainCharacters: readStringArray(value, 'mainCharacters'),
+    characterProfiles: readCharacterProfiles(value),
     ...(userRole ? { userRole } : {}),
     memory: parseSeriesMemory(value.memory),
     createdAt: readString(value, 'createdAt'),
@@ -489,6 +493,7 @@ function parseSeriesMemory(value: unknown): SeriesMemory {
     tone: readString(value, 'tone'),
     participationMode,
     mainCharacters: readStringArray(value, 'mainCharacters'),
+    characterProfiles: readCharacterProfiles(value),
     ...(userRole ? { userRole } : {}),
     ...(currentConflict ? { currentConflict } : {}),
     knownFacts: readStringArray(value, 'knownFacts'),
@@ -521,6 +526,30 @@ function readParticipationMode(record: UnknownRecord): SeriesParticipationMode {
   }
 
   throw new Error('Series participation mode is unsupported');
+}
+
+// readCharacterProfiles migrates legacy string-only characters into pinned profiles.
+function readCharacterProfiles(record: UnknownRecord): readonly SeriesCharacterProfile[] {
+  if (record.characterProfiles === undefined) {
+    return createProfilesFromCharacterNames(readStringArray(record, 'mainCharacters'));
+  }
+
+  return normalizeCharacterProfiles(
+    readArray(record, 'characterProfiles').map(parseCharacterProfile),
+  );
+}
+
+// parseCharacterProfile validates one local editable character profile.
+function parseCharacterProfile(value: unknown): SeriesCharacterProfile {
+  if (!isRecord(value)) {
+    throw new Error('Character profile must be an object');
+  }
+
+  return {
+    id: readString(value, 'id'),
+    name: readString(value, 'name'),
+    description: readOptionalString(value, 'description') ?? '',
+  };
 }
 
 // parseEpisode validates one generated learning unit before rendering or sync.

@@ -5,6 +5,8 @@ export * from './models/learningPreferences';
 export * from './models/learningGenre';
 export * from './models/learningSignal';
 export * from './models/series';
+export * from './models/seriesCharacter';
+export * from './models/seriesCharacterProfile';
 export * from './models/seriesMemory';
 export * from './models/seriesParticipationMode';
 export * from './models/syncMetadata';

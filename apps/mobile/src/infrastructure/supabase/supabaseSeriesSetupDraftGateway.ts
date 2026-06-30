@@ -6,6 +6,10 @@ import type {
   SeriesSetupDraft,
   SeriesSetupDraftGateway,
 } from '@application/ports';
+import {
+  createProfilesFromCharacterNames,
+  normalizeCharacterProfiles,
+} from '@domain/index';
 
 import { toSupabaseFunctionError } from './supabaseFunctionError';
 
@@ -14,6 +18,15 @@ const seriesSetupDraftSchema = z.object({
   title: z.string().trim().min(1),
   premise: z.string().trim().min(1),
   mainCharacters: z.array(z.string().trim().min(1)).min(1).max(8),
+  characterProfiles: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        name: z.string().trim().min(1),
+        description: z.string().trim(),
+      }),
+    )
+    .optional(),
   userRole: z.string().trim().min(1).optional(),
 });
 
@@ -51,6 +64,10 @@ export class SupabaseSeriesSetupDraftGateway implements SeriesSetupDraftGateway 
       title: parsed.title,
       premise: parsed.premise,
       mainCharacters: parsed.mainCharacters,
+      characterProfiles: normalizeCharacterProfiles(
+        parsed.characterProfiles ??
+          createProfilesFromCharacterNames(parsed.mainCharacters),
+      ),
       ...(parsed.userRole ? { userRole: parsed.userRole } : {}),
     };
   }
