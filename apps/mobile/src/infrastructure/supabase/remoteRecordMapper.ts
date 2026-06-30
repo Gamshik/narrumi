@@ -6,6 +6,7 @@ import type {
 } from '@application/ports';
 import {
   cefrLevels,
+  createProfilesFromCharacterNames,
   interactionKinds,
   learningGenres,
   learningSignalKinds,
@@ -17,10 +18,12 @@ import {
   type LearningPreferences,
   type LearningSignal,
   type Series,
+  type SeriesCharacterProfile,
   type SeriesMemory,
   type SyncMetadata,
   type TranslationAnnotation,
   type WordSet,
+  normalizeCharacterProfiles,
 } from '@domain/index';
 
 // RemoteWrite contains the Supabase table and validated row payload for one record.
@@ -100,6 +103,11 @@ const sentenceFrameSchema = z.discriminatedUnion('kind', [
     text: z.string().min(1),
   }),
 ]);
+const characterProfileSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string(),
+});
 const seriesRowSchema = ownedColumnsSchema.extend({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -109,6 +117,7 @@ const seriesRowSchema = ownedColumnsSchema.extend({
   premise: z.string().min(1),
   participation_mode: z.enum(seriesParticipationModes).default('director'),
   main_characters: stringArraySchema,
+  character_profiles: z.array(characterProfileSchema).default([]),
   user_role: z.string().nullable(),
   created_at: timestampSchema,
 });
@@ -120,6 +129,7 @@ const seriesMemoryRowSchema = ownedColumnsSchema.extend({
   tone: z.string().min(1),
   participation_mode: z.enum(seriesParticipationModes).default('director'),
   main_characters: stringArraySchema,
+  character_profiles: z.array(characterProfileSchema).default([]),
   user_role: z.string().nullable(),
   current_conflict: z.string().nullable(),
   known_facts: stringArraySchema,
@@ -188,6 +198,7 @@ export function serializeSyncRecord(
           premise: record.value.premise,
           participation_mode: record.value.participationMode,
           main_characters: record.value.mainCharacters,
+          character_profiles: record.value.characterProfiles,
           user_role: record.value.userRole ?? null,
           created_at: record.value.createdAt,
           ...serializeVersion(record.value),
@@ -205,6 +216,7 @@ export function serializeSyncRecord(
           tone: record.value.tone,
           participation_mode: record.value.participationMode,
           main_characters: record.value.mainCharacters,
+          character_profiles: record.value.characterProfiles,
           user_role: record.value.userRole ?? null,
           current_conflict: record.value.currentConflict ?? null,
           known_facts: record.value.knownFacts,
@@ -401,6 +413,7 @@ function mapSeries(
     premise: row.premise,
     participationMode: row.participation_mode,
     mainCharacters: row.main_characters,
+    characterProfiles: mapCharacterProfiles(row.character_profiles, row.main_characters),
     ...(row.user_role ? { userRole: row.user_role } : {}),
     memory,
     createdAt: row.created_at,
@@ -429,6 +442,7 @@ function mapSeriesMemory(
     tone: row.tone,
     participationMode: row.participation_mode,
     mainCharacters: row.main_characters,
+    characterProfiles: mapCharacterProfiles(row.character_profiles, row.main_characters),
     ...(row.user_role ? { userRole: row.user_role } : {}),
     ...(row.current_conflict
       ? { currentConflict: row.current_conflict }
@@ -446,6 +460,16 @@ function mapSeriesMemory(
     updatedAt: row.client_updated_at,
     sync: mapCleanSync(row),
   };
+}
+
+// mapCharacterProfiles restores pinned speaker labels from new or legacy remote rows.
+function mapCharacterProfiles(
+  profiles: readonly z.infer<typeof characterProfileSchema>[],
+  legacyNames: readonly string[],
+): readonly SeriesCharacterProfile[] {
+  return profiles.length > 0
+    ? normalizeCharacterProfiles(profiles)
+    : createProfilesFromCharacterNames(legacyNames);
 }
 
 // parseEpisode validates one remote generated learning unit.

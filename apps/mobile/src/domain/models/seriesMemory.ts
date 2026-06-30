@@ -1,5 +1,6 @@
 import type { SyncMetadata } from './syncMetadata';
 import type { SeriesParticipationMode } from './seriesParticipationMode';
+import type { SeriesCharacterProfile } from './seriesCharacter';
 
 // SeriesMemory stores bounded continuity context instead of full episode history.
 export type SeriesMemory = {
@@ -17,6 +18,8 @@ export type SeriesMemory = {
   readonly participationMode: SeriesParticipationMode;
   // mainCharacters names recurring characters without storing full transcripts.
   readonly mainCharacters: readonly string[];
+  // characterProfiles pin dialogue names for recurring speakers across episodes.
+  readonly characterProfiles: readonly SeriesCharacterProfile[];
   // userRole records who the learner is inside the story when applicable.
   readonly userRole?: string;
   // currentConflict summarizes the active story problem.
