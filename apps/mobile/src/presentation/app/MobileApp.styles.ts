@@ -433,14 +433,14 @@ function createAppStylesImpl(colors: AppColors) {
       justifyContent: "space-between",
       gap: 12,
     },
-    fieldRegenerateButton: {
+    fieldActionButton: {
       minHeight: 28,
       justifyContent: "center",
       borderRadius: 9,
       paddingHorizontal: 10,
       backgroundColor: colors.backgroundTertiary,
     },
-    fieldRegenerateText: {
+    fieldActionText: {
       color: colors.systemBlue,
       fontSize: 12,
       fontWeight: "700",
