@@ -9,6 +9,7 @@ import {
   type EpisodeSentenceFrame,
   type EpisodeInteractionKind,
   type LearningGenre,
+  type SeriesCharacterProfile,
   type SeriesMemory,
   type VocabularyItem,
 } from '@domain/index';
@@ -36,6 +37,7 @@ export type CompactSeriesMemoryPayload = Pick<
   | 'tone'
   | 'participationMode'
   | 'mainCharacters'
+  | 'characterProfiles'
   | 'userRole'
   | 'currentConflict'
   | 'knownFacts'
@@ -66,6 +68,8 @@ export type GenerateEpisodeRequest = {
   readonly participationMode: SeriesMemory['participationMode'];
   // mainCharacters names recurring characters without full history.
   readonly mainCharacters: readonly string[];
+  // characterProfiles pin dialogue labels while giving the AI role context.
+  readonly characterProfiles: readonly SeriesCharacterProfile[];
   // userRole records the learner role when present.
   readonly userRole?: string;
   // selectedStoryWords are the selected local Oxford words for this episode.
@@ -311,6 +315,7 @@ export function buildCompactSeriesMemoryPayload(
     tone: memory.tone,
     participationMode: memory.participationMode,
     mainCharacters: memory.mainCharacters,
+    characterProfiles: memory.characterProfiles,
     ...(memory.userRole ? { userRole: memory.userRole } : {}),
     ...(memory.currentConflict
       ? { currentConflict: memory.currentConflict }

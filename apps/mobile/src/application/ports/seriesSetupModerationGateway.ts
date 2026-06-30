@@ -1,4 +1,7 @@
-import type { SeriesParticipationMode } from '@domain/index';
+import type {
+  SeriesCharacterProfile,
+  SeriesParticipationMode,
+} from '@domain/index';
 
 // ValidateSeriesSetupRequest contains user-controlled setup fields checked before local persistence.
 export type ValidateSeriesSetupRequest = {
@@ -12,6 +15,8 @@ export type ValidateSeriesSetupRequest = {
   readonly participationMode: SeriesParticipationMode;
   // mainCharacters contains learner-written character names or roles.
   readonly mainCharacters: readonly string[];
+  // characterProfiles contains learner-written descriptions sent to AI context.
+  readonly characterProfiles?: readonly SeriesCharacterProfile[];
   // userRole is the optional learner-written role in the story.
   readonly userRole?: string;
 };

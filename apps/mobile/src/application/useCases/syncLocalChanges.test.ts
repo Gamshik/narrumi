@@ -25,6 +25,14 @@ const dirtySync: SyncMetadata = {
   isDirty: true,
   pendingOperationId: `${timestamp}:series:1:create`,
 };
+// characterProfiles pin dialogue labels separately from AI-facing descriptions.
+const characterProfiles = [
+  {
+    id: 'character:mira',
+    name: 'Mira',
+    description: 'A curious learner reading a coded letter.',
+  },
+] as const;
 // memory is the dependent continuity fixture used to verify replay order.
 const memory: SeriesMemory = {
   id: 'series:1',
@@ -34,6 +42,7 @@ const memory: SeriesMemory = {
   tone: 'Curious',
   participationMode: 'director',
   mainCharacters: ['Mira'],
+  characterProfiles,
   knownFacts: [],
   openQuestions: ['Who sent the letter?'],
   importantObjectsOrLocations: [],
@@ -51,6 +60,7 @@ const series: Series = {
   premise: memory.premise,
   participationMode: memory.participationMode,
   mainCharacters: memory.mainCharacters,
+  characterProfiles,
   memory,
   createdAt: timestamp,
   updatedAt: timestamp,

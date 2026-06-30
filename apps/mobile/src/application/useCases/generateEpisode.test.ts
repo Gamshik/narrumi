@@ -19,6 +19,15 @@ import { createGenerateEpisode } from './generateEpisode';
 // timestamp is the deterministic local write time used by the regression test.
 const timestamp = '2026-06-06T10:00:00.000Z';
 
+// characterProfiles pin dialogue labels separately from AI-facing descriptions.
+const characterProfiles = [
+  {
+    id: 'character:mira',
+    name: 'Mira',
+    description: 'A curious learner following the hidden garden mystery.',
+  },
+] as const;
+
 // memory is the compact continuity record sent to the AI boundary.
 const memory: SeriesMemory = {
   id: 'series:test',
@@ -28,6 +37,7 @@ const memory: SeriesMemory = {
   tone: 'mysterious but friendly',
   participationMode: 'director',
   mainCharacters: ['Mira'],
+  characterProfiles,
   knownFacts: [],
   openQuestions: [],
   importantObjectsOrLocations: [],
@@ -49,6 +59,7 @@ const series: Series = {
   premise: memory.premise,
   participationMode: memory.participationMode,
   mainCharacters: memory.mainCharacters,
+  characterProfiles,
   memory,
   createdAt: timestamp,
   updatedAt: timestamp,
