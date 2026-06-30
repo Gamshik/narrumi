@@ -11,7 +11,7 @@ import {
   safeErrorResponse,
 } from '../_shared/http.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
-import { isRepeatedRegeneration } from './regeneration.ts';
+import { isRepeatedSetupConcept } from './regeneration.ts';
 import { resolveDraftFields } from './draftPreservation.ts';
 import {
   buildModerationReview,
@@ -40,16 +40,13 @@ const openrouterProvider = openrouterApiKey
 const setupDraftAttempts = 3;
 
 // setupTextFields lists the AI-fillable text fields in canonical generation order.
-// Generation and single-field regeneration follow this order so each field is produced
-// from the selected constraints plus every field before it. This keeps the premise,
-// characters, learner role, and title connected to one coherent story instead of being
-// invented independently. It is also the enum source for the regeneration target.
+// Generation follows this order so each field is produced from the selected constraints
+// plus every field before it. This keeps the premise, characters, learner role, and
+// title connected to one coherent story instead of being invented independently.
 const setupTextFields = ['premise', 'mainCharacters', 'userRole', 'title'] as const;
 
 // setupDraftRequestSchema validates selected constraints and optional user text.
 const setupDraftRequestSchema = z.object({
-  // regenerateField, when present, forces a fresh value for only that field while others are preserved.
-  regenerateField: z.enum(setupTextFields).optional(),
   title: z.string().trim().min(1).max(160).optional(),
   genre: z.enum(['daily-life', 'work-it', 'travel-leisure', 'short-fiction']),
   cefrLevel: z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']),
@@ -106,9 +103,6 @@ const setupDraftSchema = z.object({
 
 // SetupDraftRequest is the parsed Edge request contract.
 type SetupDraftRequest = z.infer<typeof setupDraftRequestSchema>;
-
-// SeriesSetupTextField names a single AI-fillable text field eligible for individual regeneration.
-type SeriesSetupTextField = (typeof setupTextFields)[number];
 
 // SetupDraft is the validated complete setup response.
 type SetupDraft = z.infer<typeof setupDraftSchema>;
@@ -259,23 +253,18 @@ async function readJsonBody(request: Request): Promise<unknown> {
 // generateSetupDraft asks the model for complete setup text and validates preservation.
 async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraft> {
   let lastError: Error | undefined;
-  // Regeneration gets one extra attempt because retries can be spent both on
-  // validation failures and on rejecting an unchanged (repeated) field value.
-  const maxAttempts = request.regenerateField
-    ? setupDraftAttempts + 1
-    : setupDraftAttempts;
+  // Validation failures, repeated field values, or repeated full concepts.
+  const maxAttempts = setupDraftAttempts + 1;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const result = await generateText({
       model: openrouterProvider!(openrouterModel),
       system: buildSystemPrompt(),
       prompt: lastError
-        ? `${buildPrompt(request)}\n\nPrevious attempt failed: ${lastError.message}\nRegenerate the JSON object from scratch.`
+        ? `${buildPrompt(request)}\n\nPrevious attempt failed: ${lastError.message}\nGenerate the JSON object again from scratch.`
         : buildPrompt(request),
-      // Both regeneration modes need variety so repeated runs differ: single-field
-      // regeneration must change the targeted value, and the full "Generate" action must
-      // produce a fresh setup each time instead of repeating the current one.
-      temperature: request.regenerateField ? 0.9 : 0.8,
+      // Full setup generation needs enough variety to avoid repeating the current concept.
+      temperature: 0.8,
       maxOutputTokens: 900,
     });
 
@@ -287,30 +276,20 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
         modelSetupDraftSchema.parse(parseJsonObject(result.text)),
       );
 
-      // Regeneration should change the targeted field. If the model returned the
-      // same value (ignoring case, spacing, or character order) we retry so the
-      // user gets a fresh value. This is an expected retry, not a failure, so on
-      // the final attempt we accept the draft instead of turning a stubborn model
-      // into a hard error — returning the previous value beats returning nothing.
-      const repeatedRegeneration = isRepeatedRegeneration({
-        field: request.regenerateField,
-        previous: {
-          title: request.title,
-          premise: request.premise,
-          userRole: request.userRole,
-          mainCharacters: request.mainCharacters,
-        },
-        next: draft,
-      });
+      const repeatedConcept = isRepeatedSetupConcept({
+        title: request.title,
+        premise: request.premise,
+        userRole: request.userRole,
+        mainCharacters: request.mainCharacters,
+      }, draft);
 
-      if (repeatedRegeneration && attempt < maxAttempts) {
+      if (repeatedConcept && attempt < maxAttempts) {
         lastError = new Error(
-          `The regenerated ${request.regenerateField} repeated the previous value; produce a clearly different one.`,
+          `The generated setup concept is too similar to the previous one; produce a completely new story idea.`,
         );
 
-        logSafeInfo('generate-series-setup retrying repeated regeneration', {
+        logSafeInfo('generate-series-setup retrying repeated concept', {
           attempt: String(attempt),
-          field: String(request.regenerateField),
           model: openrouterModel,
         });
 
@@ -334,11 +313,11 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
 // buildSystemPrompt keeps setup generation bounded and original.
 function buildSystemPrompt(): string {
   return [
-    'You generate complete setup text for an original personal English-learning series.',
-    'Return exactly one raw JSON object. Do not wrap it in Markdown fences.',
+    'You are a creative writing assistant specialized in TV series setups for language learners.',
+    'Generate a completely new TV series setup draft tailored to the constraints. If a previous concept is provided, create a distinct story, do not repeat the previous one.',
+    'Output must be valid JSON matching this schema: { title, premise, mainCharacters, characterProfiles, userRole? }.',
     'Do not generate or change selected list fields: cefrLevel, genre, tone, or participationMode.',
-    'Preserve any provided title, premise, mainCharacters, and userRole exactly unless they are unsafe.',
-    'Fill only missing text fields with concise, original, safe content.',
+    'Fill missing text fields with concise, original, safe content.',
     'Follow generationOrder: build each field from the selected constraints and from every field that',
     'appears earlier in generationOrder, so the premise, characters, learner role, and title stay',
     'connected to one story instead of being invented independently.',
@@ -347,8 +326,6 @@ function buildSystemPrompt(): string {
     'In character mode, userRole is the character the learner plays and must exactly match one',
     'characterProfiles[].name rather than inventing a separate person. Never write userRole as a second-person sentence or',
     'instruction such as "You are ..." or "You play ...".',
-    'When regenerateField is set, produce a fresh, clearly different value for only that one field,',
-    'keep it consistent with all other provided fields, and copy every other provided field exactly.',
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only: no Markdown, no bullet lists, no typographic quotes.',
   ].join('\n');
@@ -356,94 +333,53 @@ function buildSystemPrompt(): string {
 
 // buildPrompt sends selected constraints and optional user-provided setup text.
 function buildPrompt(request: SetupDraftRequest): string {
-  const target = request.regenerateField;
-  // isFullRegeneration marks the full "Generate" action, which regenerates every field
-  // from scratch. No provided text is sent so the model never preserves already-filled
-  // fields; only the learner-selected constraints stay fixed.
-  const isFullRegeneration = target === undefined;
-
-  return JSON.stringify(
-    {
-      task: 'generate-series-setup',
-      // regenerateField marks the only field that must change; absent means regenerate every field.
-      regenerateField: target,
-      // regenerateFrom is the current value of the target field; the new value must differ from it.
-      // The target is intentionally excluded from providedText so it is not treated as "preserve exactly".
-      regenerateFrom: target ? describePreviousValue(request, target) : undefined,
-      // generationOrder is the canonical dependency order; each field must stay consistent with the
-      // selected constraints and with every field listed before it, whether provided or just generated.
-      generationOrder: setupTextFields,
-      selectedConstraints: {
-        cefrLevel: request.cefrLevel,
-        genre: request.genre,
-        tone: request.tone,
-        participationMode: request.participationMode,
-      },
-      // On a full regeneration every field is intentionally left undefined so the model
-      // produces fresh text for all of them instead of preserving prior values.
-      providedText: {
-        title: isFullRegeneration || target === 'title' ? undefined : request.title,
-        premise:
-          isFullRegeneration || target === 'premise' ? undefined : request.premise,
-        mainCharacters:
-          isFullRegeneration || target === 'mainCharacters'
-            ? undefined
-            : request.mainCharacters,
-        characterProfiles:
-          isFullRegeneration || target === 'mainCharacters'
-            ? undefined
-            : request.characterProfiles,
-        userRole:
-          isFullRegeneration || target === 'userRole' ? undefined : request.userRole,
-      },
-      outputRules: [
-        'Return exactly: title, premise, mainCharacters, characterProfiles, userRole.',
-        'Build fields in generationOrder; each field must stay consistent with the selected constraints and with every earlier field.',
-        'premise: two to four sentences in one paragraph that set up a concrete situation and hook for the first episode, match the genre and tone, and leave the story open to continue. In character mode, leave a clear place for the learner to act. Keep it under 900 characters.',
-        'mainCharacters: an array of one to four distinct, original recurring character names only. Do not include titles, roles, descriptions, commas, or phrases such as "the detective". Good: "Corbin". Bad: "Detective Corbin" or "Corbin the detective".',
-        'characterProfiles: one object per mainCharacters entry, with id, name, and description. name must exactly match a mainCharacters entry. description should explain the character role, personality, or story function in one concise sentence.',
-        'For character mode, userRole is required and must exactly match one characterProfiles[].name: the character the learner plays. Never phrase it as a second-person sentence such as "You are ...". Keep it under 80 characters.',
-        'For director mode, omit userRole.',
-        'title: two to five words, evocative and memorable, reflecting the premise and tone, with no surrounding quotation marks. Keep it under 150 characters.',
-        'Match every generated field to the selected CEFR level and tone: use simpler words and shorter sentences for lower levels (A1, A2) and richer language only for higher levels.',
-        ...(target
-          ? [
-              `Generate a fresh ${target} that is clearly different from regenerateFrom; never return the same value, even reworded or reordered.`,
-              `Base the new ${target} on providedText, especially the premise and the other earlier fields, so it clearly belongs to the same story; do not invent unrelated content.`,
-              'Copy every field listed in providedText exactly and do not alter it.',
-            ]
-          : [
-              'Generate fresh values for every field from the selected constraints; no text is pre-filled, so do not preserve or assume any previous setup.',
-            ]),
-      ],
+  const payload: Record<string, unknown> = {
+    task: 'generate-series-setup',
+    // generationOrder is the canonical dependency order; each field must stay consistent with the
+    // selected constraints and with every field listed before it, whether provided or just generated.
+    generationOrder: setupTextFields,
+    selectedConstraints: {
+      cefrLevel: request.cefrLevel,
+      genre: request.genre,
+      tone: request.tone,
+      participationMode: request.participationMode,
     },
-    null,
-    2,
-  );
-}
+  };
 
-// describePreviousValue renders the current target value so the model can avoid repeating it.
-function describePreviousValue(
-  request: SetupDraftRequest,
-  field: SeriesSetupTextField,
-): string | undefined {
-  switch (field) {
-    case 'title':
-      return request.title;
-    case 'premise':
-      return request.premise;
-    case 'mainCharacters':
-      return request.mainCharacters.length > 0
-        ? request.mainCharacters.join(', ')
-        : undefined;
-    case 'userRole':
-      return request.userRole;
-  }
+  const baseOutputRules = [
+    'Return exactly: title, premise, mainCharacters, characterProfiles, userRole.',
+    'Build fields in generationOrder; each field must stay consistent with the selected constraints and with every earlier field.',
+    'premise: two to four sentences in one paragraph that set up a concrete situation and hook for the first episode, match the genre and tone, and leave the story open to continue. In character mode, leave a clear place for the learner to act. Keep it under 900 characters.',
+    'mainCharacters: an array of one to four distinct, original recurring character names only. Do not include titles, roles, descriptions, commas, or phrases such as "the detective". Good: "Corbin". Bad: "Detective Corbin" or "Corbin the detective".',
+    'characterProfiles: one object per mainCharacters entry, with id, name, and description. name must exactly match a mainCharacters entry. description should explain the character role, personality, or story function in one concise sentence.',
+    'For character mode, userRole is required and must exactly match one characterProfiles[].name: the character the learner plays. Never phrase it as a second-person sentence such as "You are ...". Keep it under 80 characters.',
+    'For director mode, omit userRole.',
+    'title: two to five words, evocative and memorable, reflecting the premise and tone, with no surrounding quotation marks. Keep it under 150 characters.',
+    'Match every generated field to the selected CEFR level and tone: use simpler words and shorter sentences for lower levels (A1, A2) and richer language only for higher levels.',
+  ];
+
+  // avoidText gives the model the current draft only as content to move away from.
+  payload.avoidText = {
+    title: request.title,
+    premise: request.premise,
+    mainCharacters:
+      request.mainCharacters.length > 0 ? request.mainCharacters : undefined,
+    characterProfiles:
+      request.characterProfiles && request.characterProfiles.length > 0
+        ? request.characterProfiles
+        : undefined,
+    userRole: request.userRole,
+  };
+  payload.outputRules = [
+    ...baseOutputRules,
+    'Generate fresh values for every text field from the selected constraints; do not preserve or assume previous setup text.',
+  ];
+
+  return JSON.stringify(payload, null, 2);
 }
 
 // finalizeDraft assembles the kept and regenerated fields, then strictly validates the
-// result. Field preservation lives in resolveDraftFields: a full "Generate" regenerates
-// every field, while a single-field regeneration keeps every other provided field exactly.
+// result. The only setup generation action regenerates every text field coherently.
 function finalizeDraft(
   request: SetupDraftRequest,
   draft: ModelSetupDraft,
