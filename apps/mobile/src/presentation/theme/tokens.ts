@@ -126,9 +126,9 @@ type AppRadiiTokens = {
 // radii stores the Sorbet corner-radius scale shared across clay surfaces.
 export const radii: AppRadiiTokens = {
   sm: 12,
-  md: 16,
-  lg: 20,
-  xl: 26,
+  md: 18,
+  lg: 24,
+  xl: 30,
   pill: 999,
 } as const;
 
