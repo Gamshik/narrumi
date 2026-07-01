@@ -4,7 +4,7 @@ import type {
 } from '@application/ports/vocabularyCatalog';
 import { cefrLevels, type CefrLevel, type VocabularyItem } from '@domain/index';
 
-import rawOxfordVocabulary from '../../../../../words/oxford-5000.json';
+import rawOxfordVocabulary from './oxford-5000.json';
 
 // UnknownRecord is the safe object shape used while validating untrusted JSON.
 type UnknownRecord = Record<string, unknown>;
