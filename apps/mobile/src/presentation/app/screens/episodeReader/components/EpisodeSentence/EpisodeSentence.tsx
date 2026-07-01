@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { JellyPressable } from '../../../../shared';
 
 import type { EpisodeSentenceFrame, TranslationAnnotation } from '@domain/index';
 import { useAppTheme } from '@presentation/app/theme';
@@ -79,7 +80,7 @@ export function EpisodeSentence({
   const bubbleBorderOpacity: string = isDark ? '33' : '1f';
 
   return (
-    <Pressable
+    <JellyPressable
       onPress={() => onSelectSentence(sentenceIndex)}
       style={({ pressed }) => [
         styles.readerSentence,
@@ -167,7 +168,7 @@ export function EpisodeSentence({
           />
         </View>
       )}
-    </Pressable>
+    </JellyPressable>
   );
 }
 

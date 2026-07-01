@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
+import { JellyPressable } from '../shared';
 
 import type {
   Episode,
@@ -319,7 +320,8 @@ export function EpisodeReaderScreen({
         })}
 
         {onExit ? (
-          <Pressable
+          <JellyPressable
+            containerStyle={styles.flexOne}
             onPress={onExit}
             style={({ pressed }) => [
               styles.secondaryButton,
@@ -327,7 +329,7 @@ export function EpisodeReaderScreen({
             ]}
           >
             <Text style={styles.secondaryButtonText}>Back to Series</Text>
-          </Pressable>
+          </JellyPressable>
         ) : null}
       </ScrollView>
 
@@ -561,7 +563,7 @@ function EpisodeChoice({
           const isSelected = interaction.selectedChoiceId === choice.id;
 
           return (
-            <Pressable
+            <JellyPressable
               disabled={isSubmitting}
               key={choice.id}
               onPress={() => onSelectChoice(choice.id)}
@@ -575,7 +577,7 @@ function EpisodeChoice({
               <Text style={styles.readerChoiceText}>
                 {isSubmitting && isSelected ? 'Continuing...' : choice.label}
               </Text>
-            </Pressable>
+            </JellyPressable>
           );
         })}
       </View>

@@ -2,20 +2,18 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
   FlatList,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
-
 import {
   cefrLevels,
   type VocabularyItem,
 } from '@domain/index';
 
 import { localAppServices } from '../services/localAppServices';
-import { LevelBadge } from '../shared';
+import { JellyPressable, LevelBadge } from '../shared';
 import type { AppStyles, LevelFilter } from '../types';
 
 // levelFilters keeps the visual CEFR selector aligned with the domain levels.
@@ -179,9 +177,9 @@ function SearchBar({
         value={search}
       />
       {search.length > 0 ? (
-        <Pressable onPress={() => onChangeSearch('')} hitSlop={10}>
+        <JellyPressable onPress={() => onChangeSearch('')} hitSlop={10}>
           <Text style={styles.clearSearch}>×</Text>
-        </Pressable>
+        </JellyPressable>
       ) : null}
     </View>
   );
@@ -201,7 +199,7 @@ function LevelFilters({
         showsHorizontalScrollIndicator={false}
       >
         {levelFilters.map((filter) => (
-          <Pressable
+          <JellyPressable
             key={filter}
             onPress={() => onChangeLevel(filter)}
             style={({ pressed }) => [
@@ -218,7 +216,7 @@ function LevelFilters({
             >
               {filter === 'ALL' ? 'All levels' : filter}
             </Text>
-          </Pressable>
+          </JellyPressable>
         ))}
       </ScrollView>
     </View>
@@ -279,7 +277,7 @@ function DictionaryWordRow({
   word,
 }: DictionaryWordRowProps): ReactElement {
   return (
-    <Pressable
+    <JellyPressable
       onPress={onPress}
       style={({ pressed }) => [styles.wordRow, pressed && styles.pressed]}
     >
@@ -293,6 +291,6 @@ function DictionaryWordRow({
         </Text>
       </View>
       <LevelBadge level={word.level} styles={styles} />
-    </Pressable>
+    </JellyPressable>
   );
 }

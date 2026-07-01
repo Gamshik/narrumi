@@ -38,6 +38,10 @@ type AppColorTokens = {
   readonly blobBubblegum: string;
   // blobMint tints the tertiary floating background blob behind screens.
   readonly blobMint: string;
+  // tabBarSurface is the translucent fill layered over the floating tab bar blur.
+  readonly tabBarSurface: string;
+  // tabBarBorder is the soft highlight hairline around the floating tab bar.
+  readonly tabBarBorder: string;
 };
 
 // lightColors maps semantic app tokens to the warm Sorbet light appearance.
@@ -61,6 +65,8 @@ export const lightColors: AppColorTokens = {
   blobGrape: '#8b6bff',
   blobBubblegum: '#ff7aa2',
   blobMint: '#2fd9b0',
+  tabBarSurface: 'rgba(255, 255, 255, 0.82)',
+  tabBarBorder: 'rgba(255, 255, 255, 0.6)',
 } as const;
 
 // darkColors maps semantic app tokens to a warm Sorbet dark appearance.
@@ -84,6 +90,8 @@ export const darkColors: AppColorTokens = {
   blobGrape: '#6e4df0',
   blobBubblegum: '#c94f7c',
   blobMint: '#1f8f78',
+  tabBarSurface: 'rgba(46, 36, 64, 0.82)',
+  tabBarBorder: 'rgba(255, 255, 255, 0.08)',
 } as const;
 
 // AppColors is the color-token contract accepted by createStyles.

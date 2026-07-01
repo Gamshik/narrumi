@@ -1,7 +1,8 @@
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { ScrollView, Switch, Text, View } from 'react-native';
+import { JellyPressable } from '../shared';
 
 import {
   cefrLevels,
@@ -242,7 +243,7 @@ function AccountSync({
         )}
 
         <View style={styles.practiceActions}>
-          <Pressable
+          <JellyPressable
             disabled={isSyncing}
             onPress={() => void onSyncNow()}
             style={({ pressed }) => [
@@ -254,8 +255,9 @@ function AccountSync({
             <Text style={styles.primaryButtonText}>
               {isSyncing ? 'Syncing...' : 'Sync Now'}
             </Text>
-          </Pressable>
-          <Pressable
+          </JellyPressable>
+          <JellyPressable
+            containerStyle={styles.flexOne}
             onPress={() => void onSignOut()}
             style={({ pressed }) => [
               styles.secondaryButton,
@@ -263,7 +265,7 @@ function AccountSync({
             ]}
           >
             <Text style={styles.secondaryButtonText}>Sign Out</Text>
-          </Pressable>
+          </JellyPressable>
         </View>
       </View>
     </>
@@ -395,7 +397,7 @@ function GenreDefault({
       </View>
       <View style={styles.choiceRow}>
         {learningGenres.map((genre) => (
-          <Pressable
+          <JellyPressable
             key={genre}
             onPress={() => onChangeGenre(genre)}
             style={[
@@ -411,7 +413,7 @@ function GenreDefault({
             >
               {genreLabels[genre]}
             </Text>
-          </Pressable>
+          </JellyPressable>
         ))}
       </View>
     </View>
@@ -457,7 +459,8 @@ function StepSetting({
         <View style={[styles.meterFill, { width }]} />
       </View>
       <View style={styles.stepperRow}>
-        <Pressable
+        <JellyPressable
+          containerStyle={styles.flexOne}
           disabled={value <= min}
           onPress={() => onChange(value - 1)}
           style={[
@@ -466,8 +469,9 @@ function StepSetting({
           ]}
         >
           <Text style={styles.stepperButtonText}>-</Text>
-        </Pressable>
-        <Pressable
+        </JellyPressable>
+        <JellyPressable
+          containerStyle={styles.flexOne}
           disabled={value >= max}
           onPress={() => onChange(value + 1)}
           style={[
@@ -476,7 +480,7 @@ function StepSetting({
           ]}
         >
           <Text style={styles.stepperButtonText}>+</Text>
-        </Pressable>
+        </JellyPressable>
       </View>
     </View>
   );

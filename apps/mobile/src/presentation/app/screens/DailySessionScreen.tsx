@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
+import { JellyPressable } from '../shared';
 
 import {
   learningGenres,
@@ -301,12 +302,12 @@ export function DailySessionScreen({
           <Text style={styles.appCategory}>NEXT EPISODE</Text>
           <Text style={styles.largeTitle}>{series?.title ?? 'Story Setup'}</Text>
         </View>
-        <Pressable
+        <JellyPressable
           onPress={onExit}
           style={({ pressed }) => [styles.smallPrimaryButton, pressed && styles.pressed]}
         >
           <Text style={styles.smallPrimaryButtonText}>Exit</Text>
-        </Pressable>
+        </JellyPressable>
       </View>
 
       {errorMessage ? (
@@ -414,7 +415,7 @@ function StoryWordsPanel({
         <Text style={styles.settingValue}>
           Today: {selectionState.todayWordSet.wordIds.length}
         </Text>
-        <Pressable
+        <JellyPressable
           disabled={isUpdating}
           onPress={onShuffleWords}
           style={({ pressed }) => [
@@ -424,7 +425,7 @@ function StoryWordsPanel({
           ]}
         >
           <Text style={styles.smallPrimaryButtonText}>Shuffle</Text>
-        </Pressable>
+        </JellyPressable>
       </View>
       {selectionState.words.map((word) => (
         <View key={word.id} style={styles.storyWordRow}>
@@ -438,7 +439,7 @@ function StoryWordsPanel({
             </Text>
           </View>
           <View style={styles.rowActionStack}>
-            <Pressable
+            <JellyPressable
               disabled={isUpdating}
               onPress={() => onPickWord(word.id)}
               style={({ pressed }) => [
@@ -448,8 +449,8 @@ function StoryWordsPanel({
               ]}
             >
               <Text style={styles.smallPrimaryButtonText}>Pick</Text>
-            </Pressable>
-            <Pressable
+            </JellyPressable>
+            <JellyPressable
               disabled={isUpdating}
               onPress={() => onReplaceWord(word.id)}
               style={({ pressed }) => [
@@ -459,7 +460,7 @@ function StoryWordsPanel({
               ]}
             >
               <Text style={styles.secondarySmallButtonText}>Random</Text>
-            </Pressable>
+            </JellyPressable>
           </View>
         </View>
       ))}
@@ -485,7 +486,7 @@ function GenreSelection({
       <Text style={styles.actionTitle}>Genre</Text>
       <View style={styles.choiceRow}>
         {learningGenres.map((genre) => (
-          <Pressable
+          <JellyPressable
             key={genre}
             onPress={() => onSelectGenre(genre)}
             style={({ pressed }) => [
@@ -502,7 +503,7 @@ function GenreSelection({
             >
               {genreLabels[genre]}
             </Text>
-          </Pressable>
+          </JellyPressable>
         ))}
       </View>
     </View>
@@ -544,7 +545,7 @@ function GenerationPanel({
           while the device is offline.
         </Text>
       </View>
-      <Pressable
+      <JellyPressable
         disabled={!isOnline}
         onPress={onGenerateEpisode}
         style={({ pressed }) => [
@@ -554,7 +555,7 @@ function GenerationPanel({
         ]}
       >
         <Text style={styles.primaryButtonText}>Generate Episode</Text>
-      </Pressable>
+      </JellyPressable>
     </View>
   );
 }

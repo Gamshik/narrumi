@@ -6,12 +6,12 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { JellyPressable } from '../shared';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -277,9 +277,9 @@ export function SeriesDetailsScreen({
     return (
       <View style={styles.screenContent}>
         <View style={styles.homeHeader}>
-          <Pressable onPress={onBack} style={styles.smallPrimaryButton}>
+          <JellyPressable onPress={onBack} style={styles.smallPrimaryButton}>
             <Text style={styles.smallPrimaryButtonText}>Back</Text>
-          </Pressable>
+          </JellyPressable>
         </View>
         <View style={styles.stateMessage}>
           <Text style={styles.stateMessageTitle}>{errorMessage}</Text>
@@ -306,15 +306,15 @@ export function SeriesDetailsScreen({
   return (
     <ScrollView contentContainerStyle={styles.screenContent}>
       <View style={styles.homeHeader}>
-        <Pressable onPress={onBack} style={styles.smallPrimaryButton}>
+        <JellyPressable onPress={onBack} style={styles.smallPrimaryButton}>
           <Text style={styles.smallPrimaryButtonText}>Back</Text>
-        </Pressable>
-        <Pressable
+        </JellyPressable>
+        <JellyPressable
           onPress={() => setIsSetupOpen(true)}
           style={styles.secondarySmallButton}
         >
           <Text style={styles.secondarySmallButtonText}>Setup</Text>
-        </Pressable>
+        </JellyPressable>
       </View>
 
       <View style={styles.seriesDetailsHeader}>
@@ -327,7 +327,7 @@ export function SeriesDetailsScreen({
         <Text style={styles.secondaryText}>{state.series.premise}</Text>
       </View>
 
-      <Pressable
+      <JellyPressable
         onPress={() => {
           if (latestEpisode && !latestEpisode.isComplete) {
             onContinueEpisode(latestEpisode.id);
@@ -360,7 +360,7 @@ export function SeriesDetailsScreen({
         <Text style={styles.bannerButtonText}>
           {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
         </Text>
-      </Pressable>
+      </JellyPressable>
 
       <View style={styles.settingsCard}>
         <Text style={styles.actionTitle}>Series Memory</Text>
@@ -372,7 +372,7 @@ export function SeriesDetailsScreen({
       </View>
 
       {state.episodes.length > 0 ? (
-        <Pressable
+        <JellyPressable
           onPress={() => onReadSeries(state.series.id)}
           style={({ pressed }) => [
             styles.primaryButton,
@@ -380,7 +380,7 @@ export function SeriesDetailsScreen({
           ]}
         >
           <Text style={styles.primaryButtonText}>Read Full Series</Text>
-        </Pressable>
+        </JellyPressable>
       ) : null}
 
       <Text style={styles.sectionLabel}>EPISODE HISTORY</Text>
@@ -502,11 +502,11 @@ function SeriesSetupModal({
         style={[styles.modalScreen, { paddingTop: topInset }]}
       >
         <View style={styles.modalHeader}>
-          <Pressable onPress={onClose} style={styles.modalTextButton}>
+          <JellyPressable onPress={onClose} style={styles.modalTextButton}>
             <Text style={styles.modalCancel}>Close</Text>
-          </Pressable>
+          </JellyPressable>
           <Text style={styles.modalTitle}>Series Setup</Text>
-          <Pressable
+          <JellyPressable
             disabled={!canEdit || isBusy}
             onPress={onSave}
             style={styles.modalTextButton}
@@ -519,7 +519,7 @@ function SeriesSetupModal({
             >
               Save
             </Text>
-          </Pressable>
+          </JellyPressable>
         </View>
         <ScrollView
           ref={scrollViewRef}
@@ -653,7 +653,7 @@ function SeriesSetupModal({
             onChangeText={(title) => updateForm({ title })}
           />
           {canEdit ? (
-            <Pressable
+            <JellyPressable
               disabled={isBusy}
               onPress={onGenerate}
               style={({ pressed }) => [
@@ -665,7 +665,7 @@ function SeriesSetupModal({
               <Text style={styles.primaryButtonText}>
                 {isGenerating ? 'Generating...' : 'Generate'}
               </Text>
-            </Pressable>
+            </JellyPressable>
           ) : (
             <View style={styles.stateMessage}>
               <Text style={styles.stateMessageTitle}>
@@ -804,7 +804,7 @@ function CharacterProfilesEditor({
           <View style={styles.formLabelRow}>
             <Text style={styles.sectionLabel}>Dialogue name</Text>
             {isEditable ? (
-              <Pressable
+              <JellyPressable
                 onPress={() => removeProfile(index)}
                 style={({ pressed }) => [
                   styles.fieldActionButton,
@@ -812,7 +812,7 @@ function CharacterProfilesEditor({
                 ]}
               >
                 <Text style={styles.fieldActionText}>Remove</Text>
-              </Pressable>
+              </JellyPressable>
             ) : null}
           </View>
           <TextInput
@@ -841,7 +841,7 @@ function CharacterProfilesEditor({
         </View>
       ))}
       {isEditable ? (
-        <Pressable
+        <JellyPressable
           onPress={addProfile}
           style={({ pressed }) => [
             styles.secondarySmallButton,
@@ -849,7 +849,7 @@ function CharacterProfilesEditor({
           ]}
         >
           <Text style={styles.secondarySmallButtonText}>Add Character</Text>
-        </Pressable>
+        </JellyPressable>
       ) : null}
     </View>
   );
@@ -885,7 +885,7 @@ function SetupChoiceGroup<T extends string>({
       <Text style={styles.sectionLabel}>{label}</Text>
       <View style={styles.choiceRow}>
         {options.map((option) => (
-          <Pressable
+          <JellyPressable
             disabled={isDisabled}
             key={option}
             onPress={() => onSelect(option)}
@@ -904,7 +904,7 @@ function SetupChoiceGroup<T extends string>({
             >
               {labels?.[option] ?? option}
             </Text>
-          </Pressable>
+          </JellyPressable>
         ))}
       </View>
     </View>
@@ -1010,7 +1010,7 @@ function EpisodeHistoryRow({
   return (
     <View style={styles.seriesRow}>
       <View style={styles.flex}>
-        <Pressable
+        <JellyPressable
           onPress={() => onOpenEpisode(episode.id)}
           style={({ pressed }) => [pressed && styles.pressed]}
         >
@@ -1025,16 +1025,16 @@ function EpisodeHistoryRow({
               ? `${episode.interactions.length} DECISIONS - COMPLETE`
               : `${episode.interactions.length} DECISIONS - IN PROGRESS`}
           </Text>
-        </Pressable>
+        </JellyPressable>
       </View>
       <View style={styles.rowActionStack}>
-        <Pressable
+        <JellyPressable
           onPress={() => onOpenEpisode(episode.id)}
           style={({ pressed }) => [styles.smallPrimaryButton, pressed && styles.pressed]}
         >
           <Text style={styles.smallPrimaryButtonText}>Read</Text>
-        </Pressable>
-        <Pressable
+        </JellyPressable>
+        <JellyPressable
           disabled={isDeleting}
           onPress={() => onDeleteEpisode(episode)}
           style={({ pressed }) => [
@@ -1044,7 +1044,7 @@ function EpisodeHistoryRow({
           ]}
         >
           <Text style={styles.destructiveIconText}>Delete</Text>
-        </Pressable>
+        </JellyPressable>
       </View>
     </View>
   );

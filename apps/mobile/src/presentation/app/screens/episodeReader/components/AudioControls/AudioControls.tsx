@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { JellyPressable } from '../../../../shared';
 
 import type { AppStyles } from '../../../../types';
 
@@ -33,7 +34,7 @@ export function AudioControls({
           Sentence {currentSentenceIndex + 1} of {sentenceCount}
         </Text>
       </View>
-      <Pressable
+      <JellyPressable
         onPress={onPlayPause}
         style={({ pressed }) => [
           styles.audioPlayButton,
@@ -42,7 +43,7 @@ export function AudioControls({
         ]}
       >
         <Text style={styles.audioPlayButtonText}>{isPlaying ? 'Pause' : 'Play'}</Text>
-      </Pressable>
+      </JellyPressable>
     </View>
   );
 }

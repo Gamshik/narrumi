@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
+import { JellyPressable } from '../../../../shared';
 
 import type { VocabularyItem } from '@domain/index';
 import type { AppStyles } from '@presentation/app/types';
@@ -48,12 +49,12 @@ export function DictionaryPickerPanel({
             catalog and choose a word.
           </Text>
         </View>
-        <Pressable
+        <JellyPressable
           onPress={onClose}
           style={({ pressed }) => [styles.secondarySmallButton, pressed && styles.pressed]}
         >
           <Text style={styles.secondarySmallButtonText}>Close</Text>
-        </Pressable>
+        </JellyPressable>
       </View>
       <View style={styles.searchBar}>
         <Text style={styles.searchIcon}>⌕</Text>
@@ -67,9 +68,9 @@ export function DictionaryPickerPanel({
           value={search}
         />
         {search.length > 0 ? (
-          <Pressable onPress={() => onChangeSearch('')} hitSlop={10}>
+          <JellyPressable onPress={() => onChangeSearch('')} hitSlop={10}>
             <Text style={styles.clearSearch}>×</Text>
-          </Pressable>
+          </JellyPressable>
         ) : null}
       </View>
       <Text style={styles.secondaryText}>
@@ -86,7 +87,7 @@ export function DictionaryPickerPanel({
               {word.examples[0] ?? 'No local example'}
             </Text>
           </View>
-          <Pressable
+          <JellyPressable
             disabled={isChoosing}
             onPress={() => onChooseWord(word.id)}
             style={({ pressed }) => [
@@ -96,7 +97,7 @@ export function DictionaryPickerPanel({
             ]}
           >
             <Text style={styles.smallPrimaryButtonText}>Choose</Text>
-          </Pressable>
+          </JellyPressable>
         </View>
       ))}
     </View>

@@ -3,13 +3,11 @@ import type { ReactElement } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   Text,
   TextInput,
   View,
 } from 'react-native';
-
-import { RouteScreen } from '../../shared';
+import { JellyPressable, RouteScreen } from '../../shared';
 import { useAppStyles } from '../../useAppStyles';
 import { useAuthSession } from '../AuthProvider';
 
@@ -150,7 +148,7 @@ export function AuthenticationScreen(): ReactElement {
               </View>
             ) : null}
 
-            <Pressable
+            <JellyPressable
               disabled={isDisabled}
               onPress={() => void submit()}
               style={({ pressed }) => [
@@ -166,7 +164,7 @@ export function AuthenticationScreen(): ReactElement {
                     ? 'Sign In'
                     : 'Create Account'}
               </Text>
-            </Pressable>
+            </JellyPressable>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -191,7 +189,8 @@ function AuthModeButton({
   readonly onPress: () => void;
 }): ReactElement {
   return (
-    <Pressable
+    <JellyPressable
+      containerStyle={styles.flexOne}
       onPress={onPress}
       style={({ pressed }) => [
         styles.authModeButton,
@@ -207,6 +206,6 @@ function AuthModeButton({
       >
         {label}
       </Text>
-    </Pressable>
+    </JellyPressable>
   );
 }

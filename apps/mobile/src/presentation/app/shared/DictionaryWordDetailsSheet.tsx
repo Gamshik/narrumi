@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { JellyPressable } from './JellyPressable';
 
 import type { VocabularyItem } from '@domain/index';
 
@@ -38,9 +39,9 @@ export function DictionaryWordDetailsSheet({
             {word.phonetics.us ?? word.phonetics.uk ?? 'No phonetics'}
           </Text>
         </View>
-        <Pressable onPress={onClose} hitSlop={12}>
+        <JellyPressable onPress={onClose} hitSlop={12}>
           <Text style={styles.closeButton}>×</Text>
-        </Pressable>
+        </JellyPressable>
       </View>
       <View style={styles.sheetDivider} />
       <Text style={styles.sectionLabel}>PART OF SPEECH</Text>
