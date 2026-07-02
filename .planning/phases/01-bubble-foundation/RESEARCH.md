@@ -362,17 +362,15 @@ const floatingBottom = Math.max(insets.bottom, 12) + 6;
 | A2 | Floating tab bar can cover final content on small iPhones if scroll padding is inconsistent. | Common Pitfalls | Planner may skip manual safe-area/content-end verification. |
 | A3 | Accessibility can be lost if wrapper prop types hide native Pressable props. | Common Pitfalls | Planner may miss role/state/label forwarding tasks. |
 
-## Open Questions
+## Resolved Questions
 
-1. **Should Phase 1 add component-level tests for presentation primitives?**
-   - What we know: Current mobile tests use Node `tsx --test` and do not include React Native Testing Library. [VERIFIED: .planning/codebase/TESTING.md]
-   - What's unclear: Whether adding a UI test renderer dependency is acceptable for this presentation milestone.
-   - Recommendation: Do not add a test dependency in Phase 1; rely on TypeScript contracts, lint, build, and targeted pure helper tests if new token helpers contain logic. [ASSUMED]
+1. **Component-level tests for presentation primitives**
+   - Resolution: Phase 1 must not add a React Native component test renderer or other new UI test dependency. Current mobile tests use Node `tsx --test`, and the existing plans rely on TypeScript contracts, lint, build, manual visual/interaction checks, and pure helper tests where logic is introduced. [VERIFIED: .planning/codebase/TESTING.md] [VERIFIED: 01-01-PLAN.md] [VERIFIED: 01-03-PLAN.md]
+   - Plan impact: `layout.test.ts` covers safe-area/tab-bar helper behavior because that helper contains deterministic branching/calculation logic. Shared presentation primitives are validated through lint, typecheck, build, public export checks, manual visual review, and integration consumers rather than component render tests. [VERIFIED: 01-01-PLAN.md] [VERIFIED: 01-VALIDATION.md]
 
-2. **Should existing `MobileApp.styles.ts` be split now?**
-   - What we know: The file centralizes many screen styles and is large. [VERIFIED: codebase grep]
-   - What's unclear: How much screen-level style churn Phase 2 and Phase 3 will create.
-   - Recommendation: Extract shared primitives and token helpers only; leave full screen style splitting for screen refresh phases unless a style block is directly replaced by a primitive. [VERIFIED: .planning/ROADMAP.md]
+2. **Scope of `MobileApp.styles.ts` splitting**
+   - Resolution: Phase 1 extracts only shared primitives, token helpers, and style blocks directly needed by the Phase 1 Bubble foundation. It must not perform a broad screen-style decomposition of `MobileApp.styles.ts`. [VERIFIED: .planning/ROADMAP.md] [VERIFIED: 01-03-PLAN.md]
+   - Plan impact: Plan 03 may replace scattered bottom padding constants and primitive-consumer style blocks where they are directly wired to shared helpers/components, but full screen-level style splitting belongs to later screen refresh phases when those screens are changed for their own requirements. [VERIFIED: 01-03-PLAN.md]
 
 ## Environment Availability
 
