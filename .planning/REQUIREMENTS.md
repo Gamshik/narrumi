@@ -8,7 +8,7 @@
 ### Visual System
 
 - [x] **VIS-01**: User sees Sorbet-style gradient backgrounds and soft floating color fields consistently on top-level app screens.
-- [ ] **VIS-02**: User sees primary content grouped into rounded bubble surfaces, pill controls, compact badges, and soft cards matching the `design/bubble` references.
+- [x] **VIS-02**: User sees primary content grouped into rounded bubble surfaces, pill controls, compact badges, and soft cards matching the `design/bubble` references.
 - [x] **VIS-03**: User can use the refreshed UI in light and dark themes without unreadable text, broken contrast, or hardcoded one-theme colors.
 - [x] **VIS-04**: User can navigate with a floating capsule tab bar that stays clear of safe areas and does not cover final scroll content.
 
@@ -59,7 +59,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | VIS-01 | Phase 1 | Complete |
-| VIS-02 | Phase 1 | Pending |
+| VIS-02 | Phase 1 | Complete |
 | VIS-03 | Phase 1 | Complete |
 | VIS-04 | Phase 1 | Complete |
 | MOT-01 | Phase 1 | Complete |
