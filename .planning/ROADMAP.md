@@ -9,7 +9,7 @@ This milestone finishes the partially implemented Bubble/Sorbet design across th
 
 | Phase | Name | Goal | Requirements |
 |-------|------|------|--------------|
-| 1 | Bubble Foundation | Consolidate shared Sorbet tokens, surfaces, navigation, and tactile press behavior (2/3 plans complete; in progress) | VIS-01, VIS-02, VIS-03, VIS-04, MOT-01, MOT-02, QUAL-01 |
+| 1 | Bubble Foundation | Consolidate shared Sorbet tokens, surfaces, navigation, and tactile press behavior (3/3 plans complete; complete 2026-07-02) | VIS-01, VIS-02, VIS-03, VIS-04, MOT-01, MOT-02, QUAL-01 |
 | 2 | Shell And Series Screens | Refresh authentication, home, series setup, series details, and settings screens | SCR-01, SCR-02, SCR-03, SCR-04, SCR-09, MOT-03 |
 | 3 | Learning Screens And Verification | Refresh reader, Story Words/session, dictionary, translation sheet, and run full verification | SCR-05, SCR-06, SCR-07, SCR-08, QUAL-02, QUAL-03, QUAL-04 |
 
