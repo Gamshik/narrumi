@@ -1,7 +1,16 @@
 import { StyleSheet } from "react-native";
 
 import type { AppColors } from "@presentation/theme/tokens";
-import { fontFamilies, radii, shadows } from "@presentation/theme";
+import {
+  fontFamilies,
+  getFloatingTabBarContentPadding,
+  radii,
+  shadows,
+  tabBarLayout,
+} from "@presentation/theme";
+
+// floatingTabContentPadding is the shared no-inset baseline for tab-safe scroll endings.
+const floatingTabContentPadding: number = getFloatingTabBarContentPadding(0);
 
 // createAppStylesImpl keeps the exact StyleSheet key contract inferred in one place.
 function createAppStylesImpl(colors: AppColors) {
@@ -82,8 +91,16 @@ function createAppStylesImpl(colors: AppColors) {
       fontWeight: "600",
       lineHeight: 18,
     },
-    screenContent: { gap: 18, padding: 20, paddingBottom: 118 },
-    readerContent: { gap: 14, padding: 12, paddingBottom: 96 },
+    screenContent: {
+      gap: 18,
+      padding: 20,
+      paddingBottom: floatingTabContentPadding,
+    },
+    readerContent: {
+      gap: 14,
+      padding: 12,
+      paddingBottom: floatingTabContentPadding,
+    },
     modalScreen: { flex: 1, backgroundColor: colors.backgroundPrimary },
     modalContent: { gap: 16, padding: 20, paddingTop: 16, paddingBottom: 36 },
     modalHeader: {
@@ -888,7 +905,10 @@ function createAppStylesImpl(colors: AppColors) {
       paddingHorizontal: 20,
       paddingBottom: 8,
     },
-    wordList: { paddingHorizontal: 20, paddingBottom: 108 },
+    wordList: {
+      paddingHorizontal: 20,
+      paddingBottom: floatingTabContentPadding,
+    },
     wordRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -976,9 +996,9 @@ function createAppStylesImpl(colors: AppColors) {
     },
     tabBar: {
       position: "absolute",
-      left: 16,
-      right: 16,
-      height: 64,
+      left: tabBarLayout.horizontalMargin,
+      right: tabBarLayout.horizontalMargin,
+      height: tabBarLayout.height,
       borderRadius: radii.pill,
       overflow: "hidden",
       flexDirection: "row",

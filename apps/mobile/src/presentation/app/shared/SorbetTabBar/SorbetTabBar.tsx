@@ -5,7 +5,8 @@ import type { ReactElement } from 'react';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { darkColors, lightColors } from '@presentation/theme/tokens';
+import { floatingTabBarMetrics } from '@presentation/theme/layout';
+import { darkColors, lightColors, motion } from '@presentation/theme/tokens';
 
 import { useAppStyles } from '../../useAppStyles';
 import { JellyPressable } from '../JellyPressable';
@@ -29,11 +30,14 @@ export function SorbetTabBar({
   const { isDark, styles } = useAppStyles();
   const insets = useSafeAreaInsets();
   const colors = isDark ? darkColors : lightColors;
-  // bottom lifts the pill clear of the home indicator while keeping it floating.
-  const bottom = Math.max(insets.bottom, 12) + 6;
+  // tabMetrics keeps navigation placement aligned with shared scroll padding.
+  const tabMetrics = floatingTabBarMetrics(insets);
 
   return (
-    <View pointerEvents="box-none" style={[styles.tabBar, { bottom }]}>
+    <View
+      pointerEvents="box-none"
+      style={[styles.tabBar, { bottom: tabMetrics.bottomOffset }]}
+    >
       <BlurView
         intensity={28}
         pointerEvents="none"
@@ -69,7 +73,7 @@ export function SorbetTabBar({
             containerStyle={styles.tabItemContainer}
             key={route.key}
             onPress={handlePress}
-            scaleTo={0.88}
+            scaleTo={motion.tabPressScale}
             style={styles.tabItem}
           >
             {isFocused ? (
