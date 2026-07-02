@@ -1,10 +1,11 @@
 import type { ReactElement } from 'react';
-import { Text, View } from 'react-native';
-import { JellyPressable } from './JellyPressable';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type { VocabularyItem } from '@domain/index';
+import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 
 import type { AppStyles } from '../types';
+import { BubbleSheet } from './BubbleSheet';
 
 // DictionaryWordDetailsSheetProps defines the native sheet content contract.
 type DictionaryWordDetailsSheetProps = {
@@ -22,37 +23,57 @@ export function DictionaryWordDetailsSheet({
   word,
   onClose,
 }: DictionaryWordDetailsSheetProps): ReactElement {
+  // colors resolves the active light/dark token set for the shared sheet frame.
+  const colors: AppColors = resolveColorsFromStyles(styles);
+
   if (!word) {
     return (
-      <View style={styles.sheetContent}>
-        <Text style={styles.stateMessageTitle}>Word not found.</Text>
-      </View>
+      <BubbleSheet
+        closeAccessibilityLabel="Close dictionary details"
+        colors={colors}
+        onClose={onClose}
+        showScrim={false}
+        title="Dictionary"
+      >
+        <View style={styles.sheetContent}>
+          <Text style={styles.stateMessageTitle}>Word not found.</Text>
+        </View>
+      </BubbleSheet>
     );
   }
 
   return (
-    <View style={styles.sheetContent}>
-      <View style={styles.detailsHeader}>
-        <View style={styles.flex}>
-          <Text style={styles.detailsTitle}>{word.word}</Text>
-          <Text style={styles.phonetics}>
-            {word.phonetics.us ?? word.phonetics.uk ?? 'No phonetics'}
-          </Text>
-        </View>
-        <JellyPressable onPress={onClose} hitSlop={12}>
-          <Text style={styles.closeButton}>×</Text>
-        </JellyPressable>
-      </View>
-      <View style={styles.sheetDivider} />
-      <Text style={styles.sectionLabel}>PART OF SPEECH</Text>
-      <Text style={styles.detailsText}>{word.partOfSpeech}</Text>
-      <Text style={styles.sectionLabel}>OXFORD EXAMPLES</Text>
-      {/* Keep the native form sheet content-sized instead of turning it into a reader. */}
-      {word.examples.slice(0, 3).map((example) => (
-        <Text key={example} style={styles.exampleText}>
-          • {example}
+    <BubbleSheet
+      closeAccessibilityLabel="Close dictionary details"
+      colors={colors}
+      onClose={onClose}
+      showScrim={false}
+      title={word.word}
+    >
+      <View style={styles.sheetContent}>
+        <Text style={styles.phonetics}>
+          {word.phonetics.us ?? word.phonetics.uk ?? 'No phonetics'}
         </Text>
-      ))}
-    </View>
+        <View style={styles.sheetDivider} />
+        <Text style={styles.sectionLabel}>PART OF SPEECH</Text>
+        <Text style={styles.detailsText}>{word.partOfSpeech}</Text>
+        <Text style={styles.sectionLabel}>OXFORD EXAMPLES</Text>
+        {/* Keep the native form sheet content-sized instead of turning it into a reader. */}
+        {word.examples.slice(0, 3).map((example) => (
+          <Text key={example} style={styles.exampleText}>
+            • {example}
+          </Text>
+        ))}
+      </View>
+    </BubbleSheet>
   );
+}
+
+// resolveColorsFromStyles preserves the sheet props while feeding BubbleSheet tokens.
+function resolveColorsFromStyles(styles: AppStyles): AppColors {
+  const safeAreaStyle = StyleSheet.flatten(styles.safeArea);
+
+  return safeAreaStyle.backgroundColor === darkColors.backgroundPrimary
+    ? darkColors
+    : lightColors;
 }
