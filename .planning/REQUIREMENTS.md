@@ -7,10 +7,10 @@
 
 ### Visual System
 
-- [ ] **VIS-01**: User sees Sorbet-style gradient backgrounds and soft floating color fields consistently on top-level app screens.
+- [x] **VIS-01**: User sees Sorbet-style gradient backgrounds and soft floating color fields consistently on top-level app screens.
 - [ ] **VIS-02**: User sees primary content grouped into rounded bubble surfaces, pill controls, compact badges, and soft cards matching the `design/bubble` references.
-- [ ] **VIS-03**: User can use the refreshed UI in light and dark themes without unreadable text, broken contrast, or hardcoded one-theme colors.
-- [ ] **VIS-04**: User can navigate with a floating capsule tab bar that stays clear of safe areas and does not cover final scroll content.
+- [x] **VIS-03**: User can use the refreshed UI in light and dark themes without unreadable text, broken contrast, or hardcoded one-theme colors.
+- [x] **VIS-04**: User can navigate with a floating capsule tab bar that stays clear of safe areas and does not cover final scroll content.
 
 ### Screen Alignment
 
@@ -26,13 +26,13 @@
 
 ### Motion And Feedback
 
-- [ ] **MOT-01**: User receives a subtle spring-like scale response when pressing primary buttons, secondary buttons, chips, list rows, tab items, and story choices.
-- [ ] **MOT-02**: User sees sheets, active tab highlights, and selected states appear with minimal motion that feels soft and does not distract from reading.
+- [x] **MOT-01**: User receives a subtle spring-like scale response when pressing primary buttons, secondary buttons, chips, list rows, tab items, and story choices.
+- [x] **MOT-02**: User sees sheets, active tab highlights, and selected states appear with minimal motion that feels soft and does not distract from reading.
 - [ ] **MOT-03**: User sees success, warning, disabled, loading, and offline states expressed in the Bubble/Sorbet style without losing accessibility.
 
 ### Architecture And Quality
 
-- [ ] **QUAL-01**: Developers can reuse shared presentation primitives for bubble surfaces, pressable motion, floating tabs, pills, badges, and sheets instead of duplicating per-screen styling.
+- [x] **QUAL-01**: Developers can reuse shared presentation primitives for bubble surfaces, pressable motion, floating tabs, pills, badges, and sheets instead of duplicating per-screen styling.
 - [ ] **QUAL-02**: Presentation code remains thin and does not move AI generation, persistence, sync, Story Words ranking, or domain rules into React components.
 - [ ] **QUAL-03**: User-facing server-only actions still show explicit offline states after the visual refresh.
 - [ ] **QUAL-04**: The refreshed app passes the documented lint, typecheck, build, and relevant test commands.
@@ -58,13 +58,13 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIS-01 | Phase 1 | Pending |
+| VIS-01 | Phase 1 | Complete |
 | VIS-02 | Phase 1 | Pending |
-| VIS-03 | Phase 1 | Pending |
-| VIS-04 | Phase 1 | Pending |
-| MOT-01 | Phase 1 | Pending |
-| MOT-02 | Phase 1 | Pending |
-| QUAL-01 | Phase 1 | Pending |
+| VIS-03 | Phase 1 | Complete |
+| VIS-04 | Phase 1 | Complete |
+| MOT-01 | Phase 1 | Complete |
+| MOT-02 | Phase 1 | Complete |
+| QUAL-01 | Phase 1 | Complete |
 | SCR-01 | Phase 2 | Pending |
 | SCR-02 | Phase 2 | Pending |
 | SCR-03 | Phase 2 | Pending |
@@ -80,6 +80,7 @@
 | QUAL-04 | Phase 3 | Pending |
 
 **Coverage:**
+
 - v1.0 requirements: 20 total
 - Mapped to phases: 20
 - Unmapped: 0
