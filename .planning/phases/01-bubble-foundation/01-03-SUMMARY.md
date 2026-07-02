@@ -112,7 +112,7 @@ Each task was committed atomically:
 
 1. **Task 1: Wire route and tab spacing to shared layout metrics** - `69ec2f8` (`feat`)
 2. **Task 2: Align existing badge and sheet consumers with primitives** - `056bad8` (`feat`)
-3. **Task 3: Publish shared exports and run phase verification** - `8635006` (`feat`)
+3. **Task 3: Publish shared exports and run phase verification** - `cf3891b` (`feat`)
 
 ## Files Created/Modified
 
@@ -181,7 +181,7 @@ Phase 1 is complete from the implementation side. Phase 2 can import the Bubble 
 - Found `apps/mobile/src/presentation/app/shared/index.ts`.
 - Found task commit `69ec2f8`.
 - Found task commit `056bad8`.
-- Found task commit `8635006`.
+- Found task commit `cf3891b`.
 - Confirmed no tracked files were deleted by task commits.
 
 ---
