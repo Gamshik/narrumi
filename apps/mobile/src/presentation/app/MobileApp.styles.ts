@@ -4,6 +4,7 @@ import type { AppColors } from "@presentation/theme/tokens";
 import {
   fontFamilies,
   getFloatingTabBarContentPadding,
+  motion,
   radii,
   shadows,
   tabBarLayout,
@@ -384,7 +385,7 @@ function createAppStylesImpl(colors: AppColors) {
       marginBottom: 3,
     },
     rowChevron: { color: colors.labelTertiary, fontSize: 28 },
-    pressed: { opacity: 0.92 },
+    pressed: { opacity: motion.pressedOpacity },
     settingsCard: {
       gap: 14,
       padding: 16,

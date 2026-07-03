@@ -226,6 +226,8 @@ export const tabBarLayout: AppTabBarLayoutTokens = {
 type AppMotionTokens = {
   // pressScale is the standard scale applied while primary controls are pressed.
   readonly pressScale: number;
+  // pressedOpacity is the shared visual softening applied during active press state.
+  readonly pressedOpacity: number;
   // tabPressScale is the stronger press scale used by compact tab items.
   readonly tabPressScale: number;
   // selectedScale is the subtle lift applied to selected controls and tabs.
@@ -240,7 +242,8 @@ type AppMotionTokens = {
 
 // motion stores spring-like constants shared by pressable and selected states.
 export const motion: AppMotionTokens = {
-  pressScale: 0.96,
+  pressScale: 0.93,
+  pressedOpacity: 0.84,
   tabPressScale: 0.88,
   selectedScale: 1.05,
   sheetEnterScale: 0.98,

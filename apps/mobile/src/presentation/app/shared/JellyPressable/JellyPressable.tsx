@@ -9,6 +9,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { motion } from '@presentation/theme';
+
 // JellyPressableProps extends Pressable with the claymorphic squish controls.
 type JellyPressableProps = PressableProps & {
   // children is the pressable content (text, icons, nested views).
@@ -28,7 +30,7 @@ export function JellyPressable({
   containerStyle,
   onPressIn,
   onPressOut,
-  scaleTo = 0.95,
+  scaleTo = motion.pressScale,
   ...pressableProps
 }: JellyPressableProps): ReactElement {
   // scale animates the surface down on touch and springs back with a soft
@@ -40,8 +42,8 @@ export function JellyPressable({
     Animated.spring(scale, {
       toValue: scaleTo,
       useNativeDriver: true,
-      speed: 45,
-      bounciness: 0,
+      speed: motion.springSpeed,
+      bounciness: motion.springBounciness,
     }).start();
     onPressIn?.(event);
   };
