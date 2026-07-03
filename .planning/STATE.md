@@ -4,15 +4,15 @@ milestone: v1.0
 milestone_name: Bubble/Sorbet UI refresh
 current_phase: 2
 status: executing
-stopped_at: Completed 01-bubble-foundation-03-PLAN.md
-last_updated: "2026-07-03T15:17:11.816Z"
-last_activity: 2026-07-02
-last_activity_desc: Completed Phase 1 Plan 03 Bubble/Sorbet consumer wiring
+stopped_at: Completed 01-bubble-foundation-04-PLAN.md
+last_updated: "2026-07-03T15:27:18.000Z"
+last_activity: 2026-07-03
+last_activity_desc: Completed Phase 1 Plan 04 Bubble foundation gap closure
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 33
 current_phase_name: Shell And Series Screens
 ---
@@ -24,7 +24,7 @@ current_phase_name: Shell And Series Screens
 Phase: Phase 2: Shell And Series Screens
 Plan: Phase 1 complete; next Phase 2 planning
 Status: Ready to execute
-Last activity: 2026-07-02 — Completed Phase 1 Plan 03 Bubble/Sorbet consumer wiring
+Last activity: 2026-07-03 — Completed Phase 1 Plan 04 Bubble foundation gap closure
 
 ## Project Reference
 
@@ -40,6 +40,7 @@ See: .planning/PROJECT.md (updated 2026-07-02)
 | Phase 01-bubble-foundation P01 | 3 min | 2 tasks | 4 files |
 | Phase 01-bubble-foundation P02 | 7 min | 3 tasks | 8 files |
 | Phase 01-bubble-foundation P03 | 18 min | 3 tasks | 5 files |
+| Phase 01-bubble-foundation P04 | 6 min | 3 tasks | 9 files |
 
 ## Decisions
 
@@ -50,9 +51,12 @@ See: .planning/PROJECT.md (updated 2026-07-02)
 - [Phase 01-bubble-foundation]: Use the existing pure floating tab layout helper as the single source for tab bottom offset and baseline route/list content clearance.
 - [Phase 01-bubble-foundation]: Keep LevelBadge and DictionaryWordDetailsSheet as display-data consumers while using BubblePill and BubbleSheet for reusable visual chrome.
 - [Phase 01-bubble-foundation]: Export Bubble primitives through the shared app barrel for later screen refresh phases without adding new dependencies or crossing presentation boundaries.
+- [Phase 01-bubble-foundation]: Use shared motion.pressScale and motion.pressedOpacity as the single stronger press feedback contract instead of per-screen magic values.
+- [Phase 01-bubble-foundation]: Replace Settings native Switch with a reusable BubbleToggle that receives existing ThemeProvider state and semantic colors without adding persistence or app logic.
+- [Phase 01-bubble-foundation]: Keep the dictionary route-owned native formSheet configuration unchanged and fix fitToContents by removing flex expansion from the dictionary sheet content path.
 
 ## Session
 
-**Last session:** 2026-07-02T00:45:48.854Z
-**Stopped at:** Completed 01-bubble-foundation-03-PLAN.md
+**Last session:** 2026-07-03T15:27:18Z
+**Stopped at:** Completed 01-bubble-foundation-04-PLAN.md
 **Resume file:** None
