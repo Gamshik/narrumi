@@ -35,7 +35,7 @@ export function DictionaryWordDetailsSheet({
         showScrim={false}
         title="Dictionary"
       >
-        <View style={styles.sheetContent}>
+        <View style={styles.dictionarySheetContent}>
           <Text style={styles.stateMessageTitle}>Word not found.</Text>
         </View>
       </BubbleSheet>
@@ -50,7 +50,7 @@ export function DictionaryWordDetailsSheet({
       showScrim={false}
       title={word.word}
     >
-      <View style={styles.sheetContent}>
+      <View style={styles.dictionarySheetContent}>
         <Text style={styles.phonetics}>
           {word.phonetics.us ?? word.phonetics.uk ?? 'No phonetics'}
         </Text>

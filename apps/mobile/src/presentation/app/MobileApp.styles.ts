@@ -968,6 +968,12 @@ function createAppStylesImpl(colors: AppColors) {
       paddingBottom: 0,
       backgroundColor: colors.backgroundSecondary,
     },
+    dictionarySheetContent: {
+      gap: 12,
+      padding: 20,
+      paddingBottom: 0,
+      backgroundColor: colors.backgroundSecondary,
+    },
     detailsHeader: {
       flexDirection: "row",
       alignItems: "flex-start",
