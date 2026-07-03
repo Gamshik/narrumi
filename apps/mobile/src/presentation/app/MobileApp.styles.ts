@@ -399,6 +399,9 @@ function createAppStylesImpl(colors: AppColors) {
       justifyContent: "space-between",
       gap: 12,
     },
+    settingToggle: {
+      flexShrink: 0,
+    },
     settingValue: {
       overflow: "hidden",
       borderRadius: 99,

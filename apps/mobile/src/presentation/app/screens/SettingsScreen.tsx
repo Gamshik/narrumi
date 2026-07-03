@@ -1,8 +1,8 @@
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
-import { ScrollView, Switch, Text, View } from 'react-native';
-import { JellyPressable } from '../shared';
+import { ScrollView, Text, View } from 'react-native';
+import { BubbleToggle, JellyPressable } from '../shared';
 
 import {
   cefrLevels,
@@ -15,6 +15,7 @@ import {
   MIN_STORY_WORD_GOAL,
 } from '@domain/index';
 import type { SyncLocalChangesResult } from '@application/index';
+import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 
 import { localAppServices } from '../services/localAppServices';
 import { useAuthSession } from '../auth';
@@ -275,6 +276,8 @@ function AccountSync({
 // Appearance renders the app theme toggle backed by ThemeProvider state.
 function Appearance({ styles }: SettingsSectionProps): ReactElement {
   const { isDark, setDarkMode } = useAppTheme();
+  // colors lets the reusable toggle render from semantic light/dark tokens.
+  const colors: AppColors = isDark ? darkColors : lightColors;
 
   return (
     <>
@@ -284,10 +287,16 @@ function Appearance({ styles }: SettingsSectionProps): ReactElement {
           <View style={styles.flex}>
             <Text style={styles.actionTitle}>Dark Mode</Text>
             <Text style={styles.secondaryText}>
-              Switch between the light and dark app themes.
+              Choose the light or dark app theme.
             </Text>
           </View>
-          <Switch onValueChange={setDarkMode} value={isDark} />
+          <BubbleToggle
+            accessibilityLabel="Dark Mode"
+            colors={colors}
+            onValueChange={setDarkMode}
+            style={styles.settingToggle}
+            value={isDark}
+          />
         </View>
       </View>
     </>

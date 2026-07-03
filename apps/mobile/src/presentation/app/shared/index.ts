@@ -2,6 +2,7 @@ export * from './BubbleButton';
 export * from './BubblePill';
 export * from './BubbleSheet';
 export * from './BubbleSurface';
+export * from './BubbleToggle';
 export * from './DictionaryWordDetailsSheet';
 export * from './JellyPressable';
 export * from './LevelBadge';
