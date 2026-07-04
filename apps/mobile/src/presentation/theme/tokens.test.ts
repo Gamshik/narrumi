@@ -13,4 +13,8 @@ test('motion press feedback stays visible for Bubble controls', (): void => {
     motion.pressedOpacity <= 0.86,
     'pressedOpacity must visibly soften controls while preserving readability',
   );
+  assert.ok(
+    motion.releaseSpringBounciness > 0,
+    'releaseSpringBounciness must be greater than zero to provide a tactile jelly bounce',
+  );
 });
