@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
+  Animated,
   StyleSheet,
   View,
   type AccessibilityState,
@@ -40,21 +42,29 @@ export function BubbleToggle({
   value,
   ...pressableProps
 }: BubbleToggleProps): ReactElement {
+  // animValue tracks the 0-1 transition state for native-driver animation.
+  const [animValue] = useState(() => new Animated.Value(value ? 1 : 0));
+
+  useEffect(() => {
+    Animated.spring(animValue, {
+      toValue: value ? 1 : 0,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 0,
+    }).start();
+  }, [value, animValue]);
   // resolvedAccessibilityState announces the real checked and disabled state.
   const resolvedAccessibilityState: AccessibilityState = {
     ...accessibilityState,
     checked: value,
     disabled,
   };
-  // trackStyle keeps active and inactive switch surfaces readable in both themes.
-  const trackStyle: ViewStyle = {
-    backgroundColor: value ? colors.systemGreen : colors.pillSurface,
-    borderColor: value ? colors.systemGreen : colors.pillBorder,
-  };
-  // thumbStyle slides the high-contrast knob without changing layout dimensions.
-  const thumbStyle: ViewStyle = {
-    transform: [{ translateX: value ? 22 : 0 }],
-  };
+
+  // thumbTranslateX interpolates the 0-1 state to slide the high-contrast knob.
+  const thumbTranslateX = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 22],
+  });
 
   // handlePress flips the presentation state through the caller-owned callback.
   const handlePress = (_event: GestureResponderEvent): void => {
@@ -70,11 +80,29 @@ export function BubbleToggle({
       disabled={disabled}
       onPress={handlePress}
       scaleTo={disabled ? 1 : motion.pressScale}
-      style={[styles.track, trackStyle, disabled && styles.disabled]}
+      style={[styles.track, disabled && styles.disabled]}
       containerStyle={style}
       {...pressableProps}
     >
-      <View style={[styles.thumb, thumbStyle]} />
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          styles.trackBackground,
+          { backgroundColor: colors.pillSurface, borderColor: colors.pillBorder },
+        ]}
+      />
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          styles.trackBackground,
+          {
+            backgroundColor: colors.systemGreen,
+            borderColor: colors.systemGreen,
+            opacity: animValue,
+          },
+        ]}
+      />
+      <Animated.View style={[styles.thumb, { transform: [{ translateX: thumbTranslateX }] }]} />
     </JellyPressable>
   );
 }
@@ -82,12 +110,14 @@ export function BubbleToggle({
 // styles define stable custom-switch dimensions matching native iOS proportions.
 const styles = StyleSheet.create({
   track: {
-    borderRadius: radii.pill,
-    borderWidth: 1,
     height: 34,
     justifyContent: 'center',
     padding: 2,
     width: 58,
+  },
+  trackBackground: {
+    borderRadius: radii.pill,
+    borderWidth: 1,
   },
   thumb: {
     backgroundColor: '#ffffff',
