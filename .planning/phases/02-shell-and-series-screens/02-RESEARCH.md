@@ -315,22 +315,22 @@ export function getFloatingTabBarContentPadding(
 |---|-------|---------|---------------|
 | A1 | External React Native/Expo docs would support the local patterns for Pressable, modals, safe areas, and custom tab bars. [ASSUMED] | Sources / Architecture Patterns | Low; local code and artifacts already define the accepted implementation, but planner should avoid citing unverified external docs as authority. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should Phase 2 add screenshot/device-level visual verification?**
+1. **RESOLVED: Should Phase 2 add screenshot/device-level visual verification?**
    - What we know: Current repo has no React Native component test renderer or screenshot test dependency. [VERIFIED: package.json + test file scan]
-   - What's unclear: Whether the user expects manual visual comparison against `design/bubble/*.png` in addition to lint/typecheck/test/build. [ASSUMED]
-   - Recommendation: Planner should include manual visual UAT checkpoints for auth, home, setup modal, series details, settings, light/dark theme, and small viewport tab clearance. [VERIFIED: Phase 1 validation pattern]
+   - Resolution: Do not add screenshot or component-test dependencies in Phase 2. Use blocking manual visual UAT against `design/bubble/*.png` in addition to lint/typecheck/test/build. [VERIFIED: AGENTS.md scope rules + Phase 2 plans]
+   - Planner action: Plan `02-05` includes the final manual visual checkpoint for auth, home, setup modal, series details, settings, light/dark theme, and small viewport tab clearance. [VERIFIED: 02-05-PLAN.md]
 
-2. **Should setup form UI be extracted into shared screen-local components?**
+2. **RESOLVED: Should setup form UI be extracted into shared screen-local components?**
    - What we know: Create and edit setup forms duplicate many visual patterns but differ in save behavior and editability. [VERIFIED: HomeScreen.tsx + SeriesDetailsScreen.tsx]
-   - What's unclear: Exact extraction granularity that best preserves line-of-sight in the large files. [ASSUMED]
-   - Recommendation: Extract display-only field/card groups only if it reduces duplication without importing services or owning validation. [VERIFIED: AGENTS.md + architecture/architecture_for_ai.md]
+   - Resolution: Extraction is allowed only for display-only setup field/card groups that receive typed props and callbacks. Extracted components must not import services, navigation, persistence, sync, AI, domain use cases, or validation ownership. [VERIFIED: AGENTS.md + architecture/architecture_for_ai.md]
+   - Planner action: Plan `02-03` encodes this as a conditional implementation rule for setup and character-card work. [VERIFIED: 02-03-PLAN.md]
 
-3. **Context7 framework docs unavailable**
+3. **RESOLVED: Context7 framework docs unavailable**
    - What we know: `research-plan` selected Context7, but no Context7 MCP tools and no `ctx7` CLI were available. [VERIFIED: research-plan seam + shell check]
-   - What's unclear: Whether the orchestrator expects cached Context7 digests for this phase. [ASSUMED]
-   - Recommendation: Treat local artifact/code research as authoritative for Phase 2; use external docs only if a later planner/executor has Context7 access. [VERIFIED: local artifacts]
+   - Resolution: Treat local project artifacts, app code, package manifests, and design screenshots as authoritative for Phase 2 planning. Do not block Phase 2 on unavailable Context7 digests because the phase is a presentation refresh using already-installed Expo/React Native dependencies. [VERIFIED: local artifacts + package.json]
+   - Planner action: All plans reference local artifacts and current app patterns; no plan requires external framework documentation or new dependencies. [VERIFIED: 02-01-PLAN.md through 02-05-PLAN.md]
 
 ## Environment Availability
 
