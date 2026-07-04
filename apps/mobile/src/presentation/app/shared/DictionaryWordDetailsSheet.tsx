@@ -12,7 +12,9 @@ type DictionaryWordDetailsSheetProps = {
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
   // word is undefined when a route id cannot be resolved from the local catalog.
-  readonly word: VocabularyItem | undefined;
+  readonly word: VocabularyItem | undefined | null;
+  // isLoading separates the initial data fetch from the missing-word state.
+  readonly isLoading?: boolean;
   // onClose dismisses the native form sheet route.
   readonly onClose: () => void;
 };
@@ -21,10 +23,28 @@ type DictionaryWordDetailsSheetProps = {
 export function DictionaryWordDetailsSheet({
   styles,
   word,
+  isLoading,
   onClose,
 }: DictionaryWordDetailsSheetProps): ReactElement {
   // colors resolves the active light/dark token set for the shared sheet frame.
   const colors: AppColors = resolveColorsFromStyles(styles);
+
+  if (isLoading) {
+    return (
+      <BubbleSheet
+        closeAccessibilityLabel="Close dictionary details"
+        colors={colors}
+        onClose={onClose}
+        showScrim={false}
+        isNativeSheet
+        title="Dictionary"
+      >
+        <View style={styles.dictionarySheetContent}>
+          <Text style={styles.stateMessageTitle}>Loading word...</Text>
+        </View>
+      </BubbleSheet>
+    );
+  }
 
   if (!word) {
     return (
@@ -33,6 +53,7 @@ export function DictionaryWordDetailsSheet({
         colors={colors}
         onClose={onClose}
         showScrim={false}
+        isNativeSheet
         title="Dictionary"
       >
         <View style={styles.dictionarySheetContent}>
@@ -48,6 +69,7 @@ export function DictionaryWordDetailsSheet({
       colors={colors}
       onClose={onClose}
       showScrim={false}
+      isNativeSheet
       title={word.word}
     >
       <View style={styles.dictionarySheetContent}>

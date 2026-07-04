@@ -32,6 +32,8 @@ export type BubbleSheetProps = {
   readonly closeAccessibilityLabel?: string;
   // showScrim controls whether the frame includes a dimmed modal backdrop.
   readonly showScrim?: boolean;
+  // isNativeSheet strips the full-screen absolute positioning when rendering inside a native formSheet.
+  readonly isNativeSheet?: boolean;
   // style positions the outer sheet wrapper within a caller-owned modal route.
   readonly style?: StyleProp<ViewStyle>;
   // contentStyle lets callers tune spacing inside the reusable sheet surface.
@@ -46,6 +48,7 @@ export function BubbleSheet({
   contentStyle,
   onClose,
   showScrim = true,
+  isNativeSheet = false,
   style,
   title,
 }: BubbleSheetProps): ReactElement {
@@ -57,6 +60,41 @@ export function BubbleSheet({
     borderColor: colors.sheetBorder,
   };
 
+  const content = (
+    <View style={[styles.sheet, sheetStyle, isNativeSheet && styles.nativeSheet, isNativeSheet && style]}>
+      <View
+        style={[styles.handle, { backgroundColor: colors.labelTertiary }]}
+      />
+      {title || onClose ? (
+        <View style={styles.header}>
+          {title ? (
+            <Text style={[styles.title, titleStyle]}>{title}</Text>
+          ) : (
+            <View />
+          )}
+          {onClose ? (
+            <BubbleButton
+              accessibilityLabel={closeAccessibilityLabel}
+              colors={colors}
+              hitSlop={12}
+              onPress={onClose}
+              variant="ghost"
+              style={styles.closeButton}
+              contentStyle={styles.closeButtonContent}
+            >
+              <Text style={[styles.closeButtonText, titleStyle]}>x</Text>
+            </BubbleButton>
+          ) : null}
+        </View>
+      ) : null}
+      <View style={[styles.content, contentStyle]}>{children}</View>
+    </View>
+  );
+
+  if (isNativeSheet) {
+    return content;
+  }
+
   return (
     <View style={[styles.root, style]} pointerEvents="box-none">
       {showScrim ? (
@@ -65,34 +103,7 @@ export function BubbleSheet({
           style={[styles.scrim, { backgroundColor: colors.sheetScrim }]}
         />
       ) : null}
-      <View style={[styles.sheet, sheetStyle]}>
-        <View
-          style={[styles.handle, { backgroundColor: colors.labelTertiary }]}
-        />
-        {title || onClose ? (
-          <View style={styles.header}>
-            {title ? (
-              <Text style={[styles.title, titleStyle]}>{title}</Text>
-            ) : (
-              <View />
-            )}
-            {onClose ? (
-              <BubbleButton
-                accessibilityLabel={closeAccessibilityLabel}
-                colors={colors}
-                hitSlop={12}
-                onPress={onClose}
-                variant="ghost"
-                style={styles.closeButton}
-                contentStyle={styles.closeButtonContent}
-              >
-                <Text style={[styles.closeButtonText, titleStyle]}>x</Text>
-              </BubbleButton>
-            ) : null}
-          </View>
-        ) : null}
-        <View style={[styles.content, contentStyle]}>{children}</View>
-      </View>
+      {content}
     </View>
   );
 }
@@ -121,6 +132,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     ...shadows.soft,
+  },
+  nativeSheet: {
+    shadowOpacity: 0,
+    elevation: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderWidth: 0,
   },
   handle: {
     alignSelf: 'center',
