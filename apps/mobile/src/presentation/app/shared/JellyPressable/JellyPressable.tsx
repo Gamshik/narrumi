@@ -36,11 +36,18 @@ export function JellyPressable({
   // scale animates the surface down on touch and springs back with a soft
   // overshoot; a lazy state initializer keeps one Animated.Value across renders.
   const [scale] = useState(() => new Animated.Value(1));
+  const [opacity] = useState(() => new Animated.Value(1));
 
   // handlePressIn squishes the surface immediately when the finger lands.
   const handlePressIn = (event: GestureResponderEvent): void => {
     Animated.spring(scale, {
       toValue: scaleTo,
+      useNativeDriver: true,
+      speed: motion.springSpeed,
+      bounciness: motion.springBounciness,
+    }).start();
+    Animated.spring(opacity, {
+      toValue: motion.pressedOpacity,
       useNativeDriver: true,
       speed: motion.springSpeed,
       bounciness: motion.springBounciness,
@@ -53,14 +60,20 @@ export function JellyPressable({
     Animated.spring(scale, {
       toValue: 1,
       useNativeDriver: true,
-      speed: 18,
-      bounciness: 14,
+      speed: motion.releaseSpringSpeed,
+      bounciness: motion.releaseSpringBounciness,
+    }).start();
+    Animated.spring(opacity, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: motion.releaseSpringSpeed,
+      bounciness: motion.releaseSpringBounciness,
     }).start();
     onPressOut?.(event);
   };
 
   return (
-    <Animated.View style={[containerStyle, { transform: [{ scale }] }]}>
+    <Animated.View style={[containerStyle, { transform: [{ scale }], opacity }]}>
       <Pressable
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}

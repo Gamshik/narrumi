@@ -238,17 +238,23 @@ type AppMotionTokens = {
   readonly springSpeed: number;
   // springBounciness keeps press motion soft without distracting bounce.
   readonly springBounciness: number;
+  // releaseSpringSpeed is the bounce-back speed when a press is released.
+  readonly releaseSpringSpeed: number;
+  // releaseSpringBounciness provides the bouncy jelly effect on release.
+  readonly releaseSpringBounciness: number;
 };
 
 // motion stores spring-like constants shared by pressable and selected states.
 export const motion: AppMotionTokens = {
-  pressScale: 0.93,
-  pressedOpacity: 0.84,
+  pressScale: 0.92,
+  pressedOpacity: 0.80,
   tabPressScale: 0.88,
   selectedScale: 1.05,
   sheetEnterScale: 0.98,
   springSpeed: 45,
   springBounciness: 0,
+  releaseSpringSpeed: 20,
+  releaseSpringBounciness: 16,
 } as const;
 
 // ShadowToken describes a single soft shadow preset usable in React Native styles.
