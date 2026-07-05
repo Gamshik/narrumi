@@ -290,9 +290,7 @@ export function SeriesDetailsScreen({
             <Text style={styles.smallPrimaryButtonText}>Back</Text>
           </JellyPressable>
         </View>
-        <View style={styles.stateMessage}>
-          <Text style={styles.stateMessageTitle}>{errorMessage}</Text>
-        </View>
+        <BubbleStatus colors={colors} tone="error" title={errorMessage} variant="row" />
       </View>
     );
   }
@@ -300,9 +298,7 @@ export function SeriesDetailsScreen({
   if (!state) {
     return (
       <View style={styles.screenContent}>
-        <View style={styles.stateMessage}>
-          <Text style={styles.stateMessageTitle}>Loading series...</Text>
-        </View>
+        <BubbleStatus colors={colors} tone="loading" title="Loading series..." variant="row" />
       </View>
     );
   }
@@ -320,9 +316,14 @@ export function SeriesDetailsScreen({
         </JellyPressable>
         <JellyPressable
           onPress={() => setIsSetupOpen(true)}
-          style={styles.secondarySmallButton}
+          style={[
+            styles.secondarySmallButton,
+            !canEditSetup && styles.disabledControl,
+          ]}
         >
-          <Text style={styles.secondarySmallButtonText}>Setup</Text>
+          <Text style={styles.secondarySmallButtonText}>
+            {canEditSetup ? 'Setup' : 'View Setup'}
+          </Text>
         </JellyPressable>
       </View>
 
@@ -371,14 +372,14 @@ export function SeriesDetailsScreen({
         </Text>
       </JellyPressable>
 
-      <View style={styles.settingsCard}>
-        <Text style={styles.actionTitle}>Series Memory</Text>
-        <Text style={styles.secondaryText}>
-          {state.memory?.lastEpisodeSummary ??
-            state.memory?.unresolvedCliffhanger ??
-            'No generated episode memory yet.'}
-        </Text>
-      </View>
+      {state.memory?.lastEpisodeSummary || state.memory?.unresolvedCliffhanger ? (
+        <BubbleSurface colors={colors} tone="neutral" variant="card" style={styles.settingsCard}>
+          <Text style={styles.actionTitle}>Series Memory</Text>
+          <Text style={styles.secondaryText}>
+            {state.memory.lastEpisodeSummary ?? state.memory.unresolvedCliffhanger}
+          </Text>
+        </BubbleSurface>
+      ) : null}
 
       {state.episodes.length > 0 ? (
         <JellyPressable
@@ -401,7 +402,7 @@ export function SeriesDetailsScreen({
           </Text>
         </View>
       ) : (
-        <View style={styles.seriesList}>
+        <View style={styles.episodeList}>
           {state.episodes.map((episode) => (
             <EpisodeHistoryRow
               isDeleting={episode.id === deletingEpisodeId}
@@ -1053,30 +1054,35 @@ function EpisodeHistoryRow({
   // onOpenEpisode opens this saved episode in the reader.
   readonly onOpenEpisode: (episodeId: string) => void;
 }): ReactElement {
+  const { isDark } = useAppTheme();
+  const colors = isDark ? darkColors : lightColors;
+
   return (
-    <View style={styles.seriesRow}>
-      <View style={styles.flex}>
+    <BubbleSurface colors={colors} tone="neutral" variant="card" style={styles.episodeCard}>
+      <JellyPressable
+        onPress={() => onOpenEpisode(episode.id)}
+        style={({ pressed }) => [styles.episodeCardContent, pressed && styles.pressed]}
+      >
+        <Text style={styles.actionTitle}>
+          Episode {episode.orderIndex}: {episode.title ?? 'Untitled'}
+        </Text>
+        <Text style={styles.secondaryText} numberOfLines={2}>
+          {episode.summaryUpdate}
+        </Text>
+        <Text style={styles.sectionLabel}>
+          {episode.isComplete
+            ? `${episode.interactions.length} DECISIONS - COMPLETE`
+            : `${episode.interactions.length} DECISIONS - IN PROGRESS`}
+        </Text>
+      </JellyPressable>
+      <View style={styles.episodeCardActions}>
         <JellyPressable
           onPress={() => onOpenEpisode(episode.id)}
-          style={({ pressed }) => [pressed && styles.pressed]}
-        >
-          <Text style={styles.actionTitle}>
-            Episode {episode.orderIndex}: {episode.title ?? 'Untitled'}
-          </Text>
-          <Text style={styles.secondaryText} numberOfLines={2}>
-            {episode.summaryUpdate}
-          </Text>
-          <Text style={styles.sectionLabel}>
-            {episode.isComplete
-              ? `${episode.interactions.length} DECISIONS - COMPLETE`
-              : `${episode.interactions.length} DECISIONS - IN PROGRESS`}
-          </Text>
-        </JellyPressable>
-      </View>
-      <View style={styles.rowActionStack}>
-        <JellyPressable
-          onPress={() => onOpenEpisode(episode.id)}
-          style={({ pressed }) => [styles.smallPrimaryButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.smallPrimaryButton,
+            styles.flex,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={styles.smallPrimaryButtonText}>Read</Text>
         </JellyPressable>
@@ -1085,13 +1091,16 @@ function EpisodeHistoryRow({
           onPress={() => onDeleteEpisode(episode)}
           style={({ pressed }) => [
             styles.destructiveIconButton,
+            styles.episodeCompactDelete,
             pressed && styles.pressed,
             isDeleting && styles.disabledControl,
           ]}
         >
-          <Text style={styles.destructiveIconText}>Delete</Text>
+          <Text style={styles.destructiveIconText}>
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </Text>
         </JellyPressable>
       </View>
-    </View>
+    </BubbleSurface>
   );
 }

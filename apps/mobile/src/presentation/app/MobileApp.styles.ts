@@ -277,6 +277,26 @@ function createAppStylesImpl(colors: AppColors) {
       backgroundColor: colors.backgroundSecondary,
       ...shadows.soft,
     },
+    episodeList: {
+      gap: 12,
+    },
+    episodeCard: {
+      gap: 14,
+      padding: 16,
+    },
+    episodeCardContent: {
+      gap: 4,
+    },
+    episodeCardActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    episodeCompactDelete: {
+      minHeight: 38,
+      borderRadius: radii.lg,
+      paddingHorizontal: 16,
+    },
     seriesRow: {
       flexDirection: "row",
       alignItems: "center",
