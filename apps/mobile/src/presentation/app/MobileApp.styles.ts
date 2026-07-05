@@ -1060,6 +1060,88 @@ function createAppStylesImpl(colors: AppColors) {
       color: colors.labelSecondary,
     },
     tabLabelActive: { color: colors.systemBlue },
+    heroSurface: {
+      marginBottom: 8,
+    },
+    heroContent: {
+      gap: 12,
+    },
+    heroTag: {
+      alignSelf: "flex-start",
+    },
+    heroTagText: {
+      color: colors.systemBlue,
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 10,
+      letterSpacing: 0.8,
+    },
+    heroTitle: {
+      color: colors.labelPrimary,
+      fontFamily: fontFamilies.displayHeavy,
+      fontSize: 28,
+      letterSpacing: -0.4,
+    },
+    heroText: {
+      color: colors.labelSecondary,
+      fontFamily: fontFamilies.body,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    heroButton: {
+      alignSelf: "flex-start",
+      marginTop: 8,
+    },
+    heroButtonText: {
+      color: "#ffffff",
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 15,
+    },
+    seriesListGrid: {
+      gap: 16,
+    },
+    seriesCard: {
+      gap: 12,
+    },
+    seriesCardHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    seriesCardHeaderLeft: {
+      flex: 1,
+      gap: 2,
+    },
+    seriesCardBadge: {},
+    seriesCardBadgeText: {
+      color: colors.systemBlue,
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 11,
+    },
+    seriesCardFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      marginTop: 4,
+    },
+    seriesCardPrimaryButton: {
+      flex: 1,
+    },
+    seriesCardPrimaryButtonText: {
+      color: "#ffffff",
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 14,
+    },
+    seriesCardDeleteButton: {},
+    seriesCardDeleteButtonText: {
+      color: colors.systemRed,
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 14,
+    },
+    homeErrorStatus: {
+      marginBottom: 8,
+    },
   });
 }
 

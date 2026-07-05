@@ -10,8 +10,17 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { JellyPressable } from '../shared';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import {
+  BubbleSurface,
+  BubbleButton,
+  BubblePill,
+  BubbleStatus,
+  JellyPressable,
+} from '../shared';
+import { useAppTheme } from '../theme';
+import { lightColors, darkColors } from '@presentation/theme';
 
 import {
   cefrLevels,
@@ -105,6 +114,8 @@ export function HomeScreen({
   onOpenSeries,
   styles,
 }: HomeScreenProps): ReactElement {
+  const { isDark } = useAppTheme();
+  const colors = isDark ? darkColors : lightColors;
   const [series, setSeries] = useState<readonly Series[]>([]);
   const [form, setForm] = useState<SeriesFormState>(emptySeriesForm);
   const [formErrors, setFormErrors] = useState<SeriesFormErrors>({});
@@ -252,29 +263,33 @@ export function HomeScreen({
   return (
     <>
       <ScrollView contentContainerStyle={styles.screenContent}>
-        <HomeHeader
-          styles={styles}
-          onCreateSeries={() => setIsCreateOpen(true)}
-        />
+        <HomeHeader styles={styles} />
         {errorMessage ? (
-          <View style={styles.stateMessage}>
-            <Text style={styles.stateMessageTitle}>{errorMessage}</Text>
-          </View>
+          <BubbleStatus
+            colors={colors}
+            tone="error"
+            title="Could not load series"
+            message={errorMessage}
+            variant="row"
+            style={styles.homeErrorStatus}
+          />
         ) : null}
-        <ContinueBanner
-          firstSeriesId={series[0]?.id}
+        <CreateHero
+          colors={colors}
+          hasSeries={series.length > 0}
           styles={styles}
           onCreateSeries={() => setIsCreateOpen(true)}
-          onOpenSeries={onOpenSeries}
         />
-        <SeriesList
-          deletingSeriesId={deletingSeriesId}
-          series={series}
-          styles={styles}
-          onCreateSeries={() => setIsCreateOpen(true)}
-          onDeleteSeries={requestDeleteSeries}
-          onOpenSeries={onOpenSeries}
-        />
+        {series.length > 0 ? (
+          <SeriesList
+            colors={colors}
+            deletingSeriesId={deletingSeriesId}
+            series={series}
+            styles={styles}
+            onDeleteSeries={requestDeleteSeries}
+            onOpenSeries={onOpenSeries}
+          />
+        ) : null}
       </ScrollView>
       <CreateSeriesModal
         form={form}
@@ -303,177 +318,162 @@ export function HomeScreen({
   );
 }
 
-// HomeHeader owns the app title and primary create action.
+// HomeHeader owns the app title and status information.
 function HomeHeader({
   styles,
-  onCreateSeries,
-}: Pick<HomeScreenProps, 'styles'> & {
-  // onCreateSeries opens the local-first create-series sheet.
-  readonly onCreateSeries: () => void;
-}): ReactElement {
+}: Pick<HomeScreenProps, 'styles'>): ReactElement {
   return (
     <View style={styles.homeHeader}>
       <View>
         <Text style={styles.appCategory}>AI SERIES</Text>
         <Text style={styles.largeTitle}>Context-English</Text>
       </View>
-      <JellyPressable
-        onPress={onCreateSeries}
-        style={({ pressed }) => [styles.roundActionButton, pressed && styles.pressed]}
-      >
-        <Text style={styles.roundActionText}>+</Text>
-      </JellyPressable>
+      <View style={styles.avatar}>
+        <Text style={styles.avatarText}>G</Text>
+      </View>
     </View>
   );
 }
 
-// ContinueBanner provides the main series-first action surface.
-function ContinueBanner({
-  firstSeriesId,
+// CreateHero provides the main series-first action surface.
+function CreateHero({
+  colors,
+  hasSeries,
   styles,
   onCreateSeries,
-  onOpenSeries,
 }: {
-  // firstSeriesId selects the most recent local story when one exists.
-  readonly firstSeriesId: string | undefined;
-  // styles is the current theme StyleSheet contract.
+  readonly colors: typeof lightColors | typeof darkColors;
+  readonly hasSeries: boolean;
   readonly styles: AppStyles;
-  // onCreateSeries opens the local create form.
   readonly onCreateSeries: () => void;
-  // onOpenSeries starts the unified AI episode flow for an existing story.
-  readonly onOpenSeries: (seriesId: string) => void;
 }): ReactElement {
-  const hasSeries = firstSeriesId !== undefined;
-
   return (
-    <View style={styles.continueBanner}>
-      <Text style={styles.continueTag}>PERSONAL SERIES</Text>
-      <Text style={styles.continueTitle}>
-        {hasSeries ? 'Continue your next episode' : 'Create your first story'}
-      </Text>
-      <Text style={styles.continueText}>
-        Open a story, choose Story Words, generate an AI episode, and complete
-        the current arc.
-      </Text>
-      <JellyPressable
-        onPress={hasSeries ? () => onOpenSeries(firstSeriesId) : onCreateSeries}
-        style={({ pressed }) => [styles.bannerButton, pressed && styles.pressed]}
-      >
-        <Text style={styles.bannerButtonText}>
-          {hasSeries ? 'Create Episode' : 'New Series'}
+    <BubbleSurface
+      colors={colors}
+      style={styles.heroSurface}
+      tone="primary"
+      variant="hero"
+    >
+      <View style={styles.heroContent}>
+        <BubblePill colors={colors} tone="primary" style={styles.heroTag}>
+          <Text style={styles.heroTagText}>AI SERIES</Text>
+        </BubblePill>
+        <Text style={styles.heroTitle}>Create a story</Text>
+        <Text style={styles.heroText}>
+          {hasSeries
+            ? 'Start a new adventure with your own premise, characters, and CEFR level.'
+            : 'Start a new adventure with your own premise, characters, and CEFR level. Your saved series will appear below.'}
         </Text>
-      </JellyPressable>
-    </View>
+        <BubbleButton
+          colors={colors}
+          onPress={onCreateSeries}
+          style={styles.heroButton}
+          variant="primary"
+        >
+          <Text style={styles.heroButtonText}>New Series</Text>
+        </BubbleButton>
+      </View>
+    </BubbleSurface>
   );
 }
 
-// SeriesList renders saved local series without fake episode history.
+// SeriesList renders saved local series using Bubble cards.
 function SeriesList({
+  colors,
   deletingSeriesId,
   series,
   styles,
-  onCreateSeries,
   onDeleteSeries,
   onOpenSeries,
 }: {
-  // deletingSeriesId disables the destructive control during the active local write.
+  readonly colors: typeof lightColors | typeof darkColors;
   readonly deletingSeriesId: string | undefined;
-  // series are local-first personal story containers.
   readonly series: readonly Series[];
-  // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
-  // onCreateSeries opens the local create form for the empty state.
-  readonly onCreateSeries: () => void;
-  // onDeleteSeries asks the user to confirm removing a story and its children.
   readonly onDeleteSeries: (series: Series) => void;
-  // onOpenSeries starts the AI episode flow for a local series.
   readonly onOpenSeries: (seriesId: string) => void;
 }): ReactElement {
   return (
     <>
       <Text style={styles.sectionLabel}>MY SERIES</Text>
-      {series.length === 0 ? (
-        <JellyPressable
-          onPress={onCreateSeries}
-          style={({ pressed }) => [styles.emptySeriesPanel, pressed && styles.pressed]}
-        >
-          <Text style={styles.actionTitle}>No saved series yet</Text>
-          <Text style={styles.secondaryText}>
-            Add or generate a complete setup before saving a series.
-          </Text>
-        </JellyPressable>
-      ) : (
-        <View style={styles.seriesList}>
-          {series.map((item) => (
-            <SeriesRow
-              isDeleting={item.id === deletingSeriesId}
-              key={item.id}
-              series={item}
-              styles={styles}
-              onDeleteSeries={onDeleteSeries}
-              onOpenSeries={onOpenSeries}
-            />
-          ))}
-        </View>
-      )}
+      <View style={styles.seriesListGrid}>
+        {series.map((item) => (
+          <SeriesCard
+            colors={colors}
+            isDeleting={item.id === deletingSeriesId}
+            key={item.id}
+            series={item}
+            styles={styles}
+            onDeleteSeries={onDeleteSeries}
+            onOpenSeries={onOpenSeries}
+          />
+        ))}
+      </View>
     </>
   );
 }
 
-// SeriesRow displays one saved local series and its generation gate.
-function SeriesRow({
+// SeriesCard displays one saved local series and its generation gate.
+function SeriesCard({
+  colors,
   isDeleting,
   series,
   styles,
   onDeleteSeries,
   onOpenSeries,
 }: {
-  // isDeleting prevents duplicate destructive writes for this row.
+  readonly colors: typeof lightColors | typeof darkColors;
   readonly isDeleting: boolean;
-  // series is the saved local series record to summarize.
   readonly series: Series;
-  // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
-  // onDeleteSeries triggers the user-facing destructive confirmation.
   readonly onDeleteSeries: (series: Series) => void;
-  // onOpenSeries starts the unified AI flow for this series.
   readonly onOpenSeries: (seriesId: string) => void;
 }): ReactElement {
   return (
-    <View style={styles.seriesRow}>
-      <View style={styles.flex}>
-        <View style={styles.wordHeading}>
+    <BubbleSurface colors={colors} style={styles.seriesCard} variant="card">
+      <View style={styles.seriesCardHeader}>
+        <View style={styles.seriesCardHeaderLeft}>
           <Text style={styles.actionTitle}>{series.title}</Text>
-          <Text style={styles.seriesMeta}>{series.cefrLevel}</Text>
+          <Text style={styles.secondaryText}>
+            {genreLabels[series.genre]} · {series.tone}
+          </Text>
         </View>
-        <Text style={styles.secondaryText}>
-          {genreLabels[series.genre]} · {series.tone} ·{' '}
-          {participationModeLabels[series.participationMode]}
-        </Text>
-        <Text style={styles.seriesPremise} numberOfLines={2}>
-          {series.premise}
-        </Text>
+        <BubblePill colors={colors} style={styles.seriesCardBadge} tone="primary">
+          <Text style={styles.seriesCardBadgeText}>{series.cefrLevel}</Text>
+        </BubblePill>
       </View>
-      <View style={styles.rowActionStack}>
-        <JellyPressable
+      <Text numberOfLines={2} style={styles.seriesPremise}>
+        {series.premise}
+      </Text>
+      <View style={styles.seriesCardFooter}>
+        <BubbleButton
+          colors={colors}
           onPress={() => onOpenSeries(series.id)}
-          style={({ pressed }) => [styles.smallPrimaryButton, pressed && styles.pressed]}
+          style={styles.seriesCardPrimaryButton}
+          variant="secondary"
         >
-          <Text style={styles.smallPrimaryButtonText}>Story</Text>
-        </JellyPressable>
-        <JellyPressable
-          disabled={isDeleting}
-          onPress={() => onDeleteSeries(series)}
-          style={({ pressed }) => [
-            styles.destructiveIconButton,
-            pressed && styles.pressed,
-            isDeleting && styles.disabledControl,
-          ]}
-        >
-          <Text style={styles.destructiveIconText}>Delete</Text>
-        </JellyPressable>
+          <Text style={styles.seriesCardPrimaryButtonText}>Story</Text>
+        </BubbleButton>
+        {isDeleting ? (
+          <BubbleStatus
+            colors={colors}
+            title="Deleting..."
+            tone="loading"
+            variant="compact"
+          />
+        ) : (
+          <BubbleButton
+            colors={colors}
+            disabled={isDeleting}
+            onPress={() => onDeleteSeries(series)}
+            style={styles.seriesCardDeleteButton}
+            variant="ghost"
+          >
+            <Text style={styles.seriesCardDeleteButtonText}>Delete</Text>
+          </BubbleButton>
+        )}
       </View>
-    </View>
+    </BubbleSurface>
   );
 }
 
