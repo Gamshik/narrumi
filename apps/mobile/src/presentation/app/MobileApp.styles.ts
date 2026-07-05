@@ -41,10 +41,7 @@ function createAppStylesImpl(colors: AppColors) {
     },
     authCard: {
       gap: 18,
-      borderRadius: radii.xl,
       padding: 18,
-      backgroundColor: colors.backgroundSecondary,
-      ...shadows.soft,
     },
     authModeRow: {
       flexDirection: "row",

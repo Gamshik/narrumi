@@ -10,6 +10,8 @@ import type { AppStyles } from './types';
 type AppStylesState = {
   // isDark is the resolved app appearance used by native chrome.
   readonly isDark: boolean;
+  // colors is the active theme token set.
+  readonly colors: typeof lightColors | typeof darkColors;
   // styles is the generated React Native StyleSheet for the active theme.
   readonly styles: AppStyles;
 };
@@ -21,5 +23,5 @@ export function useAppStyles(): AppStylesState {
   // styles is memoized so render paths do not recreate StyleSheet objects.
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  return { isDark, styles };
+  return { isDark, colors, styles };
 }

@@ -7,7 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { JellyPressable, RouteScreen } from '../../shared';
+import { BubbleButton, BubbleStatus, BubbleSurface, JellyPressable, RouteScreen } from '../../shared';
 import { useAppStyles } from '../../useAppStyles';
 import { useAuthSession } from '../AuthProvider';
 
@@ -17,7 +17,7 @@ type AuthMode = 'sign-in' | 'sign-up';
 // AuthenticationScreen creates the Supabase session required by RLS sync.
 export function AuthenticationScreen(): ReactElement {
   const { signIn, signUp } = useAuthSession();
-  const { isDark, styles } = useAppStyles();
+  const { isDark, colors, styles } = useAppStyles();
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -74,7 +74,7 @@ export function AuthenticationScreen(): ReactElement {
             </Text>
           </View>
 
-          <View style={styles.authCard}>
+          <BubbleSurface colors={colors} style={styles.authCard} variant="card">
             <View style={styles.authModeRow}>
               <AuthModeButton
                 isActive={mode === 'sign-in'}
@@ -136,26 +136,19 @@ export function AuthenticationScreen(): ReactElement {
             </View>
 
             {message ? (
-              <View
-                style={[
-                  styles.authMessage,
-                  isError
-                    ? styles.authErrorMessage
-                    : styles.authSuccessMessage,
-                ]}
-              >
-                <Text style={styles.authMessageText}>{message}</Text>
-              </View>
+              <BubbleStatus
+                colors={colors}
+                tone={isError ? 'error' : 'success'}
+                title={message}
+                variant="row"
+              />
             ) : null}
 
-            <JellyPressable
+            <BubbleButton
+              colors={colors}
               disabled={isDisabled}
               onPress={() => void submit()}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                isDisabled && styles.disabledControl,
-                pressed && styles.pressed,
-              ]}
+              variant="primary"
             >
               <Text style={styles.primaryButtonText}>
                 {isSubmitting
@@ -164,8 +157,8 @@ export function AuthenticationScreen(): ReactElement {
                     ? 'Sign In'
                     : 'Create Account'}
               </Text>
-            </JellyPressable>
-          </View>
+            </BubbleButton>
+          </BubbleSurface>
         </View>
       </KeyboardAvoidingView>
     </RouteScreen>
