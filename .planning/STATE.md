@@ -5,10 +5,10 @@ milestone_name: Bubble/Sorbet UI refresh
 current_phase: 02
 current_phase_name: shell-and-series-screens
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-07-05T06:40:52.819Z"
+stopped_at: Plan 02 completed
+last_updated: "2026-07-05T06:46:00.000Z"
 last_activity: 2026-07-05
-last_activity_desc: Phase 02 execution started
+last_activity_desc: Plan 02 of Phase 02 completed
 progress:
   total_phases: 3
   completed_phases: 1
@@ -22,9 +22,9 @@ progress:
 ## Current Position
 
 Phase: 02 (shell-and-series-screens) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
-Last activity: 2026-07-05 — Phase 02 execution started
+Last activity: 2026-07-05 — Plan 02 of Phase 02 completed
 
 ## Project Reference
 
@@ -41,6 +41,7 @@ See: .planning/PROJECT.md (updated 2026-07-02)
 | Phase 01-bubble-foundation P02 | 7 min | 3 tasks | 8 files |
 | Phase 01-bubble-foundation P03 | 18 min | 3 tasks | 5 files |
 | Phase 01-bubble-foundation P04 | 6 min | 3 tasks | 9 files |
+| Phase 02-shell-and-series-screens P02 | 25 min | 3 tasks | 2 files |
 
 ## Decisions
 
@@ -54,9 +55,10 @@ See: .planning/PROJECT.md (updated 2026-07-02)
 - [Phase 01-bubble-foundation]: Use shared motion.pressScale and motion.pressedOpacity as the single stronger press feedback contract instead of per-screen magic values.
 - [Phase 01-bubble-foundation]: Replace Settings native Switch with a reusable BubbleToggle that receives existing ThemeProvider state and semantic colors without adding persistence or app logic.
 - [Phase 01-bubble-foundation]: Keep the dictionary route-owned native formSheet configuration unchanged and fix fitToContents by removing flex expansion from the dictionary sheet content path.
+- [Phase 02-shell-and-series-screens]: Used `useAppTheme` directly in `HomeScreen.tsx` to provide `colors` to Bubble shared components instead of rewriting `MobileApp.styles.ts` contract to bubble `colors` outward.
 
 ## Session
 
-**Last session:** 2026-07-04T23:32:32.507Z
-**Stopped at:** Phase 2 context gathered
-**Resume file:** .planning/phases/02-shell-and-series-screens/02-CONTEXT.md
+**Last session:** 2026-07-05T06:46:00.000Z
+**Stopped at:** Plan 02 completed
+**Resume file:** .planning/phases/02-shell-and-series-screens/02-03-PLAN.md
