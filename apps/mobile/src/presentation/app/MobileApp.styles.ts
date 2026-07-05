@@ -429,6 +429,11 @@ function createAppStylesImpl(colors: AppColors) {
       paddingHorizontal: 10,
       paddingVertical: 6,
     },
+    settingsDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.separator,
+      marginVertical: 4,
+    },
     cefrSegmentedControl: { height: 38 },
     settingMeter: { gap: 10 },
     stepperRow: { flexDirection: "row", gap: 10 },

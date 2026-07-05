@@ -2,13 +2,12 @@ import SegmentedControl from '@react-native-segmented-control/segmented-control'
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { BubbleToggle, JellyPressable } from '../shared';
+import { BubbleButton, BubbleStatus, BubbleToggle, JellyPressable } from '../shared';
 
 import {
   cefrLevels,
   DEFAULT_STORY_WORD_GOAL,
   learningGenres,
-  type CefrLevel,
   type LearningPreferences,
   type LearningGenre,
   MAX_STORY_WORD_GOAL,
@@ -166,13 +165,11 @@ export function SettingsScreen({
         </View>
       ) : null}
 
-      <GrammarControl
+      <LearningPreferencesSection
         isDark={isDark}
-        level={preferences.preferredCefrLevel}
+        preferences={preferences}
         styles={styles}
-        onChangeLevel={(preferredCefrLevel) =>
-          updatePreferences({ preferredCefrLevel })
-        }
+        onUpdatePreferences={updatePreferences}
       />
       <AccountSync
         email={session?.email}
@@ -183,11 +180,6 @@ export function SettingsScreen({
         onSyncNow={syncNow}
       />
       <Appearance styles={styles} />
-      <SeriesDefaults
-        preferences={preferences}
-        styles={styles}
-        onUpdatePreferences={updatePreferences}
-      />
     </ScrollView>
   );
 }
@@ -213,6 +205,8 @@ function AccountSync({
   readonly onSyncNow: () => Promise<void>;
 }): ReactElement {
   const statusLabel = result ? formatSyncStatus(result) : 'Not checked yet';
+  const { isDark } = useAppTheme();
+  const colors: AppColors = isDark ? darkColors : lightColors;
 
   return (
     <>
@@ -223,50 +217,54 @@ function AccountSync({
             <Text style={styles.actionTitle}>Signed in as</Text>
             <Text style={styles.secondaryText}>{email ?? 'Unknown account'}</Text>
           </View>
-          <Text style={styles.settingValue}>{statusLabel}</Text>
         </View>
 
         {result?.errorMessage ? (
-          <View style={styles.syncErrorBox}>
-            <Text style={styles.syncErrorText}>{result.errorMessage}</Text>
-          </View>
+          <BubbleStatus
+            colors={colors}
+            tone="error"
+            title="Sync Failed"
+            message={result.errorMessage}
+            variant="row"
+          />
         ) : null}
 
-        {result ? (
-          <Text style={styles.secondaryText}>
-            Pending: {result.pendingCount} · Pushed: {result.pushedCount} ·
-            Failed: {result.failedCount}
-          </Text>
-        ) : (
-          <Text style={styles.secondaryText}>
-            Use Sync Now after creating a series to verify remote writes.
-          </Text>
-        )}
+        <BubbleStatus
+          colors={colors}
+          tone={
+            result?.status === 'offline' ? 'offline' :
+            result?.status === 'unauthenticated' ? 'disabled' :
+            result?.status === 'failed' ? 'error' :
+            result?.status === 'synced' ? 'success' : 'loading'
+          }
+          title={statusLabel}
+          message={
+            result ? `Pending: ${result.pendingCount} · Pushed: ${result.pushedCount} · Failed: ${result.failedCount}`
+            : 'Use Sync Now after creating a series to verify remote writes.'
+          }
+          variant="row"
+        />
 
         <View style={styles.practiceActions}>
-          <JellyPressable
+          <BubbleButton
+            style={styles.flexOne}
             disabled={isSyncing}
+            colors={colors}
+            variant="primary"
             onPress={() => void onSyncNow()}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              isSyncing && styles.disabledControl,
-              pressed && styles.pressed,
-            ]}
           >
             <Text style={styles.primaryButtonText}>
               {isSyncing ? 'Syncing...' : 'Sync Now'}
             </Text>
-          </JellyPressable>
-          <JellyPressable
-            containerStyle={styles.flexOne}
+          </BubbleButton>
+          <BubbleButton
+            style={styles.flexOne}
+            colors={colors}
+            variant="secondary"
             onPress={() => void onSignOut()}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.pressed,
-            ]}
           >
             <Text style={styles.secondaryButtonText}>Sign Out</Text>
-          </JellyPressable>
+          </BubbleButton>
         </View>
       </View>
     </>
@@ -303,21 +301,19 @@ function Appearance({ styles }: SettingsSectionProps): ReactElement {
   );
 }
 
-// GrammarControl stores the local CEFR target until persistence is introduced.
-function GrammarControl({
+// LearningPreferencesSection combines CEFR, Genre, and Goal into one Bubble/Sorbet section.
+function LearningPreferencesSection({
   isDark,
-  level,
+  preferences,
   styles,
-  onChangeLevel,
+  onUpdatePreferences,
 }: SettingsScreenProps & {
-  // level is the persisted preferred CEFR level.
-  readonly level: CefrLevel;
-  // onChangeLevel persists the selected preferred CEFR level.
-  readonly onChangeLevel: (level: CefrLevel) => void;
+  readonly preferences: LearningPreferences;
+  readonly onUpdatePreferences: (patch: EditablePreferencePatch) => Promise<void>;
 }): ReactElement {
   return (
     <>
-      <Text style={styles.sectionLabel}>GRAMMAR CONTROL</Text>
+      <Text style={styles.sectionLabel}>LEARNING PREFERENCES</Text>
       <View style={styles.settingsCard}>
         <View style={styles.settingRow}>
           <View>
@@ -326,42 +322,18 @@ function GrammarControl({
               Controls generated story grammar
             </Text>
           </View>
-          <Text style={styles.settingValue}>{level}</Text>
+          <Text style={styles.settingValue}>{preferences.preferredCefrLevel}</Text>
         </View>
         <SegmentedControl
           appearance={isDark ? 'dark' : 'light'}
-          onValueChange={(value) => onChangeLevel(value as SettingsLevel)}
-          selectedIndex={settingsLevels.indexOf(level as SettingsLevel)}
+          onValueChange={(value) => onUpdatePreferences({ preferredCefrLevel: value as SettingsLevel })}
+          selectedIndex={settingsLevels.indexOf(preferences.preferredCefrLevel as SettingsLevel)}
           style={styles.cefrSegmentedControl}
           values={[...settingsLevels]}
         />
-      </View>
-    </>
-  );
-}
-
-// SeriesDefaults edits local defaults used by Word Picker and episode generation.
-function SeriesDefaults({
-  preferences,
-  styles,
-  onUpdatePreferences,
-}: SettingsSectionProps & {
-  // preferences are the locally persisted series defaults.
-  readonly preferences: LearningPreferences;
-  // onUpdatePreferences persists bounded preference updates through the use case.
-  readonly onUpdatePreferences: (
-    preferences: Partial<
-      Pick<
-        LearningPreferences,
-        'preferredGenre' | 'storyWordGoal'
-      >
-    >,
-  ) => Promise<void>;
-}): ReactElement {
-  return (
-    <>
-      <Text style={styles.sectionLabel}>SERIES DEFAULTS</Text>
-      <View style={styles.settingsCard}>
+        
+        <View style={styles.settingsDivider} />
+        
         <GenreDefault
           selectedGenre={preferences.preferredGenre}
           styles={styles}
@@ -369,6 +341,9 @@ function SeriesDefaults({
             onUpdatePreferences({ preferredGenre })
           }
         />
+        
+        <View style={styles.settingsDivider} />
+        
         <StepSetting
           max={MAX_STORY_WORD_GOAL}
           min={MIN_STORY_WORD_GOAL}
