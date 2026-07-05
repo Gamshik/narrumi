@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -28,4 +30,17 @@ test('floatingTabBarMetrics includes a large bottom safe-area inset', (): void =
 test('getFloatingTabBarContentPadding returns only the scroll padding', (): void => {
   assert.equal(getFloatingTabBarContentPadding(0), 104);
   assert.equal(getFloatingTabBarContentPadding({ bottom: 34 }), 126);
+});
+
+// The test callback keeps saved-series cards visually compact above the tab bar.
+test('home saved-series mini-card spacing remains compact', (): void => {
+  const stylesSource = readFileSync(
+    resolve(__dirname, '../app/MobileApp.styles.ts'),
+    'utf8',
+  );
+
+  assert.match(stylesSource, /seriesListGrid:\s*\{\s*gap:\s*10,/);
+  assert.match(stylesSource, /seriesCard:\s*\{\s*gap:\s*8,/);
+  assert.match(stylesSource, /seriesPremise:\s*\{[\s\S]*marginTop:\s*3,/);
+  assert.match(stylesSource, /seriesCardFooter:\s*\{[\s\S]*marginTop:\s*0,/);
 });
