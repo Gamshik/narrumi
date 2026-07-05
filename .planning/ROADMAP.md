@@ -11,6 +11,11 @@ This milestone finishes the partially implemented Bubble/Sorbet design across th
 |-------|------|------|--------------|
 | 1 | 5/5 | Complete    | 2026-07-04 |
 | 2 | 10/9 | Complete    | 2026-07-05 |
+
+## Milestone v1.1: Learning Screens (Planned)
+
+| Phase | Name | Goal | Requirements |
+|-------|------|------|--------------|
 | 3 | Learning Screens And Verification | Refresh reader, Story Words/session, dictionary, translation sheet, and run full verification | SCR-05, SCR-06, SCR-07, SCR-08, QUAL-02, QUAL-03, QUAL-04 |
 
 ## Phase 1: Bubble Foundation
@@ -56,7 +61,7 @@ This milestone finishes the partially implemented Bubble/Sorbet design across th
 4. Press, selected, loading, and disabled feedback uses the shared motion/style primitives from Phase 1.
 5. The floating tab bar does not overlap scrollable content on small mobile viewports.
 
-## Phase 3: Learning Screens And Verification
+## Phase 3 (v1.1): Learning Screens And Verification
 
 **Goal:** Refresh the core learning experience screens and verify the milestone against product, architecture, and design constraints.
 

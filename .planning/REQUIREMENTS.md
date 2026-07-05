@@ -18,10 +18,6 @@
 - [x] **SCR-02**: User can browse and continue series from a home screen aligned with `design/bubble/home.png`.
 - [x] **SCR-03**: User can create or edit a not-yet-started series through a setup screen aligned with `design/bubble/newseries.png`.
 - [x] **SCR-04**: User can view an existing series, continue the latest episode, prepare the next episode, and inspect episode history through a details screen aligned with `design/bubble/series.png`.
-- [ ] **SCR-05**: User can read an episode, see dialogue bubbles, choose the next story action, and keep navigation usable through a reader screen aligned with `design/bubble/reader.png`.
-- [ ] **SCR-06**: User can choose Story Words and generate an episode through a daily/session setup screen aligned with `design/bubble/session.png`.
-- [ ] **SCR-07**: User can browse Oxford vocabulary through a dictionary screen aligned with `design/bubble/dict.png`.
-- [ ] **SCR-08**: User can inspect tap-to-translate word details in a bottom sheet aligned with `design/bubble/translate.png`.
 - [x] **SCR-09**: User can manage account, sync, appearance, level, and series defaults through a settings screen aligned with `design/bubble/settings.png`.
 
 ### Motion And Feedback
@@ -33,11 +29,18 @@
 ### Architecture And Quality
 
 - [x] **QUAL-01**: Developers can reuse shared presentation primitives for bubble surfaces, pressable motion, floating tabs, pills, badges, and sheets instead of duplicating per-screen styling.
+
+## Future Requirements
+
+### v1.1 Requirements (Learning Screens)
+
+- [ ] **SCR-05**: User can read an episode, see dialogue bubbles, choose the next story action, and keep navigation usable through a reader screen aligned with `design/bubble/reader.png`.
+- [ ] **SCR-06**: User can choose Story Words and generate an episode through a daily/session setup screen aligned with `design/bubble/session.png`.
+- [ ] **SCR-07**: User can browse Oxford vocabulary through a dictionary screen aligned with `design/bubble/dict.png`.
+- [ ] **SCR-08**: User can inspect tap-to-translate word details in a bottom sheet aligned with `design/bubble/translate.png`.
 - [ ] **QUAL-02**: Presentation code remains thin and does not move AI generation, persistence, sync, Story Words ranking, or domain rules into React components.
 - [ ] **QUAL-03**: User-facing server-only actions still show explicit offline states after the visual refresh.
 - [ ] **QUAL-04**: The refreshed app passes the documented lint, typecheck, build, and relevant test commands.
-
-## Future Requirements
 
 ### Visual Expansion
 
@@ -71,20 +74,21 @@
 | SCR-04 | Phase 2 | Complete |
 | SCR-09 | Phase 2 | Complete |
 | MOT-03 | Phase 2 | Complete |
-| SCR-05 | Phase 3 | Pending |
-| SCR-06 | Phase 3 | Pending |
-| SCR-07 | Phase 3 | Pending |
-| SCR-08 | Phase 3 | Pending |
-| QUAL-02 | Phase 3 | Pending |
-| QUAL-03 | Phase 3 | Pending |
-| QUAL-04 | Phase 3 | Pending |
+| SCR-05 | Phase 3 (v1.1) | Pending |
+| SCR-06 | Phase 3 (v1.1) | Pending |
+| SCR-07 | Phase 3 (v1.1) | Pending |
+| SCR-08 | Phase 3 (v1.1) | Pending |
+| QUAL-02 | Phase 3 (v1.1) | Pending |
+| QUAL-03 | Phase 3 (v1.1) | Pending |
+| QUAL-04 | Phase 3 (v1.1) | Pending |
 
 **Coverage:**
 
-- v1.0 requirements: 20 total
+- v1.0 requirements: 13 total (13 complete)
+- v1.1 requirements: 7 total (0 complete)
 - Mapped to phases: 20
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-07-02*
-*Last updated: 2026-07-02 after milestone definition*
+*Last updated: 2026-07-05 after Phase 02 completion*
