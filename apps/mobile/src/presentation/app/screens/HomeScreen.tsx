@@ -434,8 +434,10 @@ function SeriesCard({
     <BubbleSurface colors={colors} style={styles.seriesCard} variant="card">
       <View style={styles.seriesCardHeader}>
         <View style={styles.seriesCardHeaderLeft}>
-          <Text style={styles.actionTitle}>{series.title}</Text>
-          <Text style={styles.secondaryText}>
+          <Text numberOfLines={1} style={styles.actionTitle}>
+            {series.title}
+          </Text>
+          <Text numberOfLines={1} style={styles.secondaryText}>
             {genreLabels[series.genre]} · {series.tone}
           </Text>
         </View>
@@ -443,17 +445,15 @@ function SeriesCard({
           <Text style={styles.seriesCardBadgeText}>{series.cefrLevel}</Text>
         </BubblePill>
       </View>
-      <Text numberOfLines={2} style={styles.seriesPremise}>
-        {series.premise}
-      </Text>
       <View style={styles.seriesCardFooter}>
         <BubbleButton
           colors={colors}
+          disabled={isDeleting}
           onPress={() => onOpenSeries(series.id)}
           style={styles.seriesCardPrimaryButton}
-          variant="secondary"
+          variant="primary"
         >
-          <Text style={styles.seriesCardPrimaryButtonText}>Story</Text>
+          <Text style={styles.seriesCardPrimaryButtonText}>Continue</Text>
         </BubbleButton>
         {isDeleting ? (
           <BubbleStatus

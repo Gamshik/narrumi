@@ -342,7 +342,7 @@ function createAppStylesImpl(colors: AppColors) {
       fontFamily: fontFamilies.body,
       fontSize: 12,
       lineHeight: 17,
-      marginTop: 7,
+      marginTop: 3,
     },
     smallPrimaryButton: {
       minHeight: 38,
@@ -1138,16 +1138,17 @@ function createAppStylesImpl(colors: AppColors) {
       fontSize: 15,
     },
     seriesListGrid: {
-      gap: 16,
+      gap: 10,
     },
     seriesCard: {
-      gap: 12,
+      gap: 8,
+      padding: 12,
     },
     seriesCardHeader: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       justifyContent: "space-between",
-      gap: 12,
+      gap: 10,
     },
     seriesCardHeaderLeft: {
       flex: 1,
@@ -1163,18 +1164,23 @@ function createAppStylesImpl(colors: AppColors) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: 12,
-      marginTop: 4,
+      gap: 8,
+      marginTop: 0,
     },
     seriesCardPrimaryButton: {
       flex: 1,
+      minHeight: 36,
+      paddingHorizontal: 14,
     },
     seriesCardPrimaryButtonText: {
       color: "#ffffff",
       fontFamily: fontFamilies.bodyHeavy,
       fontSize: 14,
     },
-    seriesCardDeleteButton: {},
+    seriesCardDeleteButton: {
+      minHeight: 36,
+      paddingHorizontal: 12,
+    },
     seriesCardDeleteButtonText: {
       color: colors.systemRed,
       fontFamily: fontFamilies.bodyHeavy,
