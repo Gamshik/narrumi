@@ -15,7 +15,7 @@ type DictionaryWordDetailsSheetProps = {
   readonly word: VocabularyItem | undefined | null;
   // isLoading separates the initial data fetch from the missing-word state.
   readonly isLoading?: boolean;
-  // onClose dismisses the native form sheet route.
+  // onClose dismisses the dictionary details route from the custom modal drawer.
   readonly onClose: () => void;
 };
 
@@ -35,8 +35,6 @@ export function DictionaryWordDetailsSheet({
         closeAccessibilityLabel="Close dictionary details"
         colors={colors}
         onClose={onClose}
-        showScrim={false}
-        isNativeSheet
         title="Dictionary"
       >
         <View style={styles.dictionarySheetContent}>
@@ -52,8 +50,6 @@ export function DictionaryWordDetailsSheet({
         closeAccessibilityLabel="Close dictionary details"
         colors={colors}
         onClose={onClose}
-        showScrim={false}
-        isNativeSheet
         title="Dictionary"
       >
         <View style={styles.dictionarySheetContent}>
@@ -68,8 +64,6 @@ export function DictionaryWordDetailsSheet({
       closeAccessibilityLabel="Close dictionary details"
       colors={colors}
       onClose={onClose}
-      showScrim={false}
-      isNativeSheet
       title={word.word}
     >
       <View style={styles.dictionarySheetContent}>
@@ -80,7 +74,7 @@ export function DictionaryWordDetailsSheet({
         <Text style={styles.sectionLabel}>PART OF SPEECH</Text>
         <Text style={styles.detailsText}>{word.partOfSpeech}</Text>
         <Text style={styles.sectionLabel}>OXFORD EXAMPLES</Text>
-        {/* Keep the native form sheet content-sized instead of turning it into a reader. */}
+        {/* Keep dictionary details compact instead of turning the drawer into a reader. */}
         {word.examples.slice(0, 3).map((example) => (
           <Text key={example} style={styles.exampleText}>
             • {example}

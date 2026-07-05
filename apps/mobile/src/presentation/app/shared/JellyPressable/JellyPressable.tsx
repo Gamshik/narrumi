@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
   Animated,
   Pressable,
+  View,
   type GestureResponderEvent,
   type PressableProps,
   type StyleProp,
@@ -15,21 +16,27 @@ import { motion } from '@presentation/theme';
 type JellyPressableProps = PressableProps & {
   // children is the pressable content (text, icons, nested views).
   readonly children: PressableProps['children'];
-  // containerStyle layouts the animated wrapper (use for flex/alignSelf in rows).
+  // containerStyle layouts the non-animated wrapper around the pressed surface.
   readonly containerStyle?: StyleProp<ViewStyle>;
+  // pressAnimationDelayMs defers tap feedback so gesture-driven parents can claim swipes first.
+  readonly pressAnimationDelayMs?: number;
+  // pressedOpacityTo is the active press opacity target for surfaces that may reveal content behind them.
+  readonly pressedOpacityTo?: number;
   // scaleTo is the pressed-down scale target; smaller means a deeper squish.
   readonly scaleTo?: number;
 };
 
 // JellyPressable wraps Pressable with a spring "jelly" squish so every tap feels
 // soft and bouncy, matching the Sorbet clay design language. The scale runs on a
-// plain Animated.View wrapper (native driver) so the inner Pressable keeps its
-// full style contract, including function styles for pressed feedback.
+// transform-only Animated.View wrapper (native driver) so layout styles never
+// reach the native animated module.
 export function JellyPressable({
   children,
   containerStyle,
   onPressIn,
   onPressOut,
+  pressAnimationDelayMs = 0,
+  pressedOpacityTo = motion.pressedOpacity,
   scaleTo = motion.pressScale,
   ...pressableProps
 }: JellyPressableProps): ReactElement {
@@ -37,9 +44,21 @@ export function JellyPressable({
   // overshoot; a lazy state initializer keeps one Animated.Value across renders.
   const [scale] = useState(() => new Animated.Value(1));
   const [opacity] = useState(() => new Animated.Value(1));
+  const isPressingRef = useRef(false);
+  const pressAnimationTimerRef = useRef<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined);
 
-  // handlePressIn squishes the surface immediately when the finger lands.
-  const handlePressIn = (event: GestureResponderEvent): void => {
+  useEffect((): (() => void) => {
+    return (): void => {
+      if (pressAnimationTimerRef.current) {
+        clearTimeout(pressAnimationTimerRef.current);
+      }
+    };
+  }, []);
+
+  // startPressAnimation runs the shared tactile press feedback after any caller delay.
+  const startPressAnimation = (): void => {
     Animated.spring(scale, {
       toValue: scaleTo,
       useNativeDriver: true,
@@ -47,16 +66,15 @@ export function JellyPressable({
       bounciness: motion.springBounciness,
     }).start();
     Animated.spring(opacity, {
-      toValue: motion.pressedOpacity,
+      toValue: pressedOpacityTo,
       useNativeDriver: true,
       speed: motion.springSpeed,
       bounciness: motion.springBounciness,
     }).start();
-    onPressIn?.(event);
   };
 
-  // handlePressOut releases the surface with a gentle jelly rebound.
-  const handlePressOut = (event: GestureResponderEvent): void => {
+  // releasePressAnimation restores the surface after a tap or cancelled touch.
+  const releasePressAnimation = (): void => {
     Animated.spring(scale, {
       toValue: 1,
       useNativeDriver: true,
@@ -69,18 +87,51 @@ export function JellyPressable({
       speed: motion.releaseSpringSpeed,
       bounciness: motion.releaseSpringBounciness,
     }).start();
+  };
+
+  // handlePressIn squishes the surface immediately or after the caller's gesture delay.
+  const handlePressIn = (event: GestureResponderEvent): void => {
+    isPressingRef.current = true;
+
+    if (pressAnimationDelayMs > 0) {
+      pressAnimationTimerRef.current = setTimeout((): void => {
+        pressAnimationTimerRef.current = undefined;
+
+        if (isPressingRef.current) {
+          startPressAnimation();
+        }
+      }, pressAnimationDelayMs);
+    } else {
+      startPressAnimation();
+    }
+
+    onPressIn?.(event);
+  };
+
+  // handlePressOut releases the surface with a gentle jelly rebound.
+  const handlePressOut = (event: GestureResponderEvent): void => {
+    isPressingRef.current = false;
+
+    if (pressAnimationTimerRef.current) {
+      clearTimeout(pressAnimationTimerRef.current);
+      pressAnimationTimerRef.current = undefined;
+    }
+
+    releasePressAnimation();
     onPressOut?.(event);
   };
 
   return (
-    <Animated.View style={[containerStyle, { transform: [{ scale }], opacity }]}>
-      <Pressable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        {...pressableProps}
-      >
-        {children}
-      </Pressable>
-    </Animated.View>
+    <View style={containerStyle}>
+      <Animated.View style={{ transform: [{ scale }], opacity }}>
+        <Pressable
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          {...pressableProps}
+        >
+          {children}
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 }

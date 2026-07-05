@@ -67,6 +67,7 @@ export function BubbleButton({
     <JellyPressable
       accessibilityRole={accessibilityRole}
       accessibilityState={resolvedAccessibilityState}
+      containerStyle={style}
       disabled={disabled}
       scaleTo={disabled ? 1 : motion.pressScale}
       style={[
@@ -76,7 +77,6 @@ export function BubbleButton({
         disabled && styles.disabled,
         contentStyle,
       ]}
-      containerStyle={style}
       {...pressableProps}
     >
       {children}

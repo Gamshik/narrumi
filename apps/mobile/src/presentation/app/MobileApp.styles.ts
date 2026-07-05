@@ -1016,11 +1016,12 @@ function createAppStylesImpl(colors: AppColors) {
       fontWeight: "700",
       lineHeight: 25,
     },
-    dictionaryScreen: { flex: 1, paddingTop: 14 },
+    dictionaryScreen: { flex: 1, paddingTop: 20 },
     dictionaryHeader: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+      marginTop: 8,
       paddingHorizontal: 20,
     },
     searchBar: {
@@ -1148,9 +1149,8 @@ function createAppStylesImpl(colors: AppColors) {
     },
     dictionarySheetContent: {
       gap: 12,
-      padding: 20,
+      paddingTop: 2,
       paddingBottom: 0,
-      backgroundColor: colors.backgroundSecondary,
     },
     detailsHeader: {
       flexDirection: "row",
@@ -1310,20 +1310,9 @@ function createAppStylesImpl(colors: AppColors) {
     seriesCardFooter: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
+      justifyContent: "flex-end",
       gap: 8,
       marginTop: 0,
-    },
-    seriesCardPrimaryButton: {
-      flex: 1,
-      minHeight: 36,
-      paddingVertical: 6,
-      paddingHorizontal: 14,
-    },
-    seriesCardPrimaryButtonText: {
-      color: "#ffffff",
-      fontFamily: fontFamilies.bodyHeavy,
-      fontSize: 14,
     },
     seriesCardDeleteButton: {
       minHeight: 36,
