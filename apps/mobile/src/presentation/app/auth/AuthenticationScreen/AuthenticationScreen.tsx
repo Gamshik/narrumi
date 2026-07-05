@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -61,8 +62,10 @@ export function AuthenticationScreen(): ReactElement {
 
   return (
     <RouteScreen isDark={isDark} styles={styles}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <ScrollView
+        contentContainerStyle={styles.authScrollContent}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
         style={styles.authKeyboardView}
       >
         <View style={styles.authContent}>
@@ -74,93 +77,98 @@ export function AuthenticationScreen(): ReactElement {
             </Text>
           </View>
 
-          <BubbleSurface colors={colors} style={styles.authCard} variant="card">
-            <View style={styles.authModeRow}>
-              <AuthModeButton
-                isActive={mode === 'sign-in'}
-                label="Sign In"
-                styles={styles}
-                onPress={() => {
-                  setMode('sign-in');
-                  setMessage(undefined);
-                }}
-              />
-              <AuthModeButton
-                isActive={mode === 'sign-up'}
-                label="Create Account"
-                styles={styles}
-                onPress={() => {
-                  setMode('sign-up');
-                  setMessage(undefined);
-                }}
-              />
-            </View>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.authFormKeyboardRegion}
+          >
+            <BubbleSurface colors={colors} style={styles.authCard} variant="card">
+              <View style={styles.authModeRow}>
+                <AuthModeButton
+                  isActive={mode === 'sign-in'}
+                  label="Sign In"
+                  styles={styles}
+                  onPress={() => {
+                    setMode('sign-in');
+                    setMessage(undefined);
+                  }}
+                />
+                <AuthModeButton
+                  isActive={mode === 'sign-up'}
+                  label="Create Account"
+                  styles={styles}
+                  onPress={() => {
+                    setMode('sign-up');
+                    setMessage(undefined);
+                  }}
+                />
+              </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.sectionLabel}>EMAIL</Text>
-              <TextInput
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                onChangeText={setEmail}
-                placeholder="learner@example.com"
-                placeholderTextColor={styles.placeholder.color}
-                style={styles.formInput}
-                textContentType="emailAddress"
-                value={email}
-              />
-            </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.sectionLabel}>EMAIL</Text>
+                <TextInput
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  onChangeText={setEmail}
+                  placeholder="learner@example.com"
+                  placeholderTextColor={styles.placeholder.color}
+                  style={styles.formInput}
+                  textContentType="emailAddress"
+                  value={email}
+                />
+              </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.sectionLabel}>PASSWORD</Text>
-              <TextInput
-                autoCapitalize="none"
-                autoComplete={
-                  mode === 'sign-up' ? 'new-password' : 'current-password'
-                }
-                onChangeText={setPassword}
-                onSubmitEditing={() => {
-                  if (!isDisabled) {
-                    void submit();
+              <View style={styles.formGroup}>
+                <Text style={styles.sectionLabel}>PASSWORD</Text>
+                <TextInput
+                  autoCapitalize="none"
+                  autoComplete={
+                    mode === 'sign-up' ? 'new-password' : 'current-password'
                   }
-                }}
-                placeholder="At least 8 characters"
-                placeholderTextColor={styles.placeholder.color}
-                secureTextEntry
-                style={styles.formInput}
-                textContentType={
-                  mode === 'sign-up' ? 'newPassword' : 'password'
-                }
-                value={password}
-              />
-            </View>
+                  onChangeText={setPassword}
+                  onSubmitEditing={() => {
+                    if (!isDisabled) {
+                      void submit();
+                    }
+                  }}
+                  placeholder="At least 8 characters"
+                  placeholderTextColor={styles.placeholder.color}
+                  secureTextEntry
+                  style={styles.formInput}
+                  textContentType={
+                    mode === 'sign-up' ? 'newPassword' : 'password'
+                  }
+                  value={password}
+                />
+              </View>
 
-            {message ? (
-              <BubbleStatus
+              {message ? (
+                <BubbleStatus
+                  colors={colors}
+                  tone={isError ? 'error' : 'success'}
+                  title={message}
+                  variant="row"
+                />
+              ) : null}
+
+              <BubbleButton
                 colors={colors}
-                tone={isError ? 'error' : 'success'}
-                title={message}
-                variant="row"
-              />
-            ) : null}
-
-            <BubbleButton
-              colors={colors}
-              disabled={isDisabled}
-              onPress={() => void submit()}
-              variant="primary"
-            >
-              <Text style={styles.primaryButtonText}>
-                {isSubmitting
-                  ? 'Please wait...'
-                  : mode === 'sign-in'
-                    ? 'Sign In'
-                    : 'Create Account'}
-              </Text>
-            </BubbleButton>
-          </BubbleSurface>
+                disabled={isDisabled}
+                onPress={() => void submit()}
+                variant="primary"
+              >
+                <Text style={styles.primaryButtonText}>
+                  {isSubmitting
+                    ? 'Please wait...'
+                    : mode === 'sign-in'
+                      ? 'Sign In'
+                      : 'Create Account'}
+                </Text>
+              </BubbleButton>
+            </BubbleSurface>
+          </KeyboardAvoidingView>
         </View>
-      </KeyboardAvoidingView>
+      </ScrollView>
     </RouteScreen>
   );
 }

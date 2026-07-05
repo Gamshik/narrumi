@@ -18,7 +18,12 @@ function createAppStylesImpl(colors: AppColors) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: colors.backgroundPrimary },
     flex: { flex: 1 },
-    authKeyboardView: { flex: 1, justifyContent: "center" },
+    authKeyboardView: { flex: 1 },
+    authScrollContent: {
+      flexGrow: 1,
+      justifyContent: "center",
+      paddingVertical: 28,
+    },
     authContent: {
       width: "100%",
       maxWidth: 520,
@@ -26,6 +31,7 @@ function createAppStylesImpl(colors: AppColors) {
       gap: 24,
       padding: 20,
     },
+    authFormKeyboardRegion: { width: "100%" },
     authHeader: { gap: 8 },
     authTitle: {
       color: colors.labelPrimary,
