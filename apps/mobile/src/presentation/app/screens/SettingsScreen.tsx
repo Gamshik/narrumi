@@ -7,9 +7,7 @@ import { BubbleButton, BubbleStatus, BubbleToggle, JellyPressable } from '../sha
 import {
   cefrLevels,
   DEFAULT_STORY_WORD_GOAL,
-  learningGenres,
   type LearningPreferences,
-  type LearningGenre,
   MAX_STORY_WORD_GOAL,
   MIN_STORY_WORD_GOAL,
 } from '@domain/index';
@@ -35,14 +33,6 @@ type EditablePreferencePatch = Partial<
     | 'storyWordGoal'
   >
 >;
-
-// genreLabels maps domain genre values to settings display labels.
-const genreLabels: Record<LearningGenre, string> = {
-  'daily-life': 'Daily Life',
-  'short-fiction': 'Short Fiction',
-  'travel-leisure': 'Travel',
-  'work-it': 'Work & IT',
-};
 
 // SettingsScreenProps defines the top-level settings screen style and theme inputs.
 type SettingsScreenProps = {
@@ -171,6 +161,7 @@ export function SettingsScreen({
         styles={styles}
         onUpdatePreferences={updatePreferences}
       />
+      <Appearance styles={styles} />
       <AccountSync
         email={session?.email}
         isSyncing={isSyncing}
@@ -179,7 +170,6 @@ export function SettingsScreen({
         onSignOut={signOut}
         onSyncNow={syncNow}
       />
-      <Appearance styles={styles} />
     </ScrollView>
   );
 }
@@ -211,12 +201,22 @@ function AccountSync({
   return (
     <>
       <Text style={styles.sectionLabel}>ACCOUNT & SYNC</Text>
-      <View style={styles.settingsCard}>
-        <View style={styles.settingRow}>
+      <View style={styles.settingsCompactCard}>
+        <View style={styles.accountCompactHeader}>
           <View style={styles.flex}>
             <Text style={styles.actionTitle}>Signed in as</Text>
             <Text style={styles.secondaryText}>{email ?? 'Unknown account'}</Text>
           </View>
+          <BubbleStatus
+            colors={colors}
+            tone={
+              result?.status === 'offline' ? 'offline' :
+              result?.status === 'unauthenticated' ? 'disabled' :
+              result?.status === 'failed' ? 'error' :
+              result?.status === 'synced' ? 'success' : 'loading'
+            }
+            title={statusLabel}
+          />
         </View>
 
         {result?.errorMessage ? (
@@ -229,27 +229,17 @@ function AccountSync({
           />
         ) : null}
 
-        <BubbleStatus
-          colors={colors}
-          tone={
-            result?.status === 'offline' ? 'offline' :
-            result?.status === 'unauthenticated' ? 'disabled' :
-            result?.status === 'failed' ? 'error' :
-            result?.status === 'synced' ? 'success' : 'loading'
-          }
-          title={statusLabel}
-          message={
-            result ? `Pending: ${result.pendingCount} · Pushed: ${result.pushedCount} · Failed: ${result.failedCount}`
-            : 'Use Sync Now after creating a series to verify remote writes.'
-          }
-          variant="row"
-        />
+        <Text style={styles.accountStatusText}>
+          {result ? `Pending ${result.pendingCount} · Pushed ${result.pushedCount} · Failed ${result.failedCount}`
+          : 'Use Sync Now after creating a series to verify remote writes.'}
+        </Text>
 
-        <View style={styles.practiceActions}>
+        <View style={styles.accountActionRow}>
           <BubbleButton
             style={styles.flexOne}
             disabled={isSyncing}
             colors={colors}
+            contentStyle={styles.accountActionButton}
             variant="primary"
             onPress={() => void onSyncNow()}
           >
@@ -260,6 +250,7 @@ function AccountSync({
           <BubbleButton
             style={styles.flexOne}
             colors={colors}
+            contentStyle={styles.accountActionButton}
             variant="secondary"
             onPress={() => void onSignOut()}
           >
@@ -301,7 +292,7 @@ function Appearance({ styles }: SettingsSectionProps): ReactElement {
   );
 }
 
-// LearningPreferencesSection combines CEFR, Genre, and Goal into one Bubble/Sorbet section.
+// LearningPreferencesSection keeps persisted grammar and Story Word settings visible.
 function LearningPreferencesSection({
   isDark,
   preferences,
@@ -332,18 +323,6 @@ function LearningPreferencesSection({
           values={[...settingsLevels]}
         />
         
-        <View style={styles.settingsDivider} />
-        
-        <GenreDefault
-          selectedGenre={preferences.preferredGenre}
-          styles={styles}
-          onChangeGenre={(preferredGenre) =>
-            onUpdatePreferences({ preferredGenre })
-          }
-        />
-        
-        <View style={styles.settingsDivider} />
-        
         <StepSetting
           max={MAX_STORY_WORD_GOAL}
           min={MIN_STORY_WORD_GOAL}
@@ -357,50 +336,6 @@ function LearningPreferencesSection({
         />
       </View>
     </>
-  );
-}
-
-// GenreDefault renders persisted default genre choices for new series.
-function GenreDefault({
-  selectedGenre,
-  styles,
-  onChangeGenre,
-}: {
-  // selectedGenre is the locally persisted default series genre.
-  readonly selectedGenre: LearningGenre;
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // onChangeGenre persists the chosen default genre.
-  readonly onChangeGenre: (genre: LearningGenre) => void;
-}): ReactElement {
-  return (
-    <View style={styles.settingMeter}>
-      <View style={styles.settingRow}>
-        <Text style={styles.actionTitle}>Default Genre</Text>
-        <Text style={styles.settingValue}>{genreLabels[selectedGenre]}</Text>
-      </View>
-      <View style={styles.choiceRow}>
-        {learningGenres.map((genre) => (
-          <JellyPressable
-            key={genre}
-            onPress={() => onChangeGenre(genre)}
-            style={[
-              styles.goalChoice,
-              genre === selectedGenre && styles.activeGoalChoice,
-            ]}
-          >
-            <Text
-              style={[
-                styles.goalChoiceText,
-                genre === selectedGenre && styles.activeGoalChoiceText,
-              ]}
-            >
-              {genreLabels[genre]}
-            </Text>
-          </JellyPressable>
-        ))}
-      </View>
-    </View>
   );
 }
 

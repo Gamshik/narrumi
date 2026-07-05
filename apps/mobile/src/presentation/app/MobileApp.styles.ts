@@ -416,6 +416,34 @@ function createAppStylesImpl(colors: AppColors) {
       backgroundColor: colors.backgroundSecondary,
       ...shadows.soft,
     },
+    settingsCompactCard: {
+      gap: 10,
+      padding: 12,
+      borderRadius: radii.xl,
+      backgroundColor: colors.backgroundSecondary,
+      ...shadows.soft,
+    },
+    accountCompactHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    accountStatusText: {
+      color: colors.labelSecondary,
+      fontFamily: fontFamilies.body,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    accountActionRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    accountActionButton: {
+      minHeight: 38,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
     settingRow: {
       flexDirection: "row",
       alignItems: "center",
