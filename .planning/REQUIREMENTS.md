@@ -17,7 +17,7 @@
 - [ ] **SCR-01**: User can sign in or create an account through an authentication screen aligned with `design/bubble/auth.png`.
 - [ ] **SCR-02**: User can browse and continue series from a home screen aligned with `design/bubble/home.png`.
 - [ ] **SCR-03**: User can create or edit a not-yet-started series through a setup screen aligned with `design/bubble/newseries.png`.
-- [ ] **SCR-04**: User can view an existing series, continue the latest episode, prepare the next episode, and inspect episode history through a details screen aligned with `design/bubble/series.png`.
+- [x] **SCR-04**: User can view an existing series, continue the latest episode, prepare the next episode, and inspect episode history through a details screen aligned with `design/bubble/series.png`.
 - [ ] **SCR-05**: User can read an episode, see dialogue bubbles, choose the next story action, and keep navigation usable through a reader screen aligned with `design/bubble/reader.png`.
 - [ ] **SCR-06**: User can choose Story Words and generate an episode through a daily/session setup screen aligned with `design/bubble/session.png`.
 - [ ] **SCR-07**: User can browse Oxford vocabulary through a dictionary screen aligned with `design/bubble/dict.png`.
@@ -28,7 +28,7 @@
 
 - [x] **MOT-01**: User receives a subtle spring-like scale response when pressing primary buttons, secondary buttons, chips, list rows, tab items, and story choices.
 - [x] **MOT-02**: User sees sheets, active tab highlights, and selected states appear with minimal motion that feels soft and does not distract from reading.
-- [ ] **MOT-03**: User sees success, warning, disabled, loading, and offline states expressed in the Bubble/Sorbet style without losing accessibility.
+- [x] **MOT-03**: User sees success, warning, disabled, loading, and offline states expressed in the Bubble/Sorbet style without losing accessibility.
 
 ### Architecture And Quality
 
@@ -68,9 +68,9 @@
 | SCR-01 | Phase 2 | Pending |
 | SCR-02 | Phase 2 | Pending |
 | SCR-03 | Phase 2 | Pending |
-| SCR-04 | Phase 2 | Pending |
+| SCR-04 | Phase 2 | Complete |
 | SCR-09 | Phase 2 | Pending |
-| MOT-03 | Phase 2 | Pending |
+| MOT-03 | Phase 2 | Complete |
 | SCR-05 | Phase 3 | Pending |
 | SCR-06 | Phase 3 | Pending |
 | SCR-07 | Phase 3 | Pending |
