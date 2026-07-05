@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
+  type PanResponderInstance,
   Platform,
   ScrollView,
   Text,
@@ -11,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path, Rect } from 'react-native-svg';
 
 import {
   BubbleSurface,
@@ -20,7 +25,11 @@ import {
   JellyPressable,
 } from '../shared';
 import { useAppTheme } from '../theme';
-import { lightColors, darkColors } from '@presentation/theme';
+import {
+  lightColors,
+  darkColors,
+  type AppColors,
+} from '@presentation/theme';
 
 import {
   cefrLevels,
@@ -47,6 +56,8 @@ type HomeScreenProps = {
   readonly styles: AppStyles;
   // onOpenSeries opens the unified Story Words and reader flow for one story.
   readonly onOpenSeries: (seriesId: string) => void;
+  // onRequestDeleteSeries opens the native-like confirmation sheet for one story.
+  readonly onRequestDeleteSeries: (series: Series) => void;
 };
 
 // SeriesFormState stores the controlled local create-series sheet fields.
@@ -109,9 +120,25 @@ const emptySeriesForm: SeriesFormState = {
   userRole: '',
 };
 
+// swipeOpenOffset is the resting reveal distance for the destructive bubble.
+const swipeOpenOffset = -84;
+// swipeOpenThreshold is the deliberate half-swipe distance that snaps open.
+const swipeOpenThreshold = -58;
+// closeSwipeTapSlop is the max finger drift still treated as a closing tap.
+const closeSwipeTapSlop = 8;
+
+// TouchPoint stores absolute screen coordinates for tap-vs-drag detection.
+type TouchPoint = {
+  // x is the absolute horizontal finger position.
+  readonly x: number;
+  // y is the absolute vertical finger position.
+  readonly y: number;
+};
+
 // HomeScreen renders the series-first dashboard and local create-series flow.
 export function HomeScreen({
   onOpenSeries,
+  onRequestDeleteSeries,
   styles,
 }: HomeScreenProps): ReactElement {
   const { isDark } = useAppTheme();
@@ -120,10 +147,13 @@ export function HomeScreen({
   const [form, setForm] = useState<SeriesFormState>(emptySeriesForm);
   const [formErrors, setFormErrors] = useState<SeriesFormErrors>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [deletingSeriesId, setDeletingSeriesId] = useState<string>();
+  const [isSeriesSwipeActive, setIsSeriesSwipeActive] = useState(false);
+  const [openSwipeSeriesId, setOpenSwipeSeriesId] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingSetup, setIsGeneratingSetup] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>();
+  const closeSwipeTouchStartRef = useRef<TouchPoint | undefined>(undefined);
+  const isDeleteActionTouchRef = useRef(false);
 
   const loadSeries = useCallback(async (): Promise<void> => {
     try {
@@ -136,9 +166,18 @@ export function HomeScreen({
     }
   }, []);
 
-  useEffect(() => {
-    void loadSeries();
-  }, [loadSeries]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadSeries();
+
+      return (): void => {
+        setOpenSwipeSeriesId(undefined);
+        setIsSeriesSwipeActive(false);
+        closeSwipeTouchStartRef.current = undefined;
+        isDeleteActionTouchRef.current = false;
+      };
+    }, [loadSeries]),
+  );
 
   const submitSeries = async (): Promise<void> => {
     const validationErrors = validateSeriesForm(form);
@@ -229,40 +268,74 @@ export function HomeScreen({
     }
   };
 
-  const requestDeleteSeries = (seriesToDelete: Series): void => {
-    Alert.alert(
-      'Delete series?',
-      `This removes "${seriesToDelete.title}" and its saved episodes from this device.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            void deleteSeries(seriesToDelete.id);
-          },
-        },
-      ],
-    );
+  const requestDeleteSeries = (
+    seriesToDelete: Series,
+    onCancel?: () => void,
+  ): void => {
+    onRequestDeleteSeries(seriesToDelete);
+    onCancel?.();
+    setOpenSwipeSeriesId(undefined);
   };
 
-  const deleteSeries = async (seriesId: string): Promise<void> => {
-    setDeletingSeriesId(seriesId);
-    setErrorMessage(undefined);
+  const recordCloseSwipeTouchStart = (
+    pageX: number,
+    pageY: number,
+  ): void => {
+    closeSwipeTouchStartRef.current = { x: pageX, y: pageY };
+  };
 
-    try {
-      await localAppServices.deleteSeries.execute({ seriesId });
-      await loadSeries();
-    } catch {
-      setErrorMessage('Series could not be deleted.');
-    } finally {
-      setDeletingSeriesId(undefined);
+  const closeOpenSwipeAfterTap = (
+    pageX: number,
+    pageY: number,
+  ): void => {
+    const startPoint = closeSwipeTouchStartRef.current;
+
+    closeSwipeTouchStartRef.current = undefined;
+
+    if (isDeleteActionTouchRef.current) {
+      return;
     }
+
+    if (!openSwipeSeriesId || !startPoint) {
+      return;
+    }
+
+    const movedX = Math.abs(pageX - startPoint.x);
+    const movedY = Math.abs(pageY - startPoint.y);
+
+    if (movedX <= closeSwipeTapSlop && movedY <= closeSwipeTapSlop) {
+      setOpenSwipeSeriesId(undefined);
+    }
+  };
+
+  const markDeleteActionTouch = (): void => {
+    isDeleteActionTouchRef.current = true;
+  };
+
+  const releaseDeleteActionTouch = (): void => {
+    setTimeout((): void => {
+      isDeleteActionTouchRef.current = false;
+    }, 120);
   };
 
   return (
     <>
-      <ScrollView contentContainerStyle={styles.screenContent}>
+      <ScrollView
+        contentContainerStyle={styles.screenContent}
+        onTouchEnd={(event) => {
+          closeOpenSwipeAfterTap(
+            event.nativeEvent.pageX,
+            event.nativeEvent.pageY,
+          );
+        }}
+        onTouchStart={(event) => {
+          recordCloseSwipeTouchStart(
+            event.nativeEvent.pageX,
+            event.nativeEvent.pageY,
+          );
+        }}
+        scrollEnabled={!isSeriesSwipeActive}
+      >
         <HomeHeader styles={styles} />
         {errorMessage ? (
           <BubbleStatus
@@ -278,16 +351,28 @@ export function HomeScreen({
           colors={colors}
           hasSeries={series.length > 0}
           styles={styles}
-          onCreateSeries={() => setIsCreateOpen(true)}
+          onCreateSeries={() => {
+            if (openSwipeSeriesId) {
+              setOpenSwipeSeriesId(undefined);
+              return;
+            }
+
+            setIsCreateOpen(true);
+          }}
         />
         {series.length > 0 ? (
           <SeriesList
             colors={colors}
-            deletingSeriesId={deletingSeriesId}
+            hasOpenSwipe={openSwipeSeriesId !== undefined}
+            openSwipeSeriesId={openSwipeSeriesId}
             series={series}
             styles={styles}
             onDeleteSeries={requestDeleteSeries}
+            onDeleteActionTouchEnd={releaseDeleteActionTouch}
+            onDeleteActionTouchStart={markDeleteActionTouch}
             onOpenSeries={onOpenSeries}
+            onOpenSwipeSeriesChange={setOpenSwipeSeriesId}
+            onSwipeActiveChange={setIsSeriesSwipeActive}
           />
         ) : null}
       </ScrollView>
@@ -327,9 +412,6 @@ function HomeHeader({
     <View style={styles.homeHeader}>
       <View>
         <Text style={styles.largeTitle}>Context-English</Text>
-      </View>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>G</Text>
       </View>
     </View>
   );
@@ -375,18 +457,28 @@ function CreateHero({
 // SeriesList renders saved local series using Bubble cards.
 function SeriesList({
   colors,
-  deletingSeriesId,
+  hasOpenSwipe,
+  openSwipeSeriesId,
   series,
   styles,
   onDeleteSeries,
+  onDeleteActionTouchEnd,
+  onDeleteActionTouchStart,
   onOpenSeries,
+  onOpenSwipeSeriesChange,
+  onSwipeActiveChange,
 }: {
   readonly colors: typeof lightColors | typeof darkColors;
-  readonly deletingSeriesId: string | undefined;
+  readonly hasOpenSwipe: boolean;
+  readonly openSwipeSeriesId: string | undefined;
   readonly series: readonly Series[];
   readonly styles: AppStyles;
-  readonly onDeleteSeries: (series: Series) => void;
+  readonly onDeleteSeries: (series: Series, onCancel?: () => void) => void;
+  readonly onDeleteActionTouchEnd: () => void;
+  readonly onDeleteActionTouchStart: () => void;
   readonly onOpenSeries: (seriesId: string) => void;
+  readonly onOpenSwipeSeriesChange: (seriesId: string | undefined) => void;
+  readonly onSwipeActiveChange: (isActive: boolean) => void;
 }): ReactElement {
   return (
     <>
@@ -395,12 +487,18 @@ function SeriesList({
         {series.map((item) => (
           <SeriesCard
             colors={colors}
-            isDeleting={item.id === deletingSeriesId}
+            hasOpenSwipe={hasOpenSwipe}
+            isDeleting={false}
+            isSwipeOpen={item.id === openSwipeSeriesId}
             key={item.id}
             series={item}
             styles={styles}
             onDeleteSeries={onDeleteSeries}
+            onDeleteActionTouchEnd={onDeleteActionTouchEnd}
+            onDeleteActionTouchStart={onDeleteActionTouchStart}
             onOpenSeries={onOpenSeries}
+            onOpenSwipeSeriesChange={onOpenSwipeSeriesChange}
+            onSwipeActiveChange={onSwipeActiveChange}
           />
         ))}
       </View>
@@ -408,67 +506,351 @@ function SeriesList({
   );
 }
 
-// SeriesCard displays one saved local series and its generation gate.
-function SeriesCard({
+// SwipeToDeleteWrapper exposes one fixed delete reveal position behind a card.
+function SwipeToDeleteWrapper({
+  children,
   colors,
   isDeleting,
-  series,
-  styles,
-  onDeleteSeries,
-  onOpenSeries,
+  isOpen,
+  onOpenChange,
+  onDeleteActionTouchEnd,
+  onDeleteActionTouchStart,
+  onRequestDelete,
+  onSwipeActiveChange,
 }: {
-  readonly colors: typeof lightColors | typeof darkColors;
+  readonly children: ReactElement;
+  readonly colors: AppColors;
   readonly isDeleting: boolean;
-  readonly series: Series;
-  readonly styles: AppStyles;
-  readonly onDeleteSeries: (series: Series) => void;
-  readonly onOpenSeries: (seriesId: string) => void;
+  readonly isOpen: boolean;
+  readonly onOpenChange: (isOpen: boolean) => void;
+  readonly onDeleteActionTouchEnd: () => void;
+  readonly onDeleteActionTouchStart: () => void;
+  readonly onRequestDelete: (onCancel: () => void) => void;
+  readonly onSwipeActiveChange: (isActive: boolean) => void;
 }): ReactElement {
+  const [pan] = useState(() => new Animated.ValueXY());
+  const [isActionLaneVisible, setIsActionLaneVisible] = useState(isOpen);
+  const isOpenRef = useRef(false);
+  const startTranslateXRef = useRef(0);
+
+  // isOpenRef mirrors React state for PanResponder callbacks created once.
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+    if (isOpen) {
+      setIsActionLaneVisible(true);
+    }
+  }, [isOpen]);
+
+  // finishSwipe marks the swipe gesture inactive after release or cancellation.
+  const finishSwipe = useCallback((): void => {
+    onSwipeActiveChange(false);
+  }, [onSwipeActiveChange]);
+
+  // animateTo settles the card with one shared spring profile.
+  const animateTo = useCallback((x: number, onComplete?: () => void): void => {
+    Animated.spring(pan, {
+      toValue: { x, y: 0 },
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 9,
+    }).start(({ finished }): void => {
+      if (finished) {
+        onComplete?.();
+      }
+    });
+  }, [pan]);
+
+  useEffect((): void => {
+    if (!isOpen) {
+      animateTo(0, () => setIsActionLaneVisible(false));
+    }
+  }, [animateTo, isOpen]);
+
+  // closeSwipe returns the card to its resting position after a cancelled delete.
+  const closeSwipe = useCallback((): void => {
+    onOpenChange(false);
+    animateTo(0, () => setIsActionLaneVisible(false));
+  }, [animateTo, onOpenChange]);
+
+  // requestDelete keeps destructive action behind explicit user approval.
+  const requestDelete = useCallback((): void => {
+    onRequestDelete(closeSwipe);
+  }, [closeSwipe, onRequestDelete]);
+
+  const [panResponder, setPanResponder] = useState<PanResponderInstance>();
+
+  useEffect((): void => {
+    setPanResponder(PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+        const isHorizontalSwipe =
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.65;
+        const isMeaningfulMove = Math.abs(gestureState.dx) > 10;
+        // Open cards only capture rightward drags because there is no far-delete state.
+        const isAllowedDirection = isOpenRef.current
+          ? gestureState.dx > 0
+          : gestureState.dx < 0;
+
+        return isHorizontalSwipe && isMeaningfulMove && isAllowedDirection;
+      },
+      // Capture only deliberate horizontal movement so vertical list scrolling stays free.
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        const isHorizontalSwipe =
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.65;
+        const isMeaningfulMove = Math.abs(gestureState.dx) > 10;
+        // Open cards only capture rightward drags because there is no far-delete state.
+        const isAllowedDirection = isOpenRef.current
+          ? gestureState.dx > 0
+          : gestureState.dx < 0;
+
+        return isHorizontalSwipe && isMeaningfulMove && isAllowedDirection;
+      },
+      // When PanResponder captures, freeze the current snap point as the drag origin.
+      onPanResponderGrant: () => {
+        setIsActionLaneVisible(true);
+        onSwipeActiveChange(true);
+        pan.stopAnimation();
+        startTranslateXRef.current = isOpenRef.current ? swipeOpenOffset : 0;
+        pan.setValue({ x: startTranslateXRef.current, y: 0 });
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const nextX = Math.min(
+          0,
+          Math.max(
+            swipeOpenOffset,
+            startTranslateXRef.current + gestureState.dx,
+          ),
+        );
+
+        pan.setValue({ x: nextX, y: 0 });
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const releaseX = Math.min(
+          0,
+          Math.max(
+            swipeOpenOffset,
+            startTranslateXRef.current + gestureState.dx,
+          ),
+        );
+
+        finishSwipe();
+
+        if (releaseX < swipeOpenThreshold) {
+          onOpenChange(true);
+          animateTo(swipeOpenOffset);
+          return;
+        }
+
+        onOpenChange(false);
+        animateTo(0, () => setIsActionLaneVisible(false));
+      },
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderTerminate: () => {
+        // Interruptions close the action lane so list scrolling recovers predictably.
+        finishSwipe();
+        onOpenChange(false);
+        animateTo(0, () => setIsActionLaneVisible(false));
+      },
+    }));
+  }, [
+    animateTo,
+    finishSwipe,
+    onOpenChange,
+    onSwipeActiveChange,
+    pan,
+  ]);
+
+  // translateX keeps the card between its resting point and the single delete reveal.
+  const translateX = pan.x.interpolate({
+    inputRange: [swipeOpenOffset, 0],
+    outputRange: [swipeOpenOffset, 0],
+    extrapolate: 'clamp',
+  });
+
   return (
-    <BubbleSurface colors={colors} style={styles.seriesCard} variant="card">
-      <View style={styles.seriesCardHeader}>
-        <View style={styles.seriesCardHeaderLeft}>
-          <Text numberOfLines={1} style={styles.actionTitle}>
-            {series.title}
-          </Text>
-          <Text numberOfLines={1} style={styles.secondaryText}>
-            {genreLabels[series.genre]} · {series.tone}
-          </Text>
-        </View>
-        <BubblePill colors={colors} style={styles.seriesCardBadge} tone="primary">
-          <Text style={styles.seriesCardBadgeText}>{series.cefrLevel}</Text>
-        </BubblePill>
-      </View>
-      <View style={styles.seriesCardFooter}>
+    <View style={{ position: 'relative', borderRadius: 24, overflow: 'hidden' }}>
+      <View
+        pointerEvents={isActionLaneVisible ? 'auto' : 'none'}
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'transparent',
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          paddingRight: 12,
+          opacity: isActionLaneVisible ? 1 : 0,
+        }}
+      >
         <BubbleButton
           colors={colors}
           disabled={isDeleting}
-          onPress={() => onOpenSeries(series.id)}
-          contentStyle={styles.seriesCardPrimaryButton}
-          variant="primary"
+          onPress={requestDelete}
+          onPressIn={onDeleteActionTouchStart}
+          onPressOut={onDeleteActionTouchEnd}
+          variant="danger"
+          contentStyle={{ height: 64, paddingHorizontal: 0, width: 64 }}
         >
-          <Text style={styles.seriesCardPrimaryButtonText}>Continue</Text>
+          <TrashBubbleIcon color="#ffffff" />
         </BubbleButton>
-        {isDeleting ? (
-          <BubbleStatus
-            colors={colors}
-            title="Deleting..."
-            tone="loading"
-            variant="compact"
-          />
-        ) : (
-          <BubbleButton
-            colors={colors}
-            disabled={isDeleting}
-            onPress={() => onDeleteSeries(series)}
-            contentStyle={styles.seriesCardDeleteButton}
-            variant="ghost"
-          >
-            <Text style={styles.seriesCardDeleteButtonText}>Delete</Text>
-          </BubbleButton>
-        )}
       </View>
-    </BubbleSurface>
+      <Animated.View
+        style={{ transform: [{ translateX }] }}
+        {...(panResponder?.panHandlers ?? {})}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
+// TrashBubbleIcon draws the destructive action as an in-app SVG glyph.
+function TrashBubbleIcon({ color }: { readonly color: string }): ReactElement {
+  return (
+    <Svg
+      accessibilityLabel="Delete"
+      height={30}
+      viewBox="0 0 32 32"
+      width={30}
+    >
+      <Rect
+        fill="none"
+        height={16}
+        rx={4}
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2.4}
+        width={16}
+        x={8}
+        y={12}
+      />
+      <Path
+        d="M6 10h20"
+        fill="none"
+        stroke={color}
+        strokeLinecap="round"
+        strokeWidth={2.6}
+      />
+      <Path
+        d="M12 10V7.8C12 6.2 13.2 5 14.8 5h2.4C18.8 5 20 6.2 20 7.8V10"
+        fill="none"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2.4}
+      />
+      <Path
+        d="M13 16v7M19 16v7"
+        fill="none"
+        stroke={color}
+        strokeLinecap="round"
+        strokeWidth={2.2}
+      />
+    </Svg>
+  );
+}
+
+// SeriesCard displays one saved local series and its generation gate.
+function SeriesCard({
+  colors,
+  hasOpenSwipe,
+  isDeleting,
+  isSwipeOpen,
+  series,
+  styles,
+  onDeleteSeries,
+  onDeleteActionTouchEnd,
+  onDeleteActionTouchStart,
+  onOpenSeries,
+  onOpenSwipeSeriesChange,
+  onSwipeActiveChange,
+}: {
+  readonly colors: typeof lightColors | typeof darkColors;
+  readonly hasOpenSwipe: boolean;
+  readonly isDeleting: boolean;
+  readonly isSwipeOpen: boolean;
+  readonly series: Series;
+  readonly styles: AppStyles;
+  readonly onDeleteSeries: (series: Series, onCancel?: () => void) => void;
+  readonly onDeleteActionTouchEnd: () => void;
+  readonly onDeleteActionTouchStart: () => void;
+  readonly onOpenSeries: (seriesId: string) => void;
+  readonly onOpenSwipeSeriesChange: (seriesId: string | undefined) => void;
+  readonly onSwipeActiveChange: (isActive: boolean) => void;
+}): ReactElement {
+  const [isSwipeActive, setIsSwipeActive] = useState(false);
+  const hadOpenSwipeAtPressStartRef = useRef(false);
+  const wasOpenAtPressStartRef = useRef(false);
+  const updateSwipeActive = useCallback((isActive: boolean): void => {
+    setIsSwipeActive(isActive);
+    onSwipeActiveChange(isActive);
+  }, [onSwipeActiveChange]);
+  const setSwipeOpen = useCallback((shouldOpen: boolean): void => {
+    onOpenSwipeSeriesChange(shouldOpen ? series.id : undefined);
+  }, [onOpenSwipeSeriesChange, series.id]);
+
+  return (
+    <SwipeToDeleteWrapper
+      colors={colors}
+      isDeleting={isDeleting}
+      isOpen={isSwipeOpen}
+      onDeleteActionTouchEnd={onDeleteActionTouchEnd}
+      onDeleteActionTouchStart={onDeleteActionTouchStart}
+      onOpenChange={setSwipeOpen}
+      onRequestDelete={(onCancel) => onDeleteSeries(series, onCancel)}
+      onSwipeActiveChange={updateSwipeActive}
+    >
+      <JellyPressable
+        disabled={isDeleting || isSwipeActive}
+        pressedOpacityTo={1}
+        onPressIn={() => {
+          hadOpenSwipeAtPressStartRef.current = hasOpenSwipe;
+          wasOpenAtPressStartRef.current = isSwipeOpen;
+        }}
+        onPress={() => {
+          if (
+            hadOpenSwipeAtPressStartRef.current ||
+            wasOpenAtPressStartRef.current ||
+            hasOpenSwipe ||
+            isSwipeOpen
+          ) {
+            setSwipeOpen(false);
+            return;
+          }
+
+          onOpenSeries(series.id);
+        }}
+      >
+        <BubbleSurface colors={colors} style={styles.seriesCard} variant="card">
+          <View style={styles.seriesCardHeader}>
+            <View style={styles.seriesCardHeaderLeft}>
+              <Text numberOfLines={1} style={styles.actionTitle}>
+                {series.title}
+              </Text>
+              <Text numberOfLines={1} style={styles.secondaryText}>
+                {genreLabels[series.genre]} · {series.tone}
+              </Text>
+            </View>
+            <BubblePill colors={colors} style={styles.seriesCardBadge} tone="primary">
+              <Text style={styles.seriesCardBadgeText}>{series.cefrLevel}</Text>
+            </BubblePill>
+          </View>
+          {isDeleting && (
+            <View style={styles.seriesCardFooter}>
+              <BubbleStatus
+                colors={colors}
+                title="Deleting"
+                tone="loading"
+                variant="compact"
+              />
+            </View>
+          )}
+        </BubbleSurface>
+      </JellyPressable>
+    </SwipeToDeleteWrapper>
   );
 }
 
