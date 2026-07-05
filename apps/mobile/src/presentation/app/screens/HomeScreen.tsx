@@ -353,7 +353,7 @@ function CreateHero({
       colors={colors}
       style={styles.heroSurface}
       tone="primary"
-      variant="hero"
+      variant="card"
     >
       <View style={styles.heroContent}>
         <BubblePill colors={colors} tone="primary" style={styles.heroTag}>
@@ -450,7 +450,7 @@ function SeriesCard({
           colors={colors}
           disabled={isDeleting}
           onPress={() => onOpenSeries(series.id)}
-          style={styles.seriesCardPrimaryButton}
+          contentStyle={styles.seriesCardPrimaryButton}
           variant="primary"
         >
           <Text style={styles.seriesCardPrimaryButtonText}>Continue</Text>
@@ -467,7 +467,7 @@ function SeriesCard({
             colors={colors}
             disabled={isDeleting}
             onPress={() => onDeleteSeries(series)}
-            style={styles.seriesCardDeleteButton}
+            contentStyle={styles.seriesCardDeleteButton}
             variant="ghost"
           >
             <Text style={styles.seriesCardDeleteButtonText}>Delete</Text>

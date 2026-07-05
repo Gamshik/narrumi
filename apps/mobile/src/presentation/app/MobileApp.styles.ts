@@ -1214,6 +1214,7 @@ function createAppStylesImpl(colors: AppColors) {
     seriesCardPrimaryButton: {
       flex: 1,
       minHeight: 36,
+      paddingVertical: 6,
       paddingHorizontal: 14,
     },
     seriesCardPrimaryButtonText: {
@@ -1223,6 +1224,7 @@ function createAppStylesImpl(colors: AppColors) {
     },
     seriesCardDeleteButton: {
       minHeight: 36,
+      paddingVertical: 6,
       paddingHorizontal: 12,
     },
     seriesCardDeleteButtonText: {
