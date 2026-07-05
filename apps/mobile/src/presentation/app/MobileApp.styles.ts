@@ -106,7 +106,7 @@ function createAppStylesImpl(colors: AppColors) {
       paddingBottom: floatingTabContentPadding,
     },
     modalScreen: { flex: 1, backgroundColor: colors.backgroundPrimary },
-    modalContent: { gap: 16, padding: 20, paddingTop: 16, paddingBottom: 36 },
+    modalContent: { gap: 14, padding: 20, paddingTop: 14, paddingBottom: 36 },
     modalHeader: {
       minHeight: 58,
       flexDirection: "row",
@@ -156,8 +156,8 @@ function createAppStylesImpl(colors: AppColors) {
       paddingVertical: 5,
     },
     seriesDetailsHeader: {
-      gap: 9,
-      paddingVertical: 4,
+      gap: 6,
+      paddingVertical: 2,
     },
     largeTitle: {
       color: colors.labelPrimary,
@@ -209,9 +209,9 @@ function createAppStylesImpl(colors: AppColors) {
       ...shadows.soft,
     },
     continueBanner: {
-      gap: 10,
+      gap: 8,
       borderRadius: radii.xl,
-      padding: 20,
+      padding: 18,
       backgroundColor: colors.systemBlue,
       ...shadows.clay,
     },
@@ -233,7 +233,7 @@ function createAppStylesImpl(colors: AppColors) {
     continueTitle: {
       color: "#ffffff",
       fontFamily: fontFamilies.displayHeavy,
-      fontSize: 22,
+      fontSize: 20,
       letterSpacing: -0.3,
     },
     continueText: {
@@ -470,9 +470,9 @@ function createAppStylesImpl(colors: AppColors) {
     choiceRow: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: 4,
+      gap: 3,
       backgroundColor: colors.backgroundTertiary,
-      padding: 4,
+      padding: 3,
       borderRadius: radii.xl,
     },
     goalChoice: {
@@ -481,8 +481,8 @@ function createAppStylesImpl(colors: AppColors) {
       alignItems: "center",
       justifyContent: "center",
       borderRadius: radii.lg,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
       backgroundColor: "transparent",
     },
     activeGoalChoice: { backgroundColor: colors.backgroundPrimary, ...shadows.soft },
@@ -492,7 +492,7 @@ function createAppStylesImpl(colors: AppColors) {
       fontSize: 15,
     },
     activeGoalChoiceText: { color: colors.labelPrimary },
-    formGroup: { gap: 8 },
+    formGroup: { gap: 7 },
     formLabelRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -502,17 +502,17 @@ function createAppStylesImpl(colors: AppColors) {
     fieldActionButton: {
       minHeight: 28,
       justifyContent: "center",
-      borderRadius: 9,
-      paddingHorizontal: 10,
-      backgroundColor: colors.backgroundTertiary,
+      borderRadius: radii.pill,
+      paddingHorizontal: 9,
+      backgroundColor: `${colors.systemRed}14`,
     },
     fieldActionText: {
-      color: colors.systemBlue,
+      color: colors.systemRed,
       fontSize: 12,
-      fontWeight: "700",
+      fontWeight: "800",
     },
     formInput: {
-      minHeight: 52,
+      minHeight: 50,
       borderRadius: radii.xl,
       paddingHorizontal: 16,
       backgroundColor: colors.backgroundTertiary,
@@ -521,12 +521,12 @@ function createAppStylesImpl(colors: AppColors) {
       fontSize: 15,
     },
     formTextArea: {
-      minHeight: 108,
+      minHeight: 96,
       paddingTop: 13,
       lineHeight: 21,
     },
     formCompactTextArea: {
-      minHeight: 76,
+      minHeight: 58,
       paddingTop: 13,
       lineHeight: 21,
     },
@@ -538,8 +538,24 @@ function createAppStylesImpl(colors: AppColors) {
       paddingHorizontal: 4,
     },
     characterCard: {
+      gap: 8,
+      padding: 14,
+      borderRadius: radii.lg,
+      backgroundColor: colors.backgroundTertiary,
+    },
+    characterSectionCard: {
       gap: 12,
-      padding: 16,
+      padding: 18,
+      borderRadius: radii.xl,
+      backgroundColor: colors.backgroundSecondary,
+      ...shadows.soft,
+    },
+    characterNameInput: {
+      flex: 1,
+      minHeight: 40,
+      paddingHorizontal: 0,
+      backgroundColor: "transparent",
+      fontFamily: fontFamilies.bodyHeavy,
     },
     formHelperText: {
       color: colors.labelSecondary,
@@ -1188,6 +1204,29 @@ function createAppStylesImpl(colors: AppColors) {
     },
     homeErrorStatus: {
       marginBottom: 8,
+    },
+    setupSectionCard: {
+      gap: 13,
+      padding: 18,
+      borderRadius: radii.xl,
+      backgroundColor: colors.backgroundSecondary,
+      ...shadows.soft,
+    },
+    setupGenerateRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 2,
+    },
+    setupGenerateButton: {
+      minHeight: 42,
+      paddingHorizontal: 16,
+      borderRadius: radii.pill,
+    },
+    setupGenerateButtonText: {
+      color: "#ffffff",
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 13,
     },
   });
 }

@@ -328,13 +328,13 @@ export function SeriesDetailsScreen({
       </View>
 
       <View style={styles.seriesDetailsHeader}>
-        <Text style={styles.readerBadge}>{state.series.genre}</Text>
-        <Text style={styles.largeTitle}>{state.series.title}</Text>
-        <Text style={styles.sectionLabel}>
-          {participationModeLabels[state.series.participationMode]}
-          {state.series.userRole ? ` - ${state.series.userRole}` : ''}
+        <Text style={styles.readerBadge}>
+          {genreLabels[state.series.genre]} - {state.series.cefrLevel}
         </Text>
-        <Text style={styles.secondaryText}>{state.series.premise}</Text>
+        <Text style={styles.largeTitle}>{state.series.title}</Text>
+        <Text style={styles.secondaryText}>
+          {buildSeriesDetailsMeta(state.series, state.episodes.length)}
+        </Text>
       </View>
 
       <JellyPressable
@@ -354,32 +354,20 @@ export function SeriesDetailsScreen({
         ]}
       >
         <Text style={styles.continueTag}>
-          {hasEpisodeInProgress ? 'CONTINUE EPISODE' : 'PREPARE NEXT'}
+          {hasEpisodeInProgress ? 'CONTINUE' : 'PREPARE NEXT'}
         </Text>
         <Text style={styles.continueTitle}>
-          Episode{' '}
-          {hasEpisodeInProgress
-            ? (latestEpisode?.orderIndex ?? nextEpisodeNumber)
-            : nextEpisodeNumber}
+          {hasEpisodeInProgress ? 'Resume episode' : `Episode ${nextEpisodeNumber}`}
         </Text>
         <Text style={styles.continueText}>
           {hasEpisodeInProgress
-            ? 'Return to the latest decision and finish this episode arc.'
-            : 'Choose Story Words and generate the next AI episode.'}
+            ? 'Return to the latest decision.'
+            : 'Choose Story Words for the next episode.'}
         </Text>
         <Text style={styles.bannerButtonText}>
           {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
         </Text>
       </JellyPressable>
-
-      {state.memory?.lastEpisodeSummary || state.memory?.unresolvedCliffhanger ? (
-        <BubbleSurface colors={colors} tone="neutral" variant="card" style={styles.settingsCard}>
-          <Text style={styles.actionTitle}>Series Memory</Text>
-          <Text style={styles.secondaryText}>
-            {state.memory.lastEpisodeSummary ?? state.memory.unresolvedCliffhanger}
-          </Text>
-        </BubbleSurface>
-      ) : null}
 
       {state.episodes.length > 0 ? (
         <JellyPressable
@@ -544,136 +532,156 @@ function SeriesSetupModal({
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="always"
         >
-          <SetupChoiceGroup
-            colors={colors}
-            isDisabled={!canEdit}
-            label="CEFR Level"
-            options={cefrLevels}
-            selected={form.cefrLevel}
-            styles={styles}
-            onSelect={(cefrLevel) => updateForm({ cefrLevel })}
-          />
-          <SetupChoiceGroup
-            colors={colors}
-            isDisabled={!canEdit}
-            label="Genre"
-            options={learningGenres}
-            selected={form.genre}
-            styles={styles}
-            labels={genreLabels}
-            onSelect={(genre) => updateForm({ genre })}
-          />
-          <SetupChoiceGroup
-            colors={colors}
-            isDisabled={!canEdit}
-            label="Tone"
-            options={storyToneOptions}
-            selected={form.tone}
-            styles={styles}
-            onSelect={(tone) => updateForm({ tone })}
-          />
-          <SetupChoiceGroup
-            colors={colors}
-            isDisabled={!canEdit}
-            label="Mode"
-            options={seriesParticipationModes}
-            selected={form.participationMode}
-            styles={styles}
-            labels={participationModeLabels}
-            onSelect={(participationMode) =>
-              updateForm({
-                participationMode,
-                ...(participationMode === 'director' ? { userRole: '' } : {}),
-              })
-            }
-          />
-          <SetupFormField
-            colors={colors}
-            {...(errors.premise ? { error: errors.premise } : {})}
-            {...(canEdit
-              ? {
-                  helper:
-                    'Required. Use Generate if you want the AI to fill it.',
-                }
-              : {})}
-            isEditable={canEdit}
-            fieldId="premise"
-            isMultiline
-            label="Premise"
-            placeholder="A learner receives strange English notes from a future city."
-            styles={styles}
-            value={form.premise}
-            onFocus={scrollToField}
-            onLayout={registerFieldOffset}
-            onChangeText={(premise) => updateForm({ premise })}
-          />
-          <SetupFormField
-            colors={colors}
-            {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
-            {...(canEdit
-              ? {
-                  helper:
-                    'Required. Speaker names stay fixed in dialogue; descriptions guide the AI.',
-                }
-              : {})}
-            isEditable={canEdit}
-            fieldId="characterProfiles"
-            label="Main Characters"
-            placeholder="Mira"
-            styles={styles}
-            value={characterProfileNames(form.characterProfiles).join(', ')}
-            onFocus={scrollToField}
-            onLayout={registerFieldOffset}
-            onChangeText={(mainCharacters) =>
-              updateForm({
-                characterProfiles: parseCharacterProfilesFromNames(mainCharacters),
-              })
-            }
-          />
+          <View style={styles.setupSectionCard}>
+            <SetupChoiceGroup
+              colors={colors}
+              isDisabled={!canEdit}
+              label="CEFR Level"
+              options={cefrLevels}
+              selected={form.cefrLevel}
+              styles={styles}
+              onSelect={(cefrLevel) => updateForm({ cefrLevel })}
+            />
+            <SetupChoiceGroup
+              colors={colors}
+              isDisabled={!canEdit}
+              label="Genre"
+              options={learningGenres}
+              selected={form.genre}
+              styles={styles}
+              labels={genreLabels}
+              onSelect={(genre) => updateForm({ genre })}
+            />
+            <SetupChoiceGroup
+              colors={colors}
+              isDisabled={!canEdit}
+              label="Tone"
+              options={storyToneOptions}
+              selected={form.tone}
+              styles={styles}
+              onSelect={(tone) => updateForm({ tone })}
+            />
+            <SetupChoiceGroup
+              colors={colors}
+              isDisabled={!canEdit}
+              label="Mode"
+              options={seriesParticipationModes}
+              selected={form.participationMode}
+              styles={styles}
+              labels={participationModeLabels}
+              onSelect={(participationMode) =>
+                updateForm({
+                  participationMode,
+                  ...(participationMode === 'director' ? { userRole: '' } : {}),
+                })
+              }
+            />
+            {canEdit ? (
+              <View style={styles.setupGenerateRow}>
+                <View style={styles.flex}>
+                  <Text style={styles.actionTitle}>Setup draft</Text>
+                  <Text style={styles.secondaryText}>
+                    Fill title, premise, and characters.
+                  </Text>
+                </View>
+                <BubbleButton
+                  colors={colors}
+                  disabled={isBusy}
+                  onPress={onGenerate}
+                  style={styles.setupGenerateButton}
+                  variant="primary"
+                >
+                  <Text style={styles.setupGenerateButtonText}>
+                    {isGenerating ? 'Generating...' : 'Generate'}
+                  </Text>
+                </BubbleButton>
+              </View>
+            ) : null}
+            <SetupFormField
+              colors={colors}
+              {...(errors.title ? { error: errors.title } : {})}
+              isEditable={canEdit}
+              fieldId="title"
+              label="Title"
+              placeholder="Orbit Letters"
+              styles={styles}
+              value={form.title}
+              onFocus={scrollToField}
+              onLayout={registerFieldOffset}
+              onChangeText={(title) => updateForm({ title })}
+            />
+            <SetupFormField
+              colors={colors}
+              {...(errors.premise ? { error: errors.premise } : {})}
+              {...(canEdit
+                ? {
+                    helper:
+                      'Required. Use Generate if you want the AI to fill it.',
+                  }
+                : {})}
+              isEditable={canEdit}
+              fieldId="premise"
+              isMultiline
+              label="Premise"
+              placeholder="A learner receives strange English notes from a future city."
+              styles={styles}
+              value={form.premise}
+              onFocus={scrollToField}
+              onLayout={registerFieldOffset}
+              onChangeText={(premise) => updateForm({ premise })}
+            />
+            <SetupFormField
+              colors={colors}
+              {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
+              {...(canEdit
+                ? {
+                    helper:
+                      'Required. Speaker names stay fixed in dialogue; descriptions guide the AI.',
+                  }
+                : {})}
+              isEditable={canEdit}
+              fieldId="characterProfiles"
+              label="Main Characters"
+              placeholder="Mira"
+              styles={styles}
+              value={characterProfileNames(form.characterProfiles).join(', ')}
+              onFocus={scrollToField}
+              onLayout={registerFieldOffset}
+              onChangeText={(mainCharacters) =>
+                updateForm({
+                  characterProfiles: parseCharacterProfilesFromNames(mainCharacters),
+                })
+              }
+            />
+            {form.participationMode === 'character' ? (
+              <SetupFormField
+                colors={colors}
+                {...(errors.userRole ? { error: errors.userRole } : {})}
+                {...(canEdit
+                  ? {
+                      helper:
+                        'Required. This role becomes read-only after the first episode.',
+                    }
+                  : {})}
+                isEditable={canEdit}
+                fieldId="userRole"
+                isCompactMultiline
+                label="Your Role"
+                placeholder="New analyst"
+                styles={styles}
+                value={form.userRole}
+                onFocus={scrollToField}
+                onLayout={registerFieldOffset}
+                onChangeText={(userRole) => updateForm({ userRole })}
+              />
+            ) : null}
+          </View>
           <CharacterProfilesEditor
             colors={colors}
             isEditable={canEdit}
             profiles={form.characterProfiles}
             styles={styles}
             onChange={(characterProfiles) => updateForm({ characterProfiles })}
-          />
-          {form.participationMode === 'character' ? (
-            <SetupFormField
-              colors={colors}
-              {...(errors.userRole ? { error: errors.userRole } : {})}
-              {...(canEdit
-                ? {
-                    helper:
-                      'Required. This role becomes read-only after the first episode.',
-                  }
-                : {})}
-              isEditable={canEdit}
-              fieldId="userRole"
-              isCompactMultiline
-              label="Your Role"
-              placeholder="New analyst"
-              styles={styles}
-              value={form.userRole}
-              onFocus={scrollToField}
-              onLayout={registerFieldOffset}
-              onChangeText={(userRole) => updateForm({ userRole })}
-            />
-          ) : null}
-          {/* Title is placed last so it follows the story decided above (premise, */}
-          {/* characters, learner role). This matches the AI generation order, where */}
-          {/* each field is built from the selected constraints and the fields before it. */}
-          <SetupFormField
-            colors={colors}
-            {...(errors.title ? { error: errors.title } : {})}
-            isEditable={canEdit}
-            fieldId="title"
-            label="Title"
-            placeholder="Orbit Letters"
-            styles={styles}
-            value={form.title}
-            onFocus={scrollToField}
-            onLayout={registerFieldOffset}
-            onChangeText={(title) => updateForm({ title })}
           />
           {canEdit ? (
             <>
@@ -685,15 +693,6 @@ function SeriesSetupModal({
                   variant="row"
                 />
               ) : null}
-              <BubbleButton
-                colors={colors}
-                disabled={isBusy}
-                onPress={onGenerate}
-                style={styles.primaryButton}
-                variant="primary"
-              >
-                <Text style={styles.primaryButtonText}>Generate</Text>
-              </BubbleButton>
             </>
           ) : (
             <BubbleStatus
@@ -836,7 +835,8 @@ function CharacterProfilesEditor({
   };
 
   return (
-    <View style={styles.formGroup}>
+    <View style={styles.characterSectionCard}>
+      <Text style={styles.sectionLabel}>CHARACTERS</Text>
       {profiles.map((profile, index) => (
         <BubbleSurface
           key={profile.id}
@@ -846,7 +846,18 @@ function CharacterProfilesEditor({
           style={styles.characterCard}
         >
           <View style={styles.formLabelRow}>
-            <Text style={styles.sectionLabel}>Dialogue name</Text>
+            <TextInput
+              editable={isEditable}
+              onChangeText={(name) => updateProfile(index, { name })}
+              placeholder="Corbin"
+              placeholderTextColor={styles.placeholder.color}
+              style={[
+                styles.formInput,
+                styles.characterNameInput,
+                !isEditable && styles.disabledControl,
+              ]}
+              value={profile.name}
+            />
             {isEditable ? (
               <JellyPressable
                 onPress={() => removeProfile(index)}
@@ -859,15 +870,6 @@ function CharacterProfilesEditor({
               </JellyPressable>
             ) : null}
           </View>
-          <TextInput
-            editable={isEditable}
-            onChangeText={(name) => updateProfile(index, { name })}
-            placeholder="Corbin"
-            placeholderTextColor={styles.placeholder.color}
-            style={[styles.formInput, !isEditable && styles.disabledControl]}
-            value={profile.name}
-          />
-          <Text style={styles.sectionLabel}>Description</Text>
           <TextInput
             editable={isEditable}
             multiline
@@ -956,6 +958,15 @@ function SetupChoiceGroup<T extends string>({
       </View>
     </View>
   );
+}
+
+// buildSeriesDetailsMeta keeps orientation compact without exposing the full premise.
+function buildSeriesDetailsMeta(series: Series, episodeCount: number): string {
+  const names = characterProfileNames(series.characterProfiles).slice(0, 2);
+  const cast = names.length > 0 ? names.join(' & ') : participationModeLabels[series.participationMode];
+  const episodeLabel = episodeCount === 1 ? '1 episode' : `${episodeCount} episodes`;
+
+  return `${cast} - ${episodeLabel}`;
 }
 
 // createSetupForm maps the saved series into modal form values.
