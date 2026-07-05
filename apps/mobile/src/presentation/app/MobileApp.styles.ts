@@ -113,9 +113,12 @@ function createAppStylesImpl(colors: AppColors) {
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 16,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.separator,
       backgroundColor: colors.backgroundPrimary,
+    },
+    modalActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
     },
     modalTextButton: {
       minWidth: 72,
@@ -126,9 +129,8 @@ function createAppStylesImpl(colors: AppColors) {
     modalTitle: {
       flex: 1,
       color: colors.labelPrimary,
-      fontFamily: fontFamilies.display,
-      fontSize: 17,
-      textAlign: "center",
+      fontFamily: fontFamilies.displayHeavy,
+      fontSize: 22,
     },
     modalCancel: { color: colors.systemBlue, fontSize: 15, fontWeight: "600" },
     modalSave: { color: colors.systemBlue, fontSize: 15, fontWeight: "800" },

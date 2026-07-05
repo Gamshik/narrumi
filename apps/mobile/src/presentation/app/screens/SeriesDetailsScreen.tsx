@@ -337,20 +337,10 @@ export function SeriesDetailsScreen({
         </Text>
       </View>
 
-      <JellyPressable
-        onPress={() => {
-          if (latestEpisode && !latestEpisode.isComplete) {
-            onContinueEpisode(latestEpisode.id);
-
-            return;
-          }
-
-          onPrepareEpisode(state.series.id);
-        }}
-        style={({ pressed }) => [
+      <View
+        style={[
           styles.continueBanner,
           styles.seriesPrepareBanner,
-          pressed && styles.pressed,
         ]}
       >
         <Text style={styles.continueTag}>
@@ -364,10 +354,26 @@ export function SeriesDetailsScreen({
             ? 'Return to the latest decision.'
             : 'Choose Story Words for the next episode.'}
         </Text>
-        <Text style={styles.bannerButtonText}>
-          {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
-        </Text>
-      </JellyPressable>
+        <JellyPressable
+          onPress={() => {
+            if (latestEpisode && !latestEpisode.isComplete) {
+              onContinueEpisode(latestEpisode.id);
+
+              return;
+            }
+
+            onPrepareEpisode(state.series.id);
+          }}
+          style={({ pressed }) => [
+            styles.bannerButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.bannerButtonText}>
+            {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
+          </Text>
+        </JellyPressable>
+      </View>
 
       {state.episodes.length > 0 ? (
         <JellyPressable
@@ -504,24 +510,37 @@ function SeriesSetupModal({
         style={[styles.modalScreen, { paddingTop: topInset }]}
       >
         <View style={styles.modalHeader}>
-          <JellyPressable onPress={onClose} style={styles.modalTextButton}>
-            <Text style={styles.modalCancel}>Close</Text>
-          </JellyPressable>
           <Text style={styles.modalTitle}>Series Setup</Text>
-          <JellyPressable
-            disabled={!canEdit || isBusy}
-            onPress={onSave}
-            style={styles.modalTextButton}
-          >
-            <Text
-              style={[
-                styles.modalSave,
-                (!canEdit || isBusy) && styles.disabledControl,
-              ]}
+          <View style={styles.modalActions}>
+            <JellyPressable onPress={onClose} style={styles.modalTextButton}>
+              <Text style={styles.modalCancel}>Close</Text>
+            </JellyPressable>
+            {canEdit ? (
+              <JellyPressable
+                disabled={isBusy}
+                onPress={onGenerate}
+                style={styles.modalTextButton}
+              >
+                <Text style={[styles.modalSave, isBusy && styles.disabledControl]}>
+                  {isGenerating ? 'Generating...' : 'Generate'}
+                </Text>
+              </JellyPressable>
+            ) : null}
+            <JellyPressable
+              disabled={!canEdit || isBusy}
+              onPress={onSave}
+              style={styles.modalTextButton}
             >
-              Save
-            </Text>
-          </JellyPressable>
+              <Text
+                style={[
+                  styles.modalSave,
+                  (!canEdit || isBusy) && styles.disabledControl,
+                ]}
+              >
+                Save
+              </Text>
+            </JellyPressable>
+          </View>
         </View>
         <ScrollView
           ref={scrollViewRef}
@@ -576,27 +595,7 @@ function SeriesSetupModal({
                 })
               }
             />
-            {canEdit ? (
-              <View style={styles.setupGenerateRow}>
-                <View style={styles.flex}>
-                  <Text style={styles.actionTitle}>Setup draft</Text>
-                  <Text style={styles.secondaryText}>
-                    Fill title, premise, and characters.
-                  </Text>
-                </View>
-                <BubbleButton
-                  colors={colors}
-                  disabled={isBusy}
-                  onPress={onGenerate}
-                  style={styles.setupGenerateButton}
-                  variant="primary"
-                >
-                  <Text style={styles.setupGenerateButtonText}>
-                    {isGenerating ? 'Generating...' : 'Generate'}
-                  </Text>
-                </BubbleButton>
-              </View>
-            ) : null}
+
             <SetupFormField
               colors={colors}
               {...(errors.title ? { error: errors.title } : {})}

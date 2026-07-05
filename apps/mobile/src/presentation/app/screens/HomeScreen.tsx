@@ -551,19 +551,30 @@ function CreateSeriesModal({
         style={[styles.modalScreen, { paddingTop: topInset }]}
       >
         <View style={styles.modalHeader}>
-          <JellyPressable onPress={onClose} style={styles.modalTextButton}>
-            <Text style={styles.modalCancel}>Cancel</Text>
-          </JellyPressable>
           <Text style={styles.modalTitle}>New Series</Text>
-          <JellyPressable
-            disabled={isBusy}
-            onPress={onSubmit}
-            style={styles.modalTextButton}
-          >
-            <Text style={[styles.modalSave, isBusy && styles.disabledControl]}>
-              Save
-            </Text>
-          </JellyPressable>
+          <View style={styles.modalActions}>
+            <JellyPressable onPress={onClose} style={styles.modalTextButton}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </JellyPressable>
+            <JellyPressable
+              disabled={isBusy}
+              onPress={onGenerate}
+              style={styles.modalTextButton}
+            >
+              <Text style={[styles.modalSave, isBusy && styles.disabledControl]}>
+                {isGeneratingSetup ? 'Generating...' : 'Generate'}
+              </Text>
+            </JellyPressable>
+            <JellyPressable
+              disabled={isBusy}
+              onPress={onSubmit}
+              style={styles.modalTextButton}
+            >
+              <Text style={[styles.modalSave, isBusy && styles.disabledControl]}>
+                Save
+              </Text>
+            </JellyPressable>
+          </View>
         </View>
         <ScrollView
           ref={scrollViewRef}
@@ -610,25 +621,7 @@ function CreateSeriesModal({
                 })
               }
             />
-            <View style={styles.setupGenerateRow}>
-              <View style={styles.flex}>
-                <Text style={styles.actionTitle}>Setup draft</Text>
-                <Text style={styles.secondaryText}>
-                  Fill title, premise, and characters.
-                </Text>
-              </View>
-              <BubbleButton
-                colors={colors}
-                disabled={isBusy}
-                onPress={onGenerate}
-                style={styles.setupGenerateButton}
-                variant="primary"
-              >
-                <Text style={styles.setupGenerateButtonText}>
-                  {isGeneratingSetup ? 'Generating...' : 'Generate'}
-                </Text>
-              </BubbleButton>
-            </View>
+
             <FormField
               colors={colors}
               {...(errors.title ? { error: errors.title } : {})}
