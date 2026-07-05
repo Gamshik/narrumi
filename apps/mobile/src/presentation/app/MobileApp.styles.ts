@@ -21,13 +21,13 @@ function createAppStylesImpl(colors: AppColors) {
     authKeyboardView: { flex: 1 },
     authScrollContent: {
       flexGrow: 1,
-      justifyContent: "center",
       paddingVertical: 28,
     },
     authContent: {
       width: "100%",
       maxWidth: 520,
       alignSelf: "center",
+      marginVertical: "auto",
       gap: 24,
       padding: 20,
     },

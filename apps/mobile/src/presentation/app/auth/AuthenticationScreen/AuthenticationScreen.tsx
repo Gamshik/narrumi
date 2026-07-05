@@ -62,25 +62,23 @@ export function AuthenticationScreen(): ReactElement {
 
   return (
     <RouteScreen isDark={isDark} styles={styles}>
-      <ScrollView
-        contentContainerStyle={styles.authScrollContent}
-        keyboardDismissMode="interactive"
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.authKeyboardView}
       >
-        <View style={styles.authContent}>
-          <View style={styles.authHeader}>
-            <Text style={styles.appCategory}>PERSONAL AI SERIES</Text>
-            <Text style={styles.authTitle}>Context-English</Text>
-            <Text style={styles.authSubtitle}>
-              Sign in to back up your series and continue on another device.
-            </Text>
-          </View>
-
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.authFormKeyboardRegion}
-          >
+        <ScrollView
+          contentContainerStyle={styles.authScrollContent}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.authContent}>
+            <View style={styles.authHeader}>
+              <Text style={styles.appCategory}>PERSONAL AI SERIES</Text>
+              <Text style={styles.authTitle}>Context-English</Text>
+              <Text style={styles.authSubtitle}>
+                Sign in to back up your series and continue on another device.
+              </Text>
+            </View>
             <BubbleSurface colors={colors} style={styles.authCard} variant="card">
               <View style={styles.authModeRow}>
                 <AuthModeButton
@@ -166,9 +164,9 @@ export function AuthenticationScreen(): ReactElement {
                 </Text>
               </BubbleButton>
             </BubbleSurface>
-          </KeyboardAvoidingView>
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </RouteScreen>
   );
 }
