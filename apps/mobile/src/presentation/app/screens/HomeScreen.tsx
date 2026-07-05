@@ -362,8 +362,8 @@ function CreateHero({
         <Text style={styles.heroTitle}>Create a story</Text>
         <Text style={styles.heroText}>
           {hasSeries
-            ? 'Start a new adventure with your own premise, characters, and CEFR level.'
-            : 'Start a new adventure with your own premise, characters, and CEFR level. Your saved series will appear below.'}
+            ? 'Pick a premise, characters, and level.'
+            : 'No saved series yet. Create one to begin.'}
         </Text>
         <BubbleButton
           colors={colors}

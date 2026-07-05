@@ -1100,10 +1100,10 @@ function createAppStylesImpl(colors: AppColors) {
     },
     tabLabelActive: { color: colors.systemBlue },
     heroSurface: {
-      marginBottom: 8,
+      marginBottom: 2,
     },
     heroContent: {
-      gap: 12,
+      gap: 8,
     },
     heroTag: {
       alignSelf: "flex-start",
@@ -1117,18 +1117,20 @@ function createAppStylesImpl(colors: AppColors) {
     heroTitle: {
       color: colors.labelPrimary,
       fontFamily: fontFamilies.displayHeavy,
-      fontSize: 28,
+      fontSize: 24,
       letterSpacing: -0.4,
     },
     heroText: {
       color: colors.labelSecondary,
       fontFamily: fontFamilies.body,
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 13,
+      lineHeight: 18,
     },
     heroButton: {
       alignSelf: "flex-start",
-      marginTop: 8,
+      minHeight: 42,
+      marginTop: 2,
+      paddingHorizontal: 18,
     },
     heroButtonText: {
       color: "#ffffff",
