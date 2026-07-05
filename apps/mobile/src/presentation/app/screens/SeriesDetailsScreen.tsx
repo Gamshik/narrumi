@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native';
 import {
-  BubbleButton,
   BubbleStatus,
   BubbleSurface,
   JellyPressable,

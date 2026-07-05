@@ -1,8 +1,8 @@
-import SegmentedControl from '@react-native-segmented-control/segmented-control';
+
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { BubbleButton, BubbleStatus, BubbleToggle, JellyPressable } from '../shared';
+import { BubbleButton, BubbleSegmentedControl, BubbleStatus, BubbleToggle, JellyPressable } from '../shared';
 
 import {
   cefrLevels,
@@ -302,6 +302,8 @@ function LearningPreferencesSection({
   readonly preferences: LearningPreferences;
   readonly onUpdatePreferences: (patch: EditablePreferencePatch) => Promise<void>;
 }): ReactElement {
+  const colors: AppColors = isDark ? darkColors : lightColors;
+
   return (
     <>
       <Text style={styles.sectionLabel}>LEARNING PREFERENCES</Text>
@@ -315,8 +317,8 @@ function LearningPreferencesSection({
           </View>
           <Text style={styles.settingValue}>{preferences.preferredCefrLevel}</Text>
         </View>
-        <SegmentedControl
-          appearance={isDark ? 'dark' : 'light'}
+        <BubbleSegmentedControl
+          colors={colors}
           onValueChange={(value) => onUpdatePreferences({ preferredCefrLevel: value as SettingsLevel })}
           selectedIndex={settingsLevels.indexOf(preferences.preferredCefrLevel as SettingsLevel)}
           style={styles.cefrSegmentedControl}
