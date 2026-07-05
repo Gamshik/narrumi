@@ -14,8 +14,8 @@
 
 ### Screen Alignment
 
-- [ ] **SCR-01**: User can sign in or create an account through an authentication screen aligned with `design/bubble/auth.png`.
-- [ ] **SCR-02**: User can browse and continue series from a home screen aligned with `design/bubble/home.png`.
+- [x] **SCR-01**: User can sign in or create an account through an authentication screen aligned with `design/bubble/auth.png`.
+- [x] **SCR-02**: User can browse and continue series from a home screen aligned with `design/bubble/home.png`.
 - [ ] **SCR-03**: User can create or edit a not-yet-started series through a setup screen aligned with `design/bubble/newseries.png`.
 - [x] **SCR-04**: User can view an existing series, continue the latest episode, prepare the next episode, and inspect episode history through a details screen aligned with `design/bubble/series.png`.
 - [ ] **SCR-05**: User can read an episode, see dialogue bubbles, choose the next story action, and keep navigation usable through a reader screen aligned with `design/bubble/reader.png`.
@@ -65,8 +65,8 @@
 | MOT-01 | Phase 1 | Complete |
 | MOT-02 | Phase 1 | Complete |
 | QUAL-01 | Phase 1 | Complete |
-| SCR-01 | Phase 2 | Pending |
-| SCR-02 | Phase 2 | Pending |
+| SCR-01 | Phase 2 | Complete |
+| SCR-02 | Phase 2 | Complete |
 | SCR-03 | Phase 2 | Pending |
 | SCR-04 | Phase 2 | Complete |
 | SCR-09 | Phase 2 | Pending |
