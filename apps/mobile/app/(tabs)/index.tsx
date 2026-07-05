@@ -14,6 +14,12 @@ export default function HomeRoute(): ReactElement {
         onOpenSeries={(seriesId) =>
           router.push({ pathname: '/series-details', params: { seriesId } })
         }
+        onRequestDeleteSeries={(series) =>
+          router.push({
+            pathname: '/delete-series-confirmation',
+            params: { seriesId: series.id, title: series.title },
+          })
+        }
         styles={styles}
       />
     </RouteScreen>

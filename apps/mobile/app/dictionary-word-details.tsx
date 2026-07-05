@@ -15,7 +15,7 @@ const getVocabularyItem = createGetVocabularyItem(
   new BundledOxfordVocabularyCatalog(),
 );
 
-// Route contract: resolves a dictionary word id into native sheet content.
+// Route contract: resolves a dictionary word id into modal drawer content.
 export default function DictionaryWordDetailsRoute(): ReactElement {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -37,11 +37,14 @@ export default function DictionaryWordDetailsRoute(): ReactElement {
     }
   }, [id]);
 
+  if (isLoading) {
+    return <></>;
+  }
+
   return (
     <DictionaryWordDetailsSheet
       styles={styles}
       word={word}
-      isLoading={isLoading}
       onClose={() => router.back()}
     />
   );
