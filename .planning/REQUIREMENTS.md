@@ -16,13 +16,13 @@
 
 - [x] **SCR-01**: User can sign in or create an account through an authentication screen aligned with `design/bubble/auth.png`.
 - [x] **SCR-02**: User can browse and continue series from a home screen aligned with `design/bubble/home.png`.
-- [ ] **SCR-03**: User can create or edit a not-yet-started series through a setup screen aligned with `design/bubble/newseries.png`.
+- [x] **SCR-03**: User can create or edit a not-yet-started series through a setup screen aligned with `design/bubble/newseries.png`.
 - [x] **SCR-04**: User can view an existing series, continue the latest episode, prepare the next episode, and inspect episode history through a details screen aligned with `design/bubble/series.png`.
 - [ ] **SCR-05**: User can read an episode, see dialogue bubbles, choose the next story action, and keep navigation usable through a reader screen aligned with `design/bubble/reader.png`.
 - [ ] **SCR-06**: User can choose Story Words and generate an episode through a daily/session setup screen aligned with `design/bubble/session.png`.
 - [ ] **SCR-07**: User can browse Oxford vocabulary through a dictionary screen aligned with `design/bubble/dict.png`.
 - [ ] **SCR-08**: User can inspect tap-to-translate word details in a bottom sheet aligned with `design/bubble/translate.png`.
-- [ ] **SCR-09**: User can manage account, sync, appearance, level, and series defaults through a settings screen aligned with `design/bubble/settings.png`.
+- [x] **SCR-09**: User can manage account, sync, appearance, level, and series defaults through a settings screen aligned with `design/bubble/settings.png`.
 
 ### Motion And Feedback
 
@@ -67,9 +67,9 @@
 | QUAL-01 | Phase 1 | Complete |
 | SCR-01 | Phase 2 | Complete |
 | SCR-02 | Phase 2 | Complete |
-| SCR-03 | Phase 2 | Pending |
+| SCR-03 | Phase 2 | Complete |
 | SCR-04 | Phase 2 | Complete |
-| SCR-09 | Phase 2 | Pending |
+| SCR-09 | Phase 2 | Complete |
 | MOT-03 | Phase 2 | Complete |
 | SCR-05 | Phase 3 | Pending |
 | SCR-06 | Phase 3 | Pending |

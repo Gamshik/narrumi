@@ -27,11 +27,11 @@ The app must feel like continuing a personal English series that teaches words i
 - ✓ Story Words are lightweight episode inputs, not a flashcard-first or scheduled SRS review system.
 - ✓ Local-first persistence and explicit offline states are required for user-facing flows that depend on server capabilities.
 - ✓ The codebase already contains initial Sorbet presentation primitives, including `JellyPressable`, `SorbetBackground`, and `SorbetTabBar`.
+- ✓ Complete Bubble/Sorbet theme foundation and shared interactive primitives — Phase 1.
+- ✓ Align shell, authentication, series management, and settings screens with the `design/bubble` mockups — Phase 2.
 
 ### Active
 
-- [ ] Complete Bubble/Sorbet theme foundation and shared interactive primitives.
-- [ ] Align shell, authentication, series management, and settings screens with the `design/bubble` mockups.
 - [ ] Align reader, Story Words/session, dictionary, and translation surfaces with the `design/bubble` mockups.
 - [ ] Verify animation, accessibility, dark/light theme, safe-area, offline-state, lint, typecheck, build, and relevant test behavior after implementation.
 
@@ -64,9 +64,13 @@ The app must feel like continuing a personal English series that teaches words i
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Use `design/bubble` as the current screen-level visual target | The user identified these screenshots as the new design and the app already contains partial Sorbet primitives | Pending |
-| Treat the refresh as a presentation milestone only | The PRD, stack, and architecture artifacts already define product behavior; the request is visual and interaction polish | Pending |
-| Keep animation minimal and tactile | The design guidelines call for spring-like micro-interactions, while the user requested minimal button-style animations | Pending |
+| Use `design/bubble` as the current screen-level visual target | The user identified these screenshots as the new design and the app already contains partial Sorbet primitives | Success |
+| Treat the refresh as a presentation milestone only | The PRD, stack, and architecture artifacts already define product behavior; the request is visual and interaction polish | Success |
+| Keep animation minimal and tactile | The design guidelines call for spring-like micro-interactions, while the user requested minimal button-style animations | Success |
+| Unframe Home create hero into a compact CTA | The create-series block was too large and felt like an oversized card; making it a compact inline action row fits the design better | Success |
+| Use fixed modal action sizes | Promoted Generate/Save text links in modals to fixed Bubble buttons to prevent header reflow/flicker when status changes | Success |
+| Use static continue/prep banners | Changed the Series Details continuation banner from a single giant pressable card to a static surface with a small nested button | Success |
+| Replace native SegmentedControl in Settings | Replaced native iOS components with custom BubbleSegmentedControl built from Bubble primitives | Success |
 
 ## Evolution
 
@@ -86,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-02 after starting milestone v1.0*
+*Last updated: 2026-07-05 after Phase 02*
