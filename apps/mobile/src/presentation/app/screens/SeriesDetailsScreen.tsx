@@ -11,7 +11,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { JellyPressable } from '../shared';
+import {
+  BubbleButton,
+  BubbleStatus,
+  BubbleSurface,
+  JellyPressable,
+} from '../shared';
+import { useAppTheme } from '../theme';
+import { lightColors, darkColors } from '@presentation/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -120,6 +127,8 @@ export function SeriesDetailsScreen({
   seriesId,
   styles,
 }: SeriesDetailsScreenProps): ReactElement {
+  const { isDark } = useAppTheme();
+  const colors = isDark ? darkColors : lightColors;
   const [state, setState] = useState<SeriesDetailsState>();
   const [setupForm, setSetupForm] = useState<SeriesSetupFormState>();
   const [setupErrors, setSetupErrors] = useState<SeriesSetupFormErrors>({});
@@ -407,6 +416,7 @@ export function SeriesDetailsScreen({
       )}
       {setupForm ? (
         <SeriesSetupModal
+          colors={colors}
           canEdit={canEditSetup}
           errors={setupErrors}
           form={setupForm}
@@ -433,6 +443,7 @@ export function SeriesDetailsScreen({
 
 // SeriesSetupModal shows the locked or editable setup contract for one series.
 function SeriesSetupModal({
+  colors,
   canEdit,
   errors,
   form,
@@ -445,6 +456,8 @@ function SeriesSetupModal({
   onGenerate,
   onSave,
 }: {
+  // colors is the current theme tokens.
+  readonly colors: typeof lightColors | typeof darkColors;
   // canEdit is true only before the first generated episode exists.
   readonly canEdit: boolean;
   // errors are validation messages for editable setup fields.
@@ -531,6 +544,7 @@ function SeriesSetupModal({
           keyboardShouldPersistTaps="always"
         >
           <SetupChoiceGroup
+            colors={colors}
             isDisabled={!canEdit}
             label="CEFR Level"
             options={cefrLevels}
@@ -539,6 +553,7 @@ function SeriesSetupModal({
             onSelect={(cefrLevel) => updateForm({ cefrLevel })}
           />
           <SetupChoiceGroup
+            colors={colors}
             isDisabled={!canEdit}
             label="Genre"
             options={learningGenres}
@@ -548,6 +563,7 @@ function SeriesSetupModal({
             onSelect={(genre) => updateForm({ genre })}
           />
           <SetupChoiceGroup
+            colors={colors}
             isDisabled={!canEdit}
             label="Tone"
             options={storyToneOptions}
@@ -556,6 +572,7 @@ function SeriesSetupModal({
             onSelect={(tone) => updateForm({ tone })}
           />
           <SetupChoiceGroup
+            colors={colors}
             isDisabled={!canEdit}
             label="Mode"
             options={seriesParticipationModes}
@@ -570,6 +587,7 @@ function SeriesSetupModal({
             }
           />
           <SetupFormField
+            colors={colors}
             {...(errors.premise ? { error: errors.premise } : {})}
             {...(canEdit
               ? {
@@ -589,6 +607,7 @@ function SeriesSetupModal({
             onChangeText={(premise) => updateForm({ premise })}
           />
           <SetupFormField
+            colors={colors}
             {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
             {...(canEdit
               ? {
@@ -611,6 +630,7 @@ function SeriesSetupModal({
             }
           />
           <CharacterProfilesEditor
+            colors={colors}
             isEditable={canEdit}
             profiles={form.characterProfiles}
             styles={styles}
@@ -618,6 +638,7 @@ function SeriesSetupModal({
           />
           {form.participationMode === 'character' ? (
             <SetupFormField
+              colors={colors}
               {...(errors.userRole ? { error: errors.userRole } : {})}
               {...(canEdit
                 ? {
@@ -641,6 +662,7 @@ function SeriesSetupModal({
           {/* characters, learner role). This matches the AI generation order, where */}
           {/* each field is built from the selected constraints and the fields before it. */}
           <SetupFormField
+            colors={colors}
             {...(errors.title ? { error: errors.title } : {})}
             isEditable={canEdit}
             fieldId="title"
@@ -653,25 +675,32 @@ function SeriesSetupModal({
             onChangeText={(title) => updateForm({ title })}
           />
           {canEdit ? (
-            <JellyPressable
-              disabled={isBusy}
-              onPress={onGenerate}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.pressed,
-                isBusy && styles.disabledControl,
-              ]}
-            >
-              <Text style={styles.primaryButtonText}>
-                {isGenerating ? 'Generating...' : 'Generate'}
-              </Text>
-            </JellyPressable>
+            <>
+              {isBusy ? (
+                <BubbleStatus
+                  colors={colors}
+                  tone="loading"
+                  title={isSaving ? 'Saving setup...' : 'Generating setup...'}
+                  variant="row"
+                />
+              ) : null}
+              <BubbleButton
+                colors={colors}
+                disabled={isBusy}
+                onPress={onGenerate}
+                style={styles.primaryButton}
+                variant="primary"
+              >
+                <Text style={styles.primaryButtonText}>Generate</Text>
+              </BubbleButton>
+            </>
           ) : (
-            <View style={styles.stateMessage}>
-              <Text style={styles.stateMessageTitle}>
-                Setup is read-only after the first episode.
-              </Text>
-            </View>
+            <BubbleStatus
+              colors={colors}
+              tone="warning"
+              title="Setup is read-only after the first episode."
+              variant="row"
+            />
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -681,6 +710,7 @@ function SeriesSetupModal({
 
 // SetupFormField renders one editable or read-only setup text field.
 function SetupFormField({
+  colors,
   error,
   fieldId,
   helper,
@@ -695,6 +725,8 @@ function SetupFormField({
   onLayout,
   onChangeText,
 }: {
+  // colors is the current theme tokens.
+  readonly colors: typeof lightColors | typeof darkColors;
   // error is the visible validation message for this field.
   readonly error?: string;
   // fieldId identifies the field for keyboard-aware autoscroll.
@@ -746,7 +778,9 @@ function SetupFormField({
         textAlignVertical={isMultiline || isCompactMultiline ? 'top' : 'center'}
         value={value}
       />
-      {error ? <Text style={styles.formErrorText}>{error}</Text> : null}
+      {error ? (
+        <BubbleStatus colors={colors} tone="error" title={error} variant="compact" />
+      ) : null}
       {!error && helper ? (
         <Text style={styles.formHelperText}>{helper}</Text>
       ) : null}
@@ -756,11 +790,14 @@ function SetupFormField({
 
 // CharacterProfilesEditor renders pinned speaker names with separate AI descriptions.
 function CharacterProfilesEditor({
+  colors,
   isEditable,
   profiles,
   styles,
   onChange,
 }: {
+  // colors is the current theme tokens.
+  readonly colors: typeof lightColors | typeof darkColors;
   // isEditable disables profile changes after the first generated episode.
   readonly isEditable: boolean;
   // profiles are the editable character rows for the setup form.
@@ -800,7 +837,13 @@ function CharacterProfilesEditor({
   return (
     <View style={styles.formGroup}>
       {profiles.map((profile, index) => (
-        <View key={profile.id} style={styles.formGroup}>
+        <BubbleSurface
+          key={profile.id}
+          colors={colors}
+          tone="neutral"
+          variant="card"
+          style={styles.characterCard}
+        >
           <View style={styles.formLabelRow}>
             <Text style={styles.sectionLabel}>Dialogue name</Text>
             {isEditable ? (
@@ -838,7 +881,7 @@ function CharacterProfilesEditor({
             textAlignVertical="top"
             value={profile.description}
           />
-        </View>
+        </BubbleSurface>
       ))}
       {isEditable ? (
         <JellyPressable
@@ -857,6 +900,7 @@ function CharacterProfilesEditor({
 
 // SetupChoiceGroup renders bounded setup options with read-only support.
 function SetupChoiceGroup<T extends string>({
+  colors,
   isDisabled,
   label,
   labels,
@@ -865,6 +909,8 @@ function SetupChoiceGroup<T extends string>({
   styles,
   onSelect,
 }: {
+  // colors is the current theme tokens.
+  readonly colors: typeof lightColors | typeof darkColors;
   // isDisabled prevents changes after the first episode.
   readonly isDisabled: boolean;
   // label names the option group for the form.

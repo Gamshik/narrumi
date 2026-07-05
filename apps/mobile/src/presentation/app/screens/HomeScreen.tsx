@@ -292,6 +292,7 @@ export function HomeScreen({
         ) : null}
       </ScrollView>
       <CreateSeriesModal
+        colors={colors}
         form={form}
         isGeneratingSetup={isGeneratingSetup}
         isSaving={isSaving}
@@ -479,6 +480,7 @@ function SeriesCard({
 
 // CreateSeriesModal renders the full local series setup form.
 function CreateSeriesModal({
+  colors,
   errors,
   form,
   isGeneratingSetup,
@@ -490,6 +492,8 @@ function CreateSeriesModal({
   onGenerate,
   onSubmit,
 }: {
+  // colors is the current theme tokens.
+  readonly colors: typeof lightColors | typeof darkColors;
   // errors are the visible validation messages for current form values.
   readonly errors: SeriesFormErrors;
   // form is the controlled create-series state.
@@ -606,6 +610,7 @@ function CreateSeriesModal({
             }
           />
           <FormField
+            colors={colors}
             {...(errors.premise ? { error: errors.premise } : {})}
             fieldId="premise"
             helper="Required. Use Generate if you want the AI to fill it."
@@ -619,6 +624,7 @@ function CreateSeriesModal({
             onChangeText={(premise) => updateForm({ premise })}
           />
           <FormField
+            colors={colors}
             {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
             fieldId="characterProfiles"
             helper="Required. Speaker names stay fixed in dialogue; descriptions guide the AI."
@@ -635,12 +641,14 @@ function CreateSeriesModal({
             }
           />
           <CharacterProfilesEditor
+            colors={colors}
             profiles={form.characterProfiles}
             styles={styles}
             onChange={(characterProfiles) => updateForm({ characterProfiles })}
           />
           {form.participationMode === 'character' ? (
             <FormField
+              colors={colors}
               {...(errors.userRole ? { error: errors.userRole } : {})}
               fieldId="userRole"
               helper="Required. This role becomes read-only after the first episode."
@@ -658,6 +666,7 @@ function CreateSeriesModal({
           {/* characters, learner role). This matches the AI generation order, where */}
           {/* each field is built from the selected constraints and the fields before it. */}
           <FormField
+            colors={colors}
             {...(errors.title ? { error: errors.title } : {})}
             fieldId="title"
             label="Title"
@@ -668,19 +677,23 @@ function CreateSeriesModal({
             onLayout={registerFieldOffset}
             onChangeText={(title) => updateForm({ title })}
           />
-          <JellyPressable
+          {isBusy ? (
+            <BubbleStatus
+              colors={colors}
+              tone="loading"
+              title={isSaving ? 'Saving series...' : 'Generating setup...'}
+              variant="row"
+            />
+          ) : null}
+          <BubbleButton
+            colors={colors}
             disabled={isBusy}
             onPress={onGenerate}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              pressed && styles.pressed,
-              isBusy && styles.disabledControl,
-            ]}
+            style={styles.heroButton}
+            variant="primary"
           >
-            <Text style={styles.primaryButtonText}>
-              {isGeneratingSetup ? 'Generating...' : 'Generate'}
-            </Text>
-          </JellyPressable>
+            <Text style={styles.primaryButtonText}>Generate</Text>
+          </BubbleButton>
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
@@ -689,6 +702,7 @@ function CreateSeriesModal({
 
 // FormField renders one native text input row in the create-series sheet.
 function FormField({
+  colors,
   error,
   fieldId,
   helper,
@@ -702,6 +716,8 @@ function FormField({
   onLayout,
   onChangeText,
 }: {
+  // colors is the current theme tokens.
+  readonly colors: typeof lightColors | typeof darkColors;
   // error is the visible validation message for this field.
   readonly error?: string;
   // fieldId identifies the field for keyboard-aware autoscroll.
@@ -749,7 +765,9 @@ function FormField({
         textAlignVertical={isMultiline || isCompactMultiline ? 'top' : 'center'}
         value={value}
       />
-      {error ? <Text style={styles.formErrorText}>{error}</Text> : null}
+      {error ? (
+        <BubbleStatus colors={colors} tone="error" title={error} variant="compact" />
+      ) : null}
       {!error && helper ? (
         <Text style={styles.formHelperText}>{helper}</Text>
       ) : null}
@@ -759,10 +777,13 @@ function FormField({
 
 // CharacterProfilesEditor renders pinned speaker names with separate AI descriptions.
 function CharacterProfilesEditor({
+  colors,
   profiles,
   styles,
   onChange,
 }: {
+  // colors is the current theme tokens.
+  readonly colors: typeof lightColors | typeof darkColors;
   // profiles are the editable character rows for the setup form.
   readonly profiles: readonly SeriesCharacterProfile[];
   // styles is the current theme StyleSheet contract.
@@ -800,7 +821,13 @@ function CharacterProfilesEditor({
   return (
     <View style={styles.formGroup}>
       {profiles.map((profile, index) => (
-        <View key={profile.id} style={styles.formGroup}>
+        <BubbleSurface
+          key={profile.id}
+          colors={colors}
+          tone="neutral"
+          variant="card"
+          style={styles.characterCard}
+        >
           <View style={styles.formLabelRow}>
             <Text style={styles.sectionLabel}>Dialogue name</Text>
             <JellyPressable
@@ -830,7 +857,7 @@ function CharacterProfilesEditor({
             textAlignVertical="top"
             value={profile.description}
           />
-        </View>
+        </BubbleSurface>
       ))}
       <JellyPressable
         onPress={addProfile}
