@@ -1,4 +1,5 @@
 export * from './BubbleButton';
+export * from './BubbleStatus';
 export * from './BubblePill';
 export * from './BubbleSheet';
 export * from './BubbleSurface';
