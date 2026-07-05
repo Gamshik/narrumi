@@ -349,24 +349,19 @@ function CreateHero({
   readonly onCreateSeries: () => void;
 }): ReactElement {
   return (
-    <BubbleSurface
-      colors={colors}
-      style={styles.heroSurface}
-      tone="primary"
-      variant="card"
-    >
+    <View style={styles.heroSurface}>
       <View style={styles.heroContent}>
-        <BubblePill colors={colors} tone="primary" style={styles.heroTag}>
-          <Text style={styles.heroTagText}>AI SERIES</Text>
-        </BubblePill>
-        <Text style={styles.heroTitle}>Create a story</Text>
-        <Text style={styles.heroText}>
-          {hasSeries
-            ? 'Pick a premise, characters, and level.'
-            : 'No saved series yet. Create one to begin.'}
-        </Text>
+        <View style={styles.flex}>
+          <Text style={styles.heroTitle}>Create a story</Text>
+          <Text style={styles.heroText}>
+            {hasSeries
+              ? 'Pick a premise, characters, and level.'
+              : 'No saved series yet. Create one to begin.'}
+          </Text>
+        </View>
         <BubbleButton
           colors={colors}
+          contentStyle={styles.heroButtonContent}
           onPress={onCreateSeries}
           style={styles.heroButton}
           variant="primary"
@@ -374,7 +369,7 @@ function CreateHero({
           <Text style={styles.heroButtonText}>New Series</Text>
         </BubbleButton>
       </View>
-    </BubbleSurface>
+    </View>
   );
 }
 
@@ -556,24 +551,24 @@ function CreateSeriesModal({
             <JellyPressable onPress={onClose} style={styles.modalTextButton}>
               <Text style={styles.modalCancel}>Cancel</Text>
             </JellyPressable>
-            <JellyPressable
+            <BubbleButton
+              colors={colors}
+              contentStyle={styles.modalPrimaryAction}
               disabled={isBusy}
               onPress={onGenerate}
-              style={styles.modalTextButton}
+              variant="primary"
             >
-              <Text style={[styles.modalSave, isBusy && styles.disabledControl]}>
-                {isGeneratingSetup ? 'Generating...' : 'Generate'}
-              </Text>
-            </JellyPressable>
-            <JellyPressable
+              <Text style={styles.modalPrimaryActionText}>Generate</Text>
+            </BubbleButton>
+            <BubbleButton
+              colors={colors}
+              contentStyle={styles.modalSecondaryAction}
               disabled={isBusy}
               onPress={onSubmit}
-              style={styles.modalTextButton}
+              variant="secondary"
             >
-              <Text style={[styles.modalSave, isBusy && styles.disabledControl]}>
-                Save
-              </Text>
-            </JellyPressable>
+              <Text style={styles.modalSecondaryActionText}>Save</Text>
+            </BubbleButton>
           </View>
         </View>
         <ScrollView

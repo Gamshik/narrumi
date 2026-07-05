@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import {
+  BubbleButton,
   BubbleStatus,
   BubbleSurface,
   JellyPressable,
@@ -336,7 +337,10 @@ export function SeriesDetailsScreen({
         </Text>
       </View>
 
-      <View
+      <BubbleSurface
+        colors={colors}
+        tone="primary"
+        variant="card"
         style={[
           styles.continueBanner,
           styles.seriesPrepareBanner,
@@ -353,7 +357,9 @@ export function SeriesDetailsScreen({
             ? 'Return to the latest decision.'
             : 'Choose Story Words for the next episode.'}
         </Text>
-        <JellyPressable
+        <BubbleButton
+          colors={colors}
+          contentStyle={styles.bannerButton}
           onPress={() => {
             if (latestEpisode && !latestEpisode.isComplete) {
               onContinueEpisode(latestEpisode.id);
@@ -363,16 +369,13 @@ export function SeriesDetailsScreen({
 
             onPrepareEpisode(state.series.id);
           }}
-          style={({ pressed }) => [
-            styles.bannerButton,
-            pressed && styles.pressed,
-          ]}
+          variant="secondary"
         >
           <Text style={styles.bannerButtonText}>
             {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
           </Text>
-        </JellyPressable>
-      </View>
+        </BubbleButton>
+      </BubbleSurface>
 
       {state.episodes.length > 0 ? (
         <JellyPressable
@@ -515,30 +518,25 @@ function SeriesSetupModal({
               <Text style={styles.modalCancel}>Close</Text>
             </JellyPressable>
             {canEdit ? (
-              <JellyPressable
+              <BubbleButton
+                colors={colors}
+                contentStyle={styles.modalPrimaryAction}
                 disabled={isBusy}
                 onPress={onGenerate}
-                style={styles.modalTextButton}
+                variant="primary"
               >
-                <Text style={[styles.modalSave, isBusy && styles.disabledControl]}>
-                  {isGenerating ? 'Generating...' : 'Generate'}
-                </Text>
-              </JellyPressable>
+                <Text style={styles.modalPrimaryActionText}>Generate</Text>
+              </BubbleButton>
             ) : null}
-            <JellyPressable
+            <BubbleButton
+              colors={colors}
+              contentStyle={styles.modalSecondaryAction}
               disabled={!canEdit || isBusy}
               onPress={onSave}
-              style={styles.modalTextButton}
+              variant="secondary"
             >
-              <Text
-                style={[
-                  styles.modalSave,
-                  (!canEdit || isBusy) && styles.disabledControl,
-                ]}
-              >
-                Save
-              </Text>
-            </JellyPressable>
+              <Text style={styles.modalSecondaryActionText}>Save</Text>
+            </BubbleButton>
           </View>
         </View>
         <ScrollView

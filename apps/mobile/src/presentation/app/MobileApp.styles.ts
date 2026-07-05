@@ -108,17 +108,21 @@ function createAppStylesImpl(colors: AppColors) {
     modalScreen: { flex: 1, backgroundColor: colors.backgroundPrimary },
     modalContent: { gap: 14, padding: 20, paddingTop: 14, paddingBottom: 36 },
     modalHeader: {
-      minHeight: 58,
+      minHeight: 74,
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "space-between",
+      gap: 12,
       paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 10,
       backgroundColor: colors.backgroundPrimary,
     },
     modalActions: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
+      alignItems: "flex-start",
+      gap: 8,
+      flexShrink: 0,
     },
     modalTextButton: {
       minWidth: 72,
@@ -130,10 +134,34 @@ function createAppStylesImpl(colors: AppColors) {
       flex: 1,
       color: colors.labelPrimary,
       fontFamily: fontFamilies.displayHeavy,
-      fontSize: 22,
+      fontSize: 24,
+      letterSpacing: -0.3,
+      lineHeight: 30,
     },
     modalCancel: { color: colors.systemBlue, fontSize: 15, fontWeight: "600" },
     modalSave: { color: colors.systemBlue, fontSize: 15, fontWeight: "800" },
+    modalPrimaryAction: {
+      minWidth: 112,
+      minHeight: 40,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    modalSecondaryAction: {
+      minWidth: 72,
+      minHeight: 40,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    modalPrimaryActionText: {
+      color: "#ffffff",
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 13,
+    },
+    modalSecondaryActionText: {
+      color: colors.labelPrimary,
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 13,
+    },
     homeHeader: {
       flexDirection: "row",
       alignItems: "center",
@@ -211,11 +239,9 @@ function createAppStylesImpl(colors: AppColors) {
       ...shadows.soft,
     },
     continueBanner: {
-      gap: 8,
-      borderRadius: radii.xl,
-      padding: 18,
+      gap: 9,
+      padding: 16,
       backgroundColor: colors.systemBlue,
-      ...shadows.clay,
     },
     seriesPrepareBanner: {
       backgroundColor: colors.systemPurple,
@@ -246,10 +272,11 @@ function createAppStylesImpl(colors: AppColors) {
     },
     bannerButton: {
       alignSelf: "flex-start",
-      minHeight: 40,
+      minHeight: 38,
       justifyContent: "center",
       borderRadius: radii.lg,
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
+      paddingVertical: 7,
       backgroundColor: "#ffffff",
     },
     bannerButtonText: {
@@ -1147,12 +1174,14 @@ function createAppStylesImpl(colors: AppColors) {
     tabLabelActive: { color: colors.systemBlue },
     heroSurface: {
       marginBottom: 2,
+      paddingVertical: 4,
     },
     heroContent: {
-      gap: 8,
-    },
-    heroTag: {
-      alignSelf: "flex-start",
+      minHeight: 58,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
     },
     heroTagText: {
       color: colors.systemBlue,
@@ -1163,8 +1192,9 @@ function createAppStylesImpl(colors: AppColors) {
     heroTitle: {
       color: colors.labelPrimary,
       fontFamily: fontFamilies.displayHeavy,
-      fontSize: 24,
-      letterSpacing: -0.4,
+      fontSize: 19,
+      letterSpacing: -0.2,
+      lineHeight: 24,
     },
     heroText: {
       color: colors.labelSecondary,
@@ -1173,10 +1203,12 @@ function createAppStylesImpl(colors: AppColors) {
       lineHeight: 18,
     },
     heroButton: {
-      alignSelf: "flex-start",
-      minHeight: 42,
-      marginTop: 2,
-      paddingHorizontal: 18,
+      flexShrink: 0,
+    },
+    heroButtonContent: {
+      minHeight: 40,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
     },
     heroButtonText: {
       color: "#ffffff",
@@ -1243,22 +1275,6 @@ function createAppStylesImpl(colors: AppColors) {
       borderRadius: radii.xl,
       backgroundColor: colors.backgroundSecondary,
       ...shadows.soft,
-    },
-    setupGenerateRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      paddingVertical: 2,
-    },
-    setupGenerateButton: {
-      minHeight: 42,
-      paddingHorizontal: 16,
-      borderRadius: radii.pill,
-    },
-    setupGenerateButtonText: {
-      color: "#ffffff",
-      fontFamily: fontFamilies.bodyHeavy,
-      fontSize: 13,
     },
   });
 }
