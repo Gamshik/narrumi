@@ -9,8 +9,8 @@ This milestone finishes the partially implemented Bubble/Sorbet design across th
 
 | Phase | Name | Goal | Requirements |
 |-------|------|------|--------------|
-| 1 | 5/5 | Complete   | 2026-07-04 |
-| 2 | Shell And Series Screens | Refresh authentication, home, series setup, series details, and settings screens | SCR-01, SCR-02, SCR-03, SCR-04, SCR-09, MOT-03 |
+| 1 | 5/5 | Complete    | 2026-07-04 |
+| 2 | 1/5 | In Progress|  |
 | 3 | Learning Screens And Verification | Refresh reader, Story Words/session, dictionary, translation sheet, and run full verification | SCR-05, SCR-06, SCR-07, SCR-08, QUAL-02, QUAL-03, QUAL-04 |
 
 ## Phase 1: Bubble Foundation
