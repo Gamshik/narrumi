@@ -326,7 +326,6 @@ function HomeHeader({
   return (
     <View style={styles.homeHeader}>
       <View>
-        <Text style={styles.appCategory}>AI SERIES</Text>
         <Text style={styles.largeTitle}>Context-English</Text>
       </View>
       <View style={styles.avatar}>
@@ -546,11 +545,15 @@ function CreateSeriesModal({
         style={[styles.modalScreen, { paddingTop: topInset }]}
       >
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>New Series</Text>
+          <JellyPressable
+            onPress={onClose}
+            style={styles.modalIconButton}
+            accessibilityLabel="Back"
+            accessibilityRole="button"
+          >
+            <Text style={styles.modalIconText}>←</Text>
+          </JellyPressable>
           <View style={styles.modalActions}>
-            <JellyPressable onPress={onClose} style={styles.modalTextButton}>
-              <Text style={styles.modalCancel}>Cancel</Text>
-            </JellyPressable>
             <BubbleButton
               colors={colors}
               contentStyle={styles.modalPrimaryAction}
@@ -589,6 +592,7 @@ function CreateSeriesModal({
               onSelect={(cefrLevel) => updateForm({ cefrLevel })}
             />
             <ChoiceGroup
+              isWrapped
               label="Genre"
               options={learningGenres}
               selected={form.genre}
@@ -597,6 +601,7 @@ function CreateSeriesModal({
               onSelect={(genre) => updateForm({ genre })}
             />
             <ChoiceGroup
+              isWrapped
               label="Tone"
               options={storyToneOptions}
               selected={form.tone}
@@ -872,6 +877,7 @@ function ChoiceGroup<T extends string>({
   options,
   selected,
   styles,
+  isWrapped,
   onSelect,
 }: {
   // label names the option group for the form.
@@ -884,27 +890,30 @@ function ChoiceGroup<T extends string>({
   readonly selected: T;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
+  // isWrapped controls whether choices flow in multiple rows of chips.
+  readonly isWrapped?: boolean;
   // onSelect updates the selected typed value.
   readonly onSelect: (value: T) => void;
 }): ReactElement {
   return (
     <View style={styles.formGroup}>
       <Text style={styles.sectionLabel}>{label}</Text>
-      <View style={styles.choiceRow}>
+      <View style={isWrapped ? styles.choiceRowWrapped : styles.choiceRowSingle}>
         {options.map((option) => (
           <JellyPressable
             key={option}
             onPress={() => onSelect(option)}
+            containerStyle={isWrapped ? styles.goalChoiceWrappedContainer : styles.goalChoiceSingleContainer}
             style={({ pressed }) => [
-              styles.goalChoice,
-              option === selected && styles.activeGoalChoice,
+              isWrapped ? styles.goalChoiceWrapped : styles.goalChoiceSingle,
+              option === selected && (isWrapped ? styles.activeGoalChoiceWrapped : styles.activeGoalChoice),
               pressed && styles.pressed,
             ]}
           >
             <Text
               style={[
-                styles.goalChoiceText,
-                option === selected && styles.activeGoalChoiceText,
+                isWrapped ? styles.goalChoiceTextWrapped : styles.goalChoiceText,
+                option === selected && (isWrapped ? styles.activeGoalChoiceTextWrapped : styles.activeGoalChoiceText),
               ]}
             >
               {labels?.[option] ?? option}

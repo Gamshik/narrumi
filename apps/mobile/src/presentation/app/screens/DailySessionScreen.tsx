@@ -484,21 +484,21 @@ function GenreSelection({
   return (
     <View style={styles.settingsCard}>
       <Text style={styles.actionTitle}>Genre</Text>
-      <View style={styles.choiceRow}>
+      <View style={styles.choiceRowWrapped}>
         {learningGenres.map((genre) => (
           <JellyPressable
             key={genre}
             onPress={() => onSelectGenre(genre)}
             style={({ pressed }) => [
-              styles.goalChoice,
-              genre === selectedGenre && styles.activeGoalChoice,
+              styles.goalChoiceWrapped,
+              genre === selectedGenre && styles.activeGoalChoiceWrapped,
               pressed && styles.pressed,
             ]}
           >
             <Text
               style={[
-                styles.goalChoiceText,
-                genre === selectedGenre && styles.activeGoalChoiceText,
+                styles.goalChoiceTextWrapped,
+                genre === selectedGenre && styles.activeGoalChoiceTextWrapped,
               ]}
             >
               {genreLabels[genre]}
