@@ -6,6 +6,7 @@ export * from './deleteSeries';
 export * from './getVocabularyItem';
 export * from './generateEpisode';
 export * from './generateSeriesSetupDraft';
+export * from './hydrateBootstrapSession';
 export * from './loadLearningPreferences';
 export * from './loadLearningSignals';
 export * from './loadEpisodeReader';

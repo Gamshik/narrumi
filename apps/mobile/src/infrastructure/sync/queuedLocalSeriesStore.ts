@@ -33,6 +33,28 @@ export class QueuedLocalSeriesStore implements LocalSeriesStore {
     return this.store.getPreferences();
   }
 
+  // readBootstrapPreferences extracts safe recovery metadata when supported by the store.
+  async readBootstrapPreferences(): Promise<{
+    readonly preferences: LearningPreferences | undefined;
+    readonly recovered: boolean;
+  }> {
+    if ('readBootstrapPreferences' in this.store) {
+      return (
+        this.store as unknown as {
+          readBootstrapPreferences: () => Promise<{
+            preferences: LearningPreferences | undefined;
+            recovered: boolean;
+          }>;
+        }
+      ).readBootstrapPreferences();
+    }
+
+    const preferences = await this.store.getPreferences();
+
+    return { preferences, recovered: false };
+  }
+
+
   // savePreferences persists first and queues the singleton preferences record.
   async savePreferences(preferences: LearningPreferences): Promise<void> {
     await this.store.savePreferences(preferences);

@@ -6,6 +6,7 @@ import {
   createDeleteSeries,
   createGenerateEpisode,
   createGenerateSeriesSetupDraft,
+  createHydrateBootstrapSession,
   createLoadLearningPreferences,
   createLoadEpisodeReader,
   createLoadLearningSignals,
@@ -93,6 +94,10 @@ const generateSeriesSetupDraft = createGenerateSeriesSetupDraft(
   networkStatus,
   supabaseServices.seriesSetupDraftGateway,
 );
+const hydrateBootstrapSession = createHydrateBootstrapSession(
+  localSeriesStore,
+  systemClock,
+);
 const deleteEpisode = createDeleteEpisode(localSeriesStore, systemClock);
 const deleteSeries = createDeleteSeries(localSeriesStore, systemClock);
 const listSeries = createListSeries(localSeriesStore);
@@ -165,6 +170,7 @@ export const localAppServices = {
   createSeries: withBackgroundSync(createSeries, syncLocalChanges),
   deleteEpisode: withBackgroundSync(deleteEpisode, syncLocalChanges),
   deleteSeries: withBackgroundSync(deleteSeries, syncLocalChanges),
+  hydrateBootstrapSession,
   listSeries: withPreSync(listSeries, syncLocalChanges),
   loadLearningPreferences: withPreSync(
     loadLearningPreferences,

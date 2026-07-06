@@ -61,6 +61,32 @@ export class AsyncStorageLocalSeriesStore implements LocalSeriesStore {
     }
   }
 
+  // readBootstrapPreferences reads settings and safely isolates invalid storage.
+  async readBootstrapPreferences(): Promise<{
+    readonly preferences: LearningPreferences | undefined;
+    readonly recovered: boolean;
+  }> {
+    const rawValue = await AsyncStorage.getItem(STORAGE_KEYS.preferences);
+
+    if (!rawValue) {
+      return { preferences: undefined, recovered: false };
+    }
+
+    try {
+      return {
+        preferences: parsePreferences(JSON.parse(rawValue)),
+        recovered: false,
+      };
+    } catch {
+      // D-10: Corrupt preferences are removed immediately, and a recovery flag
+      // is returned so new defaults can be initialized safely.
+      await AsyncStorage.removeItem(STORAGE_KEYS.preferences);
+
+      return { preferences: undefined, recovered: true };
+    }
+  }
+
+
   // savePreferences writes local series defaults for offline use.
   async savePreferences(preferences: LearningPreferences): Promise<void> {
     await AsyncStorage.setItem(
