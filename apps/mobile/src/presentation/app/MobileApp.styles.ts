@@ -517,30 +517,9 @@ function createAppStylesImpl(colors: AppColors) {
     },
     cefrSegmentedControl: { height: 38 },
     settingMeter: { gap: 10 },
-    stepperRow: { flexDirection: "row", gap: 10 },
-    stepperButton: {
-      flex: 1,
-      minHeight: 38,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 12,
-      backgroundColor: colors.backgroundTertiary,
-    },
-    stepperButtonText: {
-      color: colors.labelPrimary,
-      fontSize: 19,
-      fontWeight: "800",
-    },
-    meterTrack: {
-      height: 6,
-      overflow: "hidden",
-      borderRadius: 3,
-      backgroundColor: colors.backgroundTertiary,
-    },
-    meterFill: {
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: colors.systemBlue,
+    sliderControl: {
+      height: 40,
+      width: '100%',
     },
     choiceRow: {
       flexDirection: "row",

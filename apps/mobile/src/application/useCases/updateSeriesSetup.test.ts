@@ -127,6 +127,7 @@ function createStore(
 ): LocalSeriesStore {
   return {
     getPreferences: async () => undefined,
+    readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
     savePreferences: async () => undefined,
     listSeries: async () => [series],
     getSeries: async () => series,

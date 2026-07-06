@@ -132,6 +132,7 @@ describe('submitEpisodeInteraction', () => {
     // store implements only deterministic in-memory behavior needed by this use case.
     const store: LocalSeriesStore = {
       getPreferences: async () => undefined,
+      readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
       savePreferences: async () => undefined,
       listSeries: async () => [series],
       getSeries: async () => series,
@@ -279,6 +280,7 @@ describe('submitEpisodeInteraction', () => {
     // store returns the long episode while keeping unrelated ports inert.
     const store: LocalSeriesStore = {
       getPreferences: async () => undefined,
+      readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
       savePreferences: async () => undefined,
       listSeries: async () => [series],
       getSeries: async () => series,

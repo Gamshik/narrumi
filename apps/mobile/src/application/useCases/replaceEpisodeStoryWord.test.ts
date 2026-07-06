@@ -167,6 +167,7 @@ describe('replaceEpisodeStoryWord', () => {
 function createStore(savedWordSets: WordSet[]): LocalSeriesStore {
   return {
     getPreferences: async (): Promise<LearningPreferences | undefined> => undefined,
+    readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
     savePreferences: async () => undefined,
     listSeries: async (): Promise<readonly Series[]> => [],
     getSeries: async (): Promise<Series | undefined> => undefined,

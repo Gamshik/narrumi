@@ -119,6 +119,7 @@ function createMemoryStore(
 ): LocalSeriesStore {
   return {
     getPreferences: async () => undefined,
+    readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
     savePreferences: async () => undefined,
     listSeries: async () => [],
     getSeries: async () => undefined,

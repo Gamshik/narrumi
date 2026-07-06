@@ -2,21 +2,27 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { BubbleButton, BubbleSegmentedControl, BubbleStatus, BubbleToggle, JellyPressable } from '../shared';
+import { BubbleButton, BubbleSegmentedControl, BubbleSlider, BubbleStatus, BubbleToggle } from '../shared';
 
 import {
   cefrLevels,
-  DEFAULT_STORY_WORD_GOAL,
   type LearningPreferences,
   MAX_STORY_WORD_GOAL,
   MIN_STORY_WORD_GOAL,
 } from '@domain/index';
-import type { SyncLocalChangesResult } from '@application/index';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 
 import { localAppServices } from '../services/localAppServices';
 import { useAuthSession } from '../auth';
-import { useBootstrapSession, type BootstrapSyncStatus, type BootstrapReadyState } from '../bootstrap';
+import { useAppTheme } from '../theme';
+import type { AppStyles } from '../types';
+
+import {
+  SettingsSkeleton,
+  useBootstrapSession,
+  type BootstrapSyncStatus,
+  type BootstrapReadyState,
+} from '../bootstrap';
 import { getSettingsWarning, getSettingsSaveError } from './settingsState';
 
 // settingsLevels mirrors the domain CEFR set so persisted values always render.
@@ -55,22 +61,56 @@ export function SettingsScreen({
 }: SettingsScreenProps): ReactElement {
   const { session, signOut } = useAuthSession();
   const { state, syncNow: bootstrapSyncNow } = useBootstrapSession();
-  const colors: AppColors = isDark ? darkColors : lightColors;
 
-  // Route guard guarantees state is ready before SettingsScreen renders.
-  const readyState = state as BootstrapReadyState;
+  if (state.kind !== 'ready') {
+    return <SettingsSkeleton isDark={isDark} styles={styles} />;
+  }
+
+  // readyState carries the hydrated preferences used by first visible render.
+  const readyState: BootstrapReadyState = state;
+
+  return (
+    <SettingsReadyContent
+      email={session?.email}
+      isDark={isDark}
+      readyState={readyState}
+      styles={styles}
+      onSignOut={signOut}
+      onSyncNow={bootstrapSyncNow}
+    />
+  );
+}
+
+// SettingsReadyContent renders editable controls only after bootstrap hydration succeeds.
+function SettingsReadyContent({
+  email,
+  isDark,
+  readyState,
+  styles,
+  onSignOut,
+  onSyncNow,
+}: SettingsScreenProps & {
+  // email identifies the authenticated account shown in sync diagnostics.
+  readonly email: string | undefined;
+  // readyState is the loaded bootstrap state allowed to render settings values.
+  readonly readyState: BootstrapReadyState;
+  // onSignOut closes the current Supabase session.
+  readonly onSignOut: () => Promise<void>;
+  // onSyncNow triggers the bootstrap-owned sync path from Settings.
+  readonly onSyncNow: () => Promise<void>;
+}): ReactElement {
+  const colors: AppColors = isDark ? darkColors : lightColors;
 
   const [preferences, setPreferences] = useState<LearningPreferences>(readyState.preferences);
   const preferencesRef = useRef<LearningPreferences>(readyState.preferences);
   const [saveErrorRaw, setSaveErrorRaw] = useState<unknown>();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   useEffect(() => {
-    if (state.kind === 'ready') {
-      preferencesRef.current = state.preferences;
-      setPreferences(state.preferences);
-    }
-  }, [state]);
+    preferencesRef.current = readyState.preferences;
+    setPreferences(readyState.preferences);
+  }, [readyState]);
 
   const updatePreferences = async (
     nextPreferences: EditablePreferencePatch,
@@ -105,21 +145,17 @@ export function SettingsScreen({
   const handleSyncNow = async (): Promise<void> => {
     setIsSyncing(true);
     try {
-      await bootstrapSyncNow();
+      await onSyncNow();
     } finally {
       setIsSyncing(false);
     }
   };
 
-  if (state.kind !== 'ready') {
-    return <></>; // Fallback, though route guard prevents this.
-  }
-
-  const settingsWarning = getSettingsWarning(state);
+  const settingsWarning = getSettingsWarning(readyState);
   const saveErrorMessage = getSettingsSaveError(saveErrorRaw);
 
   return (
-    <ScrollView contentContainerStyle={styles.screenContent}>
+    <ScrollView scrollEnabled={scrollEnabled} contentContainerStyle={styles.screenContent}>
       <View style={styles.homeHeader}>
         <Text style={styles.largeTitle}>Settings</Text>
       </View>
@@ -148,14 +184,15 @@ export function SettingsScreen({
         preferences={preferences}
         styles={styles}
         onUpdatePreferences={updatePreferences}
+        setScrollEnabled={setScrollEnabled}
       />
       <Appearance styles={styles} />
       <AccountSync
-        email={session?.email}
+        email={email}
         isSyncing={isSyncing}
-        syncStatus={state.syncStatus}
+        syncStatus={readyState.syncStatus}
         styles={styles}
-        onSignOut={signOut}
+        onSignOut={onSignOut}
         onSyncNow={handleSyncNow}
       />
     </ScrollView>
@@ -277,9 +314,11 @@ function LearningPreferencesSection({
   preferences,
   styles,
   onUpdatePreferences,
+  setScrollEnabled,
 }: SettingsScreenProps & {
   readonly preferences: LearningPreferences;
   readonly onUpdatePreferences: (patch: EditablePreferencePatch) => Promise<void>;
+  readonly setScrollEnabled: (enabled: boolean) => void;
 }): ReactElement {
   const colors: AppColors = isDark ? darkColors : lightColors;
 
@@ -305,6 +344,7 @@ function LearningPreferencesSection({
         />
         
         <StepSetting
+          colors={colors}
           max={MAX_STORY_WORD_GOAL}
           min={MIN_STORY_WORD_GOAL}
           label="Story Word Suggestions"
@@ -314,6 +354,8 @@ function LearningPreferencesSection({
           onChange={(storyWordGoal) =>
             onUpdatePreferences({ storyWordGoal })
           }
+          onInteractionStart={() => setScrollEnabled(false)}
+          onInteractionEnd={() => setScrollEnabled(true)}
         />
       </View>
     </>
@@ -322,6 +364,7 @@ function LearningPreferencesSection({
 
 // StepSetting renders a bounded local setting with tactile increment controls.
 function StepSetting({
+  colors,
   label,
   max,
   min,
@@ -329,59 +372,47 @@ function StepSetting({
   suffix,
   value,
   onChange,
+  onInteractionStart,
+  onInteractionEnd,
 }: {
-  // label is the visible name of the setting.
+  readonly colors: AppColors;
   readonly label: string;
-  // max is the upper product bound for this setting.
   readonly max: number;
-  // min is the lower product bound for this setting.
   readonly min: number;
-  // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
-  // suffix explains the numeric value unit.
   readonly suffix: string;
-  // value is the current persisted setting value.
   readonly value: number;
-  // onChange persists the next bounded setting value.
   readonly onChange: (value: number) => void;
+  readonly onInteractionStart?: () => void;
+  readonly onInteractionEnd?: () => void;
 }): ReactElement {
-  const width = `${((value - min) / (max - min)) * 100}%` as `${number}%`;
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
 
   return (
     <View style={styles.settingMeter}>
       <View style={styles.settingRow}>
         <Text style={styles.actionTitle}>{label}</Text>
         <Text style={styles.settingValue}>
-          {value} {suffix}
+          {localValue} {suffix}
         </Text>
       </View>
-      <View style={styles.meterTrack}>
-        <View style={[styles.meterFill, { width }]} />
-      </View>
-      <View style={styles.stepperRow}>
-        <JellyPressable
-          containerStyle={styles.flexOne}
-          disabled={value <= min}
-          onPress={() => onChange(value - 1)}
-          style={[
-            styles.stepperButton,
-            value <= min && styles.disabledControl,
-          ]}
-        >
-          <Text style={styles.stepperButtonText}>-</Text>
-        </JellyPressable>
-        <JellyPressable
-          containerStyle={styles.flexOne}
-          disabled={value >= max}
-          onPress={() => onChange(value + 1)}
-          style={[
-            styles.stepperButton,
-            value >= max && styles.disabledControl,
-          ]}
-        >
-          <Text style={styles.stepperButtonText}>+</Text>
-        </JellyPressable>
-      </View>
+      <BubbleSlider
+        min={min}
+        max={max}
+        step={1}
+        value={localValue}
+        onValueChange={setLocalValue}
+        onSlidingComplete={onChange}
+        onInteractionStart={onInteractionStart}
+        onInteractionEnd={onInteractionEnd}
+        minimumTrackTintColor={colors.systemBlue}
+        maximumTrackTintColor={colors.separator}
+        thumbTintColor={colors.systemBlue}
+      />
     </View>
   );
 }

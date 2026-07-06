@@ -12,6 +12,13 @@ import type {
 export type LocalSeriesStore = {
   // getPreferences reads local series defaults or returns undefined before setup.
   readonly getPreferences: () => Promise<LearningPreferences | undefined>;
+  // readBootstrapPreferences reads startup settings plus recovery metadata before sync.
+  readonly readBootstrapPreferences: () => Promise<{
+    // preferences is the validated local settings snapshot used for first render.
+    readonly preferences: LearningPreferences | undefined;
+    // recovered marks that corrupt local settings were cleared during bootstrap.
+    readonly recovered: boolean;
+  }>;
   // savePreferences persists local generation defaults before any future remote sync.
   readonly savePreferences: (preferences: LearningPreferences) => Promise<void>;
   // listSeries returns every validated personal series stored locally.
