@@ -30,13 +30,12 @@ The app must feel like continuing a personal English series that teaches words i
 - ✓ Complete Bubble/Sorbet theme foundation and shared interactive primitives — Phase 1.
 - ✓ Align shell, authentication, series management, and settings screens with the `design/bubble` mockups — Phase 2.
 - ✓ Bubble/Sorbet visual refresh milestone shipped in v1.0 across the shell, auth, series, and settings surfaces.
+- ✓ Bootstrap user-specific settings and other locally available session data before settings and related screens render — Phase 3.
+- ✓ Run local/remote sync during app bootstrap when online without blocking offline startup when no connection is available — Phase 3.
+- ✓ Show a Bubble/Sorbet loading experience during bootstrap and replace visible default-value flashes with explicit stateful UI handling — Phase 3.
+- ✓ Verify startup, offline handling, sync behavior, lint, typecheck, build, and relevant tests after implementation — Phase 3.
 
 ### Active
-
-- [ ] Bootstrap user-specific settings and other locally available session data before settings and related screens render.
-- [ ] Run local/remote sync during app bootstrap when online without blocking offline startup when no connection is available.
-- [ ] Show a Bubble/Sorbet loading experience during bootstrap and replace visible default-value flashes with explicit stateful UI handling.
-- [ ] Verify startup, offline handling, sync behavior, lint, typecheck, build, and relevant tests after implementation.
 
 ### Out of Scope
 
@@ -76,8 +75,8 @@ The app must feel like continuing a personal English series that teaches words i
 | Use fixed modal action sizes | Promoted Generate/Save text links in modals to fixed Bubble buttons to prevent header reflow/flicker when status changes | Success |
 | Use static continue/prep banners | Changed the Series Details continuation banner from a single giant pressable card to a static surface with a small nested button | Success |
 | Replace native SegmentedControl in Settings | Replaced native iOS components with custom BubbleSegmentedControl built from Bubble primitives | Success |
-| Treat startup data hydration as the next milestone | The shipped Sorbet refresh exposed a UX flaw where default settings briefly render before user data loads | Pending |
-| Sync during bootstrap but do not block offline entry | The app must remain local-first while hiding settings flicker and reconciling remote state when available | Pending |
+| Treat startup data hydration as the next milestone | The shipped Sorbet refresh exposed a UX flaw where default settings briefly render before user data loads | Success |
+| Sync during bootstrap but do not block offline entry | The app must remain local-first while hiding settings flicker and reconciling remote state when available | Success |
 
 ## Evolution
 
@@ -97,4 +96,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-06 after v1.1 milestone definition*
+*Last updated: 2026-07-07 after Phase 3*

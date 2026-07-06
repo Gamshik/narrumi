@@ -9,20 +9,20 @@ Requirements for the v1.1 milestone. Each maps to roadmap phases.
 
 ### Bootstrap
 
-- [ ] **BOOT-01**: User waits on a dedicated bootstrap loading state before settings-visible screens render user-specific preferences for the current session.
-- [ ] **BOOT-02**: User sees locally persisted settings and session data restored before the app falls back to server-backed values.
-- [ ] **BOOT-03**: User sees a Bubble/Sorbet loading experience that explains the app is preparing their session while bootstrap work is in progress.
+- [x] **BOOT-01**: User waits on a dedicated bootstrap loading state before settings-visible screens render user-specific preferences for the current session.
+- [x] **BOOT-02**: User sees locally persisted settings and session data restored before the app falls back to server-backed values.
+- [x] **BOOT-03**: User sees a Bubble/Sorbet loading experience that explains the app is preparing their session while bootstrap work is in progress.
 
 ### Settings
 
-- [ ] **SET-01**: User never sees placeholder default settings rendered as if they were their saved preferences while hydration is still in progress.
-- [ ] **SET-02**: User sees explicit loading, loaded, error, or offline-aware settings states instead of a layout jump when settings data changes source.
+- [x] **SET-01**: User never sees placeholder default settings rendered as if they were their saved preferences while hydration is still in progress.
+- [x] **SET-02**: User sees explicit loading, loaded, error, or offline-aware settings states instead of a layout jump when settings data changes source.
 
 ### Sync
 
-- [ ] **SYNC-01**: User gets a local/remote sync attempt during bootstrap whenever connectivity is available.
-- [ ] **SYNC-02**: User can enter the app offline without bootstrap hanging because the remote sync step is treated as complete when no internet connection exists.
-- [ ] **SYNC-03**: User sees locally available data even if remote sync fails, with the failure surfaced through explicit state rather than silent fallback defaults.
+- [x] **SYNC-01**: User gets a local/remote sync attempt during bootstrap whenever connectivity is available.
+- [x] **SYNC-02**: User can enter the app offline without bootstrap hanging because the remote sync step is treated as complete when no internet connection exists.
+- [x] **SYNC-03**: User sees locally available data even if remote sync fails, with the failure surfaced through explicit state rather than silent fallback defaults.
 
 ## v2 Requirements
 
@@ -46,16 +46,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOOT-01 | Phase 3 | Pending |
-| BOOT-02 | Phase 3 | Pending |
-| BOOT-03 | Phase 3 | Pending |
-| SET-01 | Phase 3 | Pending |
-| SET-02 | Phase 3 | Pending |
-| SYNC-01 | Phase 3 | Pending |
-| SYNC-02 | Phase 3 | Pending |
-| SYNC-03 | Phase 3 | Pending |
+| BOOT-01 | Phase 3 | Complete |
+| BOOT-02 | Phase 3 | Complete |
+| BOOT-03 | Phase 3 | Complete |
+| SET-01 | Phase 3 | Complete |
+| SET-02 | Phase 3 | Complete |
+| SYNC-01 | Phase 3 | Complete |
+| SYNC-02 | Phase 3 | Complete |
+| SYNC-03 | Phase 3 | Complete |
 
 **Coverage:**
+
 - v1 requirements: 8 total
 - Mapped to phases: 8
 - Unmapped: 0
