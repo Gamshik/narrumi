@@ -17,13 +17,21 @@
 
 ### 🚧 v1.1 App Bootstrap Loading (Planned)
 
-- [ ] Phase 3: Bootstrap Hydration And Sync (0 plans)
+- [ ] Phase 3: Bootstrap Hydration And Sync (4 plans)
 
 #### Phase 3: Bootstrap Hydration And Sync
 
 **Goal:** Restore local user state before settings-visible screens render, reconcile remote data during the same startup window when online, and replace the current default-settings flicker with explicit Bubble/Sorbet loading states.
 
 **Requirements:** BOOT-01, BOOT-02, BOOT-03, SET-01, SET-02, SYNC-01, SYNC-02, SYNC-03
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Local-only bootstrap hydration and recovery metadata
+- [ ] 03-02-PLAN.md — Authenticated root bootstrap provider and non-blocking sync
+- [ ] 03-03-PLAN.md — Bubble/Sorbet bootstrap screen and guarded-surface states
+- [ ] 03-04-PLAN.md — Settings no-flicker integration, rollback, and full verification
 
 **Success criteria:**
 1. App startup restores local settings and other persisted session data before settings-visible screens present user-specific values.
@@ -38,4 +46,4 @@
 |---|---|---|---|---|
 | 1. Bubble Foundation | v1.0 | 5/5 | Complete | 2026-07-04 |
 | 2. Shell And Series Screens | v1.0 | 10/9 | Complete | 2026-07-05 |
-| 3. Bootstrap Hydration And Sync | v1.1 | 0/0 | Not started | - |
+| 3. Bootstrap Hydration And Sync | v1.1 | 0/4 | Not started | - |
