@@ -23,6 +23,12 @@ function createAppStylesImpl(colors: AppColors) {
       flexGrow: 1,
       paddingVertical: 28,
     },
+    bootstrapScreen: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+    },
     authContent: {
       width: "100%",
       maxWidth: 520,
@@ -1290,6 +1296,7 @@ function createAppStylesImpl(colors: AppColors) {
     seriesCard: {
       gap: 8,
       padding: 12,
+      borderRadius: 20,
     },
     seriesCardHeader: {
       flexDirection: "row",

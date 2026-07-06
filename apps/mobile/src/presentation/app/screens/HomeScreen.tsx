@@ -667,7 +667,7 @@ function SwipeToDeleteWrapper({
   });
 
   return (
-    <View style={{ position: 'relative', borderRadius: 24, overflow: 'hidden' }}>
+    <View style={{ position: 'relative', borderRadius: 20, overflow: 'hidden' }}>
       <View
         pointerEvents={isActionLaneVisible ? 'auto' : 'none'}
         style={{
