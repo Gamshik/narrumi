@@ -344,17 +344,15 @@ function shouldShowSyncWarning(result: SyncLocalChangesResult | undefined): bool
 |---|-------|---------|---------------|
 | A1 | Future guarded surfaces beyond Settings may be preference-driven but are not yet in Phase 03 scope unless current code reads hydrated user-specific session state. [ASSUMED] | Summary / Architecture | Planner may over- or under-guard adjacent screens; inspect each candidate screen before editing. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should preference corruption detection be implemented in the adapter or use case?**
+1. **RESOLVED: Preference corruption detection belongs behind an application-level bootstrap hydration use case, with a narrow adapter/store capability for recovery metadata.**
    - What we know: The adapter currently removes invalid preference records and returns `undefined`. [VERIFIED: codebase grep]
-   - What's unclear: Whether the project prefers adapter result metadata or a dedicated bootstrap local store method. [ASSUMED]
-   - Recommendation: Keep it narrow; expose metadata through an application-level bootstrap/preference hydration use case so UI does not learn AsyncStorage details. [VERIFIED: `architecture/architecture_for_ai.md`]
+   - Resolution: Add a bootstrap-specific application use case that exposes created/recovered metadata to presentation while depending only on a small port. Extend the AsyncStorage-backed store with the narrow read needed to identify invalid preference recovery, and forward it through the queued local store. This keeps AsyncStorage details out of UI while satisfying D-10 and the Clean Architecture boundary. [VERIFIED: `architecture/architecture_for_ai.md`] [VERIFIED: `.planning/phases/03-bootstrap-hydration-and-sync/03-CONTEXT.md`]
 
-2. **Which screens besides Settings are Phase 03 guarded surfaces?**
+2. **RESOLVED: Settings is the only Phase 03 route that must be guarded unless implementation-time inspection finds another current first frame rendering hydrated preference defaults.**
    - What we know: The context says Settings plus any other screen that reads hydrated user-specific session state. [VERIFIED: `.planning/.../03-CONTEXT.md`]
-   - What's unclear: Whether `DailySessionScreen` or word-selection flows must wait on preferences in this phase. [ASSUMED]
-   - Recommendation: Guard only screens whose current first frame can display user-specific defaults; do not gate Home/list screens unless code inspection proves the same flicker. [VERIFIED: `.planning/.../03-CONTEXT.md`]
+   - Resolution: Guard `Settings` at the tab route boundary for Phase 03. Do not gate Home/list screens, and do not gate `DailySessionScreen` or word-selection flows unless executor code inspection proves they currently render user-specific preference defaults before bootstrap readiness. If such a surface is discovered, add the same route/root guard pattern there rather than broadening the entire authenticated shell. [VERIFIED: `.planning/phases/03-bootstrap-hydration-and-sync/03-CONTEXT.md`]
 
 ## Environment Availability
 
