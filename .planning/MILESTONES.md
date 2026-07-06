@@ -25,11 +25,11 @@
 
 ## Active
 
-### v1.0 Bubble/Sorbet UI refresh
+### v1.1 App Bootstrap Loading
 
-**Started:** 2026-07-02
+**Started:** 2026-07-06
 
-**Goal:** Finish the partially implemented Bubble/Sorbet visual refresh across the existing Context-English MVP screens and add minimal tactile animations.
+**Goal:** Remove the visible default-settings flicker by bootstrapping local user data before settings render and by reconciling local and remote state during startup.
 
 **Status:** Planning
 

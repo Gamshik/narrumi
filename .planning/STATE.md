@@ -1,37 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Bubble/Sorbet UI refresh
-current_phase: 0
-status: Awaiting next milestone
-stopped_at: Phase 02 complete, ready to plan Phase 3
-last_updated: "2026-07-05T11:43:44.791Z"
-last_activity: 2026-07-05
-last_activity_desc: Milestone v1.0 completed and archived
+milestone: v1.1
+milestone_name: App Bootstrap Loading
+status: planning
+last_updated: "2026-07-06T16:27:41.808Z"
+last_activity: 2026-07-06
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 14
-  completed_plans: 15
-  percent: 100
-current_phase_name: shell-and-series-screens
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-05 — Milestone v1.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-07-06 — Milestone v1.1 started
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-02)
+See: .planning/PROJECT.md (updated 2026-07-06)
 
 **Core value:** The app must feel like continuing a personal English series that teaches words in context, not like servicing a vocabulary queue.
-**Current focus:** Phase 02 — shell-and-series-screens
+**Current focus:** Phase 3 — Bootstrap Hydration And Sync
 
 ## Performance Metrics
 
@@ -224,4 +220,5 @@ Ready for the final plan 05 of this phase to handle Settings screen styling.
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Start Phase 3 with `$gsd-discuss-phase 3`
+- Or skip directly to `$gsd-plan-phase 3`

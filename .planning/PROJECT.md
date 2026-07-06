@@ -8,15 +8,15 @@ Context-English is an Expo React Native MVP for learning English through persona
 
 The app must feel like continuing a personal English series that teaches words in context, not like servicing a vocabulary queue.
 
-## Current Milestone: v1.0 Bubble/Sorbet UI refresh
+## Current Milestone: v1.1 App Bootstrap Loading
 
-**Goal:** Finish the partially implemented Bubble/Sorbet visual refresh across the existing MVP screens and add minimal tactile animations that match the style.
+**Goal:** Remove the settings flicker by bootstrapping user data before settings render and by showing a clear loading experience while local and remote state reconcile.
 
 **Target features:**
-- Apply the `design/bubble` visual language to the main mobile shell: soft Sorbet backgrounds, large rounded bubble surfaces, pill controls, floating capsule navigation, compact badges, and playful but readable typography.
-- Bring the existing core screens into visual alignment with the provided mockups: authentication, home, new series, series details, reader, story setup/session, dictionary, tap translation, and settings.
-- Use shared presentation primitives for bubble surfaces, tab navigation, pressable controls, and sheets so the style stays consistent without moving product logic into UI components.
-- Add minimal spring-like button, chip, choice, tab, and sheet animations without changing the AI-series product flow or adding out-of-scope learning mechanics.
+- Load persisted user preferences and other locally available user data during app entry before showing screens that currently fall back to visible default settings.
+- Run the local/remote sync pass during the same bootstrap window when the device is online, and treat sync as complete immediately when the device is offline.
+- Show a Bubble/Sorbet loading state or animation while bootstrap work is in progress so the user understands the app is preparing their session.
+- Replace implicit default-setting rendering with explicit loading, loaded, error, and offline-aware UI states wherever user-specific settings are displayed.
 
 ## Requirements
 
@@ -29,11 +29,14 @@ The app must feel like continuing a personal English series that teaches words i
 - ✓ The codebase already contains initial Sorbet presentation primitives, including `JellyPressable`, `SorbetBackground`, and `SorbetTabBar`.
 - ✓ Complete Bubble/Sorbet theme foundation and shared interactive primitives — Phase 1.
 - ✓ Align shell, authentication, series management, and settings screens with the `design/bubble` mockups — Phase 2.
+- ✓ Bubble/Sorbet visual refresh milestone shipped in v1.0 across the shell, auth, series, and settings surfaces.
 
 ### Active
 
-- [ ] Align reader, Story Words/session, dictionary, and translation surfaces with the `design/bubble` mockups.
-- [ ] Verify animation, accessibility, dark/light theme, safe-area, offline-state, lint, typecheck, build, and relevant test behavior after implementation.
+- [ ] Bootstrap user-specific settings and other locally available session data before settings and related screens render.
+- [ ] Run local/remote sync during app bootstrap when online without blocking offline startup when no connection is available.
+- [ ] Show a Bubble/Sorbet loading experience during bootstrap and replace visible default-value flashes with explicit stateful UI handling.
+- [ ] Verify startup, offline handling, sync behavior, lint, typecheck, build, and relevant tests after implementation.
 
 ### Out of Scope
 
@@ -50,14 +53,16 @@ The app must feel like continuing a personal English series that teaches words i
 - AI-agent architecture boundaries live in `architecture/architecture_for_ai.md`.
 - Design guidance lives in `design/design_system.html`, `design/design_system_guidelines.md`, and the Bubble/Sorbet screenshots under `design/bubble`.
 - Mobile app commands are declared in `apps/mobile/package.json` and documented in `apps/mobile/README.md`.
-- The current UI refresh is partially present in the presentation layer, so implementation should consolidate and finish the design system rather than creating parallel styling paths.
+- The current issue is a startup UX mismatch: settings render visible default values before user-specific data arrives, causing a layout jump once the request resolves.
+- The next milestone should fix bootstrap timing and session-state presentation without expanding product scope into new learning mechanics.
 
 ## Constraints
 
-- **Scope:** Preserve the AI-series MVP loop and do not add backlog product features during the design refresh.
+- **Scope:** Preserve the AI-series MVP loop and do not add backlog product features while fixing startup loading and sync behavior.
 - **Architecture:** Presentation components may render UI state and forward intent, but must not own persistence, Supabase, AI, vocabulary ranking, sync, or domain rules.
+- **Bootstrap:** User-visible settings screens must not present fallback defaults as if they were hydrated user data.
+- **Offline:** Bootstrap may use local data immediately, but remote sync must degrade cleanly when offline and mark the sync step complete instead of blocking entry.
 - **Styling:** Use React Native styles and existing Expo-compatible UI dependencies; do not introduce NativeWind, Redux, or native projects unless a later approved scope change requires it.
-- **Offline:** Server-only actions such as episode generation, AI continuation, correction, and grammar-style explanation must keep explicit offline states.
 - **Verification:** Run the documented lint, typecheck, build, and relevant test commands before claiming implementation completion.
 
 ## Key Decisions
@@ -71,6 +76,8 @@ The app must feel like continuing a personal English series that teaches words i
 | Use fixed modal action sizes | Promoted Generate/Save text links in modals to fixed Bubble buttons to prevent header reflow/flicker when status changes | Success |
 | Use static continue/prep banners | Changed the Series Details continuation banner from a single giant pressable card to a static surface with a small nested button | Success |
 | Replace native SegmentedControl in Settings | Replaced native iOS components with custom BubbleSegmentedControl built from Bubble primitives | Success |
+| Treat startup data hydration as the next milestone | The shipped Sorbet refresh exposed a UX flaw where default settings briefly render before user data loads | Pending |
+| Sync during bootstrap but do not block offline entry | The app must remain local-first while hiding settings flicker and reconciling remote state when available | Pending |
 
 ## Evolution
 
@@ -90,4 +97,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-05 after Phase 02*
+*Last updated: 2026-07-06 after v1.1 milestone definition*
