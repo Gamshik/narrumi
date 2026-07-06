@@ -16,8 +16,8 @@ import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 
 import { localAppServices } from '../services/localAppServices';
 import { useAuthSession } from '../auth';
-import { useAppTheme } from '../theme';
-import type { AppStyles } from '../types';
+import { useBootstrapSession, type BootstrapSyncStatus, type BootstrapReadyState } from '../bootstrap';
+import { getSettingsWarning, getSettingsSaveError } from './settingsState';
 
 // settingsLevels mirrors the domain CEFR set so persisted values always render.
 const settingsLevels = cefrLevels;
@@ -53,45 +53,24 @@ export function SettingsScreen({
   isDark,
   styles,
 }: SettingsScreenProps): ReactElement {
-  const initialPreferences: LearningPreferences = {
-    preferredCefrLevel: 'B1',
-    preferredGenre: 'short-fiction',
-    storyWordGoal: DEFAULT_STORY_WORD_GOAL,
-    updatedAt: new Date(0).toISOString(),
-    sync: {
-      isDirty: false,
-      pendingOperationId: 'initial-preferences-placeholder',
-    },
-  };
-  const [preferences, setPreferences] =
-    useState<LearningPreferences>(initialPreferences);
-  const preferencesRef = useRef<LearningPreferences>(initialPreferences);
-  const [errorMessage, setErrorMessage] = useState<string>();
-  const [syncResult, setSyncResult] = useState<SyncLocalChangesResult>();
-  const [isSyncing, setIsSyncing] = useState(false);
   const { session, signOut } = useAuthSession();
+  const { state, syncNow: bootstrapSyncNow } = useBootstrapSession();
+  const colors: AppColors = isDark ? darkColors : lightColors;
+
+  // Route guard guarantees state is ready before SettingsScreen renders.
+  const readyState = state as BootstrapReadyState;
+
+  const [preferences, setPreferences] = useState<LearningPreferences>(readyState.preferences);
+  const preferencesRef = useRef<LearningPreferences>(readyState.preferences);
+  const [saveErrorRaw, setSaveErrorRaw] = useState<unknown>();
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    let isActive = true;
-
-    void localAppServices.loadLearningPreferences
-      .execute()
-      .then(({ preferences: loadedPreferences }) => {
-        if (isActive) {
-          preferencesRef.current = loadedPreferences;
-          setPreferences(loadedPreferences);
-        }
-      })
-      .catch(() => {
-        if (isActive) {
-          setErrorMessage('Learning settings could not be loaded.');
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
+    if (state.kind === 'ready') {
+      preferencesRef.current = state.preferences;
+      setPreferences(state.preferences);
+    }
+  }, [state]);
 
   const updatePreferences = async (
     nextPreferences: EditablePreferencePatch,
@@ -104,7 +83,7 @@ export function SettingsScreen({
 
     preferencesRef.current = optimisticPreferences;
     setPreferences(optimisticPreferences);
-    setErrorMessage(undefined);
+    setSaveErrorRaw(undefined);
 
     try {
       const savedPreferences =
@@ -116,32 +95,28 @@ export function SettingsScreen({
 
       preferencesRef.current = savedPreferences;
       setPreferences(savedPreferences);
-    } catch {
+    } catch (error) {
       preferencesRef.current = previousPreferences;
       setPreferences(previousPreferences);
-      setErrorMessage('Learning settings could not be saved.');
+      setSaveErrorRaw(error);
     }
   };
 
-  const syncNow = async (): Promise<void> => {
+  const handleSyncNow = async (): Promise<void> => {
     setIsSyncing(true);
-    setErrorMessage(undefined);
-
     try {
-      setSyncResult(await localAppServices.syncLocalChanges.execute());
-    } catch (error) {
-      setSyncResult({
-        status: 'failed',
-        pushedCount: 0,
-        failedCount: 1,
-        pendingCount: 0,
-        errorMessage:
-          error instanceof Error ? error.message : 'Sync failed unexpectedly.',
-      });
+      await bootstrapSyncNow();
     } finally {
       setIsSyncing(false);
     }
   };
+
+  if (state.kind !== 'ready') {
+    return <></>; // Fallback, though route guard prevents this.
+  }
+
+  const settingsWarning = getSettingsWarning(state);
+  const saveErrorMessage = getSettingsSaveError(saveErrorRaw);
 
   return (
     <ScrollView contentContainerStyle={styles.screenContent}>
@@ -149,10 +124,23 @@ export function SettingsScreen({
         <Text style={styles.largeTitle}>Settings</Text>
       </View>
 
-      {errorMessage ? (
-        <View style={styles.stateMessage}>
-          <Text style={styles.stateMessageTitle}>{errorMessage}</Text>
-        </View>
+      {settingsWarning ? (
+        <BubbleStatus
+          colors={colors}
+          {...(settingsWarning.message ? { message: settingsWarning.message } : {})}
+          title={settingsWarning.title}
+          tone={settingsWarning.isError ? 'error' : 'offline'}
+          variant="row"
+        />
+      ) : null}
+
+      {saveErrorMessage ? (
+        <BubbleStatus
+          colors={colors}
+          title={saveErrorMessage}
+          tone="error"
+          variant="row"
+        />
       ) : null}
 
       <LearningPreferencesSection
@@ -165,10 +153,10 @@ export function SettingsScreen({
       <AccountSync
         email={session?.email}
         isSyncing={isSyncing}
-        result={syncResult}
+        syncStatus={state.syncStatus}
         styles={styles}
         onSignOut={signOut}
-        onSyncNow={syncNow}
+        onSyncNow={handleSyncNow}
       />
     </ScrollView>
   );
@@ -178,7 +166,7 @@ export function SettingsScreen({
 function AccountSync({
   email,
   isSyncing,
-  result,
+  syncStatus,
   styles,
   onSignOut,
   onSyncNow,
@@ -187,14 +175,14 @@ function AccountSync({
   readonly email: string | undefined;
   // isSyncing disables duplicate manual sync attempts.
   readonly isSyncing: boolean;
-  // result is the latest sync attempt summary.
-  readonly result: SyncLocalChangesResult | undefined;
+  // syncStatus is the latest sync attempt status from bootstrap.
+  readonly syncStatus: BootstrapSyncStatus;
   // onSignOut closes the current Supabase session.
   readonly onSignOut: () => Promise<void>;
   // onSyncNow forces one visible sync attempt for diagnostics.
   readonly onSyncNow: () => Promise<void>;
 }): ReactElement {
-  const statusLabel = result ? formatSyncStatus(result) : 'Not checked yet';
+  const statusLabel = formatSyncStatus(syncStatus);
   const { isDark } = useAppTheme();
   const colors: AppColors = isDark ? darkColors : lightColors;
 
@@ -210,28 +198,19 @@ function AccountSync({
           <BubbleStatus
             colors={colors}
             tone={
-              result?.status === 'offline' ? 'offline' :
-              result?.status === 'unauthenticated' ? 'disabled' :
-              result?.status === 'failed' ? 'error' :
-              result?.status === 'synced' ? 'success' : 'loading'
+              syncStatus === 'offline' ? 'offline' :
+              syncStatus === 'unauthenticated' ? 'disabled' :
+              syncStatus === 'failed' ? 'error' :
+              syncStatus === 'synced' ? 'success' : 'loading'
             }
             title={statusLabel}
           />
         </View>
 
-        {result?.errorMessage ? (
-          <BubbleStatus
-            colors={colors}
-            tone="error"
-            title="Sync Failed"
-            message={result.errorMessage}
-            variant="row"
-          />
-        ) : null}
-
         <Text style={styles.accountStatusText}>
-          {result ? `Pending ${result.pendingCount} · Pushed ${result.pushedCount} · Failed ${result.failedCount}`
-          : 'Use Sync Now after creating a series to verify remote writes.'}
+          {syncStatus === 'synced' 
+            ? 'Your data is backed up to the cloud.'
+            : 'Use Sync Now after creating a series to verify remote writes.'}
         </Text>
 
         <View style={styles.accountActionRow}>
@@ -429,22 +408,10 @@ function buildOptimisticPreferences(
 }
 
 // formatSyncStatus keeps the diagnostic label compact inside the settings row.
-function formatSyncStatus(result: SyncLocalChangesResult): string {
-  if (result.status === 'synced' && result.pendingCount === 0) {
-    return 'Up to date';
-  }
-
-  if (result.status === 'synced') {
-    return 'Synced';
-  }
-
-  if (result.status === 'offline') {
-    return 'Offline';
-  }
-
-  if (result.status === 'unauthenticated') {
-    return 'Signed out';
-  }
-
-  return 'Failed';
+function formatSyncStatus(status: BootstrapSyncStatus): string {
+  if (status === 'synced') return 'Up to date';
+  if (status === 'offline') return 'Offline';
+  if (status === 'unauthenticated') return 'Signed out';
+  if (status === 'failed') return 'Failed';
+  return 'Syncing...';
 }
