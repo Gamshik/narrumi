@@ -28,12 +28,24 @@
 **Plans:** 4 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 03-01-PLAN.md — Local-only bootstrap hydration and recovery metadata
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 03-02-PLAN.md — Authenticated root bootstrap provider and non-blocking sync
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 03-03-PLAN.md — Bubble/Sorbet bootstrap screen and guarded-surface states
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 03-04-PLAN.md — Settings no-flicker integration, rollback, and full verification
 
 **Success criteria:**
+
 1. App startup restores local settings and other persisted session data before settings-visible screens present user-specific values.
 2. Startup shows a dedicated Bubble/Sorbet loading experience instead of rendering default settings that later jump to hydrated values.
 3. Bootstrap kicks off local/remote sync when connectivity exists without delaying offline entry when no network is available.
