@@ -76,12 +76,6 @@ export function AuthProvider({ children }: AuthProviderProps): ReactElement {
     };
   }, []);
 
-  useEffect(() => {
-    if (session) {
-      void localAppServices.syncLocalChanges.execute().catch(() => undefined);
-    }
-  }, [session]);
-
   // value is memoized so route trees update only when auth state changes.
   const value = useMemo<AuthContextValue>(
     () => ({

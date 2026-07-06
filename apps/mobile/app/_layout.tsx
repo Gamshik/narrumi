@@ -6,7 +6,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AuthGate, AuthProvider, ThemeProvider, useAppTheme } from '@presentation/app';
+import { AuthGate, AuthProvider, BootstrapProvider, ThemeProvider, useAppTheme } from '@presentation/app';
 import { sorbetFontAssets } from '@presentation/theme';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme/tokens';
 
@@ -43,7 +43,9 @@ export default function Layout(): ReactElement {
       <ThemedSafeAreaRoot>
         <AuthProvider>
           <AuthGate>
-            <ThemedStack />
+            <BootstrapProvider>
+              <ThemedStack />
+            </BootstrapProvider>
           </AuthGate>
         </AuthProvider>
       </ThemedSafeAreaRoot>
