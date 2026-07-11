@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { floatingTabBarMetrics } from '@presentation/theme/layout';
 import { darkColors, lightColors, motion } from '@presentation/theme/tokens';
 
-import { useAppStyles } from '../../useAppStyles';
+import { useAppStyles } from '@presentation/app/useAppStyles';
 import { JellyPressable } from '../JellyPressable';
 
 // TAB_GLYPHS maps each tab route name to its Sorbet emoji icon from the mockups.

@@ -410,8 +410,16 @@ function HomeHeader({
 }: Pick<HomeScreenProps, 'styles'>): ReactElement {
   return (
     <View style={styles.homeHeader}>
-      <View>
-        <Text style={styles.largeTitle}>Context-English</Text>
+      <View style={styles.homeTitleBlock}>
+        <Text
+          adjustsFontSizeToFit
+          minimumFontScale={0.78}
+          numberOfLines={1}
+          style={[styles.largeTitle, styles.homeTitle]}
+        >
+          Context-English
+        </Text>
+        <View style={styles.homeTitleAccent} />
       </View>
     </View>
   );
@@ -430,11 +438,35 @@ function CreateHero({
   readonly onCreateSeries: () => void;
 }): ReactElement {
   return (
-    <View style={styles.heroSurface}>
+    <BubbleSurface
+      colors={colors}
+      style={[
+        styles.heroSurface,
+        hasSeries ? styles.heroSurfaceCompact : styles.heroSurfaceEmpty,
+      ]}
+      tone={hasSeries ? 'neutral' : 'primary'}
+      variant={hasSeries ? 'list' : 'hero'}
+    >
       <View style={styles.heroContent}>
-        <View style={styles.flex}>
-          <Text style={styles.heroTitle}>Create a story</Text>
-          <Text style={styles.heroText}>
+        <View style={[styles.flex, styles.heroCopy]}>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            numberOfLines={1}
+            style={[
+              styles.heroTitle,
+              !hasSeries && styles.heroTitleOnAccent,
+            ]}
+          >
+            Create a story
+          </Text>
+          <Text
+            numberOfLines={2}
+            style={[
+              styles.heroText,
+              !hasSeries && styles.heroTextOnAccent,
+            ]}
+          >
             {hasSeries
               ? 'Pick a premise, characters, and level.'
               : 'No saved series yet. Create one to begin.'}
@@ -445,12 +477,22 @@ function CreateHero({
           contentStyle={styles.heroButtonContent}
           onPress={onCreateSeries}
           style={styles.heroButton}
-          variant="primary"
+          variant={hasSeries ? 'primary' : 'inverted'}
         >
-          <Text style={styles.heroButtonText}>New Series</Text>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.78}
+            numberOfLines={1}
+            style={[
+              styles.heroButtonText,
+              !hasSeries && styles.heroButtonTextOnAccent,
+            ]}
+          >
+            New Series
+          </Text>
         </BubbleButton>
       </View>
-    </View>
+    </BubbleSurface>
   );
 }
 
@@ -824,18 +866,37 @@ function SeriesCard({
           onOpenSeries(series.id);
         }}
       >
-        <BubbleSurface colors={colors} style={styles.seriesCard} variant="card">
+        <BubbleSurface
+          colors={colors}
+          style={styles.seriesCard}
+          tone="neutral"
+          variant="list"
+        >
           <View style={styles.seriesCardHeader}>
             <View style={styles.seriesCardHeaderLeft}>
-              <Text numberOfLines={1} style={styles.actionTitle}>
+              <Text
+                ellipsizeMode="tail"
+                numberOfLines={1}
+                style={[styles.actionTitle, styles.seriesCardTitle]}
+              >
                 {series.title}
               </Text>
-              <Text numberOfLines={1} style={styles.secondaryText}>
+              <Text
+                ellipsizeMode="tail"
+                numberOfLines={1}
+                style={[styles.secondaryText, styles.seriesCardMeta]}
+              >
                 {genreLabels[series.genre]} · {series.tone}
               </Text>
             </View>
-            <BubblePill colors={colors} style={styles.seriesCardBadge} tone="primary">
-              <Text style={styles.seriesCardBadgeText}>{series.cefrLevel}</Text>
+            <BubblePill
+              colors={colors}
+              style={styles.seriesCardBadge}
+              tone="primary"
+            >
+              <Text style={styles.seriesCardBadgeText}>
+                {series.cefrLevel}
+              </Text>
             </BubblePill>
           </View>
           {isDeleting && (

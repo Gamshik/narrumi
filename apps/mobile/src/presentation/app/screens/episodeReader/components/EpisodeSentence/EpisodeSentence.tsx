@@ -1,13 +1,13 @@
 import type { ReactElement } from 'react';
 import { Text, View } from 'react-native';
-import { JellyPressable } from '../../../../shared';
 
 import type { EpisodeSentenceFrame, TranslationAnnotation } from '@domain/index';
+import { JellyPressable } from '@presentation/app/shared';
+import type { AppStyles } from '@presentation/app/types';
 import { useAppTheme } from '@presentation/app/theme';
 import { darkColors, lightColors } from '@presentation/theme/tokens';
 import type { AppColors } from '@presentation/theme/tokens';
 
-import type { AppStyles } from '../../../../types';
 import { buildSentenceTextChunks } from '../../episodeReaderText';
 import type { SentenceTextChunk } from '../../episodeReaderText';
 
@@ -98,53 +98,31 @@ export function EpisodeSentence({
       ]}
     >
       {sentenceFrame.kind === 'dialogue' ? (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: 8,
-          }}
-        >
+        <View style={styles.readerDialogueRow}>
           <View
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 14,
-              backgroundColor: speakerColor,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+            style={[styles.readerDialogueAvatar, { backgroundColor: speakerColor }]}
           >
-            <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 11 }}>
+            <Text style={styles.readerDialogueAvatarText}>
               {sentenceFrame.speaker.substring(0, 1).toUpperCase()}
             </Text>
           </View>
 
-          <View style={{ flex: 1, maxWidth: '86%', gap: 2 }}>
+          <View style={styles.readerDialogueContent}>
             <Text
-              style={{
-                fontSize: 9,
-                fontWeight: '700',
-                color: speakerColor,
-                textTransform: 'uppercase',
-                marginLeft: 1,
-              }}
+              style={[styles.readerDialogueSpeakerName, { color: speakerColor }]}
             >
               {sentenceFrame.speaker}
             </Text>
             <View
-              style={{
-                backgroundColor: `${speakerColor}${bubbleBackgroundOpacity}`,
-                borderColor: isActive
-                  ? speakerColor
-                  : `${speakerColor}${bubbleBorderOpacity}`,
-                borderWidth: 1,
-                borderRadius: 12,
-                borderTopLeftRadius: 4,
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-                alignSelf: 'flex-start',
-              }}
+              style={[
+                styles.readerDialogueBubbleFrame,
+                {
+                  backgroundColor: `${speakerColor}${bubbleBackgroundOpacity}`,
+                  borderColor: isActive
+                    ? speakerColor
+                    : `${speakerColor}${bubbleBorderOpacity}`,
+                },
+              ]}
             >
               <SentenceText
                 annotations={annotations}
@@ -158,7 +136,7 @@ export function EpisodeSentence({
           </View>
         </View>
       ) : (
-        <View style={{ marginLeft: 36, paddingHorizontal: 2, paddingVertical: 4 }}>
+        <View style={styles.readerNarrativeSentenceFrame}>
           <SentenceText
             annotations={annotations}
             sentenceIndex={sentenceIndex}

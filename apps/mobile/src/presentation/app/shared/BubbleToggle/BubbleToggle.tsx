@@ -50,7 +50,7 @@ export function BubbleToggle({
       toValue: value ? 1 : 0,
       useNativeDriver: true,
       speed: 30,
-      bounciness: 0,
+      bounciness: 5,
     }).start();
   }, [value, animValue]);
   // resolvedAccessibilityState announces the real checked and disabled state.
@@ -114,6 +114,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 2,
     width: 58,
+    borderRadius: radii.pill,
   },
   trackBackground: {
     borderRadius: radii.pill,
@@ -128,6 +129,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 8,
     width: 28,
+    elevation: 5,
   },
   disabled: {
     opacity: 0.48,

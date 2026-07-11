@@ -4,8 +4,8 @@ import { StyleSheet, Text } from 'react-native';
 import type { CefrLevel } from '@domain/index';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 
-import type { AppStyles } from '../types';
-import { BubblePill, type BubblePillTone } from './BubblePill';
+import type { AppStyles } from '@presentation/app/types';
+import { BubblePill, type BubblePillTone } from '../BubblePill';
 
 // LevelBadgeProps defines the CEFR badge contract for dictionary rows.
 type LevelBadgeProps = {
@@ -47,6 +47,7 @@ function resolveColorsFromStyles(styles: AppStyles): AppColors {
 
 // getLevelTone maps CEFR levels to reusable BubblePill visual roles.
 function getLevelTone(level: CefrLevel): BubblePillTone {
+  // toneByLevel is the complete CEFR-to-pill-tone lookup used by dictionary rows.
   const toneByLevel: Record<CefrLevel, BubblePillTone> = {
     A1: 'success',
     A2: 'primary',

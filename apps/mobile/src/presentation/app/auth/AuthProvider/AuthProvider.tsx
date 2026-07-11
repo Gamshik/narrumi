@@ -14,7 +14,7 @@ import type {
   AuthSignUpResult,
 } from '@application/ports';
 
-import { localAppServices } from '../../services/localAppServices';
+import { localAppServices } from '@presentation/app/services/localAppServices';
 
 // AuthContextValue is the presentation-facing account session contract.
 type AuthContextValue = {

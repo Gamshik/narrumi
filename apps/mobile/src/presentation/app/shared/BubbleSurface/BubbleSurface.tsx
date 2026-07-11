@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode, ReactElement } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -46,12 +47,66 @@ export function BubbleSurface({
     backgroundColor: getSurfaceColor(colors, variant),
     borderColor: getToneBorderColor(colors, tone),
   };
+  // gradientColors creates a restrained top-lit material without changing layout.
+  const gradientColors: readonly [string, string] = getSurfaceGradient(
+    colors,
+    tone,
+    variant,
+  );
 
   return (
     <View style={[styles.base, styles[variant], surfaceStyle, style]}>
+      <LinearGradient
+        colors={gradientColors}
+        end={{ x: 0.86, y: 1 }}
+        pointerEvents="none"
+        start={{ x: 0.08, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View
+        pointerEvents="none"
+        style={[styles.highlight, { backgroundColor: colors.bubbleBorder }]}
+      />
+      <View
+        pointerEvents="none"
+        style={[styles.sheen, { backgroundColor: colors.bubbleBorder }]}
+      />
       {children}
     </View>
   );
+}
+
+// getSurfaceGradient maps hierarchy to a subtle material gradient.
+function getSurfaceGradient(
+  colors: AppColors,
+  tone: BubbleSurfaceTone,
+  variant: BubbleSurfaceVariant,
+): readonly [string, string] {
+  if (tone === 'primary') {
+    return [colors.systemPurple, colors.systemBlue];
+  }
+
+  if (tone === 'success') {
+    return [colors.badgeSuccessSurface, colors.bubbleSurface];
+  }
+
+  if (tone === 'warning') {
+    return [colors.badgeWarningSurface, colors.bubbleSurface];
+  }
+
+  if (tone === 'danger') {
+    return [`${colors.systemRed}2f`, colors.bubbleSurface];
+  }
+
+  if (variant === 'hero' || variant === 'accent') {
+    return [colors.bubbleSurfaceRaised, colors.bubbleSurface];
+  }
+
+  if (variant === 'list') {
+    return [colors.bubbleSurfaceMuted, colors.bubbleSurfaceMuted];
+  }
+
+  return [colors.bubbleSurfaceRaised, colors.bubbleSurface];
 }
 
 // getSurfaceColor keeps visual variants mapped to semantic light/dark tokens.
@@ -76,11 +131,11 @@ function getToneBorderColor(
   tone: BubbleSurfaceTone,
 ): string {
   const toneBorders: Record<BubbleSurfaceTone, string> = {
-    neutral: colors.bubbleBorder,
-    primary: colors.systemBlue,
-    success: colors.systemGreen,
-    warning: colors.systemOrange,
-    danger: colors.systemRed,
+    neutral: 'transparent',
+    primary: 'transparent',
+    success: `${colors.systemGreen}55`,
+    warning: `${colors.systemOrange}55`,
+    danger: `${colors.systemRed}55`,
   };
 
   return toneBorders[tone];
@@ -91,6 +146,25 @@ const styles = StyleSheet.create({
   base: {
     borderWidth: 1,
     overflow: 'hidden',
+  },
+  highlight: {
+    borderRadius: radii.pill,
+    height: 1,
+    left: spacing.lg,
+    opacity: 0.58,
+    position: 'absolute',
+    right: spacing.lg,
+    top: 1,
+  },
+  sheen: {
+    borderRadius: 110,
+    height: 118,
+    left: -32,
+    opacity: 0.16,
+    position: 'absolute',
+    top: -74,
+    transform: [{ rotate: '-12deg' }],
+    width: 220,
   },
   card: {
     borderRadius: radii.xl,

@@ -33,7 +33,7 @@ export function BubbleSegmentedControl({
               styles.segment,
               isActive && [
                 styles.activeSegment,
-                { backgroundColor: colors.backgroundPrimary, ...shadows.soft },
+                { backgroundColor: colors.systemBlue, ...shadows.clay },
               ],
               pressed && !isActive && { opacity: 0.6 },
             ]}
@@ -42,7 +42,7 @@ export function BubbleSegmentedControl({
             <Text
               style={[
                 styles.segmentText,
-                { color: isActive ? colors.labelPrimary : colors.labelSecondary },
+                { color: isActive ? '#ffffff' : colors.labelSecondary },
                 isActive && styles.activeSegmentText,
               ]}
             >
@@ -58,7 +58,7 @@ export function BubbleSegmentedControl({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    padding: 3,
+    padding: 4,
     borderRadius: radii.xl,
   },
   segmentContainer: {
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radii.lg,
-    minHeight: 32,
+    minHeight: 34,
     paddingHorizontal: 8,
   },
   activeSegment: {

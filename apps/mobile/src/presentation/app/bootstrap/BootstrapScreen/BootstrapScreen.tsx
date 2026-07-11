@@ -4,7 +4,6 @@ import { View, Text } from 'react-native';
 import { useAppStyles } from '@presentation/app/useAppStyles';
 import { BubbleButton } from '@presentation/app/shared/BubbleButton';
 import { BubbleStatus } from '@presentation/app/shared/BubbleStatus';
-import { SorbetBackground } from '@presentation/app/shared/SorbetBackground';
 
 import type { BootstrapState } from '../bootstrapState';
 import { getBootstrapUiContent } from '../bootstrapUiState';
@@ -23,7 +22,6 @@ export function BootstrapScreen({
 
   return (
     <View style={styles.bootstrapScreen}>
-      <SorbetBackground colors={colors} />
       <View style={{ gap: 24, alignItems: 'center' }}>
         <BubbleStatus
           colors={colors}

@@ -2,17 +2,16 @@ import { Tabs } from 'expo-router/js-tabs';
 import { useSegments } from 'expo-router';
 import type { ReactElement } from 'react';
 
-import { SorbetTabBar, canRenderGuardedSurfaces, useAppTheme, useBootstrapSession } from '@presentation/app';
-import { darkColors, lightColors, type AppColors } from '@presentation/theme/tokens';
+import {
+  SorbetTabBar,
+  canRenderGuardedSurfaces,
+  useBootstrapSession,
+} from '@presentation/app';
 
 // Route layout contract: renders the main screens inside the custom Sorbet
 // floating tab bar instead of the native bottom tab shell, so navigation matches
 // the claymorphic mockups on every platform.
 export default function TabsLayout(): ReactElement {
-  const { isDark } = useAppTheme();
-  // colors provides the scene background shown while tab routes animate or mount.
-  const colors: AppColors = isDark ? darkColors : lightColors;
-  
   const { state } = useBootstrapSession();
   const segments = useSegments();
 
@@ -24,7 +23,7 @@ export default function TabsLayout(): ReactElement {
     <Tabs
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: colors.backgroundPrimary },
+        sceneStyle: { backgroundColor: 'transparent' },
       }}
       tabBar={(props) => (isGuardingSettings ? null : <SorbetTabBar {...props} />)}
     >

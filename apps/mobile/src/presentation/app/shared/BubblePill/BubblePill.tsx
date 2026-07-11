@@ -113,7 +113,7 @@ function getPillStyle(
       backgroundColor: selected
         ? colors.pillSelectedSurface
         : colors.pillSurface,
-      borderColor: selected ? colors.systemBlue : colors.pillBorder,
+      borderColor: selected ? colors.systemBlue : 'transparent',
     },
     primary: {
       backgroundColor: selected

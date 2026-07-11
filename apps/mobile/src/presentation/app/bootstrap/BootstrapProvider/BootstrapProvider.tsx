@@ -7,7 +7,7 @@ import React, {
   useRef,
 } from 'react';
 
-import { localAppServices } from '../../services/localAppServices';
+import { localAppServices } from '@presentation/app/services/localAppServices';
 import type { BootstrapState, BootstrapSyncStatus } from '../bootstrapState';
 
 // BootstrapSessionContextValue provides the authenticated state and recovery actions.

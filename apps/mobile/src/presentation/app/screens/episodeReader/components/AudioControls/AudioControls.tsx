@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react';
 import { Text, View } from 'react-native';
-import { JellyPressable } from '../../../../shared';
 
-import type { AppStyles } from '../../../../types';
+import { JellyPressable } from '@presentation/app/shared';
+import type { AppStyles } from '@presentation/app/types';
 
 // AudioControlsProps describes the reader playback command surface.
 type AudioControlsProps = {

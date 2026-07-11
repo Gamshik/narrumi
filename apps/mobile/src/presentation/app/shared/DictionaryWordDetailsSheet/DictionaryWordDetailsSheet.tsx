@@ -4,8 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { VocabularyItem } from '@domain/index';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 
-import type { AppStyles } from '../types';
-import { BubbleSheet } from './BubbleSheet';
+import type { AppStyles } from '@presentation/app/types';
+import { BubbleSheet } from '../BubbleSheet';
 
 // DictionaryWordDetailsSheetProps defines the native sheet content contract.
 type DictionaryWordDetailsSheetProps = {

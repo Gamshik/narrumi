@@ -1,6 +1,8 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode, ReactElement } from 'react';
 import {
   StyleSheet,
+  View,
   type AccessibilityState,
   type PressableProps,
   type StyleProp,
@@ -18,7 +20,12 @@ import {
 import { JellyPressable } from '../JellyPressable';
 
 // BubbleButtonVariant names the shared tactile button emphasis levels.
-export type BubbleButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type BubbleButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'danger'
+  | 'inverted';
 
 // BubbleButtonProps exposes Pressable intent while keeping visuals token-owned.
 export type BubbleButtonProps = Omit<
@@ -62,6 +69,12 @@ export function BubbleButton({
   };
   // buttonStyle resolves semantic colors after the active theme is known.
   const buttonStyle: ViewStyle = getButtonStyle(colors, variant, selected);
+  // gradientColors gives emphasized controls a soft inflated light direction.
+  const gradientColors: readonly [string, string] = getButtonGradient(
+    colors,
+    variant,
+    selected,
+  );
 
   return (
     <JellyPressable
@@ -79,9 +92,49 @@ export function BubbleButton({
       ]}
       {...pressableProps}
     >
+      <LinearGradient
+        colors={gradientColors}
+        end={{ x: 0.88, y: 1 }}
+        pointerEvents="none"
+        start={{ x: 0.08, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View
+        pointerEvents="none"
+        style={[styles.sheen, { backgroundColor: colors.bubbleBorder }]}
+      />
       {children}
     </JellyPressable>
   );
+}
+
+// getButtonGradient keeps visual depth semantic for every button emphasis.
+function getButtonGradient(
+  colors: AppColors,
+  variant: BubbleButtonVariant,
+  selected: boolean,
+): readonly [string, string] {
+  if (variant === 'primary') {
+    return [colors.systemPurple, colors.systemBlue];
+  }
+
+  if (variant === 'danger') {
+    return [colors.systemPink, colors.systemRed];
+  }
+
+  if (variant === 'inverted') {
+    return ['#ffffff', '#eee9ff'];
+  }
+
+  if (selected) {
+    return [colors.pillSelectedSurface, colors.badgeAccentSurface];
+  }
+
+  if (variant === 'secondary') {
+    return [colors.bubbleSurfaceRaised, colors.bubbleSurface];
+  }
+
+  return [colors.backgroundTertiary, colors.backgroundTertiary];
 }
 
 // getButtonStyle maps button variants to semantic light/dark color tokens.
@@ -111,6 +164,10 @@ function getButtonStyle(
       backgroundColor: colors.systemRed,
       borderColor: colors.systemRed,
     },
+    inverted: {
+      backgroundColor: '#ffffff',
+      borderColor: 'rgba(255, 255, 255, 0.76)',
+    },
   };
 
   return variantStyles[variant];
@@ -125,6 +182,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     minHeight: 48,
+    overflow: 'hidden',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
@@ -137,6 +195,19 @@ const styles = StyleSheet.create({
   ghost: {},
   danger: {
     ...shadows.soft,
+  },
+  inverted: {
+    ...shadows.soft,
+  },
+  sheen: {
+    borderRadius: 70,
+    height: 58,
+    left: -16,
+    opacity: 0.18,
+    position: 'absolute',
+    top: -34,
+    transform: [{ rotate: '-12deg' }],
+    width: 132,
   },
   disabled: {
     opacity: 0.45,

@@ -6,7 +6,14 @@ import type { ReactElement, ReactNode } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AuthGate, AuthProvider, BootstrapProvider, ThemeProvider, useAppTheme } from '@presentation/app';
+import {
+  AuthGate,
+  AuthProvider,
+  BootstrapProvider,
+  SorbetBackground,
+  ThemeProvider,
+  useAppTheme,
+} from '@presentation/app';
 import { sorbetFontAssets } from '@presentation/theme';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme/tokens';
 
@@ -61,9 +68,12 @@ function ThemedSafeAreaRoot({ children }: ThemedSafeAreaRootProps): ReactElement
 
   return (
     <SafeAreaProvider style={{ flex: 1, backgroundColor: colors.backgroundPrimary }}>
-      <NavigationThemeProvider value={createNavigationTheme(colors, isDark)}>
-        {children}
-      </NavigationThemeProvider>
+      <View style={{ flex: 1 }}>
+        <SorbetBackground colors={colors} />
+        <NavigationThemeProvider value={createNavigationTheme(colors, isDark)}>
+          {children}
+        </NavigationThemeProvider>
+      </View>
     </SafeAreaProvider>
   );
 }
@@ -74,8 +84,8 @@ function createNavigationTheme(colors: AppColors, isDark: boolean): NavigationTh
     dark: isDark,
     colors: {
       primary: colors.systemBlue,
-      background: colors.backgroundPrimary,
-      card: colors.backgroundPrimary,
+      background: 'transparent',
+      card: 'transparent',
       text: colors.labelPrimary,
       border: colors.separator,
       notification: colors.systemRed,
@@ -103,15 +113,11 @@ function createNavigationTheme(colors: AppColors, isDark: boolean): NavigationTh
 
 // ThemedStack keeps the native navigation surfaces aligned with app appearance during route transitions.
 function ThemedStack(): ReactElement {
-  const { isDark } = useAppTheme();
-  // colors provides the route background used behind animated native stack cards.
-  const colors: AppColors = isDark ? darkColors : lightColors;
-
   return (
-    <View style={{ flex: 1, backgroundColor: colors.backgroundPrimary }}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <Stack
         screenOptions={{
-          contentStyle: { backgroundColor: colors.backgroundPrimary },
+          contentStyle: { backgroundColor: 'transparent' },
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

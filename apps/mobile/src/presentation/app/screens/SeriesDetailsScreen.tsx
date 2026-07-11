@@ -331,8 +331,15 @@ export function SeriesDetailsScreen({
         <Text style={styles.readerBadge}>
           {genreLabels[state.series.genre]} - {state.series.cefrLevel}
         </Text>
-        <Text style={styles.largeTitle}>{state.series.title}</Text>
-        <Text style={styles.secondaryText}>
+        <Text
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+          numberOfLines={2}
+          style={styles.largeTitle}
+        >
+          {state.series.title}
+        </Text>
+        <Text numberOfLines={2} style={styles.secondaryText}>
           {buildSeriesDetailsMeta(state.series, state.episodes.length)}
         </Text>
       </View>
@@ -349,10 +356,15 @@ export function SeriesDetailsScreen({
         <Text style={styles.continueTag}>
           {hasEpisodeInProgress ? 'CONTINUE' : 'PREPARE NEXT'}
         </Text>
-        <Text style={styles.continueTitle}>
+        <Text
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+          numberOfLines={2}
+          style={styles.continueTitle}
+        >
           {hasEpisodeInProgress ? 'Resume episode' : `Episode ${nextEpisodeNumber}`}
         </Text>
-        <Text style={styles.continueText}>
+        <Text numberOfLines={2} style={styles.continueText}>
           {hasEpisodeInProgress
             ? 'Return to the latest decision.'
             : 'Choose Story Words for the next episode.'}
@@ -369,9 +381,14 @@ export function SeriesDetailsScreen({
 
             onPrepareEpisode(state.series.id);
           }}
-          variant="secondary"
+          variant="inverted"
         >
-          <Text style={styles.bannerButtonText}>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.72}
+            numberOfLines={1}
+            style={styles.bannerButtonText}
+          >
             {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
           </Text>
         </BubbleButton>
@@ -382,10 +399,18 @@ export function SeriesDetailsScreen({
           onPress={() => onReadSeries(state.series.id)}
           style={({ pressed }) => [
             styles.primaryButton,
+            styles.seriesSecondaryAction,
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.primaryButtonText}>Read Full Series</Text>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.78}
+            numberOfLines={1}
+            style={[styles.primaryButtonText, styles.seriesSecondaryActionText]}
+          >
+            Read Full Series
+          </Text>
         </JellyPressable>
       ) : null}
 
@@ -1080,13 +1105,26 @@ function EpisodeHistoryRow({
         onPress={() => onOpenEpisode(episode.id)}
         style={({ pressed }) => [styles.episodeCardContent, pressed && styles.pressed]}
       >
-        <Text style={styles.actionTitle}>
+        <Text
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+          numberOfLines={2}
+          style={[styles.actionTitle, styles.episodeCardTitle]}
+        >
           Episode {episode.orderIndex}: {episode.title ?? 'Untitled'}
         </Text>
-        <Text style={styles.secondaryText} numberOfLines={2}>
+        <Text
+          numberOfLines={2}
+          style={[styles.secondaryText, styles.episodeCardSummary]}
+        >
           {episode.summaryUpdate}
         </Text>
-        <Text style={styles.sectionLabel}>
+        <Text
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+          numberOfLines={1}
+          style={styles.sectionLabel}
+        >
           {episode.isComplete
             ? `${episode.interactions.length} DECISIONS - COMPLETE`
             : `${episode.interactions.length} DECISIONS - IN PROGRESS`}
@@ -1101,7 +1139,14 @@ function EpisodeHistoryRow({
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.smallPrimaryButtonText}>Read</Text>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            numberOfLines={1}
+            style={styles.smallPrimaryButtonText}
+          >
+            Read
+          </Text>
         </JellyPressable>
         <JellyPressable
           disabled={isDeleting}
@@ -1113,7 +1158,12 @@ function EpisodeHistoryRow({
             isDeleting && styles.disabledControl,
           ]}
         >
-          <Text style={styles.destructiveIconText}>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.76}
+            numberOfLines={1}
+            style={styles.destructiveIconText}
+          >
             {isDeleting ? 'Deleting...' : 'Delete'}
           </Text>
         </JellyPressable>

@@ -1,8 +1,8 @@
 import type { ReactElement, ReactNode } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
-import { RouteScreen } from '../../shared';
-import { useAppStyles } from '../../useAppStyles';
+import { RouteScreen } from '@presentation/app/shared';
+import { useAppStyles } from '@presentation/app/useAppStyles';
 import { AuthenticationScreen } from '../AuthenticationScreen';
 import { useAuthSession } from '../AuthProvider';
 

@@ -8,8 +8,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { BubbleButton, BubbleStatus, BubbleSurface, JellyPressable, RouteScreen } from '../../shared';
-import { useAppStyles } from '../../useAppStyles';
+import {
+  BubbleButton,
+  BubbleStatus,
+  BubbleSurface,
+  JellyPressable,
+  RouteScreen,
+} from '@presentation/app/shared';
+import { useAppStyles } from '@presentation/app/useAppStyles';
 import { useAuthSession } from '../AuthProvider';
 
 // AuthMode selects whether the form signs in or creates an account.

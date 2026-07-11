@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { BubbleSurface } from '@presentation/app/shared/BubbleSurface';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 
-import type { AppStyles } from '../../types';
+import type { AppStyles } from '@presentation/app/types';
 
 // SettingsSkeletonProps mirrors SettingsScreen shell props for stable route layout.
 export type SettingsSkeletonProps = {

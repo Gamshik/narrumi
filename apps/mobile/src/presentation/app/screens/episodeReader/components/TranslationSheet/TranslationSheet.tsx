@@ -3,7 +3,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 
 import type { TranslationAnnotation } from '@domain/index';
 
-import type { AppStyles } from '../../../../types';
+import type { AppStyles } from '@presentation/app/types';
 
 // TranslationSheetProps controls the inline translation bottom sheet.
 type TranslationSheetProps = {

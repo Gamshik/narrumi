@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react';
 import { Text, TextInput, View } from 'react-native';
-import { JellyPressable } from '../../../../shared';
 
 import type { VocabularyItem } from '@domain/index';
+import { JellyPressable } from '@presentation/app/shared';
 import type { AppStyles } from '@presentation/app/types';
 
 // DictionaryPickerPanelProps defines one local dictionary replacement picker.
