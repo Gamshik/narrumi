@@ -32,6 +32,12 @@ type AppColorTokens = {
   readonly glassBackground: string;
   // backgroundGradient are the three stops of the Sorbet screen backdrop, top to bottom.
   readonly backgroundGradient: readonly [string, string, string];
+  // edgeFadeTopGradient tints the blurred top edge while letting scrolled content dissolve into the status area.
+  readonly edgeFadeTopGradient: readonly [string, string, string, string];
+  // edgeFadeBottomGradient dissolves scrolled content behind floating navigation without adding bottom blur.
+  readonly edgeFadeBottomGradient: readonly [string, string, string];
+  // modalEdgeFadeBottomGradient softly dissolves modal content without implying persistent bottom navigation.
+  readonly modalEdgeFadeBottomGradient: readonly [string, string, string];
   // blobGrape tints the primary floating background blob behind screens.
   readonly blobGrape: string;
   // blobBubblegum tints the secondary floating background blob behind screens.
@@ -90,6 +96,22 @@ export const lightColors: AppColorTokens = {
   separator: '#ddd3e8',
   glassBackground: 'rgba(255, 255, 255, 0.86)',
   backgroundGradient: ['#fdf8ff', '#f1ecff', '#eaf9ff'],
+  edgeFadeTopGradient: [
+    'rgba(253, 248, 255, 0.92)',
+    'rgba(246, 240, 255, 0.68)',
+    'rgba(241, 236, 255, 0.32)',
+    'rgba(241, 236, 255, 0)',
+  ],
+  edgeFadeBottomGradient: [
+    'rgba(234, 249, 255, 0)',
+    'rgba(239, 244, 255, 0.52)',
+    'rgba(234, 249, 255, 0.94)',
+  ],
+  modalEdgeFadeBottomGradient: [
+    'rgba(234, 249, 255, 0)',
+    'rgba(239, 244, 255, 0.21)',
+    'rgba(234, 249, 255, 0.54)',
+  ],
   blobGrape: '#a86bff',
   blobBubblegum: '#ff4d97',
   blobMint: '#31b8ff',
@@ -129,6 +151,22 @@ export const darkColors: AppColorTokens = {
   separator: '#332640',
   glassBackground: 'rgba(20, 13, 34, 0.84)',
   backgroundGradient: ['#090615', '#120922', '#071721'],
+  edgeFadeTopGradient: [
+    'rgba(9, 6, 21, 0.98)',
+    'rgba(12, 7, 25, 0.86)',
+    'rgba(16, 9, 31, 0.56)',
+    'rgba(18, 9, 34, 0)',
+  ],
+  edgeFadeBottomGradient: [
+    'rgba(7, 23, 33, 0)',
+    'rgba(10, 17, 31, 0.58)',
+    'rgba(7, 23, 33, 0.96)',
+  ],
+  modalEdgeFadeBottomGradient: [
+    'rgba(7, 23, 33, 0)',
+    'rgba(10, 17, 31, 0.25)',
+    'rgba(7, 23, 33, 0.58)',
+  ],
   blobGrape: '#8257ff',
   blobBubblegum: '#ff4f9a',
   blobMint: '#44c8ff',

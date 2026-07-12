@@ -10,6 +10,8 @@ type RouteScreenProps = {
   readonly children: ReactNode;
   // isDark selects the native status-bar foreground style and gradient palette.
   readonly isDark: boolean;
+  // isEdgeToEdge lets a route render below system areas while retaining horizontal safe-area protection.
+  readonly isEdgeToEdge?: boolean;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
 };
@@ -18,10 +20,18 @@ type RouteScreenProps = {
 export function RouteScreen({
   children,
   isDark,
+  isEdgeToEdge = false,
   styles,
 }: RouteScreenProps): ReactElement {
   return (
-    <SafeAreaView style={styles.routeSafeArea}>
+    <SafeAreaView
+      edges={
+        isEdgeToEdge
+          ? ['left', 'right']
+          : ['top', 'right', 'bottom', 'left']
+      }
+      style={styles.routeSafeArea}
+    >
       {children}
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </SafeAreaView>

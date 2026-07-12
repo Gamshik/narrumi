@@ -10,5 +10,6 @@ export * from './LevelBadge';
 export * from './SorbetTabBar';
 export * from './RouteScreen';
 export * from './SorbetBackground';
+export * from './ScreenEdgeEffects';
 export * from './BubbleSegmentedControl';
 export * from './BubbleSlider';
