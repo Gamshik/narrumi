@@ -1,14 +1,21 @@
-import { useCallback, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactElement, RefObject } from 'react';
+import { BlurTargetView } from 'expo-blur';
 import { useFocusEffect } from 'expo-router';
 import {
   Alert,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   Modal,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   ScrollView,
   Text,
   TextInput,
+  type ViewStyle,
   View,
 } from 'react-native';
 import {
@@ -16,6 +23,7 @@ import {
   BubbleStatus,
   BubbleSurface,
   JellyPressable,
+  screenEdgeDepths,
 } from '../shared';
 import { useAppTheme } from '../theme';
 import { lightColors, darkColors } from '@presentation/theme';
@@ -40,6 +48,11 @@ import type { GenerateSeriesSetupDraftRequest } from '@application/ports';
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
+import {
+  getSeriesTitleScrollThresholds,
+  SeriesDetailsEdgeEffects,
+  type SeriesTitleScrollThresholds,
+} from './SeriesDetailsEdgeEffects';
 
 // SeriesDetailsScreenProps carries route params and navigation callbacks.
 type SeriesDetailsScreenProps = {
@@ -117,6 +130,9 @@ const participationModeLabels: Record<Series['participationMode'], string> = {
   character: 'Character mode',
 };
 
+// seriesHeaderTransitionDuration keeps the compact navigation response quick and system-like.
+const seriesHeaderTransitionDuration: number = 180;
+
 // SeriesDetailsScreen shows one series, its memory, and completed episodes.
 export function SeriesDetailsScreen({
   onBack,
@@ -128,7 +144,13 @@ export function SeriesDetailsScreen({
   styles,
 }: SeriesDetailsScreenProps): ReactElement {
   const { isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const colors = isDark ? darkColors : lightColors;
+  // headerTransition drives top material and compact title without changing the large in-flow title.
+  const [headerTransition] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(0),
+  );
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const [state, setState] = useState<SeriesDetailsState>();
   const [setupForm, setSetupForm] = useState<SeriesSetupFormState>();
   const [setupErrors, setSetupErrors] = useState<SeriesSetupFormErrors>({});
@@ -137,6 +159,49 @@ export function SeriesDetailsScreen({
   const [isGeneratingSetup, setIsGeneratingSetup] = useState(false);
   const [deletingEpisodeId, setDeletingEpisodeId] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
+  // blurTargetRef identifies the edge-to-edge series scroll surface for Android blur.
+  const blurTargetRef: RefObject<View | null> = useRef<View>(null);
+  // seriesHeaderTopRef stores the header position needed to resolve title edges in scroll coordinates.
+  const seriesHeaderTopRef: RefObject<number | undefined> = useRef<
+    number | undefined
+  >(undefined);
+  // seriesTitleTopRef stores the large title position inside its header.
+  const seriesTitleTopRef: RefObject<number | undefined> = useRef<
+    number | undefined
+  >(undefined);
+  // seriesTitleHeightRef stores the rendered height for one- and two-line names.
+  const seriesTitleHeightRef: RefObject<number | undefined> = useRef<
+    number | undefined
+  >(undefined);
+  // seriesContentInsets starts the hero below top glass and clears the quiet pushed-screen bottom fade.
+  const seriesContentInsets: ViewStyle = {
+    paddingTop: insets.top + screenEdgeDepths.top + 12,
+    paddingBottom: insets.bottom + screenEdgeDepths.modalBottom + 16,
+  };
+  // fallbackInsets retain safe spacing while loading and error states do not render edge materials.
+  const fallbackInsets: ViewStyle = {
+    paddingTop: insets.top + 20,
+    paddingBottom: insets.bottom + 20,
+  };
+
+  useEffect(() => {
+    // The gesture selects a stable header state; timing completes independently of finger position.
+    const animation: Animated.CompositeAnimation = Animated.timing(
+      headerTransition,
+      {
+        toValue: isHeaderCollapsed ? 1 : 0,
+        duration: seriesHeaderTransitionDuration,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      },
+    );
+
+    animation.start();
+
+    return (): void => {
+      animation.stop();
+    };
+  }, [headerTransition, isHeaderCollapsed]);
 
   const loadDetails = useCallback(async (): Promise<void> => {
     try {
@@ -282,9 +347,55 @@ export function SeriesDetailsScreen({
     }
   };
 
+  const handleSeriesScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ): void => {
+    const offsetY: number = event.nativeEvent.contentOffset.y;
+    const headerTop: number | undefined = seriesHeaderTopRef.current;
+    const titleTop: number | undefined = seriesTitleTopRef.current;
+    const titleHeight: number | undefined = seriesTitleHeightRef.current;
+
+    if (
+      headerTop === undefined ||
+      titleTop === undefined ||
+      titleHeight === undefined
+    ) {
+      return;
+    }
+
+    // thresholds match the exact large-title edges requested for each scroll direction.
+    const thresholds: SeriesTitleScrollThresholds =
+      getSeriesTitleScrollThresholds({
+        blurBottom: insets.top + screenEdgeDepths.top,
+        headerTop,
+        titleHeight,
+        titleTop,
+      });
+
+    if (!isHeaderCollapsed && offsetY >= thresholds.appearanceOffset) {
+      setIsHeaderCollapsed(true);
+      return;
+    }
+
+    if (isHeaderCollapsed && offsetY <= thresholds.disappearanceOffset) {
+      setIsHeaderCollapsed(false);
+    }
+  };
+
+  // handleSeriesHeaderLayout captures the header origin within scroll-content coordinates.
+  const handleSeriesHeaderLayout = (event: LayoutChangeEvent): void => {
+    seriesHeaderTopRef.current = event.nativeEvent.layout.y;
+  };
+
+  // handleSeriesTitleLayout captures both measured edges of the rendered large title.
+  const handleSeriesTitleLayout = (event: LayoutChangeEvent): void => {
+    seriesTitleTopRef.current = event.nativeEvent.layout.y;
+    seriesTitleHeightRef.current = event.nativeEvent.layout.height;
+  };
+
   if (errorMessage) {
     return (
-      <View style={styles.screenContent}>
+      <View style={[styles.screenContent, fallbackInsets]}>
         <View style={styles.homeHeader}>
           <JellyPressable onPress={onBack} style={styles.smallPrimaryButton}>
             <Text style={styles.smallPrimaryButtonText}>Back</Text>
@@ -297,7 +408,7 @@ export function SeriesDetailsScreen({
 
   if (!state) {
     return (
-      <View style={styles.screenContent}>
+      <View style={[styles.screenContent, fallbackInsets]}>
         <BubbleStatus colors={colors} tone="loading" title="Loading series..." variant="row" />
       </View>
     );
@@ -309,157 +420,167 @@ export function SeriesDetailsScreen({
   const nextEpisodeNumber = state.episodes.length + 1;
 
   return (
-    <ScrollView contentContainerStyle={styles.screenContent}>
-      <View style={styles.homeHeader}>
-        <JellyPressable onPress={onBack} style={styles.smallPrimaryButton}>
-          <Text style={styles.smallPrimaryButtonText}>Back</Text>
-        </JellyPressable>
-        <JellyPressable
-          onPress={() => setIsSetupOpen(true)}
-          style={[
-            styles.secondarySmallButton,
-            !canEditSetup && styles.disabledControl,
-          ]}
+    <View style={styles.flexOne}>
+      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+        <Animated.ScrollView
+          contentContainerStyle={[styles.screenContent, seriesContentInsets]}
+          onScroll={handleSeriesScroll}
+          scrollEventThrottle={16}
         >
-          <Text style={styles.secondarySmallButtonText}>
-            {canEditSetup ? 'Setup' : 'View Setup'}
-          </Text>
-        </JellyPressable>
-      </View>
-
-      <View style={styles.seriesDetailsHeader}>
-        <Text style={styles.readerBadge}>
-          {genreLabels[state.series.genre]} - {state.series.cefrLevel}
-        </Text>
-        <Text
-          adjustsFontSizeToFit
-          minimumFontScale={0.72}
-          numberOfLines={2}
-          style={styles.largeTitle}
-        >
-          {state.series.title}
-        </Text>
-        <Text numberOfLines={2} style={styles.secondaryText}>
-          {buildSeriesDetailsMeta(state.series, state.episodes.length)}
-        </Text>
-      </View>
-
-      <BubbleSurface
-        colors={colors}
-        tone="primary"
-        variant="card"
-        style={[
-          styles.continueBanner,
-          styles.seriesPrepareBanner,
-        ]}
-      >
-        <Text style={styles.continueTag}>
-          {hasEpisodeInProgress ? 'CONTINUE' : 'PREPARE NEXT'}
-        </Text>
-        <Text
-          adjustsFontSizeToFit
-          minimumFontScale={0.8}
-          numberOfLines={2}
-          style={styles.continueTitle}
-        >
-          {hasEpisodeInProgress ? 'Resume episode' : `Episode ${nextEpisodeNumber}`}
-        </Text>
-        <Text numberOfLines={2} style={styles.continueText}>
-          {hasEpisodeInProgress
-            ? 'Return to the latest decision.'
-            : 'Choose Story Words for the next episode.'}
-        </Text>
-        <BubbleButton
-          colors={colors}
-          contentStyle={styles.bannerButton}
-          onPress={() => {
-            if (latestEpisode && !latestEpisode.isComplete) {
-              onContinueEpisode(latestEpisode.id);
-
-              return;
-            }
-
-            onPrepareEpisode(state.series.id);
-          }}
-          variant="inverted"
-        >
-          <Text
-            adjustsFontSizeToFit
-            minimumFontScale={0.72}
-            numberOfLines={1}
-            style={styles.bannerButtonText}
+          <View
+            onLayout={handleSeriesHeaderLayout}
+            style={styles.seriesDetailsHeader}
           >
-            {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
-          </Text>
-        </BubbleButton>
-      </BubbleSurface>
+            <Text style={styles.readerBadge}>
+              {genreLabels[state.series.genre]} - {state.series.cefrLevel}
+            </Text>
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+              numberOfLines={2}
+              onLayout={handleSeriesTitleLayout}
+              style={styles.largeTitle}
+            >
+              {state.series.title}
+            </Text>
+            <Text numberOfLines={2} style={styles.secondaryText}>
+              {buildSeriesDetailsMeta(state.series, state.episodes.length)}
+            </Text>
+          </View>
 
-      {state.episodes.length > 0 ? (
-        <JellyPressable
-          onPress={() => onReadSeries(state.series.id)}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            styles.seriesSecondaryAction,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text
-            adjustsFontSizeToFit
-            minimumFontScale={0.78}
-            numberOfLines={1}
-            style={[styles.primaryButtonText, styles.seriesSecondaryActionText]}
+          <BubbleSurface
+            colors={colors}
+            tone="primary"
+            variant="card"
+            style={[styles.continueBanner, styles.seriesPrepareBanner]}
           >
-            Read Full Series
-          </Text>
-        </JellyPressable>
-      ) : null}
+            <Text style={styles.continueTag}>
+              {hasEpisodeInProgress ? 'CONTINUE' : 'PREPARE NEXT'}
+            </Text>
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+              numberOfLines={2}
+              style={styles.continueTitle}
+            >
+              {hasEpisodeInProgress
+                ? 'Resume episode'
+                : `Episode ${nextEpisodeNumber}`}
+            </Text>
+            <Text numberOfLines={2} style={styles.continueText}>
+              {hasEpisodeInProgress
+                ? 'Return to the latest decision.'
+                : 'Choose Story Words for the next episode.'}
+            </Text>
+            <BubbleButton
+              colors={colors}
+              contentStyle={styles.bannerButton}
+              onPress={() => {
+                if (latestEpisode && !latestEpisode.isComplete) {
+                  onContinueEpisode(latestEpisode.id);
 
-      <Text style={styles.sectionLabel}>EPISODE HISTORY</Text>
-      {state.episodes.length === 0 ? (
-        <View style={styles.emptySeriesPanel}>
-          <Text style={styles.actionTitle}>No episodes yet</Text>
-          <Text style={styles.secondaryText}>
-            Generate the first episode to create local history.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.episodeList}>
-          {state.episodes.map((episode) => (
-            <EpisodeHistoryRow
-              isDeleting={episode.id === deletingEpisodeId}
-              episode={episode}
-              key={episode.id}
+                  return;
+                }
+
+                onPrepareEpisode(state.series.id);
+              }}
+              variant="inverted"
+            >
+              <Text
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}
+                numberOfLines={1}
+                style={styles.bannerButtonText}
+              >
+                {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
+              </Text>
+            </BubbleButton>
+          </BubbleSurface>
+
+          {state.episodes.length > 0 ? (
+            <JellyPressable
+              onPress={() => onReadSeries(state.series.id)}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                styles.seriesSecondaryAction,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text
+                adjustsFontSizeToFit
+                minimumFontScale={0.78}
+                numberOfLines={1}
+                style={[
+                  styles.primaryButtonText,
+                  styles.seriesSecondaryActionText,
+                ]}
+              >
+                Read Full Series
+              </Text>
+            </JellyPressable>
+          ) : null}
+
+          <Text style={styles.sectionLabel}>EPISODE HISTORY</Text>
+          {state.episodes.length === 0 ? (
+            <View style={styles.emptySeriesPanel}>
+              <Text style={styles.actionTitle}>No episodes yet</Text>
+              <Text style={styles.secondaryText}>
+                Generate the first episode to create local history.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.episodeList}>
+              {state.episodes.map((episode) => (
+                <EpisodeHistoryRow
+                  isDeleting={episode.id === deletingEpisodeId}
+                  episode={episode}
+                  key={episode.id}
+                  styles={styles}
+                  onDeleteEpisode={requestDeleteEpisode}
+                  onOpenEpisode={onOpenEpisode}
+                />
+              ))}
+            </View>
+          )}
+          {setupForm ? (
+            <SeriesSetupModal
+              colors={colors}
+              canEdit={canEditSetup}
+              errors={setupErrors}
+              form={setupForm}
+              isGenerating={isGeneratingSetup}
+              isSaving={isSavingSetup}
+              isVisible={isSetupOpen}
               styles={styles}
-              onDeleteEpisode={requestDeleteEpisode}
-              onOpenEpisode={onOpenEpisode}
+              onChangeForm={(nextForm) => {
+                setSetupForm(nextForm);
+                setSetupErrors((currentErrors) =>
+                  Object.keys(currentErrors).length > 0
+                    ? validateSetupForm(nextForm)
+                    : {},
+                );
+              }}
+              onClose={cancelSetup}
+              onGenerate={generateSetup}
+              onSave={saveSetup}
             />
-          ))}
-        </View>
-      )}
-      {setupForm ? (
-        <SeriesSetupModal
-          colors={colors}
-          canEdit={canEditSetup}
-          errors={setupErrors}
-          form={setupForm}
-          isGenerating={isGeneratingSetup}
-          isSaving={isSavingSetup}
-          isVisible={isSetupOpen}
-          styles={styles}
-          onChangeForm={(nextForm) => {
-            setSetupForm(nextForm);
-            setSetupErrors((currentErrors) =>
-              Object.keys(currentErrors).length > 0
-                ? validateSetupForm(nextForm)
-                : {},
-            );
-          }}
-          onClose={cancelSetup}
-          onGenerate={generateSetup}
-          onSave={saveSetup}
-        />
-      ) : null}
-    </ScrollView>
+          ) : null}
+        </Animated.ScrollView>
+      </BlurTargetView>
+      <SeriesDetailsEdgeEffects
+        blurTarget={blurTargetRef}
+        bottomInset={insets.bottom}
+        canEditSetup={canEditSetup}
+        colors={colors}
+        isDark={isDark}
+        styles={styles}
+        title={state.series.title}
+        topInset={insets.top}
+        transitionProgress={headerTransition}
+        onBack={onBack}
+        onOpenSetup={() => setIsSetupOpen(true)}
+      />
+    </View>
   );
 }
 

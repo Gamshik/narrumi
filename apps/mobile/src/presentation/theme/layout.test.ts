@@ -212,6 +212,53 @@ test('Home and create-series share top glass and a gradient-only bottom edge', (
   );
 });
 
+// The test protects Wi-Fi-style series navigation where the large title scrolls unchanged beneath fixed controls.
+test('series details reveals only a compact title inside shared top glass', (): void => {
+  const seriesRouteSource = readFileSync(
+    resolve(__dirname, '../../../app/series-details.tsx'),
+    'utf8',
+  );
+  const seriesScreenSource = readFileSync(
+    resolve(__dirname, '../app/screens/SeriesDetailsScreen.tsx'),
+    'utf8',
+  );
+  const seriesEdgeEffectsSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/SeriesDetailsEdgeEffects/SeriesDetailsEdgeEffects.tsx',
+    ),
+    'utf8',
+  );
+
+  assert.match(seriesRouteSource, /<RouteScreen isDark=\{isDark\} isEdgeToEdge/);
+  assert.match(seriesScreenSource, /<BlurTargetView ref=\{blurTargetRef\}/);
+  assert.match(seriesScreenSource, /<Animated\.ScrollView/);
+  assert.match(seriesScreenSource, /onScroll=\{handleSeriesScroll\}/);
+  assert.match(seriesScreenSource, /onLayout=\{handleSeriesHeaderLayout\}/);
+  assert.match(seriesScreenSource, /onLayout=\{handleSeriesTitleLayout\}/);
+  assert.match(seriesScreenSource, /getSeriesTitleScrollThresholds/);
+  assert.match(seriesScreenSource, /offsetY >= thresholds\.appearanceOffset/);
+  assert.match(
+    seriesScreenSource,
+    /offsetY <= thresholds\.disappearanceOffset/,
+  );
+  assert.doesNotMatch(seriesScreenSource, /seriesHeaderCollapseOffset/);
+  assert.doesNotMatch(seriesScreenSource, /seriesHeaderExpandOffset/);
+  assert.match(seriesScreenSource, /duration:\s*seriesHeaderTransitionDuration/);
+  assert.match(seriesScreenSource, /screenEdgeDepths\.modalBottom/);
+  assert.doesNotMatch(seriesScreenSource, /largeTitleOpacity/);
+  assert.match(seriesScreenSource, /<SeriesDetailsEdgeEffects/);
+  assert.match(seriesEdgeEffectsSource, /<ScreenEdgeEffects/);
+  assert.match(seriesEdgeEffectsSource, /bottomVariant="modal"/);
+  assert.match(seriesEdgeEffectsSource, /materialOpacity=\{transitionProgress\}/);
+  assert.match(seriesEdgeEffectsSource, /inputRange:\s*\[0, 0\.12, 1\]/);
+  assert.match(seriesEdgeEffectsSource, /pointerEvents="box-none"/);
+  assert.match(seriesEdgeEffectsSource, /ellipsizeMode="tail"/);
+  assert.match(seriesEdgeEffectsSource, /numberOfLines=\{1\}/);
+  assert.doesNotMatch(seriesEdgeEffectsSource, /adjustsFontSizeToFit/);
+  assert.doesNotMatch(seriesEdgeEffectsSource, /minimumFontScale/);
+});
+
 // The test keeps ambient background depth subtle and accessibility-aware.
 test('Sorbet background adds edge depth without bypassing reduced motion', (): void => {
   const backgroundSource = readFileSync(

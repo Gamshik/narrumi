@@ -12,7 +12,7 @@ export default function SeriesDetailsRoute(): ReactElement {
   const normalizedSeriesId = typeof seriesId === 'string' ? seriesId : '';
 
   return (
-    <RouteScreen isDark={isDark} styles={styles}>
+    <RouteScreen isDark={isDark} isEdgeToEdge styles={styles}>
       <SeriesDetailsScreen
         seriesId={normalizedSeriesId}
         styles={styles}
