@@ -9,7 +9,7 @@ export default function HomeRoute(): ReactElement {
   const { isDark, styles } = useAppStyles();
 
   return (
-    <RouteScreen isDark={isDark} styles={styles}>
+    <RouteScreen isDark={isDark} isEdgeToEdge styles={styles}>
       <HomeScreen
         onOpenSeries={(seriesId) =>
           router.push({ pathname: '/series-details', params: { seriesId } })

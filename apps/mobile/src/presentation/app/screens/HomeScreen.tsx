@@ -1,17 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
+import type { ReactElement, RefObject } from 'react';
+import { BlurTargetView } from 'expo-blur';
 import { useFocusEffect } from 'expo-router';
 import {
   Alert,
   Animated,
+  Easing,
   KeyboardAvoidingView,
   Modal,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   PanResponder,
   type PanResponderInstance,
   Platform,
   ScrollView,
   Text,
   TextInput,
+  type ViewStyle,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +28,8 @@ import {
   BubblePill,
   BubbleStatus,
   JellyPressable,
+  ScreenEdgeEffects,
+  screenEdgeDepths,
 } from '../shared';
 import { useAppTheme } from '../theme';
 import {
@@ -49,6 +56,8 @@ import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunction
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
+import { floatingTabBarMetrics } from '@presentation/theme/layout';
+import { HomeEdgeEffects } from './HomeEdgeEffects';
 
 // HomeScreenProps carries the shared themed style sheet into the home dashboard.
 type HomeScreenProps = {
@@ -126,6 +135,14 @@ const swipeOpenOffset = -84;
 const swipeOpenThreshold = -58;
 // closeSwipeTapSlop is the max finger drift still treated as a closing tap.
 const closeSwipeTapSlop = 8;
+// homeHeaderCollapseOffset starts the autonomous title transition after a deliberate upward scroll.
+const homeHeaderCollapseOffset: number = 38;
+// homeHeaderExpandOffset adds hysteresis so tiny scroll changes cannot toggle the header repeatedly.
+const homeHeaderExpandOffset: number = 12;
+// homeTitleTransitionDuration keeps the two-stage title swap quick and independent from static materials.
+const homeTitleTransitionDuration: number = 220;
+// homeMaterialTransitionDuration softly fades static blur and tint without directional effects.
+const homeMaterialTransitionDuration: number = 180;
 
 // TouchPoint stores absolute screen coordinates for tap-vs-drag detection.
 type TouchPoint = {
@@ -142,7 +159,43 @@ export function HomeScreen({
   styles,
 }: HomeScreenProps): ReactElement {
   const { isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const colors = isDark ? darkColors : lightColors;
+  // titleTransition drives only the autonomous large-to-compact title swap.
+  const [titleTransition] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(0),
+  );
+  // materialTransition controls only the simple opacity of the top blur-and-gradient material.
+  const [materialTransition] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(0),
+  );
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  // homeContentInsets preserves the initial safe spacing while allowing later content to scroll behind both edges.
+  const homeContentInsets: ViewStyle = {
+    paddingTop: insets.top + 20,
+    paddingBottom: floatingTabBarMetrics(insets).contentPaddingBottom,
+  };
+  // largeTitleOpacity removes the large heading before the compact header reaches full opacity.
+  const largeTitleOpacity: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.18, 0.58, 1],
+      outputRange: [1, 1, 0, 0],
+      extrapolate: 'clamp',
+    });
+  // largeTitleTranslateY lets the large heading leave with the scrolling content instead of blinking away.
+  const largeTitleTranslateY: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.58, 1],
+      outputRange: [0, -10, -10],
+      extrapolate: 'clamp',
+    });
+  // largeTitleScale subtly compresses the title during collapse without imitating a zoom effect.
+  const largeTitleScale: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.58, 1],
+      outputRange: [1, 0.97, 0.97],
+      extrapolate: 'clamp',
+    });
   const [series, setSeries] = useState<readonly Series[]>([]);
   const [form, setForm] = useState<SeriesFormState>(emptySeriesForm);
   const [formErrors, setFormErrors] = useState<SeriesFormErrors>({});
@@ -154,6 +207,39 @@ export function HomeScreen({
   const [errorMessage, setErrorMessage] = useState<string>();
   const closeSwipeTouchStartRef = useRef<TouchPoint | undefined>(undefined);
   const isDeleteActionTouchRef = useRef(false);
+  // blurTargetRef identifies the Home scroll surface for Expo's current Android blur API.
+  const blurTargetRef: RefObject<View | null> = useRef<View>(null);
+
+  useEffect(() => {
+    // The scroll gesture chooses the target state; timing completes independently of finger position.
+    const titleAnimation: Animated.CompositeAnimation = Animated.timing(
+      titleTransition,
+      {
+        toValue: isHeaderCollapsed ? 1 : 0,
+        duration: homeTitleTransitionDuration,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      },
+    );
+    // Material uses a short opacity-only fade so it appears calmly without a reveal effect.
+    const materialAnimation: Animated.CompositeAnimation = Animated.timing(
+      materialTransition,
+      {
+        toValue: isHeaderCollapsed ? 1 : 0,
+        duration: homeMaterialTransitionDuration,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      },
+    );
+
+    titleAnimation.start();
+    materialAnimation.start();
+
+    return (): void => {
+      titleAnimation.stop();
+      materialAnimation.stop();
+    };
+  }, [isHeaderCollapsed, materialTransition, titleTransition]);
 
   const loadSeries = useCallback(async (): Promise<void> => {
     try {
@@ -318,68 +404,108 @@ export function HomeScreen({
     }, 120);
   };
 
-  return (
-    <>
-      <ScrollView
-        contentContainerStyle={styles.screenContent}
-        onTouchEnd={(event) => {
-          closeOpenSwipeAfterTap(
-            event.nativeEvent.pageX,
-            event.nativeEvent.pageY,
-          );
-        }}
-        onTouchStart={(event) => {
-          recordCloseSwipeTouchStart(
-            event.nativeEvent.pageX,
-            event.nativeEvent.pageY,
-          );
-        }}
-        scrollEnabled={!isSeriesSwipeActive}
-      >
-        <HomeHeader styles={styles} />
-        {errorMessage ? (
-          <BubbleStatus
-            colors={colors}
-            tone="error"
-            title="Could not load series"
-            message={errorMessage}
-            variant="row"
-            style={styles.homeErrorStatus}
-          />
-        ) : null}
-        <CreateHero
-          colors={colors}
-          hasSeries={series.length > 0}
-          styles={styles}
-          onCreateSeries={() => {
-            if (openSwipeSeriesId) {
-              setOpenSwipeSeriesId(undefined);
-              return;
-            }
+  const handleHomeScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ): void => {
+    const offsetY: number = event.nativeEvent.contentOffset.y;
 
-            setIsCreateOpen(true);
+    if (!isHeaderCollapsed && offsetY >= homeHeaderCollapseOffset) {
+      setIsHeaderCollapsed(true);
+      return;
+    }
+
+    if (isHeaderCollapsed && offsetY <= homeHeaderExpandOffset) {
+      setIsHeaderCollapsed(false);
+    }
+  };
+
+  return (
+    <View style={styles.flexOne}>
+      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+        <Animated.ScrollView
+          contentContainerStyle={[styles.screenContent, homeContentInsets]}
+          onScroll={handleHomeScroll}
+          onTouchEnd={(event) => {
+            closeOpenSwipeAfterTap(
+              event.nativeEvent.pageX,
+              event.nativeEvent.pageY,
+            );
           }}
-        />
-        {series.length > 0 ? (
-          <SeriesList
+          onTouchStart={(event) => {
+            recordCloseSwipeTouchStart(
+              event.nativeEvent.pageX,
+              event.nativeEvent.pageY,
+            );
+          }}
+          scrollEventThrottle={16}
+          scrollEnabled={!isSeriesSwipeActive}
+        >
+          <Animated.View
+            style={{
+              opacity: largeTitleOpacity,
+              transform: [
+                { translateY: largeTitleTranslateY },
+                { scale: largeTitleScale },
+              ],
+            }}
+          >
+            <HomeHeader styles={styles} />
+          </Animated.View>
+          {errorMessage ? (
+            <BubbleStatus
+              colors={colors}
+              tone="error"
+              title="Could not load series"
+              message={errorMessage}
+              variant="row"
+              style={styles.homeErrorStatus}
+            />
+          ) : null}
+          <CreateHero
             colors={colors}
-            hasOpenSwipe={openSwipeSeriesId !== undefined}
-            openSwipeSeriesId={openSwipeSeriesId}
-            series={series}
+            hasSeries={series.length > 0}
             styles={styles}
-            onDeleteSeries={requestDeleteSeries}
-            onDeleteActionTouchEnd={releaseDeleteActionTouch}
-            onDeleteActionTouchStart={markDeleteActionTouch}
-            onOpenSeries={onOpenSeries}
-            onOpenSwipeSeriesChange={setOpenSwipeSeriesId}
-            onSwipeActiveChange={setIsSeriesSwipeActive}
+            onCreateSeries={() => {
+              if (openSwipeSeriesId) {
+                setOpenSwipeSeriesId(undefined);
+                return;
+              }
+
+              setIsCreateOpen(true);
+            }}
           />
-        ) : null}
-      </ScrollView>
+          {series.length > 0 ? (
+            <SeriesList
+              colors={colors}
+              hasOpenSwipe={openSwipeSeriesId !== undefined}
+              openSwipeSeriesId={openSwipeSeriesId}
+              series={series}
+              styles={styles}
+              onDeleteSeries={requestDeleteSeries}
+              onDeleteActionTouchEnd={releaseDeleteActionTouch}
+              onDeleteActionTouchStart={markDeleteActionTouch}
+              onOpenSeries={onOpenSeries}
+              onOpenSwipeSeriesChange={setOpenSwipeSeriesId}
+              onSwipeActiveChange={setIsSeriesSwipeActive}
+            />
+          ) : null}
+        </Animated.ScrollView>
+      </BlurTargetView>
+      <HomeEdgeEffects
+        blurTarget={blurTargetRef}
+        bottomInset={insets.bottom}
+        colors={colors}
+        isDark={isDark}
+        materialOpacity={materialTransition}
+        transitionProgress={titleTransition}
+        title="Context-English"
+        topInset={insets.top}
+      />
       <CreateSeriesModal
         colors={colors}
         form={form}
         isGeneratingSetup={isGeneratingSetup}
+        isDark={isDark}
         isSaving={isSaving}
         isVisible={isCreateOpen}
         errors={formErrors}
@@ -400,7 +526,7 @@ export function HomeScreen({
         onGenerate={generateSetupDraft}
         onSubmit={submitSeries}
       />
-    </>
+    </View>
   );
 }
 
@@ -921,6 +1047,7 @@ function CreateSeriesModal({
   errors,
   form,
   isGeneratingSetup,
+  isDark,
   isSaving,
   isVisible,
   styles,
@@ -937,6 +1064,8 @@ function CreateSeriesModal({
   readonly form: SeriesFormState;
   // isGeneratingSetup disables duplicate AI setup generation.
   readonly isGeneratingSetup: boolean;
+  // isDark selects the matching shared blur tint.
+  readonly isDark: boolean;
   // isSaving disables duplicate local writes.
   readonly isSaving: boolean;
   // isVisible controls the native modal presentation.
@@ -953,10 +1082,26 @@ function CreateSeriesModal({
   readonly onSubmit: () => void;
 }): ReactElement {
   const insets = useSafeAreaInsets();
-  const topInset = Math.max(insets.top, 62);
-  const bottomInset = Math.max(insets.bottom, 18);
+  const topInset: number = insets.top;
+  const bottomInset: number = insets.bottom;
   const scrollViewRef = useRef<ScrollView>(null);
   const fieldOffsetsRef = useRef<Record<string, number>>({});
+  // modalBlurTargetRef identifies the create-series scroll content for Android blur.
+  const modalBlurTargetRef: RefObject<View | null> = useRef<View>(null);
+  // modalContentInsets keeps initial and final form content clear of the shared edge material.
+  const modalContentInsets: ViewStyle = {
+    paddingTop: topInset + 96,
+    paddingBottom: bottomInset + screenEdgeDepths.modalBottom + 16,
+  };
+  // modalHeaderPosition floats actions above the shared top material without an opaque slab.
+  const modalHeaderPosition: ViewStyle = {
+    position: 'absolute',
+    top: topInset,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    backgroundColor: 'transparent',
+  };
 
   // isBusy blocks setup controls while a save or AI setup generation runs.
   const isBusy = isSaving || isGeneratingSetup;
@@ -985,9 +1130,140 @@ function CreateSeriesModal({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
-        style={[styles.modalScreen, { paddingTop: topInset }]}
+        style={styles.modalScreen}
       >
-        <View style={styles.modalHeader}>
+        <BlurTargetView ref={modalBlurTargetRef} style={styles.flexOne}>
+          <ScrollView
+            ref={scrollViewRef}
+            contentContainerStyle={[styles.modalContent, modalContentInsets]}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="always"
+          >
+            <View style={styles.setupSectionCard}>
+              <ChoiceGroup
+                label="CEFR Level"
+                options={cefrLevels}
+                selected={form.cefrLevel}
+                styles={styles}
+                onSelect={(cefrLevel) => updateForm({ cefrLevel })}
+              />
+              <ChoiceGroup
+                isWrapped
+                label="Genre"
+                options={learningGenres}
+                selected={form.genre}
+                styles={styles}
+                labels={genreLabels}
+                onSelect={(genre) => updateForm({ genre })}
+              />
+              <ChoiceGroup
+                isWrapped
+                label="Tone"
+                options={storyToneOptions}
+                selected={form.tone}
+                styles={styles}
+                onSelect={(tone) => updateForm({ tone })}
+              />
+              <ChoiceGroup
+                label="Mode"
+                options={seriesParticipationModes}
+                selected={form.participationMode}
+                styles={styles}
+                labels={participationModeLabels}
+                onSelect={(participationMode) =>
+                  updateForm({
+                    participationMode,
+                    ...(participationMode === 'director' ? { userRole: '' } : {}),
+                  })
+                }
+              />
+
+              <FormField
+                colors={colors}
+                {...(errors.title ? { error: errors.title } : {})}
+                fieldId="title"
+                label="Title"
+                placeholder="Orbit Letters"
+                styles={styles}
+                value={form.title}
+                onFocus={scrollToField}
+                onLayout={registerFieldOffset}
+                onChangeText={(title) => updateForm({ title })}
+              />
+              <FormField
+                colors={colors}
+                {...(errors.premise ? { error: errors.premise } : {})}
+                fieldId="premise"
+                helper="Required. Use Generate if you want the AI to fill it."
+                isMultiline
+                label="Premise"
+                placeholder="A learner receives strange English notes from a future city."
+                styles={styles}
+                value={form.premise}
+                onFocus={scrollToField}
+                onLayout={registerFieldOffset}
+                onChangeText={(premise) => updateForm({ premise })}
+              />
+              <FormField
+                colors={colors}
+                {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
+                fieldId="characterProfiles"
+                helper="Required. Speaker names stay fixed in dialogue; descriptions guide the AI."
+                label="Characters"
+                placeholder="Mira"
+                styles={styles}
+                value={characterProfileNames(form.characterProfiles).join(', ')}
+                onFocus={scrollToField}
+                onLayout={registerFieldOffset}
+                onChangeText={(mainCharacters) =>
+                  updateForm({
+                    characterProfiles: parseCharacterProfilesFromNames(mainCharacters),
+                  })
+                }
+              />
+              {form.participationMode === 'character' ? (
+                <FormField
+                  colors={colors}
+                  {...(errors.userRole ? { error: errors.userRole } : {})}
+                  fieldId="userRole"
+                  helper="Required. This role becomes read-only after the first episode."
+                  isCompactMultiline
+                  label="Your Role"
+                  placeholder="New analyst"
+                  styles={styles}
+                  value={form.userRole}
+                  onFocus={scrollToField}
+                  onLayout={registerFieldOffset}
+                  onChangeText={(userRole) => updateForm({ userRole })}
+                />
+              ) : null}
+            </View>
+            <CharacterProfilesEditor
+              colors={colors}
+              profiles={form.characterProfiles}
+              styles={styles}
+              onChange={(characterProfiles) => updateForm({ characterProfiles })}
+            />
+            {isBusy ? (
+              <BubbleStatus
+                colors={colors}
+                tone="loading"
+                title={isSaving ? 'Saving series...' : 'Generating setup...'}
+                variant="row"
+              />
+            ) : null}
+          </ScrollView>
+        </BlurTargetView>
+        <ScreenEdgeEffects
+          blurTarget={modalBlurTargetRef}
+          bottomInset={bottomInset}
+          bottomVariant="modal"
+          colors={colors}
+          isDark={isDark}
+          materialOpacity={1}
+          topInset={topInset}
+        />
+        <View style={[styles.modalHeader, modalHeaderPosition]}>
           <JellyPressable
             onPress={onClose}
             style={styles.modalIconButton}
@@ -1017,129 +1293,6 @@ function CreateSeriesModal({
             </BubbleButton>
           </View>
         </View>
-        <ScrollView
-          ref={scrollViewRef}
-          contentContainerStyle={[
-            styles.modalContent,
-            { paddingBottom: bottomInset + 12 },
-          ]}
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="always"
-        >
-          <View style={styles.setupSectionCard}>
-            <ChoiceGroup
-              label="CEFR Level"
-              options={cefrLevels}
-              selected={form.cefrLevel}
-              styles={styles}
-              onSelect={(cefrLevel) => updateForm({ cefrLevel })}
-            />
-            <ChoiceGroup
-              isWrapped
-              label="Genre"
-              options={learningGenres}
-              selected={form.genre}
-              styles={styles}
-              labels={genreLabels}
-              onSelect={(genre) => updateForm({ genre })}
-            />
-            <ChoiceGroup
-              isWrapped
-              label="Tone"
-              options={storyToneOptions}
-              selected={form.tone}
-              styles={styles}
-              onSelect={(tone) => updateForm({ tone })}
-            />
-            <ChoiceGroup
-              label="Mode"
-              options={seriesParticipationModes}
-              selected={form.participationMode}
-              styles={styles}
-              labels={participationModeLabels}
-              onSelect={(participationMode) =>
-                updateForm({
-                  participationMode,
-                  ...(participationMode === 'director' ? { userRole: '' } : {}),
-                })
-              }
-            />
-
-            <FormField
-              colors={colors}
-              {...(errors.title ? { error: errors.title } : {})}
-              fieldId="title"
-              label="Title"
-              placeholder="Orbit Letters"
-              styles={styles}
-              value={form.title}
-              onFocus={scrollToField}
-              onLayout={registerFieldOffset}
-              onChangeText={(title) => updateForm({ title })}
-            />
-            <FormField
-              colors={colors}
-              {...(errors.premise ? { error: errors.premise } : {})}
-              fieldId="premise"
-              helper="Required. Use Generate if you want the AI to fill it."
-              isMultiline
-              label="Premise"
-              placeholder="A learner receives strange English notes from a future city."
-              styles={styles}
-              value={form.premise}
-              onFocus={scrollToField}
-              onLayout={registerFieldOffset}
-              onChangeText={(premise) => updateForm({ premise })}
-            />
-            <FormField
-              colors={colors}
-              {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
-              fieldId="characterProfiles"
-              helper="Required. Speaker names stay fixed in dialogue; descriptions guide the AI."
-              label="Characters"
-              placeholder="Mira"
-              styles={styles}
-              value={characterProfileNames(form.characterProfiles).join(', ')}
-              onFocus={scrollToField}
-              onLayout={registerFieldOffset}
-              onChangeText={(mainCharacters) =>
-                updateForm({
-                  characterProfiles: parseCharacterProfilesFromNames(mainCharacters),
-                })
-              }
-            />
-            {form.participationMode === 'character' ? (
-              <FormField
-                colors={colors}
-                {...(errors.userRole ? { error: errors.userRole } : {})}
-                fieldId="userRole"
-                helper="Required. This role becomes read-only after the first episode."
-                isCompactMultiline
-                label="Your Role"
-                placeholder="New analyst"
-                styles={styles}
-                value={form.userRole}
-                onFocus={scrollToField}
-                onLayout={registerFieldOffset}
-                onChangeText={(userRole) => updateForm({ userRole })}
-              />
-            ) : null}
-          </View>
-          <CharacterProfilesEditor
-            colors={colors}
-            profiles={form.characterProfiles}
-            styles={styles}
-            onChange={(characterProfiles) => updateForm({ characterProfiles })}
-          />
-          {isBusy ? (
-            <BubbleStatus
-              colors={colors}
-              tone="loading"
-              title={isSaving ? 'Saving series...' : 'Generating setup...'}
-              variant="row"
-            />
-          ) : null}
-        </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
   );

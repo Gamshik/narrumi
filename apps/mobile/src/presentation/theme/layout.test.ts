@@ -144,6 +144,74 @@ test('navigation renders one persistent Sorbet background', (): void => {
   assert.match(routeScreenSource, /style=\{styles\.routeSafeArea\}/);
 });
 
+// The test protects the shared edge material while Home retains its title-specific transition.
+test('Home and create-series share top glass and a gradient-only bottom edge', (): void => {
+  const homeRouteSource = readFileSync(
+    resolve(__dirname, '../../../app/(tabs)/index.tsx'),
+    'utf8',
+  );
+  const homeScreenSource = readFileSync(
+    resolve(__dirname, '../app/screens/HomeScreen.tsx'),
+    'utf8',
+  );
+  const edgeEffectsSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/HomeEdgeEffects/HomeEdgeEffects.tsx',
+    ),
+    'utf8',
+  );
+  const sharedEdgeEffectsSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/shared/ScreenEdgeEffects/ScreenEdgeEffects.tsx',
+    ),
+    'utf8',
+  );
+
+  assert.match(homeRouteSource, /<RouteScreen isDark=\{isDark\} isEdgeToEdge/);
+  assert.match(homeScreenSource, /paddingTop:\s*insets\.top \+ 20/);
+  assert.match(homeScreenSource, /<Animated\.ScrollView/);
+  assert.match(homeScreenSource, /onScroll=\{handleHomeScroll\}/);
+  assert.match(homeScreenSource, /Animated\.timing\(/);
+  assert.match(homeScreenSource, /duration:\s*homeTitleTransitionDuration/);
+  assert.match(homeScreenSource, /duration:\s*homeMaterialTransitionDuration/);
+  assert.match(homeScreenSource, /Easing\.inOut\(Easing\.cubic\)/);
+  assert.match(homeScreenSource, /homeHeaderCollapseOffset:\s*number = 38/);
+  assert.match(homeScreenSource, /homeHeaderExpandOffset:\s*number = 12/);
+  assert.match(homeScreenSource, /<HomeHeader styles=\{styles\} \/>/);
+  assert.match(homeScreenSource, /<HomeEdgeEffects/);
+  assert.match(edgeEffectsSource, /<ScreenEdgeEffects/);
+  assert.match(edgeEffectsSource, /inputRange:\s*\[0, 0\.5, 0\.82, 1\]/);
+  assert.match(homeScreenSource, /ref=\{modalBlurTargetRef\}/);
+  assert.match(homeScreenSource, /<ScreenEdgeEffects/);
+  assert.match(homeScreenSource, /blurTarget=\{modalBlurTargetRef\}/);
+  assert.match(homeScreenSource, /screenEdgeDepths\.modalBottom/);
+  assert.match(homeScreenSource, /bottomVariant="modal"/);
+  assert.equal((sharedEdgeEffectsSource.match(/<BlurView/g) ?? []).length, 3);
+  assert.equal(
+    (sharedEdgeEffectsSource.match(/blurTarget=\{blurTarget\}/g) ?? []).length,
+    3,
+  );
+  assert.equal(
+    (sharedEdgeEffectsSource.match(
+      /blurMethod="dimezisBlurViewSdk31Plus"/g,
+    ) ?? []).length,
+    3,
+  );
+  assert.doesNotMatch(sharedEdgeEffectsSource, /experimentalBlurMethod/);
+  assert.match(sharedEdgeEffectsSource, /intensity=\{2\}/);
+  assert.match(sharedEdgeEffectsSource, /intensity=\{3\}/);
+  assert.match(sharedEdgeEffectsSource, /intensity=\{4\}/);
+  assert.doesNotMatch(sharedEdgeEffectsSource, /MaskedView/);
+  assert.doesNotMatch(sharedEdgeEffectsSource, /blurOpacity|gradientOpacity/);
+  assert.match(sharedEdgeEffectsSource, /opacity:\s*materialOpacity/);
+  assert.match(
+    sharedEdgeEffectsSource,
+    /colors\.modalEdgeFadeBottomGradient/,
+  );
+});
+
 // The test keeps ambient background depth subtle and accessibility-aware.
 test('Sorbet background adds edge depth without bypassing reduced motion', (): void => {
   const backgroundSource = readFileSync(
