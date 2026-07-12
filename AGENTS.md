@@ -16,7 +16,7 @@ Read the relevant artifacts before implementation:
 | `architecture/architecture_for_ai.md` | Canonical implementation architecture contract for AI agents: Clean Architecture boundaries, dependency direction, domain model, use cases, ports, offline-first sync, Edge Function responsibilities, error policy, and trust boundaries. |
 | `architecture/architecture_for_developer.html` | Supporting architecture reference for developers: visual explanation of layers, flows, ports, offline behavior, AI boundary, and non-negotiable rules. It clarifies `architecture_for_ai.md` but must not override it. |
 | `design/design_system.html` | Canonical visual and interaction reference: colors, typography, themes, controls, states, story reader, genre selection, audio controls, inline translation, grammar sheet, quiz feedback, and navigation. Reproduce the design in React Native; do not copy browser-only implementation details blindly. Some screen examples may still reflect the previous card-first concept; when product behavior conflicts, follow the PRD and stack documents first. |
-| `design/design_system_guidelines.md` | Mandatory design rules for UI work when there is no exact layout or screen-level specification. Read before any free-form layout or visual decision. |
+| `design/design_system_guidelines.md` | Mandatory Sorbet soft-pop design rules for UI work when there is no exact layout or screen-level specification. It defines the shared background, dimensional bubble surfaces, palette, typography, and motion contract. Read before any free-form layout or visual decision. |
 | `words/oxford-5000.json` | Bundled local vocabulary source for offline word lists, lightweight Story Words suggestions, and non-LLM dictionary lookups. Treat as read-only seed data shipped with the app. |
 | `.codex/gsd-core/` | Mandatory GSD operating system for Codex work management: workflows, gates, verification patterns, anti-patterns, templates, and project execution discipline. Use it as the process reference, not as app runtime code. |
 | `.agents/gsd-core/` | Mandatory GSD operating system for Antigravity work management. It mirrors the same process discipline for Antigravity agents and must be treated as equivalent to `.codex/gsd-core/` for workflow rules. |
@@ -39,7 +39,7 @@ Read the relevant artifacts before implementation:
 - Use TypeScript with strict typing. Avoid `any`; validate external data at system boundaries.
 - Keep modules and components focused on one responsibility. Prefer explicit names and small reusable units.
 - Handle loading, empty, success, and error states deliberately.
-- Preserve accessibility, responsive layout, light/dark theme behavior, and iOS-friendly interaction patterns from the design reference.
+- Preserve accessibility, responsive layout, light/dark theme behavior, and the Sorbet interaction language from the design reference: one shared background, dimensional bubble surfaces, consistent typography sizing, and restrained ambient motion.
 - Before implementing any free-form UI or layout without exact screen-level instructions, read `design/design_system_guidelines.md` and follow its rules.
 - Never hardcode secrets. Keep LLM calls, prompts, provider settings, and validation logic inside Supabase Edge Functions.
 - Keep Supabase access protected by Row Level Security. Treat all client input and AI output as untrusted.

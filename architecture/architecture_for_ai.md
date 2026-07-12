@@ -248,7 +248,7 @@ React Native presentation code should stay thin:
 - Render screen state and component state.
 - Forward user intent to application actions.
 - Show loading, empty, success, offline, validation, and error states.
-- Preserve Apple-style UI, light/dark theme support, liquidglass overlays, spring-like interactions, and iOS-friendly patterns from the design artifacts.
+- Preserve the Sorbet soft-pop UI language from the design artifacts: shared atmospheric background, dimensional bubble surfaces, light/dark theme support, restrained spring motion, and iOS-friendly ergonomics.
 - Keep story reading, inline translation, audio controls, Story Words selection, and bottom sheets accessible.
 
 Presentation must not own:
