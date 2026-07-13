@@ -23,10 +23,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 
 import {
+  BackIconButton,
   BubbleSurface,
   BubbleButton,
   BubblePill,
   BubbleStatus,
+  CollapsingTitleEdgeEffects,
   JellyPressable,
   ScreenEdgeEffects,
   screenEdgeDepths,
@@ -57,7 +59,6 @@ import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunction
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
 import { floatingTabBarMetrics } from '@presentation/theme/layout';
-import { HomeEdgeEffects } from './HomeEdgeEffects';
 
 // HomeScreenProps carries the shared themed style sheet into the home dashboard.
 type HomeScreenProps = {
@@ -491,7 +492,7 @@ export function HomeScreen({
           ) : null}
         </Animated.ScrollView>
       </BlurTargetView>
-      <HomeEdgeEffects
+      <CollapsingTitleEdgeEffects
         blurTarget={blurTargetRef}
         bottomInset={insets.bottom}
         colors={colors}
@@ -1264,14 +1265,12 @@ function CreateSeriesModal({
           topInset={topInset}
         />
         <View style={[styles.modalHeader, modalHeaderPosition]}>
-          <JellyPressable
+          <BackIconButton
+            accessibilityHint="Closes series creation"
+            accessibilityLabel="Back from series creation"
+            colors={colors}
             onPress={onClose}
-            style={styles.modalIconButton}
-            accessibilityLabel="Back"
-            accessibilityRole="button"
-          >
-            <Text style={styles.modalIconText}>←</Text>
-          </JellyPressable>
+          />
           <View style={styles.modalActions}>
             <BubbleButton
               colors={colors}

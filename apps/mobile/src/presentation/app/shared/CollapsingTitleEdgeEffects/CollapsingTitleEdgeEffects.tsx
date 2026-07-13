@@ -3,41 +3,41 @@ import { Animated, Text, View } from 'react-native';
 
 import { fontFamilies, type AppColors } from '@presentation/theme';
 
-import { ScreenEdgeEffects } from '../../shared';
-import { homeEdgeEffectStyles } from './HomeEdgeEffects.styles';
+import { ScreenEdgeEffects } from '../ScreenEdgeEffects';
+import { collapsingTitleEdgeEffectStyles } from './CollapsingTitleEdgeEffects.styles';
 
-// HomeEdgeEffectsProps combines shared screen material with Home's collapsing title state.
-type HomeEdgeEffectsProps = {
-  // blurTarget identifies the Home content captured by Expo's Android blur implementation.
+// CollapsingTitleEdgeEffectsProps combines shared material with a compact section title.
+type CollapsingTitleEdgeEffectsProps = {
+  // blurTarget identifies the scroll content captured by Expo's Android blur implementation.
   readonly blurTarget: RefObject<View | null>;
-  // colors supplies the current Sorbet palette for shared edges and compact title.
+  // bottomInset keeps the lower fade continuous through the home indicator.
+  readonly bottomInset: number;
+  // colors supplies the active Sorbet palette for shared edges and title text.
   readonly colors: AppColors;
   // isDark selects the matching native blur material.
   readonly isDark: boolean;
-  // materialOpacity softly fades the shared top material after the Home collapse threshold.
+  // materialOpacity softly fades shared top material after the collapse threshold.
   readonly materialOpacity: Animated.Value;
+  // title is the compact section name revealed after the large heading collapses.
+  readonly title: string;
   // topInset places the compact title below the status area.
   readonly topInset: number;
   // transitionProgress drives the autonomous large-to-compact title animation.
   readonly transitionProgress: Animated.Value;
-  // title is the compact section name revealed after the large in-flow heading collapses.
-  readonly title: string;
-  // bottomInset keeps the shared lower fade continuous through the home indicator.
-  readonly bottomInset: number;
 };
 
-// HomeEdgeEffects layers Home's compact title over the reusable screen edge material.
-export function HomeEdgeEffects({
+// CollapsingTitleEdgeEffects layers a compact title over reusable screen edge material.
+export function CollapsingTitleEdgeEffects({
   blurTarget,
+  bottomInset,
   colors,
   isDark,
   materialOpacity,
-  topInset,
-  bottomInset,
-  transitionProgress,
   title,
-}: HomeEdgeEffectsProps): ReactElement {
-  // compactTitleOpacity begins near the end of the large title fade for a short soft overlap.
+  topInset,
+  transitionProgress,
+}: CollapsingTitleEdgeEffectsProps): ReactElement {
+  // compactTitleOpacity begins near the end of the large title fade for a short overlap.
   const compactTitleOpacity: Animated.AnimatedInterpolation<number> =
     transitionProgress.interpolate({
       inputRange: [0, 0.5, 0.82, 1],
@@ -53,7 +53,7 @@ export function HomeEdgeEffects({
     });
 
   return (
-    <View pointerEvents="none" style={homeEdgeEffectStyles.fill}>
+    <View pointerEvents="none" style={collapsingTitleEdgeEffectStyles.fill}>
       <ScreenEdgeEffects
         blurTarget={blurTarget}
         bottomInset={bottomInset}
@@ -64,7 +64,7 @@ export function HomeEdgeEffects({
       />
       <Animated.View
         style={[
-          homeEdgeEffectStyles.compactTitleContainer,
+          collapsingTitleEdgeEffectStyles.compactTitleContainer,
           {
             opacity: compactTitleOpacity,
             top: topInset + 17,
@@ -74,7 +74,7 @@ export function HomeEdgeEffects({
       >
         <Text
           style={[
-            homeEdgeEffectStyles.compactTitle,
+            collapsingTitleEdgeEffectStyles.compactTitle,
             { color: colors.labelPrimary, fontFamily: fontFamilies.display },
           ]}
         >

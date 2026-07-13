@@ -13,3 +13,5 @@ export * from './SorbetBackground';
 export * from './ScreenEdgeEffects';
 export * from './BubbleSegmentedControl';
 export * from './BubbleSlider';
+export * from './BackIconButton';
+export * from './CollapsingTitleEdgeEffects';

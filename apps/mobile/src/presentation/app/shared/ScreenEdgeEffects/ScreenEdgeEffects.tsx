@@ -11,6 +11,8 @@ import { screenEdgeEffectStyles } from './ScreenEdgeEffects.styles';
 type ScreenEdgeDepths = {
   // top is the tint fade depth below the device top inset.
   readonly top: number;
+  // compactTop is the reduced upper fade depth for dense navigation-led screens.
+  readonly compactTop: number;
   // bottom is the gradient-only fade depth above the device bottom inset.
   readonly bottom: number;
   // modalBottom is the quieter fade depth used when no bottom navigation is present.
@@ -20,12 +22,15 @@ type ScreenEdgeDepths = {
 // screenEdgeDepths keeps content padding aligned with the reusable visual material.
 export const screenEdgeDepths: ScreenEdgeDepths = {
   top: 124,
+  compactTop: 82,
   bottom: 132,
   modalBottom: 88,
 };
 
 // ScreenEdgeBottomVariant selects the lower fade appropriate to persistent navigation or a modal canvas.
 type ScreenEdgeBottomVariant = 'navigation' | 'modal';
+// ScreenEdgeTopVariant selects standard or reduced upper material depth.
+type ScreenEdgeTopVariant = 'standard' | 'compact';
 
 // mediumBlurDepth adds a second gentle blur step across the upper half of the fade.
 const mediumBlurDepth: number = 82;
@@ -48,6 +53,8 @@ type ScreenEdgeEffectsProps = {
   readonly bottomInset: number;
   // bottomVariant keeps modal fades quieter than fades sitting behind persistent navigation.
   readonly bottomVariant?: ScreenEdgeBottomVariant;
+  // topVariant reduces upper material depth where fixed icon navigation needs denser content placement.
+  readonly topVariant?: ScreenEdgeTopVariant;
 };
 
 // ScreenEdgeEffects renders identical progressive top glass and gradient-only bottom fading.
@@ -59,9 +66,15 @@ export function ScreenEdgeEffects({
   topInset,
   bottomInset,
   bottomVariant = 'navigation',
+  topVariant = 'standard',
 }: ScreenEdgeEffectsProps): ReactElement {
-  // topHeight combines the device inset with the canonical tint fade depth.
-  const topHeight: number = topInset + screenEdgeDepths.top;
+  // topDepth selects the canonical material height for the current screen density.
+  const topDepth: number =
+    topVariant === 'compact'
+      ? screenEdgeDepths.compactTop
+      : screenEdgeDepths.top;
+  // topHeight combines the device inset with the selected tint fade depth.
+  const topHeight: number = topInset + topDepth;
   // mediumBlurHeight ends the middle blur layer before the transparent tint edge.
   const mediumBlurHeight: number = topInset + mediumBlurDepth;
   // strongBlurHeight confines the strongest accumulated blur to the status region.

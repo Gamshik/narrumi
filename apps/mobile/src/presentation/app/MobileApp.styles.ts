@@ -126,18 +126,6 @@ function createAppStylesImpl(colors: AppColors) {
       paddingBottom: 10,
       backgroundColor: colors.backgroundPrimary,
     },
-    modalIconButton: {
-      width: 44,
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radii.pill,
-    },
-    modalIconText: {
-      color: colors.systemBlue,
-      fontSize: 28,
-      lineHeight: 32,
-    },
     modalActions: {
       flexDirection: "row",
       alignItems: "center",
@@ -188,6 +176,11 @@ function createAppStylesImpl(colors: AppColors) {
       justifyContent: "space-between",
       marginTop: 12,
       marginBottom: 2,
+    },
+    dailySessionTitleBlock: {
+      minWidth: 0,
+      width: "100%",
+      gap: 3,
     },
     homeTitleBlock: {
       gap: 8,
