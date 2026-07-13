@@ -28,7 +28,7 @@ export default function SettingsRoute(): ReactElement {
   }
 
   return (
-    <RouteScreen isDark={isDark} styles={styles}>
+    <RouteScreen isDark={isDark} isEdgeToEdge styles={styles}>
       <SettingsScreen isDark={isDark} styles={styles} />
     </RouteScreen>
   );

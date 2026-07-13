@@ -1,8 +1,25 @@
 
 import { useEffect, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { BubbleButton, BubbleSegmentedControl, BubbleSlider, BubbleStatus, BubbleToggle } from '../shared';
+import type { ReactElement, RefObject } from 'react';
+import { BlurTargetView } from 'expo-blur';
+import {
+  Animated,
+  Easing,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Text,
+  type ViewStyle,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  BubbleButton,
+  BubbleSegmentedControl,
+  BubbleSlider,
+  BubbleStatus,
+  BubbleToggle,
+  CollapsingTitleEdgeEffects,
+} from '../shared';
 
 import {
   cefrLevels,
@@ -11,6 +28,7 @@ import {
   MIN_STORY_WORD_GOAL,
 } from '@domain/index';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme';
+import { floatingTabBarMetrics } from '@presentation/theme/layout';
 
 import { localAppServices } from '../services/localAppServices';
 import { useAuthSession } from '../auth';
@@ -29,6 +47,15 @@ import { getSettingsWarning, getSettingsSaveError } from './settingsState';
 const settingsLevels = cefrLevels;
 // SettingsLevel narrows the settings selector to supported grammar targets.
 type SettingsLevel = (typeof settingsLevels)[number];
+
+// settingsHeaderCollapseOffset matches Home's deliberate upward-scroll threshold.
+const settingsHeaderCollapseOffset: number = 38;
+// settingsHeaderExpandOffset matches Home's hysteresis against small scroll reversals.
+const settingsHeaderExpandOffset: number = 12;
+// settingsTitleTransitionDuration keeps the Settings title swap identical to Home.
+const settingsTitleTransitionDuration: number = 220;
+// settingsMaterialTransitionDuration fades top glass without a directional reveal.
+const settingsMaterialTransitionDuration: number = 180;
 
 // EditablePreferencePatch is the settings subset controlled by this screen.
 type EditablePreferencePatch = Partial<
@@ -100,12 +127,80 @@ function SettingsReadyContent({
   readonly onSyncNow: () => Promise<void>;
 }): ReactElement {
   const colors: AppColors = isDark ? darkColors : lightColors;
+  const insets = useSafeAreaInsets();
+  // titleTransition drives only the autonomous large-to-compact title swap.
+  const [titleTransition] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(0),
+  );
+  // materialTransition controls only the top blur-and-gradient opacity.
+  const [materialTransition] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(0),
+  );
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  // blurTargetRef identifies Settings scroll content for Expo's Android blur API.
+  const blurTargetRef: RefObject<View | null> = useRef<View>(null);
+  // settingsContentInsets matches Home's initial safe spacing and tab clearance.
+  const settingsContentInsets: ViewStyle = {
+    paddingTop: insets.top + 20,
+    paddingBottom: floatingTabBarMetrics(insets).contentPaddingBottom,
+  };
+  // largeTitleOpacity removes the large heading before the compact header reaches full opacity.
+  const largeTitleOpacity: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.18, 0.58, 1],
+      outputRange: [1, 1, 0, 0],
+      extrapolate: 'clamp',
+    });
+  // largeTitleTranslateY lets the large heading leave with the scrolling content.
+  const largeTitleTranslateY: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.58, 1],
+      outputRange: [0, -10, -10],
+      extrapolate: 'clamp',
+    });
+  // largeTitleScale subtly compresses the title during collapse.
+  const largeTitleScale: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.58, 1],
+      outputRange: [1, 0.97, 0.97],
+      extrapolate: 'clamp',
+    });
 
   const [preferences, setPreferences] = useState<LearningPreferences>(readyState.preferences);
   const preferencesRef = useRef<LearningPreferences>(readyState.preferences);
   const [saveErrorRaw, setSaveErrorRaw] = useState<unknown>();
   const [isSyncing, setIsSyncing] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+
+  useEffect(() => {
+    // The scroll gesture selects a target state; timing finishes independently of finger position.
+    const titleAnimation: Animated.CompositeAnimation = Animated.timing(
+      titleTransition,
+      {
+        toValue: isHeaderCollapsed ? 1 : 0,
+        duration: settingsTitleTransitionDuration,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      },
+    );
+    const materialAnimation: Animated.CompositeAnimation = Animated.timing(
+      materialTransition,
+      {
+        toValue: isHeaderCollapsed ? 1 : 0,
+        duration: settingsMaterialTransitionDuration,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      },
+    );
+
+    titleAnimation.start();
+    materialAnimation.start();
+
+    return (): void => {
+      titleAnimation.stop();
+      materialAnimation.stop();
+    };
+  }, [isHeaderCollapsed, materialTransition, titleTransition]);
 
   useEffect(() => {
     preferencesRef.current = readyState.preferences;
@@ -154,11 +249,48 @@ function SettingsReadyContent({
   const settingsWarning = getSettingsWarning(readyState);
   const saveErrorMessage = getSettingsSaveError(saveErrorRaw);
 
+  const handleSettingsScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ): void => {
+    const offsetY: number = event.nativeEvent.contentOffset.y;
+
+    if (!isHeaderCollapsed && offsetY >= settingsHeaderCollapseOffset) {
+      setIsHeaderCollapsed(true);
+      return;
+    }
+
+    if (isHeaderCollapsed && offsetY <= settingsHeaderExpandOffset) {
+      setIsHeaderCollapsed(false);
+    }
+  };
+
   return (
-    <ScrollView scrollEnabled={scrollEnabled} contentContainerStyle={styles.screenContent}>
-      <View style={styles.homeHeader}>
-        <Text style={styles.largeTitle}>Settings</Text>
-      </View>
+    <View style={styles.flexOne}>
+      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+        <Animated.ScrollView
+          contentContainerStyle={[styles.screenContent, settingsContentInsets]}
+          onScroll={handleSettingsScroll}
+          scrollEnabled={scrollEnabled}
+          scrollEventThrottle={16}
+        >
+          <Animated.View
+            style={{
+              opacity: largeTitleOpacity,
+              transform: [
+                { translateY: largeTitleTranslateY },
+                { scale: largeTitleScale },
+              ],
+            }}
+          >
+            <View style={styles.homeHeader}>
+              <View style={styles.homeTitleBlock}>
+                <Text style={[styles.largeTitle, styles.homeTitle]}>
+                  Settings
+                </Text>
+                <View style={styles.homeTitleAccent} />
+              </View>
+            </View>
+          </Animated.View>
 
       {settingsWarning ? (
         <BubbleStatus
@@ -179,23 +311,35 @@ function SettingsReadyContent({
         />
       ) : null}
 
-      <LearningPreferencesSection
+          <LearningPreferencesSection
         isDark={isDark}
         preferences={preferences}
         styles={styles}
         onUpdatePreferences={updatePreferences}
         setScrollEnabled={setScrollEnabled}
       />
-      <Appearance styles={styles} />
-      <AccountSync
+          <Appearance styles={styles} />
+          <AccountSync
         email={email}
         isSyncing={isSyncing}
         syncStatus={readyState.syncStatus}
         styles={styles}
         onSignOut={onSignOut}
         onSyncNow={handleSyncNow}
+          />
+        </Animated.ScrollView>
+      </BlurTargetView>
+      <CollapsingTitleEdgeEffects
+        blurTarget={blurTargetRef}
+        bottomInset={insets.bottom}
+        colors={colors}
+        isDark={isDark}
+        materialOpacity={materialTransition}
+        title="Settings"
+        topInset={insets.top}
+        transitionProgress={titleTransition}
       />
-    </ScrollView>
+    </View>
   );
 }
 
