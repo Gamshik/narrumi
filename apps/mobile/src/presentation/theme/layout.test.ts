@@ -95,6 +95,119 @@ test('display titles have safe metrics and the episode action stays compact', ()
   assert.match(stylesSource, /bannerButton:\s*\{[\s\S]*?minHeight:\s*44,/);
 });
 
+// The test protects a full-width Setup hero behind fixed icon navigation and shared edge material.
+test('episode setup uses fixed icon navigation over shared screen edges', (): void => {
+  const stylesSource = readFileSync(
+    resolve(__dirname, '../app/MobileApp.styles.ts'),
+    'utf8',
+  );
+  const dailySessionRouteSource = readFileSync(
+    resolve(__dirname, '../../../app/daily-session.tsx'),
+    'utf8',
+  );
+  const dailySessionSource = readFileSync(
+    resolve(__dirname, '../app/screens/DailySessionScreen.tsx'),
+    'utf8',
+  );
+  const dailySessionEdgeEffectsSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/DailySessionEdgeEffects/DailySessionEdgeEffects.tsx',
+    ),
+    'utf8',
+  );
+  const sharedEdgeEffectsSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/shared/ScreenEdgeEffects/ScreenEdgeEffects.tsx',
+    ),
+    'utf8',
+  );
+  const backIconButtonSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/shared/BackIconButton/BackIconButton.tsx',
+    ),
+    'utf8',
+  );
+  const backIconButtonStylesSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/shared/BackIconButton/BackIconButton.styles.ts',
+    ),
+    'utf8',
+  );
+
+  assert.match(
+    dailySessionRouteSource,
+    /<RouteScreen isDark=\{isDark\} isEdgeToEdge/,
+  );
+  assert.match(dailySessionSource, /<BlurTargetView ref=\{blurTargetRef\}/);
+  assert.match(dailySessionSource, /<Animated\.ScrollView/);
+  assert.match(dailySessionSource, /onScroll=\{handleSetupScroll\}/);
+  assert.match(dailySessionSource, /setupHeaderCollapseOffset:\s*number = 38/);
+  assert.match(dailySessionSource, /setupHeaderExpandOffset:\s*number = 12/);
+  assert.match(
+    dailySessionSource,
+    /paddingTop:\s*insets\.top \+ screenEdgeDepths\.compactTop \+ 2/,
+  );
+  assert.match(dailySessionSource, /duration:\s*setupTitleTransitionDuration/);
+  assert.match(dailySessionSource, /duration:\s*setupMaterialTransitionDuration/);
+  assert.match(dailySessionSource, /styles\.dailySessionTitleBlock/);
+  assert.match(dailySessionSource, /screenEdgeDepths\.modalBottom/);
+  assert.match(dailySessionSource, /<DailySessionEdgeEffects/);
+  assert.doesNotMatch(dailySessionSource, />Exit<\/Text>/);
+  assert.match(
+    stylesSource,
+    /dailySessionTitleBlock:\s*\{\s*minWidth:\s*0,\s*width:\s*"100%",/,
+  );
+  assert.match(
+    dailySessionEdgeEffectsSource,
+    /accessibilityLabel="Exit episode setup"/,
+  );
+  assert.match(dailySessionEdgeEffectsSource, /<BackIconButton/);
+  assert.match(dailySessionEdgeEffectsSource, /<ScreenEdgeEffects/);
+  assert.match(dailySessionEdgeEffectsSource, /bottomVariant="modal"/);
+  assert.match(dailySessionEdgeEffectsSource, /topVariant="compact"/);
+  assert.match(sharedEdgeEffectsSource, /compactTop:\s*82/);
+  assert.match(
+    dailySessionEdgeEffectsSource,
+    /materialOpacity=\{materialOpacity\}/,
+  );
+  assert.match(
+    dailySessionEdgeEffectsSource,
+    /inputRange:\s*\[0, 0\.5, 0\.82, 1\]/,
+  );
+  assert.match(dailySessionEdgeEffectsSource, /ellipsizeMode="tail"/);
+  assert.match(backIconButtonSource, />\s*←\s*<\/Text>/);
+  assert.match(backIconButtonStylesSource, /width:\s*44/);
+  assert.match(backIconButtonSource, /accessibilityRole="button"/);
+});
+
+// The test keeps every app-level Back and Exit action on the shared circular icon contract.
+test('Back and Exit navigation reuses BackIconButton across screens', (): void => {
+  const navigationSources = [
+    '../app/screens/HomeScreen.tsx',
+    '../app/screens/SeriesDetailsScreen.tsx',
+    '../app/screens/SeriesDetailsEdgeEffects/SeriesDetailsEdgeEffects.tsx',
+    '../app/screens/DailySessionEdgeEffects/DailySessionEdgeEffects.tsx',
+    '../app/screens/EpisodeReaderScreen.tsx',
+  ].map((sourcePath) =>
+    readFileSync(resolve(__dirname, sourcePath), 'utf8'),
+  );
+  const combinedNavigationSource = navigationSources.join('\n');
+
+  assert.equal(
+    (combinedNavigationSource.match(/<BackIconButton/g) ?? []).length,
+    6,
+  );
+  assert.doesNotMatch(
+    combinedNavigationSource,
+    />\s*(?:Back|Exit|Back to Series)\s*<\/Text>/,
+  );
+  assert.doesNotMatch(combinedNavigationSource, />\s*←\s*<\/Text>/);
+});
+
 // The test keeps the Create a Story action visually compact on populated and empty homes.
 test('home creation action uses compact surface metrics', (): void => {
   const stylesSource = readFileSync(
@@ -157,7 +270,7 @@ test('Home and create-series share top glass and a gradient-only bottom edge', (
   const edgeEffectsSource = readFileSync(
     resolve(
       __dirname,
-      '../app/screens/HomeEdgeEffects/HomeEdgeEffects.tsx',
+      '../app/shared/CollapsingTitleEdgeEffects/CollapsingTitleEdgeEffects.tsx',
     ),
     'utf8',
   );
@@ -180,7 +293,7 @@ test('Home and create-series share top glass and a gradient-only bottom edge', (
   assert.match(homeScreenSource, /homeHeaderCollapseOffset:\s*number = 38/);
   assert.match(homeScreenSource, /homeHeaderExpandOffset:\s*number = 12/);
   assert.match(homeScreenSource, /<HomeHeader styles=\{styles\} \/>/);
-  assert.match(homeScreenSource, /<HomeEdgeEffects/);
+  assert.match(homeScreenSource, /<CollapsingTitleEdgeEffects/);
   assert.match(edgeEffectsSource, /<ScreenEdgeEffects/);
   assert.match(edgeEffectsSource, /inputRange:\s*\[0, 0\.5, 0\.82, 1\]/);
   assert.match(homeScreenSource, /ref=\{modalBlurTargetRef\}/);
@@ -209,6 +322,46 @@ test('Home and create-series share top glass and a gradient-only bottom edge', (
   assert.match(
     sharedEdgeEffectsSource,
     /colors\.modalEdgeFadeBottomGradient/,
+  );
+});
+
+// The test keeps Settings on the exact Home title, accent, glass, and lower-fade contract.
+test('Settings reuses the Home collapsing title edge treatment', (): void => {
+  const settingsRouteSource = readFileSync(
+    resolve(__dirname, '../../../app/(tabs)/settings.tsx'),
+    'utf8',
+  );
+  const settingsScreenSource = readFileSync(
+    resolve(__dirname, '../app/screens/SettingsScreen.tsx'),
+    'utf8',
+  );
+  const collapsingEdgeEffectsSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/shared/CollapsingTitleEdgeEffects/CollapsingTitleEdgeEffects.tsx',
+    ),
+    'utf8',
+  );
+
+  assert.match(
+    settingsRouteSource,
+    /<RouteScreen isDark=\{isDark\} isEdgeToEdge/,
+  );
+  assert.match(settingsScreenSource, /<BlurTargetView ref=\{blurTargetRef\}/);
+  assert.match(settingsScreenSource, /<Animated\.ScrollView/);
+  assert.match(settingsScreenSource, /onScroll=\{handleSettingsScroll\}/);
+  assert.match(settingsScreenSource, /settingsHeaderCollapseOffset:\s*number = 38/);
+  assert.match(settingsScreenSource, /settingsHeaderExpandOffset:\s*number = 12/);
+  assert.match(settingsScreenSource, /duration:\s*settingsTitleTransitionDuration/);
+  assert.match(settingsScreenSource, /duration:\s*settingsMaterialTransitionDuration/);
+  assert.match(settingsScreenSource, /paddingTop:\s*insets\.top \+ 20/);
+  assert.match(settingsScreenSource, /styles\.homeTitleAccent/);
+  assert.match(settingsScreenSource, /<CollapsingTitleEdgeEffects/);
+  assert.match(settingsScreenSource, /title="Settings"/);
+  assert.match(collapsingEdgeEffectsSource, /<ScreenEdgeEffects/);
+  assert.match(
+    collapsingEdgeEffectsSource,
+    /inputRange:\s*\[0, 0\.5, 0\.82, 1\]/,
   );
 });
 
@@ -246,10 +399,19 @@ test('series details reveals only a compact title inside shared top glass', (): 
   assert.doesNotMatch(seriesScreenSource, /seriesHeaderExpandOffset/);
   assert.match(seriesScreenSource, /duration:\s*seriesHeaderTransitionDuration/);
   assert.match(seriesScreenSource, /screenEdgeDepths\.modalBottom/);
+  assert.match(
+    seriesScreenSource,
+    /paddingTop:\s*insets\.top \+ screenEdgeDepths\.compactTop \+ 2/,
+  );
+  assert.match(
+    seriesScreenSource,
+    /blurBottom:\s*insets\.top \+ screenEdgeDepths\.compactTop/,
+  );
   assert.doesNotMatch(seriesScreenSource, /largeTitleOpacity/);
   assert.match(seriesScreenSource, /<SeriesDetailsEdgeEffects/);
   assert.match(seriesEdgeEffectsSource, /<ScreenEdgeEffects/);
   assert.match(seriesEdgeEffectsSource, /bottomVariant="modal"/);
+  assert.match(seriesEdgeEffectsSource, /topVariant="compact"/);
   assert.match(seriesEdgeEffectsSource, /materialOpacity=\{transitionProgress\}/);
   assert.match(seriesEdgeEffectsSource, /inputRange:\s*\[0, 0\.12, 1\]/);
   assert.match(seriesEdgeEffectsSource, /pointerEvents="box-none"/);
@@ -257,6 +419,15 @@ test('series details reveals only a compact title inside shared top glass', (): 
   assert.match(seriesEdgeEffectsSource, /numberOfLines=\{1\}/);
   assert.doesNotMatch(seriesEdgeEffectsSource, /adjustsFontSizeToFit/);
   assert.doesNotMatch(seriesEdgeEffectsSource, /minimumFontScale/);
+  assert.match(seriesScreenSource, /ref=\{setupModalBlurTargetRef\}/);
+  assert.match(
+    seriesScreenSource,
+    /blurTarget=\{setupModalBlurTargetRef\}/,
+  );
+  assert.match(seriesScreenSource, /setupModalContentInsets/);
+  assert.match(seriesScreenSource, /screenEdgeDepths\.modalBottom/);
+  assert.match(seriesScreenSource, /setupModalHeaderPosition/);
+  assert.match(seriesScreenSource, /isDark=\{isDark\}/);
 });
 
 // The test keeps ambient background depth subtle and accessibility-aware.
