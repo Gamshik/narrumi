@@ -3,7 +3,11 @@ import { Animated, Text, View } from 'react-native';
 
 import { fontFamilies, type AppColors } from '@presentation/theme';
 
-import { JellyPressable, ScreenEdgeEffects } from '../../shared';
+import {
+  BackIconButton,
+  JellyPressable,
+  ScreenEdgeEffects,
+} from '../../shared';
 import type { AppStyles } from '../../types';
 import { seriesDetailsEdgeEffectStyles } from './SeriesDetailsEdgeEffects.styles';
 
@@ -67,14 +71,18 @@ export function SeriesDetailsEdgeEffects({
         isDark={isDark}
         materialOpacity={transitionProgress}
         topInset={topInset}
+        topVariant="compact"
       />
       <View
         pointerEvents="box-none"
         style={[seriesDetailsEdgeEffectStyles.controls, { top: controlsTop }]}
       >
-        <JellyPressable onPress={onBack} style={styles.smallPrimaryButton}>
-          <Text style={styles.smallPrimaryButtonText}>Back</Text>
-        </JellyPressable>
+        <BackIconButton
+          accessibilityHint="Returns to the stories list"
+          accessibilityLabel="Back to stories"
+          colors={colors}
+          onPress={onBack}
+        />
         <Animated.View
           pointerEvents="none"
           style={[

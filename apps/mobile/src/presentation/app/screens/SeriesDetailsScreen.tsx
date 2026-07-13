@@ -19,10 +19,12 @@ import {
   View,
 } from 'react-native';
 import {
+  BackIconButton,
   BubbleButton,
   BubbleStatus,
   BubbleSurface,
   JellyPressable,
+  ScreenEdgeEffects,
   screenEdgeDepths,
 } from '../shared';
 import { useAppTheme } from '../theme';
@@ -175,7 +177,7 @@ export function SeriesDetailsScreen({
   >(undefined);
   // seriesContentInsets starts the hero below top glass and clears the quiet pushed-screen bottom fade.
   const seriesContentInsets: ViewStyle = {
-    paddingTop: insets.top + screenEdgeDepths.top + 12,
+    paddingTop: insets.top + screenEdgeDepths.compactTop + 2,
     paddingBottom: insets.bottom + screenEdgeDepths.modalBottom + 16,
   };
   // fallbackInsets retain safe spacing while loading and error states do not render edge materials.
@@ -366,7 +368,7 @@ export function SeriesDetailsScreen({
     // thresholds match the exact large-title edges requested for each scroll direction.
     const thresholds: SeriesTitleScrollThresholds =
       getSeriesTitleScrollThresholds({
-        blurBottom: insets.top + screenEdgeDepths.top,
+        blurBottom: insets.top + screenEdgeDepths.compactTop,
         headerTop,
         titleHeight,
         titleTop,
@@ -397,9 +399,12 @@ export function SeriesDetailsScreen({
     return (
       <View style={[styles.screenContent, fallbackInsets]}>
         <View style={styles.homeHeader}>
-          <JellyPressable onPress={onBack} style={styles.smallPrimaryButton}>
-            <Text style={styles.smallPrimaryButtonText}>Back</Text>
-          </JellyPressable>
+          <BackIconButton
+            accessibilityHint="Returns to the stories list"
+            accessibilityLabel="Back to stories"
+            colors={colors}
+            onPress={onBack}
+          />
         </View>
         <BubbleStatus colors={colors} tone="error" title={errorMessage} variant="row" />
       </View>
@@ -549,6 +554,7 @@ export function SeriesDetailsScreen({
               errors={setupErrors}
               form={setupForm}
               isGenerating={isGeneratingSetup}
+              isDark={isDark}
               isSaving={isSavingSetup}
               isVisible={isSetupOpen}
               styles={styles}
@@ -591,6 +597,7 @@ function SeriesSetupModal({
   errors,
   form,
   isGenerating,
+  isDark,
   isSaving,
   isVisible,
   styles,
@@ -609,6 +616,8 @@ function SeriesSetupModal({
   readonly form: SeriesSetupFormState;
   // isGenerating disables duplicate AI setup generation.
   readonly isGenerating: boolean;
+  // isDark selects the matching shared blur tint.
+  readonly isDark: boolean;
   // isSaving disables duplicate local writes.
   readonly isSaving: boolean;
   // isVisible controls the native modal presentation.
@@ -625,10 +634,26 @@ function SeriesSetupModal({
   readonly onSave: () => void;
 }): ReactElement {
   const insets = useSafeAreaInsets();
-  const topInset = Math.max(insets.top, 62);
-  const bottomInset = Math.max(insets.bottom, 18);
+  const topInset: number = insets.top;
+  const bottomInset: number = insets.bottom;
   const scrollViewRef = useRef<ScrollView>(null);
   const fieldOffsetsRef = useRef<Record<string, number>>({});
+  // setupModalBlurTargetRef identifies the setup scroll content for Android blur.
+  const setupModalBlurTargetRef: RefObject<View | null> = useRef<View>(null);
+  // setupModalContentInsets matches the create-series modal's edge clearances.
+  const setupModalContentInsets: ViewStyle = {
+    paddingTop: topInset + 96,
+    paddingBottom: bottomInset + screenEdgeDepths.modalBottom + 16,
+  };
+  // setupModalHeaderPosition floats actions above shared top glass without an opaque slab.
+  const setupModalHeaderPosition: ViewStyle = {
+    position: 'absolute',
+    top: topInset,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    backgroundColor: 'transparent',
+  };
   // isBusy blocks setup controls while a save or AI setup generation runs.
   const isBusy = isSaving || isGenerating;
   const updateForm = (patch: Partial<SeriesSetupFormState>): void => {
@@ -655,49 +680,18 @@ function SeriesSetupModal({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
-        style={[styles.modalScreen, { paddingTop: topInset }]}
+        style={styles.modalScreen}
       >
-        <View style={styles.modalHeader}>
-          <JellyPressable
-            onPress={onClose}
-            style={styles.modalIconButton}
-            accessibilityLabel="Back"
-            accessibilityRole="button"
+        <BlurTargetView ref={setupModalBlurTargetRef} style={styles.flexOne}>
+          <ScrollView
+            ref={scrollViewRef}
+            contentContainerStyle={[
+              styles.modalContent,
+              setupModalContentInsets,
+            ]}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="always"
           >
-            <Text style={styles.modalIconText}>←</Text>
-          </JellyPressable>
-          <View style={styles.modalActions}>
-            {canEdit ? (
-              <BubbleButton
-                colors={colors}
-                contentStyle={styles.modalPrimaryAction}
-                disabled={isBusy}
-                onPress={onGenerate}
-                variant="primary"
-              >
-                <Text style={styles.modalPrimaryActionText}>Generate</Text>
-              </BubbleButton>
-            ) : null}
-            <BubbleButton
-              colors={colors}
-              contentStyle={styles.modalSecondaryAction}
-              disabled={!canEdit || isBusy}
-              onPress={onSave}
-              variant="secondary"
-            >
-              <Text style={styles.modalSecondaryActionText}>Save</Text>
-            </BubbleButton>
-          </View>
-        </View>
-        <ScrollView
-          ref={scrollViewRef}
-          contentContainerStyle={[
-            styles.modalContent,
-            { paddingBottom: bottomInset + 12 },
-          ]}
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="always"
-        >
           <View style={styles.setupSectionCard}>
             <SetupChoiceGroup
               colors={colors}
@@ -850,7 +844,47 @@ function SeriesSetupModal({
               variant="row"
             />
           )}
-        </ScrollView>
+          </ScrollView>
+        </BlurTargetView>
+        <ScreenEdgeEffects
+          blurTarget={setupModalBlurTargetRef}
+          bottomInset={bottomInset}
+          bottomVariant="modal"
+          colors={colors}
+          isDark={isDark}
+          materialOpacity={1}
+          topInset={topInset}
+        />
+        <View style={[styles.modalHeader, setupModalHeaderPosition]}>
+          <BackIconButton
+            accessibilityHint="Closes series setup"
+            accessibilityLabel="Back from series setup"
+            colors={colors}
+            onPress={onClose}
+          />
+          <View style={styles.modalActions}>
+            {canEdit ? (
+              <BubbleButton
+                colors={colors}
+                contentStyle={styles.modalPrimaryAction}
+                disabled={isBusy}
+                onPress={onGenerate}
+                variant="primary"
+              >
+                <Text style={styles.modalPrimaryActionText}>Generate</Text>
+              </BubbleButton>
+            ) : null}
+            <BubbleButton
+              colors={colors}
+              contentStyle={styles.modalSecondaryAction}
+              disabled={!canEdit || isBusy}
+              onPress={onSave}
+              variant="secondary"
+            >
+              <Text style={styles.modalSecondaryActionText}>Save</Text>
+            </BubbleButton>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
