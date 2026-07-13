@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import { JellyPressable } from '../shared';
+import { darkColors, lightColors } from '@presentation/theme';
+
+import { BackIconButton, JellyPressable } from '../shared';
+import { useAppTheme } from '../theme';
 
 import type {
   Episode,
@@ -53,6 +56,8 @@ export function EpisodeReaderScreen({
   seriesId,
   styles,
 }: EpisodeReaderScreenProps): ReactElement {
+  const { isDark } = useAppTheme();
+  const colors = isDark ? darkColors : lightColors;
   const [episodes, setEpisodes] = useState<readonly Episode[]>([]);
   const [activeEpisodeIndex, setActiveEpisodeIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string>();
@@ -64,6 +69,15 @@ export function EpisodeReaderScreen({
   const scrollViewRef = useRef<ScrollView>(null);
 
   const activeEpisode = episodes[activeEpisodeIndex];
+  // backButton keeps reader navigation identical across loading, error, and content states.
+  const backButton: ReactElement | null = onExit ? (
+    <BackIconButton
+      accessibilityHint="Returns to the series screen"
+      accessibilityLabel="Back to series"
+      colors={colors}
+      onPress={onExit}
+    />
+  ) : null;
 
   const loadReader = useCallback(async (): Promise<void> => {
     try {
@@ -183,6 +197,7 @@ export function EpisodeReaderScreen({
   if (errorMessage) {
     return (
       <View style={styles.screenContent}>
+        {backButton}
         <View style={styles.stateMessage}>
           <Text style={styles.stateMessageTitle}>{errorMessage}</Text>
         </View>
@@ -193,6 +208,7 @@ export function EpisodeReaderScreen({
   if (!activeEpisode) {
     return (
       <View style={styles.screenContent}>
+        {backButton}
         <View style={styles.stateMessage}>
           <Text style={styles.stateMessageTitle}>Loading series...</Text>
         </View>
@@ -207,6 +223,7 @@ export function EpisodeReaderScreen({
         ref={scrollViewRef}
       >
         <View style={styles.readerHeader}>
+          {backButton}
           <View style={styles.flex}>
             <Text style={styles.appCategory}>SERIES READER</Text>
             <Text style={styles.largeTitle}>
@@ -319,18 +336,6 @@ export function EpisodeReaderScreen({
           );
         })}
 
-        {onExit ? (
-          <JellyPressable
-            containerStyle={styles.flexOne}
-            onPress={onExit}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.secondaryButtonText}>Back to Series</Text>
-          </JellyPressable>
-        ) : null}
       </ScrollView>
 
       <TranslationSheet
