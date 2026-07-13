@@ -12,7 +12,7 @@ export default function DailySessionRoute(): ReactElement {
   const normalizedSeriesId = typeof seriesId === 'string' ? seriesId : undefined;
 
   return (
-    <RouteScreen isDark={isDark} styles={styles}>
+    <RouteScreen isDark={isDark} isEdgeToEdge styles={styles}>
       <DailySessionScreen
         {...(normalizedSeriesId ? { seriesId: normalizedSeriesId } : {})}
         styles={styles}

@@ -1,7 +1,25 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { ReactElement } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
-import { JellyPressable } from '../shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactElement, RefObject } from 'react';
+import { BlurTargetView } from 'expo-blur';
+import {
+  Alert,
+  Animated,
+  Easing,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Text,
+  type ViewStyle,
+  View,
+} from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+
+import { darkColors, lightColors } from '@presentation/theme';
+
+import { JellyPressable, screenEdgeDepths } from '../shared';
+import { useAppTheme } from '../theme';
 
 import {
   learningGenres,
@@ -15,6 +33,7 @@ import {
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
 import { DictionaryPickerPanel } from './dailySession/components/DictionaryPickerPanel';
+import { DailySessionEdgeEffects } from './DailySessionEdgeEffects';
 import { EpisodeReaderScreen } from './EpisodeReaderScreen';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
@@ -25,6 +44,15 @@ const genreLabels: Record<LearningGenre, string> = {
   'travel-leisure': 'Travel',
   'short-fiction': 'Short Fiction',
 };
+
+// setupHeaderCollapseOffset matches Home's deliberate upward-scroll threshold.
+const setupHeaderCollapseOffset: number = 38;
+// setupHeaderExpandOffset matches Home's hysteresis against small scroll reversals.
+const setupHeaderExpandOffset: number = 12;
+// setupTitleTransitionDuration keeps the large-to-compact title swap identical to Home.
+const setupTitleTransitionDuration: number = 220;
+// setupMaterialTransitionDuration fades top glass independently without a directional reveal.
+const setupMaterialTransitionDuration: number = 180;
 
 // DailySessionScreenProps carries themed styles into the unified episode flow.
 type DailySessionScreenProps = {
@@ -57,6 +85,46 @@ export function DailySessionScreen({
   seriesId,
   styles,
 }: DailySessionScreenProps): ReactElement {
+  const { isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
+  const colors = isDark ? darkColors : lightColors;
+  // titleTransition drives the autonomous large-to-compact title swap.
+  const [titleTransition] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(0),
+  );
+  // materialTransition controls only the top blur-and-gradient opacity.
+  const [materialTransition] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(0),
+  );
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  // blurTargetRef identifies the edge-to-edge Story Words scroll surface for Android blur.
+  const blurTargetRef: RefObject<View | null> = useRef<View>(null);
+  // setupContentInsets places the hero below top glass and clears the quiet lower fade.
+  const setupContentInsets: ViewStyle = {
+    paddingTop: insets.top + screenEdgeDepths.compactTop + 2,
+    paddingBottom: insets.bottom + screenEdgeDepths.modalBottom + 16,
+  };
+  // largeTitleOpacity removes the hero title before the compact peer becomes fully visible.
+  const largeTitleOpacity: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.18, 0.58, 1],
+      outputRange: [1, 1, 0, 0],
+      extrapolate: 'clamp',
+    });
+  // largeTitleTranslateY lets the hero title leave with its scrolling content.
+  const largeTitleTranslateY: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.58, 1],
+      outputRange: [0, -10, -10],
+      extrapolate: 'clamp',
+    });
+  // largeTitleScale adds the same restrained compression used by Home.
+  const largeTitleScale: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.58, 1],
+      outputRange: [1, 0.97, 0.97],
+      extrapolate: 'clamp',
+    });
   const [stage, setStage] = useState<EpisodeFlowStage>('loading');
   const [selectionState, setSelectionState] =
     useState<EpisodeWordSelectionState>();
@@ -72,6 +140,36 @@ export function DailySessionScreen({
   const [isShuffling, setIsShuffling] = useState(false);
   const [generatedEpisodeId, setGeneratedEpisodeId] = useState<string>();
   const [isOnline, setIsOnline] = useState(false);
+
+  useEffect(() => {
+    // The scroll threshold selects a stable target; both animations finish independently of the gesture.
+    const titleAnimation: Animated.CompositeAnimation = Animated.timing(
+      titleTransition,
+      {
+        toValue: isHeaderCollapsed ? 1 : 0,
+        duration: setupTitleTransitionDuration,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      },
+    );
+    const materialAnimation: Animated.CompositeAnimation = Animated.timing(
+      materialTransition,
+      {
+        toValue: isHeaderCollapsed ? 1 : 0,
+        duration: setupMaterialTransitionDuration,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      },
+    );
+
+    titleAnimation.start();
+    materialAnimation.start();
+
+    return (): void => {
+      titleAnimation.stop();
+      materialAnimation.stop();
+    };
+  }, [isHeaderCollapsed, materialTransition, titleTransition]);
 
   const loadWordSelection = useCallback(async (isActive = true): Promise<void> => {
     setErrorMessage(undefined);
@@ -284,31 +382,59 @@ export function DailySessionScreen({
     }
   };
 
+  const handleSetupScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ): void => {
+    const offsetY: number = event.nativeEvent.contentOffset.y;
+
+    if (!isHeaderCollapsed && offsetY >= setupHeaderCollapseOffset) {
+      setIsHeaderCollapsed(true);
+      return;
+    }
+
+    if (isHeaderCollapsed && offsetY <= setupHeaderExpandOffset) {
+      setIsHeaderCollapsed(false);
+    }
+  };
+
   if (stage === 'reader') {
     return (
-      <EpisodeReaderScreen
-        {...(generatedEpisodeId ? { episodeId: generatedEpisodeId } : {})}
-        {...(seriesId ? { seriesId } : {})}
-        styles={styles}
-        onExit={onExit}
-      />
+      <SafeAreaView style={styles.flexOne}>
+        <EpisodeReaderScreen
+          {...(generatedEpisodeId ? { episodeId: generatedEpisodeId } : {})}
+          {...(seriesId ? { seriesId } : {})}
+          styles={styles}
+          onExit={onExit}
+        />
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.screenContent}>
-      <View style={styles.homeHeader}>
-        <View>
-          <Text style={styles.appCategory}>NEXT EPISODE</Text>
-          <Text style={styles.largeTitle}>{series?.title ?? 'Story Setup'}</Text>
-        </View>
-        <JellyPressable
-          onPress={onExit}
-          style={({ pressed }) => [styles.smallPrimaryButton, pressed && styles.pressed]}
+    <View style={styles.flexOne}>
+      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+        <Animated.ScrollView
+          contentContainerStyle={[styles.screenContent, setupContentInsets]}
+          onScroll={handleSetupScroll}
+          scrollEventThrottle={16}
         >
-          <Text style={styles.smallPrimaryButtonText}>Exit</Text>
-        </JellyPressable>
-      </View>
+          <Animated.View
+            style={[
+              styles.dailySessionTitleBlock,
+              {
+                opacity: largeTitleOpacity,
+                transform: [
+                  { translateY: largeTitleTranslateY },
+                  { scale: largeTitleScale },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.appCategory}>NEXT EPISODE</Text>
+            <Text style={styles.largeTitle}>
+              {series?.title ?? 'Story Setup'}
+            </Text>
+          </Animated.View>
 
       {errorMessage ? (
         <View style={styles.stateMessage}>
@@ -376,7 +502,20 @@ export function DailySessionScreen({
           />
         </>
       )}
-    </ScrollView>
+        </Animated.ScrollView>
+      </BlurTargetView>
+      <DailySessionEdgeEffects
+        blurTarget={blurTargetRef}
+        bottomInset={insets.bottom}
+        colors={colors}
+        isDark={isDark}
+        materialOpacity={materialTransition}
+        title={series?.title ?? 'Story Setup'}
+        titleTransitionProgress={titleTransition}
+        topInset={insets.top}
+        onExit={onExit}
+      />
+    </View>
   );
 }
 
