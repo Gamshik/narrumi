@@ -52,6 +52,11 @@ export function finalizeEpisodePayload({
   request,
 }: FinalizeEpisodePayloadInput): EpisodePayload {
   const parsed = episodePayloadSchema.parse(payload);
+
+  if (parsed.title) {
+    assertIndependentEpisodeTitle(parsed.title, request.seriesTitle);
+  }
+
   const playback = normalizePlaybackFrames({
     fieldName: 'sentenceFrames',
     frames: parsed.sentenceFrames,
@@ -116,6 +121,48 @@ export function finalizeEpisodePayload({
       ),
     },
   };
+}
+
+// assertIndependentEpisodeTitle prevents model output from merging series identity into an episode label.
+function assertIndependentEpisodeTitle(
+  episodeTitle: string,
+  seriesTitle: string,
+): void {
+  // episodeWords is the punctuation-independent token sequence produced by the model.
+  const episodeWords: readonly string[] = normalizeTitleWords(episodeTitle);
+  // seriesWords is the protected series-name sequence that must remain outside episode.title.
+  const seriesWords: readonly string[] = normalizeTitleWords(seriesTitle);
+
+  if (containsWordSequence(episodeWords, seriesWords)) {
+    throw new Error(
+      'Episode title must be independent and must not include the series title.',
+    );
+  }
+}
+
+// normalizeTitleWords makes the invariant resilient to casing and separator changes.
+function normalizeTitleWords(value: string): readonly string[] {
+  return value.normalize('NFKC').toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+}
+
+// containsWordSequence finds an exact contiguous phrase without matching partial words.
+function containsWordSequence(
+  sourceWords: readonly string[],
+  protectedWords: readonly string[],
+): boolean {
+  if (
+    protectedWords.length === 0 ||
+    protectedWords.length > sourceWords.length
+  ) {
+    return false;
+  }
+
+  return sourceWords.some((_, startIndex): boolean =>
+    protectedWords.every(
+      (protectedWord, protectedIndex): boolean =>
+        sourceWords[startIndex + protectedIndex] === protectedWord,
+    ),
+  );
 }
 
 // finalizeInteractionPayload enforces same-episode continuation and memory invariants.

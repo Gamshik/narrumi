@@ -126,7 +126,7 @@ Deno.test('finalizeEpisodePayload synchronizes story text and compact memory', (
   const result = finalizeEpisodePayload({
     request: generateRequest,
     payload: {
-      title: 'The Blue Door',
+      title: 'The First Whisper',
       sceneText: 'This inconsistent text must be replaced.',
       sentences: episodeSentences,
       sentenceFrames: episodeSentenceFrames,
@@ -178,6 +178,80 @@ Deno.test('finalizeEpisodePayload synchronizes story text and compact memory', (
     'word:curious',
     'word:whisper',
   ]);
+});
+
+Deno.test('finalizeEpisodePayload rejects an episode title prefixed with the series title', () => {
+  assertThrows(
+    () =>
+      finalizeEpisodePayload({
+        request: generateRequest,
+        payload: {
+          title: 'The Blue Door: The First Whisper',
+          sceneText: episodeSentences.join(' '),
+          sentences: episodeSentences,
+          sentenceFrames: episodeSentenceFrames,
+          storyWordIds: [],
+          annotations: [],
+          interaction: {
+            kind: 'choice',
+            prompt: 'What should Mira do?',
+            choices: [
+              { id: 'open', label: 'Open the door carefully' },
+              { id: 'wait', label: 'Wait and listen' },
+            ],
+          },
+          cliffhanger: 'The whisper called Mira by name.',
+          summaryUpdate: 'Mira and Leo heard a whisper behind the door.',
+          memoryUpdate: {
+            knownFacts: [],
+            openQuestions: [],
+            importantObjectsOrLocations: [],
+            lastEpisodeSummary: 'Outdated model summary.',
+            unresolvedCliffhanger: 'Outdated hook.',
+            recurringStoryWordIds: [],
+          },
+        },
+      }),
+    Error,
+    'Episode title must be independent and must not include the series title.',
+  );
+});
+
+Deno.test('finalizeEpisodePayload rejects a reformatted series title phrase', () => {
+  assertThrows(
+    () =>
+      finalizeEpisodePayload({
+        request: generateRequest,
+        payload: {
+          title: 'A Whisper at THE-BLUE-DOOR',
+          sceneText: episodeSentences.join(' '),
+          sentences: episodeSentences,
+          sentenceFrames: episodeSentenceFrames,
+          storyWordIds: [],
+          annotations: [],
+          interaction: {
+            kind: 'choice',
+            prompt: 'What should Mira do?',
+            choices: [
+              { id: 'open', label: 'Open the door carefully' },
+              { id: 'wait', label: 'Wait and listen' },
+            ],
+          },
+          cliffhanger: 'The whisper called Mira by name.',
+          summaryUpdate: 'Mira and Leo heard a whisper behind the door.',
+          memoryUpdate: {
+            knownFacts: [],
+            openQuestions: [],
+            importantObjectsOrLocations: [],
+            lastEpisodeSummary: 'Outdated model summary.',
+            unresolvedCliffhanger: 'Outdated hook.',
+            recurringStoryWordIds: [],
+          },
+        },
+      }),
+    Error,
+    'Episode title must be independent and must not include the series title.',
+  );
 });
 
 Deno.test('finalizeEpisodePayload normalizes only dialogue speaker labels to pinned names', () => {
@@ -264,7 +338,7 @@ Deno.test('finalizeEpisodePayload normalizes frame text to canonical sentences',
   const result = finalizeEpisodePayload({
     request: generateRequest,
     payload: {
-      title: 'The Blue Door',
+      title: 'The First Whisper',
       sceneText: 'This inconsistent text must be replaced.',
       sentences: episodeSentences,
       sentenceFrames: [
@@ -327,7 +401,7 @@ Deno.test('finalizeEpisodePayload keeps stripped sentence and frame text aligned
   const result = finalizeEpisodePayload({
     request: generateRequest,
     payload: {
-      title: 'The Blue Door',
+      title: 'The First Whisper',
       sceneText: 'This inconsistent text must be replaced.',
       sentences: [
         'Mira turned the handle slowly.',
@@ -382,7 +456,7 @@ Deno.test('finalizeEpisodePayload merges adjacent dialogue from the same speaker
   const result = finalizeEpisodePayload({
     request: generateRequest,
     payload: {
-      title: 'The Blue Door',
+      title: 'The First Whisper',
       sceneText: 'This inconsistent text must be replaced.',
       sentences: [
         'Mira turned the handle slowly.',
@@ -447,7 +521,7 @@ Deno.test('finalizeEpisodePayload repairs mojibake Russian translations', () => 
   const result = finalizeEpisodePayload({
     request: generateRequest,
     payload: {
-      title: 'The Blue Door',
+      title: 'The First Whisper',
       sceneText: 'This inconsistent text must be replaced.',
       sentences: episodeSentences,
       sentenceFrames: episodeSentenceFrames,
