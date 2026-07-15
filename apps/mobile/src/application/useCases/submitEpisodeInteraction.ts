@@ -57,7 +57,14 @@ export function createSubmitEpisodeInteraction(
   gateway: InteractionGateway,
   clock: Clock,
 ): SubmitEpisodeInteraction {
-  return {
+  // inFlightSubmissions lets a remounted reader join the original request instead of duplicating it.
+  const inFlightSubmissions: Map<
+    string,
+    Promise<SubmitEpisodeInteractionResult>
+  > = new Map<string, Promise<SubmitEpisodeInteractionResult>>();
+
+  // submitInteraction performs one local-first answer and continuation transaction.
+  const submitInteraction: SubmitEpisodeInteraction = {
     execute: async ({ choiceId, episodeId, interactionId, userReply }) => {
       const connectivity = await networkStatus.getCurrentState();
 
@@ -71,20 +78,25 @@ export function createSubmitEpisodeInteraction(
         throw new Error('Episode is required before submitting an answer.');
       }
 
-      const [series, memory, vocabulary] = await Promise.all([
+      const [series, memory] = await Promise.all([
         store.getSeries(episode.seriesId),
         store.getSeriesMemory(episode.seriesId),
-        catalog.list(),
       ]);
 
       if (!series || !memory) {
         throw new Error('Series context is required before submitting an answer.');
       }
 
-      const activeInteraction = episode.interactions.find(
-        (interaction) =>
-          interaction.id === interactionId && interaction.feedback === undefined,
+      const targetedInteraction = episode.interactions.find(
+        (interaction) => interaction.id === interactionId,
       );
+
+      // A request may finish between reader restoration and retry; reuse that durable result.
+      if (targetedInteraction?.feedback !== undefined) {
+        return { episode };
+      }
+
+      const activeInteraction = targetedInteraction;
 
       if (!activeInteraction || episode.isComplete) {
         throw new Error('Episode does not have an active interaction.');
@@ -125,6 +137,8 @@ export function createSubmitEpisodeInteraction(
       };
 
       await store.saveEpisode(draftEpisode);
+      // Vocabulary loading can be comparatively expensive; the pending answer must be durable first.
+      const vocabulary = await catalog.list();
 
       const payload = await gateway.submitInteraction({
         episodeId,
@@ -253,6 +267,33 @@ export function createSubmitEpisodeInteraction(
       );
 
       return { episode: updatedEpisode };
+    },
+  };
+
+  return {
+    execute: (input): Promise<SubmitEpisodeInteractionResult> => {
+      const operationKey: string = `${input.episodeId}:${input.interactionId}`;
+      const activeSubmission:
+        | Promise<SubmitEpisodeInteractionResult>
+        | undefined = inFlightSubmissions.get(operationKey);
+
+      if (activeSubmission) {
+        return activeSubmission;
+      }
+
+      const submission: Promise<SubmitEpisodeInteractionResult> =
+        submitInteraction.execute(input);
+      // clearSubmission removes only the promise currently registered for this interaction.
+      const clearSubmission = (): void => {
+        if (inFlightSubmissions.get(operationKey) === submission) {
+          inFlightSubmissions.delete(operationKey);
+        }
+      };
+
+      inFlightSubmissions.set(operationKey, submission);
+      void submission.then(clearSubmission, clearSubmission);
+
+      return submission;
     },
   };
 }

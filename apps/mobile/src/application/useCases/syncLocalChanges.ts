@@ -39,88 +39,123 @@ export function createSyncLocalChanges(
   authSession: AuthSessionProvider,
   networkStatus: NetworkStatus,
 ): SyncLocalChanges {
-  return {
-    execute: async () => {
-      const connectivity = await networkStatus.getCurrentState();
+  // activeExecution ensures navigation and background actions share one queue replay.
+  let activeExecution: Promise<SyncLocalChangesResult> | undefined;
+  // rerunRequested preserves writes queued while the current remote pass is already running.
+  let rerunRequested: boolean = false;
 
-      if (!connectivity.isOnline) {
-        return {
-          status: 'offline',
-          pushedCount: 0,
-          failedCount: 0,
-          pendingCount: 0,
-        };
-      }
+  // runSync performs one complete local-to-remote reconciliation transaction.
+  const runSync = async (): Promise<SyncLocalChangesResult> => {
+    const connectivity = await networkStatus.getCurrentState();
 
-      const ownerId = await authSession.getAuthenticatedUserId();
+    if (!connectivity.isOnline) {
+      return {
+        status: 'offline',
+        pushedCount: 0,
+        failedCount: 0,
+        pendingCount: 0,
+      };
+    }
 
-      if (!ownerId) {
-        return {
-          status: 'unauthenticated',
-          pushedCount: 0,
-          failedCount: 0,
-          pendingCount: 0,
-        };
-      }
+    const ownerId = await authSession.getAuthenticatedUserId();
 
-      await enqueueDirtyRecords(localStore, syncQueue);
-      const operations = sortByDependency(await syncQueue.list());
-      let pushedCount = 0;
-      let failedCount = 0;
-      let latestErrorMessage: string | undefined;
+    if (!ownerId) {
+      return {
+        status: 'unauthenticated',
+        pushedCount: 0,
+        failedCount: 0,
+        pendingCount: 0,
+      };
+    }
 
-      for (const operation of operations) {
-        try {
-          if (operation.action === 'delete') {
-            await deleteRemoteRecord(remoteStore, ownerId, operation);
-            await syncQueue.remove(operation.operationId);
-            pushedCount += 1;
-            continue;
-          }
+    await enqueueDirtyRecords(localStore, syncQueue);
+    const operations = sortByDependency(await syncQueue.list());
+    let pushedCount = 0;
+    let failedCount = 0;
+    let firstErrorMessage: string | undefined;
 
-          const localRecord = await loadLocalRecord(localStore, operation);
-
-          if (!localRecord) {
-            await syncQueue.remove(operation.operationId);
-            continue;
-          }
-
-          const canonicalRecord = await remoteStore.upsert(
-            ownerId,
-            localRecord,
-          );
-
-          await saveLocalRecord(localStore, canonicalRecord);
+    for (const operation of operations) {
+      try {
+        if (operation.action === 'delete') {
+          await deleteRemoteRecord(remoteStore, ownerId, operation);
           await syncQueue.remove(operation.operationId);
           pushedCount += 1;
-        } catch (error) {
-          // A failed operation stays queued while independent records continue.
-          failedCount += 1;
-          latestErrorMessage = formatSyncError(operation, error);
+          continue;
         }
-      }
 
-      try {
-        const snapshot = await remoteStore.loadSnapshot(ownerId);
+        const localRecord = await loadLocalRecord(localStore, operation);
 
-        await reconcileSnapshot(localStore, syncQueue, snapshot);
+        if (!localRecord) {
+          await syncQueue.remove(operation.operationId);
+          continue;
+        }
+
+        const canonicalRecord = await remoteStore.upsert(ownerId, localRecord);
+
+        await saveLocalRecord(localStore, canonicalRecord);
+        await syncQueue.remove(operation.operationId);
+        pushedCount += 1;
       } catch (error) {
-        return {
-          status: 'failed',
-          pushedCount,
-          failedCount: failedCount + 1,
-          pendingCount: operations.length,
-          errorMessage: formatUnknownError(error),
-        };
+        // A failed operation stays queued while independent records continue.
+        failedCount += 1;
+        firstErrorMessage ??= formatSyncError(operation, error);
+      }
+    }
+
+    try {
+      const snapshot = await remoteStore.loadSnapshot(ownerId);
+
+      await reconcileSnapshot(localStore, syncQueue, snapshot);
+    } catch (error) {
+      return {
+        status: 'failed',
+        pushedCount,
+        failedCount: failedCount + 1,
+        pendingCount: operations.length,
+        errorMessage: formatUnknownError(error),
+      };
+    }
+
+    return {
+      status: failedCount > 0 ? 'failed' : 'synced',
+      pushedCount,
+      failedCount,
+      pendingCount: operations.length,
+      ...(firstErrorMessage ? { errorMessage: firstErrorMessage } : {}),
+    };
+  };
+
+  // runUntilIdle serializes any trailing sync request without overlapping Supabase writes.
+  const runUntilIdle = async (): Promise<SyncLocalChangesResult> => {
+    let result: SyncLocalChangesResult;
+
+    do {
+      rerunRequested = false;
+      result = await runSync();
+    } while (rerunRequested);
+
+    return result;
+  };
+
+  return {
+    execute: (): Promise<SyncLocalChangesResult> => {
+      if (activeExecution) {
+        rerunRequested = true;
+        return activeExecution;
       }
 
-      return {
-        status: failedCount > 0 ? 'failed' : 'synced',
-        pushedCount,
-        failedCount,
-        pendingCount: operations.length,
-        ...(latestErrorMessage ? { errorMessage: latestErrorMessage } : {}),
+      const execution: Promise<SyncLocalChangesResult> = runUntilIdle();
+      // clearExecution releases only the reconciliation currently registered as active.
+      const clearExecution = (): void => {
+        if (activeExecution === execution) {
+          activeExecution = undefined;
+        }
       };
+
+      activeExecution = execution;
+      void execution.then(clearExecution, clearExecution);
+
+      return execution;
     },
   };
 }

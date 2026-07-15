@@ -34,6 +34,7 @@ import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
 import {
   EpisodeSentence,
+  StoryContinuationPrelude,
   TranslationSheet,
 } from './episodeReader/components';
 import { EpisodeReaderEdgeEffects } from './EpisodeReaderEdgeEffects';
@@ -41,6 +42,9 @@ import {
   getFocusedEpisodeHeaderIndex,
   type EpisodeHeaderGeometry,
 } from './EpisodeReaderEdgeEffects/episodeReaderHeaderMotion';
+import { shouldRenderSettledEpisodeAnswer } from './episodeReader/episodeInteractionPresentation';
+import { findPendingEpisodeContinuation } from './episodeReader/episodeReaderContinuationResume';
+import type { PendingEpisodeContinuation } from './episodeReader/episodeReaderContinuationResume';
 import type { SpeakerThemeName } from './episodeReader/components/EpisodeSentence/EpisodeSentence';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
@@ -108,6 +112,12 @@ export function EpisodeReaderScreen({
   const [selectedAnnotation, setSelectedAnnotation] =
     useState<TranslationAnnotation>();
   const scrollViewRef = useRef<ScrollView>(null);
+  // componentMountedRef prevents background continuation work from updating an exited reader.
+  const componentMountedRef: RefObject<boolean> = useRef<boolean>(false);
+  // resumedInteractionKeysRef limits automatic retry to one attempt per reader mount.
+  const resumedInteractionKeysRef: RefObject<Set<string>> = useRef<Set<string>>(
+    new Set<string>(),
+  );
   // blurTargetRef identifies Reader content for Expo's Android blur implementation.
   const blurTargetRef: RefObject<View | null> = useRef<View>(null);
   // episodeBlockTopsRef stores each full-series episode origin in scroll-content coordinates.
@@ -160,6 +170,14 @@ export function EpisodeReaderScreen({
       onPress={onExit}
     />
   ) : null;
+
+  useEffect((): (() => void) => {
+    componentMountedRef.current = true;
+
+    return (): void => {
+      componentMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     // Reader uses the same autonomous title timing after scroll selects the target state.
@@ -230,6 +248,103 @@ export function EpisodeReaderScreen({
     void loadReader();
   }, [loadReader]);
 
+  // handleInteractionError keeps manual and restored continuation failures consistent.
+  const handleInteractionError = useCallback(
+    async (error: unknown, source: string): Promise<void> => {
+      if (!componentMountedRef.current) {
+        return;
+      }
+
+      const isModerationError: boolean =
+        error instanceof SupabaseFunctionError &&
+        (error.kind === 'moderation_warning' || error.kind === 'moderation_banned');
+      const message: string =
+        error instanceof Error
+          ? error.message
+          : 'Story interaction is online-only and requires configured Supabase Edge Functions.';
+
+      if (isModerationError && error instanceof SupabaseFunctionError) {
+        Alert.alert(
+          error.kind === 'moderation_banned' ? 'You are banned' : 'Warning',
+          message,
+        );
+        return;
+      }
+
+      console.error(`${source} error:`, error);
+      Alert.alert('Story interaction stopped', message);
+      setInteractionErrorMessage(message);
+      // The answer remains durable, so reload its pending state after a failed continuation.
+      await loadReader();
+    },
+    [loadReader],
+  );
+
+  useEffect((): void => {
+    if (isSubmittingInteraction) {
+      return;
+    }
+
+    const pendingContinuation: PendingEpisodeContinuation | undefined =
+      findPendingEpisodeContinuation(episodes);
+
+    if (!pendingContinuation) {
+      return;
+    }
+
+    const operationKey: string = `${pendingContinuation.episodeId}:${pendingContinuation.interactionId}`;
+
+    if (resumedInteractionKeysRef.current.has(operationKey)) {
+      return;
+    }
+
+    resumedInteractionKeysRef.current.add(operationKey);
+    setInteractionErrorMessage(undefined);
+    setIsSubmittingInteraction(true);
+    requestScrollToEnd();
+
+    // resumePendingContinuation rejoins the original request or retries its durable local draft.
+    const resumePendingContinuation = async (): Promise<void> => {
+      const startedAt: number = Date.now();
+
+      try {
+        const result = await localAppServices.submitEpisodeInteraction.execute({
+          episodeId: pendingContinuation.episodeId,
+          interactionId: pendingContinuation.interactionId,
+          ...(pendingContinuation.choiceId
+            ? { choiceId: pendingContinuation.choiceId }
+            : {}),
+          ...(pendingContinuation.userReply
+            ? { userReply: pendingContinuation.userReply }
+            : {}),
+        });
+        await waitForRemainingLatency(startedAt);
+
+        if (!componentMountedRef.current) {
+          return;
+        }
+
+        setEpisodes((currentEpisodes: readonly Episode[]): readonly Episode[] =>
+          currentEpisodes.map((episode: Episode): Episode =>
+            episode.id === pendingContinuation.episodeId
+              ? result.episode
+              : episode,
+          ),
+        );
+        setInteractionErrorMessage(undefined);
+        requestScrollToEnd();
+      } catch (error) {
+        await handleInteractionError(error, 'resumePendingContinuation');
+      } finally {
+        if (componentMountedRef.current) {
+          setIsSubmittingInteraction(false);
+        }
+      }
+    };
+
+    void resumePendingContinuation();
+  }, [episodes, handleInteractionError, isSubmittingInteraction]);
+
   const submitChoice = async (
     targetEpisodeIndex: number,
     interactionId: string,
@@ -270,40 +385,25 @@ export function EpisodeReaderScreen({
         interactionId,
       });
       await waitForRemainingLatency(startedAt);
-      const updatedEpisodes = episodes.map((episode, episodeIndex) =>
-        episodeIndex === targetEpisodeIndex ? result.episode : episode,
-      );
 
-      setEpisodes(updatedEpisodes);
-      setInteractionErrorMessage(undefined);
-      requestScrollToEnd();
-    } catch (error) {
-      const isModerationError =
-        error instanceof SupabaseFunctionError &&
-        (error.kind === 'moderation_warning' ||
-          error.kind === 'moderation_banned');
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Story interaction is online-only and requires configured Supabase Edge Functions.';
-
-      if (isModerationError) {
-        Alert.alert(
-          error.kind === 'moderation_banned'
-            ? 'You are banned'
-            : 'Warning',
-          message,
-        );
+      if (!componentMountedRef.current) {
         return;
       }
 
-      console.error('submitChoice error:', error);
-      Alert.alert('Story interaction stopped', message);
-      setInteractionErrorMessage(message);
-      // The answer is persisted before the network call, so reload its draft state.
-      await loadReader();
+      setEpisodes((currentEpisodes: readonly Episode[]): readonly Episode[] =>
+        currentEpisodes.map(
+          (episode: Episode, episodeIndex: number): Episode =>
+            episodeIndex === targetEpisodeIndex ? result.episode : episode,
+        ),
+      );
+      setInteractionErrorMessage(undefined);
+      requestScrollToEnd();
+    } catch (error) {
+      await handleInteractionError(error, 'submitChoice');
     } finally {
-      setIsSubmittingInteraction(false);
+      if (componentMountedRef.current) {
+        setIsSubmittingInteraction(false);
+      }
     }
   };
 
@@ -725,7 +825,14 @@ function EpisodeInteractionBlock({
   const hasSavedAnswer =
     savedChoice !== undefined || interaction.userReply !== undefined;
 
-  if (interaction.feedback !== undefined || (isReadOnly && hasSavedAnswer)) {
+  if (
+    shouldRenderSettledEpisodeAnswer({
+      hasFeedback: interaction.feedback !== undefined,
+      hasSavedAnswer,
+      isReadOnly,
+      isSubmitting,
+    })
+  ) {
     return (
       <View style={styles.readerInteraction}>
         <SavedEpisodeAnswer
@@ -823,7 +930,7 @@ function SavedEpisodeAnswer({
 }: {
   // interaction contains the persisted learner answer and feedback.
   readonly interaction: EpisodeInteraction;
-  // isGenerating shows the inline continuation skeleton below the saved answer.
+  // isGenerating shows the inline next-scene prelude below the saved answer.
   readonly isGenerating: boolean;
   // savedChoiceLabel resolves the selected choice id for display.
   readonly savedChoiceLabel: string | undefined;
@@ -852,7 +959,7 @@ function SavedEpisodeAnswer({
           </Text>
         </View>
       )}
-      {isGenerating ? <InlineGenerationShimmer styles={styles} /> : null}
+      {isGenerating ? <StoryContinuationPrelude /> : null}
       {interaction.feedback ? (
         <View style={styles.readerFeedback}>
           <Text style={styles.sectionLabel}>FEEDBACK</Text>
@@ -860,31 +967,5 @@ function SavedEpisodeAnswer({
         </View>
       ) : null}
     </>
-  );
-}
-
-// InlineGenerationShimmer previews feedback and continuation while online AI resolves.
-function InlineGenerationShimmer({
-  styles,
-}: {
-  // styles is the shared themed StyleSheet contract.
-  readonly styles: AppStyles;
-}): ReactElement {
-  return (
-    <View style={styles.readerGenerationShimmer}>
-      <View style={styles.readerShimmerCard}>
-        <View style={[styles.readerShimmerLine, { width: 104 }]} />
-        <View style={[styles.readerShimmerLine, { width: '92%' }]} />
-        <View style={[styles.readerShimmerLine, { width: '70%' }]} />
-      </View>
-      <View style={styles.readerShimmerRow}>
-        <View style={styles.readerShimmerAvatar} />
-        <View style={styles.readerShimmerBubbleWrapper}>
-          <View style={[styles.readerShimmerLine, { width: 74 }]} />
-          <View style={styles.readerShimmerBubble} />
-        </View>
-      </View>
-      <View style={styles.readerShimmerNarrative} />
-    </View>
   );
 }

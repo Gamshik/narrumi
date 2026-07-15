@@ -5,9 +5,9 @@ milestone_name: App Bootstrap Loading
 current_phase: 1
 status: Awaiting next milestone
 stopped_at: Milestone v1.1 archived with acknowledged deferred debug sessions
-last_updated: "2026-07-15T16:37:30+03:00"
-last_activity: 2026-07-15
-last_activity_desc: Removed the abandoned theme-wave transition runtime
+last_updated: "2026-07-16T00:23:23+03:00"
+last_activity: 2026-07-16
+last_activity_desc: Added the story continuation generation animation
 progress:
   total_phases: 1
   completed_phases: 1
@@ -24,7 +24,7 @@ current_phase_name: defining requirements
 Phase: Milestone v1.1 complete
 Plan: -
 Status: Awaiting next milestone
-Last activity: 2026-07-15 - Removed the abandoned theme-wave transition runtime
+Last activity: 2026-07-16 - Added the story continuation generation animation
 
 ## Project Reference
 
@@ -60,6 +60,8 @@ Items acknowledged and deferred at milestone close on 2026-07-07:
 |----|-------------|------|--------|
 | 260715-6kr | Redesign the Home series-card swipe-to-delete interaction | 2026-07-15 | Complete (uncommitted to preserve unrelated user changes) |
 | 260715-mtu | Remove theme-wave transition and keep immediate switching | 2026-07-15 | Complete (uncommitted to preserve unrelated user changes) |
+| 260715-wne | Refine the Story Word suggestions slider | 2026-07-15 | Complete (uncommitted to preserve unrelated user changes) |
+| 260716-06q | Add a restrained story-continuation generation animation | 2026-07-16 | Complete (uncommitted to preserve unrelated user changes) |
 
 ## Operator Next Steps
 

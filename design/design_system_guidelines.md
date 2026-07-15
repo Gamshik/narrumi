@@ -241,6 +241,7 @@ Rules:
 - Reading panels must prioritize legibility first.
 - Translation, grammar, and audio controls may be decorative, but they must not overpower the episode text.
 - Speaker bubbles may use accent color tints, but sentence blocks should remain readable at a glance.
+- After a learner submits a choice, keep the saved answer visible and show a compact, cardless next-scene prelude beneath it. Use one slow light pass along a thin narrative thread, softly breathing future-text traces, and direct copy that connects the choice to what happens next. Do not use a spinner, a stack of skeleton cards, glass, or full-screen motion; freeze the cue into a quiet static state when Reduce Motion is enabled.
 
 ## 10. Anti-Patterns
 

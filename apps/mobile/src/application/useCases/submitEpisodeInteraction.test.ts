@@ -366,4 +366,174 @@ describe('submitEpisodeInteraction', () => {
     assert.equal(result.episode.isComplete, true);
     assert.equal(savedEpisodes.length, 2);
   });
+
+  it('persists the pending answer before loading continuation vocabulary', async () => {
+    // savedEpisodes captures the durable marker used when the reader remounts.
+    const savedEpisodes: Episode[] = [];
+    // releaseVocabulary resolves the deliberately paused local catalog read.
+    let releaseVocabulary:
+      | ((words: readonly VocabularyItem[]) => void)
+      | undefined;
+    // vocabularyPromise keeps request preparation active after the draft write.
+    const vocabularyPromise: Promise<readonly VocabularyItem[]> =
+      new Promise<readonly VocabularyItem[]>((resolve): void => {
+        releaseVocabulary = resolve;
+      });
+    const useCase = createSubmitEpisodeInteraction(
+      createTestStore(episode, (savedEpisode: Episode): void => {
+        savedEpisodes.push(savedEpisode);
+      }),
+      {
+        getById: async (id: string) =>
+          vocabulary.find((word) => word.id === id),
+        list: (): Promise<readonly VocabularyItem[]> => vocabularyPromise,
+      },
+      createOnlineNetworkStatus(),
+      {
+        submitInteraction: (): Promise<never> =>
+          new Promise<never>((): void => undefined),
+      },
+      { now: (): Date => new Date(timestamp) },
+    );
+
+    void useCase.execute({
+      episodeId: episode.id,
+      interactionId: episode.interactions[0]!.id,
+      choiceId: 'open',
+    });
+    await new Promise<void>((resolve): void => {
+      setImmediate(resolve);
+    });
+
+    assert.equal(savedEpisodes.length, 1);
+    assert.equal(savedEpisodes[0]?.interactions[0]?.selectedChoiceId, 'open');
+    releaseVocabulary?.(vocabulary);
+  });
+
+  it('shares one in-flight continuation when the reader remounts', async () => {
+    // GatewayResult is the validated continuation contract returned by the AI boundary.
+    type GatewayResult = Awaited<
+      ReturnType<InteractionGateway['submitInteraction']>
+    >;
+    // pendingGatewayResult keeps the original request open while the reader joins it again.
+    const pendingGatewayResult: Promise<GatewayResult> =
+      new Promise<GatewayResult>((): void => undefined);
+    // gatewayCallCount proves remount recovery does not duplicate the Edge Function call.
+    let gatewayCallCount: number = 0;
+    const gateway: InteractionGateway = {
+      submitInteraction: (): Promise<GatewayResult> => {
+        gatewayCallCount += 1;
+
+        return pendingGatewayResult;
+      },
+    };
+    const useCase = createSubmitEpisodeInteraction(
+      createTestStore(episode),
+      createTestCatalog(),
+      createOnlineNetworkStatus(),
+      gateway,
+      { now: (): Date => new Date(timestamp) },
+    );
+    // input identifies the same durable learner answer from both reader mounts.
+    const input = {
+      episodeId: episode.id,
+      interactionId: episode.interactions[0]!.id,
+      choiceId: 'open',
+    } as const;
+
+    const originalRequest = useCase.execute(input);
+    const resumedRequest = useCase.execute(input);
+
+    assert.equal(resumedRequest, originalRequest);
+    await new Promise<void>((resolve): void => {
+      setImmediate(resolve);
+    });
+    assert.equal(gatewayCallCount, 1);
+  });
+
+  it('returns an interaction that finished during reader restoration', async () => {
+    // answeredEpisode mirrors a request that persisted its result before retry began.
+    const answeredEpisode: Episode = {
+      ...episode,
+      interactions: episode.interactions.map((interaction) => ({
+        ...interaction,
+        selectedChoiceId: 'open',
+        userReply: 'Open the door carefully',
+        feedback: 'Good choice.',
+      })),
+    };
+    // gatewayCallCount remains zero when the durable result already exists.
+    let gatewayCallCount: number = 0;
+    const useCase = createSubmitEpisodeInteraction(
+      createTestStore(answeredEpisode),
+      createTestCatalog(),
+      createOnlineNetworkStatus(),
+      {
+        submitInteraction: async (): Promise<never> => {
+          gatewayCallCount += 1;
+          throw new Error('The completed interaction must not be submitted again.');
+        },
+      },
+      { now: (): Date => new Date(timestamp) },
+    );
+
+    const result = await useCase.execute({
+      episodeId: answeredEpisode.id,
+      interactionId: answeredEpisode.interactions[0]!.id,
+      choiceId: 'open',
+    });
+
+    assert.equal(result.episode, answeredEpisode);
+    assert.equal(gatewayCallCount, 0);
+  });
 });
+
+// createTestStore returns one deterministic episode with inert unrelated persistence ports.
+function createTestStore(
+  episodeValue: Episode,
+  onSaveEpisode?: (episode: Episode) => void,
+): LocalSeriesStore {
+  return {
+    getPreferences: async () => undefined,
+    readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
+    savePreferences: async () => undefined,
+    listSeries: async () => [series],
+    getSeries: async () => series,
+    saveSeries: async () => undefined,
+    deleteSeries: async () => undefined,
+    listEpisodes: async () => [episodeValue],
+    getEpisode: async () => episodeValue,
+    saveEpisode: async (savedEpisode) => {
+      onSaveEpisode?.(savedEpisode);
+    },
+    deleteEpisode: async () => undefined,
+    getSeriesMemory: async () => memory,
+    saveSeriesMemory: async () => undefined,
+    listWordSets: async () => [],
+    saveWordSet: async () => undefined,
+    listLearningSignals: async () => [],
+    saveLearningSignal: async () => undefined,
+    getSyncMetadata: async () => undefined,
+    saveSyncMetadata: async () => undefined,
+  };
+}
+
+// createTestCatalog resolves the single bundled Story Word used by the fixtures.
+function createTestCatalog(): {
+  // getById resolves an optional vocabulary item by stable identifier.
+  readonly getById: (id: string) => Promise<VocabularyItem | undefined>;
+  // list returns the complete deterministic vocabulary fixture.
+  readonly list: () => Promise<readonly VocabularyItem[]>;
+} {
+  return {
+    getById: async (id: string) => vocabulary.find((word) => word.id === id),
+    list: async () => vocabulary,
+  };
+}
+
+// createOnlineNetworkStatus keeps continuation tests on the server-backed path.
+function createOnlineNetworkStatus(): NetworkStatus {
+  return {
+    getCurrentState: async () => ({ isOnline: true }),
+  };
+}

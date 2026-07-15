@@ -186,6 +186,82 @@ describe('syncLocalChanges', () => {
     assert.equal(result.pushedCount, 1);
     assert.equal((await queue.list()).length, 0);
   });
+
+  it('reports the first parent failure instead of a later dependent error', async () => {
+    const remoteStore: RemoteSeriesStore = {
+      upsert: async (_ownerId, record) => {
+        throw new Error(`${record.kind} rejected`);
+      },
+      delete: async () => undefined,
+      loadSnapshot: async () => ({
+        series: [],
+        seriesMemories: [],
+        episodes: [],
+        wordSets: [],
+        learningSignals: [],
+      }),
+    };
+    const sync = createSyncLocalChanges(
+      createLocalStore(),
+      remoteStore,
+      createQueue([
+        buildOperation('seriesMemory'),
+        buildOperation('series'),
+      ]),
+      { getAuthenticatedUserId: async () => '00000000-0000-4000-8000-000000000001' },
+      { getCurrentState: async () => ({ isOnline: true }) },
+    );
+
+    const result = await sync.execute();
+
+    assert.equal(result.status, 'failed');
+    assert.match(result.errorMessage ?? '', /^series series:1:/);
+  });
+
+  it('shares one remote reconciliation across concurrent callers', async () => {
+    // releaseUpsert resolves the deliberately paused remote write.
+    let releaseUpsert: (() => void) | undefined;
+    // upsertBarrier keeps the first sync active while the second caller joins it.
+    const upsertBarrier: Promise<void> = new Promise<void>((resolve): void => {
+      releaseUpsert = resolve;
+    });
+    // upsertCount proves that navigation-triggered sync does not duplicate a remote write.
+    let upsertCount: number = 0;
+    const remoteStore: RemoteSeriesStore = {
+      upsert: async (_ownerId, record): Promise<SyncRecord> => {
+        upsertCount += 1;
+        await upsertBarrier;
+
+        return markRecordClean(record);
+      },
+      delete: async (): Promise<void> => undefined,
+      loadSnapshot: async () => ({
+        series: [],
+        seriesMemories: [],
+        episodes: [],
+        wordSets: [],
+        learningSignals: [],
+      }),
+    };
+    const sync = createSyncLocalChanges(
+      createLocalStore(),
+      remoteStore,
+      createQueue([buildOperation('series')]),
+      { getAuthenticatedUserId: async () => '00000000-0000-4000-8000-000000000001' },
+      { getCurrentState: async () => ({ isOnline: true }) },
+    );
+
+    const backgroundRun = sync.execute();
+    const navigationRun = sync.execute();
+
+    assert.equal(navigationRun, backgroundRun);
+    await new Promise<void>((resolve): void => {
+      setImmediate(resolve);
+    });
+    assert.equal(upsertCount, 1);
+    releaseUpsert?.();
+    await Promise.all([backgroundRun, navigationRun]);
+  });
 });
 
 // buildOperation creates one pending pointer for the shared test series.
