@@ -24,8 +24,10 @@ import {
   BubbleSurface,
   BubbleButton,
   BubbleStatus,
+  CefrLevelSelector,
+  SeriesSetupChoiceGroup,
+  CharacterProfilesEditor,
   CollapsingTitleEdgeEffects,
-  JellyPressable,
   ScreenEdgeEffects,
   screenEdgeDepths,
 } from '../shared';
@@ -36,9 +38,7 @@ import {
 } from '@presentation/theme';
 
 import {
-  cefrLevels,
   characterProfileNames,
-  createCharacterProfileId,
   learningGenres,
   normalizeCharacterProfiles,
   seriesParticipationModes,
@@ -48,7 +48,6 @@ import {
   type SeriesCharacterProfile,
   type SeriesParticipationMode,
 } from '@domain/index';
-import type { GenerateSeriesSetupDraftRequest } from '@application/ports';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
 import { localAppServices } from '../services/localAppServices';
@@ -63,6 +62,7 @@ import {
   getHomeContentState,
   type HomeContentState,
 } from './home/homeContentState';
+import { buildSeriesSetupDraftRequest } from './seriesSetupDraftRequest';
 
 // HomeScreenProps carries the shared themed style sheet into the home dashboard.
 type HomeScreenProps = {
@@ -197,7 +197,10 @@ export function HomeScreen({
   const [openSwipeSeriesId, setOpenSwipeSeriesId] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingSetup, setIsGeneratingSetup] = useState(false);
+  // setupGenerationLockRef blocks rapid presses before React applies busy state.
+  const setupGenerationLockRef = useRef<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>();
+  const [formActionError, setFormActionError] = useState<string>();
   // blurTargetRef identifies the Home scroll surface for Expo's current Android blur API.
   const blurTargetRef: RefObject<View | null> = useRef<View>(null);
 
@@ -265,7 +268,7 @@ export function HomeScreen({
     }
 
     setIsSaving(true);
-    setErrorMessage(undefined);
+    setFormActionError(undefined);
 
     try {
       await localAppServices.createSeries.execute({
@@ -306,19 +309,24 @@ export function HomeScreen({
         return;
       }
 
-      setErrorMessage(message);
+      setFormActionError(message);
     } finally {
       setIsSaving(false);
     }
   };
 
   const generateSetupDraft = async (): Promise<void> => {
+    if (setupGenerationLockRef.current) {
+      return;
+    }
+
+    setupGenerationLockRef.current = true;
     setIsGeneratingSetup(true);
-    setErrorMessage(undefined);
+    setFormActionError(undefined);
 
     try {
       const result = await localAppServices.generateSeriesSetupDraft.execute(
-        buildSetupDraftRequest(form),
+        buildSeriesSetupDraftRequest(form),
       );
 
       setForm({
@@ -338,8 +346,9 @@ export function HomeScreen({
           ? error.message
           : 'Series setup could not be generated.';
 
-      setErrorMessage(message);
+      setFormActionError(message);
     } finally {
+      setupGenerationLockRef.current = false;
       setIsGeneratingSetup(false);
     }
   };
@@ -436,6 +445,7 @@ export function HomeScreen({
                     return;
                   }
 
+                  setFormActionError(undefined);
                   setIsCreateOpen(true);
                 }}
               />
@@ -468,6 +478,7 @@ export function HomeScreen({
       <CreateSeriesModal
         colors={colors}
         form={form}
+        actionError={formActionError}
         isGeneratingSetup={isGeneratingSetup}
         isDark={isDark}
         isSaving={isSaving}
@@ -485,6 +496,7 @@ export function HomeScreen({
         onClose={() => {
           setForm(emptySeriesForm);
           setFormErrors({});
+          setFormActionError(undefined);
           setIsCreateOpen(false);
         }}
         onGenerate={generateSetupDraft}
@@ -638,6 +650,7 @@ function SeriesList({
 
 // CreateSeriesModal renders the full local series setup form.
 function CreateSeriesModal({
+  actionError,
   colors,
   errors,
   form,
@@ -651,6 +664,8 @@ function CreateSeriesModal({
   onGenerate,
   onSubmit,
 }: {
+  // actionError reports save or generation failures inside the open modal.
+  readonly actionError: string | undefined;
   // colors is the current theme tokens.
   readonly colors: typeof lightColors | typeof darkColors;
   // errors are the visible validation messages for current form values.
@@ -719,6 +734,19 @@ function CreateSeriesModal({
       }
     }, 120);
   };
+  // scrollToAddedCharacter positions the newly inserted card below the modal header.
+  const scrollToAddedCharacter = (characterOffsetY: number): void => {
+    const sectionOffsetY = fieldOffsetsRef.current.characterProfiles;
+
+    if (sectionOffsetY === undefined) {
+      return;
+    }
+
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(0, sectionOffsetY + characterOffsetY - 72),
+      animated: true,
+    });
+  };
 
   return (
     <Modal animationType="slide" visible={isVisible} onRequestClose={onClose}>
@@ -735,14 +763,14 @@ function CreateSeriesModal({
             keyboardShouldPersistTaps="always"
           >
             <View style={styles.setupSectionCard}>
-              <ChoiceGroup
-                label="CEFR Level"
-                options={cefrLevels}
-                selected={form.cefrLevel}
+              <CefrLevelSelector
+                isDark={isDark}
+                selectedLevel={form.cefrLevel}
                 styles={styles}
                 onSelect={(cefrLevel) => updateForm({ cefrLevel })}
               />
-              <ChoiceGroup
+              <SeriesSetupChoiceGroup
+                isDark={isDark}
                 isWrapped
                 label="Genre"
                 options={learningGenres}
@@ -751,7 +779,8 @@ function CreateSeriesModal({
                 labels={genreLabels}
                 onSelect={(genre) => updateForm({ genre })}
               />
-              <ChoiceGroup
+              <SeriesSetupChoiceGroup
+                isDark={isDark}
                 isWrapped
                 label="Tone"
                 options={storyToneOptions}
@@ -759,7 +788,8 @@ function CreateSeriesModal({
                 styles={styles}
                 onSelect={(tone) => updateForm({ tone })}
               />
-              <ChoiceGroup
+              <SeriesSetupChoiceGroup
+                isDark={isDark}
                 label="Mode"
                 options={seriesParticipationModes}
                 selected={form.participationMode}
@@ -789,7 +819,6 @@ function CreateSeriesModal({
                 colors={colors}
                 {...(errors.premise ? { error: errors.premise } : {})}
                 fieldId="premise"
-                helper="Required. Use Generate if you want the AI to fill it."
                 isMultiline
                 label="Premise"
                 placeholder="A learner receives strange English notes from a future city."
@@ -799,21 +828,22 @@ function CreateSeriesModal({
                 onLayout={registerFieldOffset}
                 onChangeText={(premise) => updateForm({ premise })}
               />
-              <FormField
+              <CharacterProfilesEditor
                 colors={colors}
-                {...(errors.mainCharacters ? { error: errors.mainCharacters } : {})}
-                fieldId="characterProfiles"
-                helper="Required. Speaker names stay fixed in dialogue; descriptions guide the AI."
-                label="Characters"
-                placeholder="Mira"
-                styles={styles}
-                value={characterProfileNames(form.characterProfiles).join(', ')}
-                onFocus={scrollToField}
-                onLayout={registerFieldOffset}
-                onChangeText={(mainCharacters) =>
-                  updateForm({
-                    characterProfiles: parseCharacterProfilesFromNames(mainCharacters),
-                  })
+                {...(errors.mainCharacters
+                  ? { error: errors.mainCharacters }
+                  : {})}
+                profiles={form.characterProfiles}
+                onAddedProfileLayout={scrollToAddedCharacter}
+                onFocus={() => scrollToField('characterProfiles')}
+                onLayout={(event) =>
+                  registerFieldOffset(
+                    'characterProfiles',
+                    event.nativeEvent.layout.y,
+                  )
+                }
+                onChange={(characterProfiles) =>
+                  updateForm({ characterProfiles })
                 }
               />
               {form.participationMode === 'character' ? (
@@ -833,17 +863,20 @@ function CreateSeriesModal({
                 />
               ) : null}
             </View>
-            <CharacterProfilesEditor
-              colors={colors}
-              profiles={form.characterProfiles}
-              styles={styles}
-              onChange={(characterProfiles) => updateForm({ characterProfiles })}
-            />
             {isBusy ? (
               <BubbleStatus
                 colors={colors}
                 tone="loading"
                 title={isSaving ? 'Saving series...' : 'Generating setup...'}
+                variant="row"
+              />
+            ) : null}
+            {!isBusy && actionError ? (
+              <BubbleStatus
+                accessibilityRole="alert"
+                colors={colors}
+                tone="error"
+                title={actionError}
                 variant="row"
               />
             ) : null}
@@ -966,174 +999,6 @@ function FormField({
   );
 }
 
-// CharacterProfilesEditor renders pinned speaker names with separate AI descriptions.
-function CharacterProfilesEditor({
-  colors,
-  profiles,
-  styles,
-  onChange,
-}: {
-  // colors is the current theme tokens.
-  readonly colors: typeof lightColors | typeof darkColors;
-  // profiles are the editable character rows for the setup form.
-  readonly profiles: readonly SeriesCharacterProfile[];
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // onChange publishes normalized character rows back to the parent form.
-  readonly onChange: (profiles: readonly SeriesCharacterProfile[]) => void;
-}): ReactElement {
-  const updateProfile = (
-    index: number,
-    patch: Partial<SeriesCharacterProfile>,
-  ): void => {
-    onChange(
-      profiles.map((profile, profileIndex) =>
-        profileIndex === index ? { ...profile, ...patch } : profile,
-      ),
-    );
-  };
-  const addProfile = (): void => {
-    const nextIndex = profiles.length;
-    const name = `Character ${nextIndex + 1}`;
-
-    onChange([
-      ...profiles,
-      {
-        id: createCharacterProfileId(name, nextIndex),
-        name,
-        description: '',
-      },
-    ]);
-  };
-  const removeProfile = (index: number): void => {
-    onChange(profiles.filter((_profile, profileIndex) => profileIndex !== index));
-  };
-
-  return (
-    <View style={styles.characterSectionCard}>
-      <Text style={styles.sectionLabel}>CHARACTERS</Text>
-      {profiles.map((profile, index) => (
-        <BubbleSurface
-          key={profile.id}
-          colors={colors}
-          tone="neutral"
-          variant="card"
-          style={styles.characterCard}
-        >
-          <View style={styles.formLabelRow}>
-            <TextInput
-              onChangeText={(name) => updateProfile(index, { name })}
-              placeholder="Corbin"
-              placeholderTextColor={styles.placeholder.color}
-              style={[styles.formInput, styles.characterNameInput]}
-              value={profile.name}
-            />
-            <JellyPressable
-              onPress={() => removeProfile(index)}
-              style={({ pressed }) => [
-                styles.fieldActionButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.fieldActionText}>Remove</Text>
-            </JellyPressable>
-          </View>
-          <TextInput
-            multiline
-            onChangeText={(description) => updateProfile(index, { description })}
-            placeholder="A careful detective who notices small contradictions."
-            placeholderTextColor={styles.placeholder.color}
-            style={[styles.formInput, styles.formCompactTextArea]}
-            textAlignVertical="top"
-            value={profile.description}
-          />
-        </BubbleSurface>
-      ))}
-      <JellyPressable
-        onPress={addProfile}
-        style={({ pressed }) => [styles.secondarySmallButton, pressed && styles.pressed]}
-      >
-        <Text style={styles.secondarySmallButtonText}>Add Character</Text>
-      </JellyPressable>
-    </View>
-  );
-}
-
-// ChoiceGroup renders a compact segmented group for typed string options.
-function ChoiceGroup<T extends string>({
-  label,
-  labels,
-  options,
-  selected,
-  styles,
-  isWrapped,
-  onSelect,
-}: {
-  // label names the option group for the form.
-  readonly label: string;
-  // labels optionally maps domain values to user-facing text.
-  readonly labels?: Partial<Record<T, string>>;
-  // options are the allowed typed values.
-  readonly options: readonly T[];
-  // selected is the currently selected typed value.
-  readonly selected: T;
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // isWrapped controls whether choices flow in multiple rows of chips.
-  readonly isWrapped?: boolean;
-  // onSelect updates the selected typed value.
-  readonly onSelect: (value: T) => void;
-}): ReactElement {
-  return (
-    <View style={styles.formGroup}>
-      <Text style={styles.sectionLabel}>{label}</Text>
-      <View style={isWrapped ? styles.choiceRowWrapped : styles.choiceRowSingle}>
-        {options.map((option) => (
-          <JellyPressable
-            key={option}
-            onPress={() => onSelect(option)}
-            containerStyle={isWrapped ? styles.goalChoiceWrappedContainer : styles.goalChoiceSingleContainer}
-            style={({ pressed }) => [
-              isWrapped ? styles.goalChoiceWrapped : styles.goalChoiceSingle,
-              option === selected && (isWrapped ? styles.activeGoalChoiceWrapped : styles.activeGoalChoice),
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text
-              style={[
-                isWrapped ? styles.goalChoiceTextWrapped : styles.goalChoiceText,
-                option === selected && (isWrapped ? styles.activeGoalChoiceTextWrapped : styles.activeGoalChoiceText),
-              ]}
-            >
-              {labels?.[option] ?? option}
-            </Text>
-          </JellyPressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-// buildSetupDraftRequest maps the current form into the AI setup request without optional empties.
-// Selected list options are always sent; optional text is included only when the learner filled it.
-function buildSetupDraftRequest(
-  form: SeriesFormState,
-): GenerateSeriesSetupDraftRequest {
-  return {
-    genre: form.genre,
-    cefrLevel: form.cefrLevel,
-    tone: form.tone,
-    participationMode: form.participationMode,
-    ...(form.title.trim() ? { title: form.title } : {}),
-    ...(form.premise.trim() ? { premise: form.premise } : {}),
-    mainCharacters: characterProfileNames(form.characterProfiles),
-    characterProfiles: form.characterProfiles,
-    ...(form.participationMode === 'character' && form.userRole.trim()
-      ? { userRole: form.userRole }
-      : {}),
-  };
-}
-
 // validateSeriesForm keeps local creation errors visible before persistence.
 function validateSeriesForm(form: SeriesFormState): SeriesFormErrors {
   const errors: SeriesFormErrors = {};
@@ -1158,21 +1023,4 @@ function validateSeriesForm(form: SeriesFormState): SeriesFormErrors {
   }
 
   return errors;
-}
-
-// parseCharacterProfilesFromNames converts a compact name list into editable profiles.
-function parseCharacterProfilesFromNames(
-  value: string,
-): readonly SeriesCharacterProfile[] {
-  return normalizeCharacterProfiles(
-    value
-      .split(',')
-      .map((character) => character.trim())
-      .filter((character) => character.length > 0)
-      .map((name, index) => ({
-        id: createCharacterProfileId(name, index),
-        name,
-        description: '',
-      })),
-  );
 }

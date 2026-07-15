@@ -15,7 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { darkColors, lightColors } from '@presentation/theme';
 
-import { JellyPressable, screenEdgeDepths } from '../shared';
+import {
+  JellyPressable,
+  screenEdgeDepths,
+  SeriesSetupChoiceGroup,
+} from '../shared';
 import { useAppTheme } from '../theme';
 
 import {
@@ -135,6 +139,10 @@ export function DailySessionScreen({
   const [isReplacing, setIsReplacing] = useState(false);
   const [isChoosing, setIsChoosing] = useState(false);
   const [isShuffling, setIsShuffling] = useState(false);
+  // isGenerating prevents duplicate episode requests and keeps progress on the primary action.
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  // generationLockRef closes the same-render gap before isGenerating disables the button.
+  const generationLockRef = useRef<boolean>(false);
   const [generatedEpisodeId, setGeneratedEpisodeId] = useState<string>();
   const [isOnline, setIsOnline] = useState(false);
 
@@ -344,6 +352,13 @@ export function DailySessionScreen({
       return;
     }
 
+    if (generationLockRef.current) {
+      return;
+    }
+
+    generationLockRef.current = true;
+    setIsGenerating(true);
+
     try {
       const result = await localAppServices.generateEpisode.execute({
         episodeWordSet: selectionState.episodeWordSet,
@@ -376,6 +391,9 @@ export function DailySessionScreen({
       console.error('generateEpisode error:', error);
       Alert.alert('Episode generation stopped', message);
       setErrorMessage(message);
+    } finally {
+      generationLockRef.current = false;
+      setIsGenerating(false);
     }
   };
 
@@ -482,14 +500,14 @@ export function DailySessionScreen({
             />
           )}
           <GenreSelection
+            isDark={isDark}
             selectedGenre={selectedGenre}
             styles={styles}
             onSelectGenre={setSelectedGenre}
           />
-          <GenerationPanel
+          <EpisodeGenerationButton
+            isGenerating={isGenerating}
             isOnline={isOnline}
-            selectedGenre={selectedGenre}
-            selectedWordCount={selectionState.words.length}
             styles={styles}
             onGenerateEpisode={() => {
               void generateEpisode();
@@ -604,10 +622,13 @@ function StoryWordsPanel({
 
 // GenreSelection renders the approved MVP genre choices before generation.
 function GenreSelection({
+  isDark,
   selectedGenre,
   styles,
   onSelectGenre,
 }: {
+  // isDark selects the same restrained setup material used by series creation.
+  readonly isDark: boolean;
   // selectedGenre is the locally selected story genre when present.
   readonly selectedGenre: LearningGenre | undefined;
   // styles is the current theme StyleSheet contract.
@@ -617,79 +638,62 @@ function GenreSelection({
 }): ReactElement {
   return (
     <View style={styles.settingsCard}>
-      <Text style={styles.actionTitle}>Genre</Text>
-      <View style={styles.choiceRowWrapped}>
-        {learningGenres.map((genre) => (
-          <JellyPressable
-            key={genre}
-            onPress={() => onSelectGenre(genre)}
-            style={({ pressed }) => [
-              styles.goalChoiceWrapped,
-              genre === selectedGenre && styles.activeGoalChoiceWrapped,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text
-              style={[
-                styles.goalChoiceTextWrapped,
-                genre === selectedGenre && styles.activeGoalChoiceTextWrapped,
-              ]}
-            >
-              {genreLabels[genre]}
-            </Text>
-          </JellyPressable>
-        ))}
-      </View>
+      <SeriesSetupChoiceGroup
+        isDark={isDark}
+        isWrapped
+        label="Genre"
+        labels={genreLabels}
+        options={learningGenres}
+        selected={selectedGenre}
+        styles={styles}
+        onSelect={onSelectGenre}
+      />
     </View>
   );
 }
 
-// GenerationPanel opens the AI reader while keeping server-only status explicit.
-function GenerationPanel({
+// EpisodeGenerationButton keeps the final setup action concise and state-aware.
+function EpisodeGenerationButton({
+  isGenerating,
   isOnline,
-  selectedGenre,
-  selectedWordCount,
   styles,
   onGenerateEpisode,
 }: {
+  // isGenerating prevents duplicate requests and announces in-progress work.
+  readonly isGenerating: boolean;
   // isOnline tells whether server-backed generation could be attempted.
   readonly isOnline: boolean;
-  // selectedGenre is the saved genre used by the future episode request.
-  readonly selectedGenre: LearningGenre | undefined;
-  // selectedWordCount shows how many Story Words are ready locally.
-  readonly selectedWordCount: number;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
   // onGenerateEpisode calls the Supabase AI boundary through application use cases.
   readonly onGenerateEpisode: () => void;
 }): ReactElement {
+  // isDisabled keeps the action stable while offline or during the active request.
+  const isDisabled: boolean = !isOnline || isGenerating;
+
   return (
-    <View style={styles.goalCard}>
-      <Text style={styles.actionTitle}>Episode Generation</Text>
-      <Text style={styles.secondaryText}>
-        Story Words: {selectedWordCount}. Genre:{' '}
-        {selectedGenre ? genreLabels[selectedGenre] : 'not selected'}.
+    <JellyPressable
+      accessibilityHint={
+        isOnline
+          ? 'Creates the next episode from the selected Story Words and genre'
+          : 'Episode generation becomes available when the device is online'
+      }
+      accessibilityState={{ busy: isGenerating, disabled: isDisabled }}
+      disabled={isDisabled}
+      onPress={onGenerateEpisode}
+      style={({ pressed }) => [
+        styles.primaryButton,
+        isDisabled && styles.disabledControl,
+        pressed && !isDisabled && styles.pressed,
+      ]}
+    >
+      <Text style={styles.primaryButtonText}>
+        {isGenerating
+          ? 'Generating Episode...'
+          : isOnline
+            ? 'Generate Episode'
+            : 'Available When Online'}
       </Text>
-      <View style={styles.offlineNotice}>
-        <Text style={styles.stateMessageTitle}>
-          {isOnline ? 'Ready for AI generation' : 'Offline mode'}
-        </Text>
-        <Text style={styles.secondaryText}>
-          Episode generation requires Supabase Edge Functions and remains disabled
-          while the device is offline.
-        </Text>
-      </View>
-      <JellyPressable
-        disabled={!isOnline}
-        onPress={onGenerateEpisode}
-        style={({ pressed }) => [
-          styles.primaryButton,
-          !isOnline && styles.disabledControl,
-          pressed && styles.pressed,
-        ]}
-      >
-        <Text style={styles.primaryButtonText}>Generate Episode</Text>
-      </JellyPressable>
-    </View>
+    </JellyPressable>
   );
 }
