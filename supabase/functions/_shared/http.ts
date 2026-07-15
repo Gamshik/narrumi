@@ -36,6 +36,24 @@ export function safeErrorResponse(
   );
 }
 
+// generationStateResponse reports a duplicate or conflicting logical generation slot.
+export function generationStateResponse(
+  kind: 'generation_in_progress' | 'generation_conflict',
+): Response {
+  return jsonResponse(
+    {
+      error: {
+        kind,
+        message:
+          kind === 'generation_in_progress'
+            ? 'This generation is already in progress. Please wait and try again.'
+            : 'This generation slot was created from different inputs. Refresh the series before retrying.',
+      },
+    },
+    409,
+  );
+}
+
 // moderationResponse reports a blocked request without exposing hidden detection internals.
 export function moderationResponse(
   kind: "warning" | "banned",

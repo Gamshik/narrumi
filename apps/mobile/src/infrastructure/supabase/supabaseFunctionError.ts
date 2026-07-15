@@ -15,6 +15,8 @@ type SupabaseFunctionErrorBody = {
 
 // SupabaseFunctionErrorKind is the normalized function error category.
 export type SupabaseFunctionErrorKind =
+  | 'generation_in_progress'
+  | 'generation_conflict'
   | 'moderation_soft_block'
   | 'moderation_warning'
   | 'moderation_banned'
@@ -138,6 +140,8 @@ function normalizeKind(
   kind: string | undefined,
 ): SupabaseFunctionErrorKind {
   switch (kind) {
+    case 'generation_in_progress':
+    case 'generation_conflict':
     case 'moderation_soft_block':
     case 'moderation_warning':
     case 'moderation_banned':

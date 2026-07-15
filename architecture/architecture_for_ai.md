@@ -208,6 +208,7 @@ Required MVP use cases:
 - Apply Story Words actions: use in episode, know it, later, remove.
 - Assemble Episode Words for the next episode.
 - Generate an episode through an Edge Function when online.
+- Assign a stable generation request id and share one in-flight request for the same series or setup action.
 - Validate and persist generated episode locally first.
 - Play or pause episode audio sentence by sentence.
 - Open inline translation for any episode word.
@@ -304,8 +305,12 @@ Responsibilities:
 - Run Episode Writer and Language/Safety Validator flow when required.
 - Validate episode length, CEFR fit, word usage, continuity, interaction point, cliffhanger, annotations, feedback, and memory update.
 - Return typed error categories safe for the client.
+- Atomically claim generation scopes before model access. Return cached validated output for completed retries, `generation_in_progress` for an active lease, and `generation_conflict` when the same logical slot has different input.
+- Store only the request fingerprint and validated response in `generation_requests`; do not persist raw prompts in the idempotency table.
 
 The mobile app must validate Edge Function response shape again before rendering or storing data.
+
+Episode generation scope is `{seriesId}:{orderIndex}`. The Edge Function returns the canonical request id for that scope, and the client includes it in the local episode id. Series-setup scope uses one request id per explicit Generate/Regenerate action so a deliberate later regeneration remains possible.
 
 ## Offline-First Persistence
 
@@ -460,6 +465,7 @@ Trust boundary rules:
 - AI output is untrusted.
 - Edge Function request payloads are untrusted.
 - Authenticated ownership is enforced by RLS and checked where applicable.
+- `generation_requests` is RLS-protected. Claim, completion, and release RPCs are callable only with the Edge runtime service role after the function has authenticated the user.
 
 Safety rules:
 

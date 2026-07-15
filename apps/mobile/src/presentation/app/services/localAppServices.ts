@@ -36,6 +36,7 @@ import type {
 } from '@application/ports';
 import {
   AsyncStorageSyncQueue,
+  AsyncStorageGenerationRequestStore,
   AsyncStorageLocalSeriesStore,
   BundledOxfordVocabularyCatalog,
   createSupabaseClient,
@@ -55,6 +56,8 @@ import {
 const rawLocalSeriesStore = new AsyncStorageLocalSeriesStore();
 // syncQueue persists compact operation pointers after local-first writes.
 const syncQueue = new AsyncStorageSyncQueue();
+// generationRequestStore preserves unfinished AI request ids for safe retries.
+const generationRequestStore = new AsyncStorageGenerationRequestStore();
 // localSeriesStore queues every successful domain-record write for later sync.
 const localSeriesStore = new QueuedLocalSeriesStore(
   rawLocalSeriesStore,
@@ -93,6 +96,8 @@ const createSeries = createCreateSeries(
 const generateSeriesSetupDraft = createGenerateSeriesSetupDraft(
   networkStatus,
   supabaseServices.seriesSetupDraftGateway,
+  systemClock,
+  generationRequestStore,
 );
 const hydrateBootstrapSession = createHydrateBootstrapSession(
   localSeriesStore,

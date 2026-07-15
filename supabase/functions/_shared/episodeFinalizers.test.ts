@@ -11,6 +11,7 @@ import {
 
 // generateRequest is bounded context used by episode finalizer regression tests.
 const generateRequest: GenerateEpisodeRequest = {
+  generationRequestId: 'generation:test:episode-finalizer',
   seriesId: 'series:test',
   seriesTitle: 'The Blue Door',
   orderIndex: 1,

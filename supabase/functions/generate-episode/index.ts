@@ -4,17 +4,20 @@ import { z } from 'npm:zod';
 
 import {
   generateEpisodeRequestSchema,
+  episodePayloadSchema,
   type EpisodePayload,
   type GenerateEpisodeRequest,
 } from '../_shared/episodeContracts.ts';
 import { finalizeEpisodePayload } from '../_shared/episodeFinalizers.ts';
 import {
   corsHeaders,
+  generationStateResponse,
   moderationResponse,
   jsonResponse,
   logSafeError,
   safeErrorResponse,
 } from '../_shared/http.ts';
+import { runIdempotentGeneration } from '../_shared/generationIdempotency.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
 import {
   buildModerationReview,
@@ -235,9 +238,30 @@ Deno.serve(async (request: Request): Promise<Response> => {
       );
     }
 
-    const validatedPayload = await generateValidatedEpisode(payload);
+    const { generationRequestId: _generationRequestId, ...fingerprintPayload } =
+      parsedRequest.data;
+    const generationResult = await runIdempotentGeneration({
+      generate: () => generateValidatedEpisode(payload),
+      operation: 'generate-episode',
+      parseResponse: (value) => episodePayloadSchema.parse(value),
+      requestId: parsedRequest.data.generationRequestId,
+      requestPayload: fingerprintPayload,
+      scopeId: `${payload.seriesId}:${payload.orderIndex}`,
+      userId: authResult.user.userId,
+    });
 
-    return jsonResponse(validatedPayload);
+    if (generationResult.kind !== 'completed') {
+      return generationStateResponse(
+        generationResult.kind === 'in_progress'
+          ? 'generation_in_progress'
+          : 'generation_conflict',
+      );
+    }
+
+    return jsonResponse({
+      ...generationResult.response,
+      generationRequestId: generationResult.canonicalRequestId,
+    });
   } catch (error) {
     logSafeError('generate-episode AI generation failed', error, {
       model: openrouterModel,

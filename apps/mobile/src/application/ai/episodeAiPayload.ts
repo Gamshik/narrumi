@@ -50,6 +50,8 @@ export type CompactSeriesMemoryPayload = Pick<
 
 // GenerateEpisodeRequest is the application contract for the generate-episode Edge Function.
 export type GenerateEpisodeRequest = {
+  // generationRequestId makes retries idempotent at the Edge Function boundary.
+  readonly generationRequestId: string;
   // seriesId keeps the response scoped to the local continuity root.
   readonly seriesId: string;
   // seriesTitle is the user-written story name that should shape generation.
@@ -84,6 +86,8 @@ export type GenerateEpisodeRequest = {
 
 // EpisodeAiPayload is the validated structured JSON returned from generate-episode.
 export type EpisodeAiPayload = {
+  // generationRequestId is the canonical server token used for the local episode id.
+  readonly generationRequestId?: string;
   // previouslyRecap optionally gives continuity context to the learner.
   readonly previouslyRecap?: string;
   // title is the short episode label shown in history.
@@ -214,6 +218,9 @@ export function parseEpisodeAiPayload(value: unknown): EpisodeAiPayload {
   const parsed = episodeAiPayloadSchema.parse(value);
 
   return {
+    ...(parsed.generationRequestId
+      ? { generationRequestId: parsed.generationRequestId }
+      : {}),
     ...(parsed.previouslyRecap
       ? { previouslyRecap: parsed.previouslyRecap }
       : {}),
@@ -358,6 +365,7 @@ const annotationPayloadSchema = z.object({
 // episodeAiPayloadSchema mirrors the future generate-episode structured JSON.
 const episodeAiPayloadSchema = z
   .object({
+    generationRequestId: z.string().trim().min(1).max(240).optional(),
     previouslyRecap: z.string().trim().min(1).optional(),
     title: z.string().trim().min(1).optional(),
     sceneText: z.string().trim().min(1),

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type {
+  GenerationRequestStore,
   NetworkStatus,
   SeriesSetupDraftGateway,
 } from '@application/ports';
@@ -28,9 +29,13 @@ describe('generateSeriesSetupDraft', () => {
     const networkStatus: NetworkStatus = {
       getCurrentState: async () => ({ isOnline: true }),
     };
+    // gatewayCallCount proves rapid identical requests share one in-flight Promise.
+    let gatewayCallCount = 0;
     // gateway asserts that list-selected fields are passed without generation.
     const gateway: SeriesSetupDraftGateway = {
       generateSeriesSetupDraft: async (request) => {
+        gatewayCallCount += 1;
+        assert.match(request.generationRequestId, /^generation:/);
         assert.equal(request.cefrLevel, 'B1');
         assert.equal(request.genre, 'short-fiction');
         assert.equal(request.tone, 'Calm detective');
@@ -45,19 +50,76 @@ describe('generateSeriesSetupDraft', () => {
         };
       },
     };
-    const useCase = createGenerateSeriesSetupDraft(networkStatus, gateway);
+    const useCase = createGenerateSeriesSetupDraft(networkStatus, gateway, {
+      now: () => new Date('2026-07-16T00:00:00.000Z'),
+    }, createMemoryGenerationRequestStore());
 
-    const result = await useCase.execute({
+    const input = {
       title: 'Blue Door',
       cefrLevel: 'B1',
       genre: 'short-fiction',
       tone: 'Calm detective',
       participationMode: 'director',
       mainCharacters: [],
-    });
+    } as const;
+    const [result, duplicateResult] = await Promise.all([
+      useCase.execute(input),
+      useCase.execute(input),
+    ]);
 
     assert.equal(result.draft.title, 'Blue Door');
+    assert.equal(duplicateResult.draft.title, result.draft.title);
+    assert.equal(gatewayCallCount, 1);
     assert.deepEqual(result.draft.mainCharacters, ['Mira', 'Leo']);
+
+    await useCase.execute(input);
+    assert.equal(gatewayCallCount, 2);
+  });
+
+  it('reuses an unfinished request id after a failed remote attempt', async () => {
+    // networkStatus keeps both retry attempts inside the online generation path.
+    const networkStatus: NetworkStatus = {
+      getCurrentState: async () => ({ isOnline: true }),
+    };
+    // requestIds capture the identity sent before and after the transient failure.
+    const requestIds: string[] = [];
+    // gateway fails once so the durable request store must retain the same identity.
+    const gateway: SeriesSetupDraftGateway = {
+      generateSeriesSetupDraft: async (request) => {
+        requestIds.push(request.generationRequestId);
+
+        if (requestIds.length === 1) {
+          throw new Error('Temporary transport failure');
+        }
+
+        return {
+          title: 'Blue Door',
+          premise: 'Mira finds a quiet blue door under the library stairs.',
+          mainCharacters: ['Mira', 'Leo'],
+          characterProfiles,
+        };
+      },
+    };
+    const requestStore = createMemoryGenerationRequestStore();
+    const useCase = createGenerateSeriesSetupDraft(
+      networkStatus,
+      gateway,
+      { now: () => new Date('2026-07-16T00:00:00.000Z') },
+      requestStore,
+    );
+    const input = {
+      cefrLevel: 'B1',
+      genre: 'short-fiction',
+      tone: 'Calm detective',
+      participationMode: 'director',
+      mainCharacters: [],
+    } as const;
+
+    await assert.rejects(() => useCase.execute(input), /Temporary/);
+    await useCase.execute(input);
+
+    assert.equal(requestIds.length, 2);
+    assert.equal(requestIds[1], requestIds[0]);
   });
 
   it('blocks setup generation while offline', async () => {
@@ -71,7 +133,9 @@ describe('generateSeriesSetupDraft', () => {
         throw new Error('Unexpected gateway call');
       },
     };
-    const useCase = createGenerateSeriesSetupDraft(networkStatus, gateway);
+    const useCase = createGenerateSeriesSetupDraft(networkStatus, gateway, {
+      now: () => new Date('2026-07-16T00:00:00.000Z'),
+    }, createMemoryGenerationRequestStore());
 
     await assert.rejects(
       () =>
@@ -86,3 +150,21 @@ describe('generateSeriesSetupDraft', () => {
     );
   });
 });
+
+// createMemoryGenerationRequestStore models durable retry state without AsyncStorage.
+function createMemoryGenerationRequestStore(): GenerationRequestStore {
+  // requests maps canonical operation keys to unfinished request identifiers.
+  const requests = new Map<string, string>();
+
+  return {
+    get: async (operationKey) => requests.get(operationKey),
+    save: async (operationKey, requestId) => {
+      requests.set(operationKey, requestId);
+    },
+    remove: async (operationKey, requestId) => {
+      if (requests.get(operationKey) === requestId) {
+        requests.delete(operationKey);
+      }
+    },
+  };
+}

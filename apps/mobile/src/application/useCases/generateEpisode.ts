@@ -4,6 +4,7 @@ import {
   type EpisodeAiPayload,
   type SeriesMemoryUpdatePayload,
 } from "@application/ai/episodeAiPayload";
+import { createGenerationRequestId } from '@application/ai/generationRequest';
 import type {
   Clock,
   EpisodeGenerationGateway,
@@ -56,108 +57,141 @@ export function createGenerateEpisode(
   gateway: EpisodeGenerationGateway,
   clock: Clock,
 ): GenerateEpisode {
+  // activeGenerations shares one AI request for every concurrently requested series.
+  const activeGenerations = new Map<string, Promise<GenerateEpisodeResult>>();
+
   return {
-    execute: async ({ episodeWordSet, genre, seriesId }) => {
-      const connectivity = await networkStatus.getCurrentState();
+    execute: (input) => {
+      const activeGeneration = activeGenerations.get(input.seriesId);
 
-      if (!connectivity.isOnline) {
-        throw new Error("Episode generation is available only when online.");
+      if (activeGeneration) {
+        return activeGeneration;
       }
 
-      const [series, memory, episodes, vocabulary] = await Promise.all([
-        store.getSeries(seriesId),
-        store.getSeriesMemory(seriesId),
-        store.listEpisodes(seriesId),
-        catalog.list(),
-      ]);
-
-      if (!series || !memory) {
-        throw new Error(
-          "Series context is required before episode generation.",
-        );
-      }
-
-      if (series.participationMode === 'character' && !series.userRole) {
-        throw new Error('Your role is required before generating a character-mode episode.');
-      }
-
-      const words = resolveStoryWords({
-        maxLevel: series.cefrLevel,
-        vocabulary,
-        wordIds: episodeWordSet.wordIds,
-      });
-      const orderIndex = episodes.length + 1;
-      const generationGenre = genre ?? series.genre;
-      const compactSeriesMemory = {
-        ...buildCompactSeriesMemoryPayload(memory),
-        genre: generationGenre,
-      };
-      const payload = await gateway.generateEpisode({
-        seriesId,
-        seriesTitle: series.title,
-        orderIndex,
-        cefrLevel: series.cefrLevel,
-        genre: generationGenre,
-        tone: series.tone,
-        premise: series.premise,
-        participationMode: series.participationMode,
-        mainCharacters: series.mainCharacters,
-        characterProfiles: series.characterProfiles,
-        ...(series.userRole ? { userRole: series.userRole } : {}),
-        selectedStoryWords: words.map((word) => ({
-          id: word.id,
-          word: word.word,
-          partOfSpeech: word.partOfSpeech,
-          level: word.level,
-        })),
-        compactSeriesMemory,
-        ...(memory.lastEpisodeSummary
-          ? { lastEpisodeSummary: memory.lastEpisodeSummary }
-          : {}),
-        safetyAndCopyrightConstraints: SAFETY_AND_COPYRIGHT_CONSTRAINTS,
-      });
-      const timestamp = clock.now().toISOString();
-      const episodeId = `episode:${seriesId}:${Date.parse(timestamp)}`;
-      const episode = buildEpisode({
-        episodeId,
-        orderIndex,
-        payload,
-        seriesId,
-        timestamp,
-      });
-      const updatedMemory = applyMemoryUpdate({
-        memory,
-        payload: payload.memoryUpdate,
-        timestamp,
-      });
-
-      await store.saveEpisode(episode);
-      await store.saveSeriesMemory(updatedMemory);
-      await store.saveWordSet({
-        ...episodeWordSet,
-        id: `episode-words:${episodeId}`,
-        episodeId,
-        seriesId,
-        updatedAt: timestamp,
-        sync: createDirtySync(timestamp, `episode-words:${episodeId}`),
-      });
-      await Promise.all(
-        episode.storyWordIds.map((wordId) =>
-          store.saveLearningSignal(
-            createWordSignal({
-              episodeId,
-              kind: "encountered",
-              seriesId,
-              timestamp,
-              wordId,
-            }),
-          ),
-        ),
+      const generationRequestId = createGenerationRequestId(
+        `episode:${input.seriesId}`,
+        clock.now(),
       );
+      const generation = executeEpisodeGeneration(
+        input,
+        generationRequestId,
+      ).finally((): void => {
+        activeGenerations.delete(input.seriesId);
+      });
 
-      return { episode };
+      activeGenerations.set(input.seriesId, generation);
+
+      return generation;
     },
   };
+
+  // executeEpisodeGeneration performs one admitted AI request and local-first write.
+  async function executeEpisodeGeneration(
+    { episodeWordSet, genre, seriesId }: GenerateEpisodeInput,
+    generationRequestId: string,
+  ): Promise<GenerateEpisodeResult> {
+    const connectivity = await networkStatus.getCurrentState();
+
+    if (!connectivity.isOnline) {
+      throw new Error("Episode generation is available only when online.");
+    }
+
+    const [series, memory, episodes, vocabulary] = await Promise.all([
+      store.getSeries(seriesId),
+      store.getSeriesMemory(seriesId),
+      store.listEpisodes(seriesId),
+      catalog.list(),
+    ]);
+
+    if (!series || !memory) {
+      throw new Error(
+        "Series context is required before episode generation.",
+      );
+    }
+
+    if (series.participationMode === 'character' && !series.userRole) {
+      throw new Error('Your role is required before generating a character-mode episode.');
+    }
+
+    const words = resolveStoryWords({
+      maxLevel: series.cefrLevel,
+      vocabulary,
+      wordIds: episodeWordSet.wordIds,
+    });
+    const orderIndex = episodes.length + 1;
+    const generationGenre = genre ?? series.genre;
+    const compactSeriesMemory = {
+      ...buildCompactSeriesMemoryPayload(memory),
+      genre: generationGenre,
+    };
+    const payload = await gateway.generateEpisode({
+      generationRequestId,
+      seriesId,
+      seriesTitle: series.title,
+      orderIndex,
+      cefrLevel: series.cefrLevel,
+      genre: generationGenre,
+      tone: series.tone,
+      premise: series.premise,
+      participationMode: series.participationMode,
+      mainCharacters: series.mainCharacters,
+      characterProfiles: series.characterProfiles,
+      ...(series.userRole ? { userRole: series.userRole } : {}),
+      selectedStoryWords: words.map((word) => ({
+        id: word.id,
+        word: word.word,
+        partOfSpeech: word.partOfSpeech,
+        level: word.level,
+      })),
+      compactSeriesMemory,
+      ...(memory.lastEpisodeSummary
+        ? { lastEpisodeSummary: memory.lastEpisodeSummary }
+        : {}),
+      safetyAndCopyrightConstraints: SAFETY_AND_COPYRIGHT_CONSTRAINTS,
+    });
+    const timestamp = clock.now().toISOString();
+    const canonicalRequestId =
+      payload.generationRequestId ?? generationRequestId;
+    const episodeId = `episode:${seriesId}:${canonicalRequestId}`;
+    const episode = buildEpisode({
+      episodeId,
+      orderIndex,
+      payload,
+      seriesId,
+      timestamp,
+    });
+    const updatedMemory = applyMemoryUpdate({
+      memory,
+      payload: payload.memoryUpdate,
+      timestamp,
+    });
+
+    await store.saveEpisode(episode);
+    await store.saveSeriesMemory(updatedMemory);
+    await store.saveWordSet({
+      ...episodeWordSet,
+      id: `episode-words:${episodeId}`,
+      episodeId,
+      seriesId,
+      updatedAt: timestamp,
+      sync: createDirtySync(timestamp, `episode-words:${episodeId}`),
+    });
+    await Promise.all(
+      episode.storyWordIds.map((wordId) =>
+        store.saveLearningSignal(
+          createWordSignal({
+            episodeId,
+            kind: "encountered",
+            seriesId,
+            timestamp,
+            wordId,
+          }),
+        ),
+      ),
+    );
+
+    return { episode };
+  }
 }
 
 // buildEpisode maps validated AI JSON to the local Episode domain record.

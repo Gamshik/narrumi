@@ -132,9 +132,13 @@ describe('generateEpisode', () => {
     const networkStatus: NetworkStatus = {
       getCurrentState: async () => ({ isOnline: true }),
     };
+    // gatewayCallCount proves concurrent presses share one expensive generation.
+    let gatewayCallCount = 0;
     // gateway asserts that user-written series fields reach the AI boundary.
     const gateway: EpisodeGenerationGateway = {
       generateEpisode: async (request) => {
+        gatewayCallCount += 1;
+        assert.match(request.generationRequestId, /^generation:/);
         assert.equal(request.seriesTitle, 'Garden After Midnight');
         assert.equal(request.genre, 'travel-leisure');
         assert.equal(request.participationMode, 'director');
@@ -203,13 +207,19 @@ describe('generateEpisode', () => {
       { now: () => new Date(timestamp) },
     );
 
-    const result = await useCase.execute({
+    const input = {
       episodeWordSet,
       genre: 'travel-leisure',
       seriesId: series.id,
-    });
+    } as const;
+    const [result, duplicateResult] = await Promise.all([
+      useCase.execute(input),
+      useCase.execute(input),
+    ]);
 
     assert.equal(result.episode.title, 'The Midnight Gate');
+    assert.equal(duplicateResult.episode.id, result.episode.id);
+    assert.equal(gatewayCallCount, 1);
     assert.equal(savedEpisodes.length, 1);
   });
 });

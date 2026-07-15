@@ -211,6 +211,7 @@ export const interactionPayloadSchema = z.object({
 
 // generateEpisodeRequestSchema validates untrusted mobile generation requests.
 export const generateEpisodeRequestSchema = z.object({
+  generationRequestId: z.string().trim().min(1).max(240),
   seriesId: z.string().trim().min(1),
   seriesTitle: z.string().trim().min(1).max(160),
   orderIndex: z.number().int().positive(),

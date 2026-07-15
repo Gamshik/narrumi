@@ -34,6 +34,7 @@
 - **AI SDK:** Vercel AI SDK (via Deno native `npm:` specifier, e.g., `npm:ai` and `npm:@ai-sdk/openai`) for structured JSON outputs such as generated episodes, interaction choices, correction payloads, translation annotations, and series-memory updates. Complex continuation flows may be decomposed into smaller model calls and then assembled by the Edge Function into one final validated response.
 - **Online-Only AI:** Episode generation, AI continuation, AI correction, and grammar-style explanations require an internet connection. Do not attempt to run LLM generation on device for the MVP.
 - **Controlled Context:** Edge Functions must send compact series memory, recent episode summary, selected Story Words, already encountered Story Word ids, user level, safety constraints, and output schema to the model. Do not send unbounded full series history.
+- **Idempotent Generation:** Episode and series-setup generation requests carry a stable `generationRequestId`. Edge Functions atomically claim a user-owned generation scope, cache only validated output, and return the cached result for transport retries instead of calling OpenRouter again.
 
 #### Audio (TTS): Native Device Integration
 - **Implementation:** Expo Speech (`expo-speech`) API.
@@ -138,6 +139,7 @@ When writing code for this project, you MUST strictly adhere to these rules:
 * **Offline-First Writes:** Any user action that changes series state, episode state, word sets, learning signals, preferences, or sync metadata must be persisted locally before attempting network sync.
 * **Dictionary Loading:** Load the Oxford 5000 JSON locally from the app bundle. Keep parsing and indexing deterministic, typed, and validated at the boundary.
 * **Structured AI Output:** Edge Functions must return structured, validated JSON for episodes, interaction options, annotations, corrections, and memory updates. The mobile app must validate the response shape before rendering.
+* **Generation Concurrency:** UI actions close the same-render double-press gap, application use cases share one in-flight Promise per logical scope, and the database keeps one generation request per authenticated scope. Episode scope includes `seriesId` and `orderIndex` so concurrent clients cannot create different payloads for the same episode number.
 * **Series Memory Safety:** Send compact memory and summaries to the model. Do not rely on full unbounded conversation history for continuity.
 * **Sync Safety:** Treat local records, remote records, user input, and AI output as untrusted inputs during reconciliation. Validate shape, user ownership, timestamps, and allowed state transitions before applying changes.
 * **Copyright Safety:** Do not generate direct copies of copyrighted story worlds, characters, or plots. If a user requests one, steer toward an original story with a similar broad genre or mood.

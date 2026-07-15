@@ -4,12 +4,14 @@ import { z } from 'npm:zod';
 
 import {
   corsHeaders,
+  generationStateResponse,
   jsonResponse,
   logSafeError,
   logSafeInfo,
   moderationResponse,
   safeErrorResponse,
 } from '../_shared/http.ts';
+import { runIdempotentGeneration } from '../_shared/generationIdempotency.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
 import { isRepeatedSetupConcept } from './regeneration.ts';
 import { resolveDraftFields } from './draftPreservation.ts';
@@ -47,6 +49,7 @@ const setupTextFields = ['premise', 'mainCharacters', 'userRole', 'title'] as co
 
 // setupDraftRequestSchema validates selected constraints and optional user text.
 const setupDraftRequestSchema = z.object({
+  generationRequestId: z.string().trim().min(1).max(240),
   title: z.string().trim().min(1).max(160).optional(),
   genre: z.enum(['daily-life', 'work-it', 'travel-leisure', 'short-fiction']),
   cefrLevel: z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']),
@@ -227,7 +230,29 @@ Deno.serve(async (request) => {
       );
     }
 
-    return jsonResponse(await generateSetupDraft(parsedRequest.data));
+    const { generationRequestId, ...fingerprintPayload } = parsedRequest.data;
+    const generationResult = await runIdempotentGeneration({
+      generate: () => generateSetupDraft(parsedRequest.data),
+      operation: 'generate-series-setup',
+      parseResponse: (value) => setupDraftSchema.parse(value),
+      requestId: generationRequestId,
+      requestPayload: fingerprintPayload,
+      scopeId: generationRequestId,
+      userId: authResult.user.userId,
+    });
+
+    if (generationResult.kind !== 'completed') {
+      return generationStateResponse(
+        generationResult.kind === 'in_progress'
+          ? 'generation_in_progress'
+          : 'generation_conflict',
+      );
+    }
+
+    return jsonResponse({
+      ...generationResult.response,
+      generationRequestId: generationResult.canonicalRequestId,
+    });
   } catch (error) {
     logSafeError('generate-series-setup failed', error, {
       model: openrouterModel,
