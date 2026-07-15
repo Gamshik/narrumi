@@ -54,7 +54,7 @@ export function DictionaryLevelFilterButton({
       ]}
     >
       <Svg
-        accessibilityElementsHidden
+        aria-hidden
         height={22}
         pointerEvents="none"
         viewBox="0 0 24 24"

@@ -223,7 +223,7 @@ export function SeriesDeleteAction({
 // TrashIcon renders a rounded white glyph sized for the inflated action core.
 function TrashIcon(): ReactElement {
   return (
-    <Svg accessible={false} height={24} viewBox="0 0 32 32" width={24}>
+    <Svg aria-hidden height={24} viewBox="0 0 32 32" width={24}>
       <Rect
         fill="none"
         height={15}

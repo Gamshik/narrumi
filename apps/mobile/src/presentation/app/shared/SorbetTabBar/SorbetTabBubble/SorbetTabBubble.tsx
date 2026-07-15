@@ -30,7 +30,7 @@ export function SorbetTabBubble({
 }: SorbetTabBubbleProps): ReactElement {
   return (
     <Svg
-      accessibilityElementsHidden
+      aria-hidden
       height={bubbleSize}
       viewBox={`0 0 ${bubbleSize} ${bubbleSize}`}
       width={bubbleSize}

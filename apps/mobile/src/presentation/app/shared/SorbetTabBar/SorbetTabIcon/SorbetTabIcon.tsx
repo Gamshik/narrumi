@@ -20,7 +20,7 @@ export function SorbetTabIcon({
   if (name === 'dictionary') {
     return (
       <Svg
-        accessibilityElementsHidden
+        aria-hidden
         height={21}
         viewBox="0 0 24 24"
         width={21}
@@ -40,7 +40,7 @@ export function SorbetTabIcon({
   if (name === 'settings') {
     return (
       <Svg
-        accessibilityElementsHidden
+        aria-hidden
         height={21}
         viewBox="0 0 24 24"
         width={21}
@@ -67,7 +67,7 @@ export function SorbetTabIcon({
 
   return (
     <Svg
-      accessibilityElementsHidden
+      aria-hidden
       height={21}
       viewBox="0 0 24 24"
       width={21}

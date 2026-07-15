@@ -385,7 +385,7 @@ export function DictionarySearchIcon({
             style={styles.material}
           />
           <Svg
-            accessibilityElementsHidden
+            aria-hidden
             height={20}
             pointerEvents="none"
             viewBox="0 0 24 24"
