@@ -22,7 +22,7 @@ export default function EpisodeReaderRoute(): ReactElement {
   const isReadOnly = readOnly === 'true';
 
   return (
-    <RouteScreen isDark={isDark} styles={styles}>
+    <RouteScreen isDark={isDark} isEdgeToEdge styles={styles}>
       <EpisodeReaderScreen
         {...(normalizedEpisodeId ? { episodeId: normalizedEpisodeId } : {})}
         {...(normalizedSeriesId ? { seriesId: normalizedSeriesId } : {})}

@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-
 import { darkColors, lightColors } from '@presentation/theme/tokens';
 
 import { createStyles } from './MobileApp.styles';
@@ -16,12 +14,20 @@ type AppStylesState = {
   readonly styles: AppStyles;
 };
 
+// lightAppStyles is built once so light-theme commits only select a stable contract.
+const lightAppStyles: AppStyles = createStyles(lightColors);
+// darkAppStyles is built once so dark-theme commits avoid repeated 264-key allocation.
+const darkAppStyles: AppStyles = createStyles(darkColors);
+
 // useAppStyles binds the active theme tokens to the app StyleSheet contract.
 export function useAppStyles(): AppStylesState {
   const { isDark } = useAppTheme();
-  const colors = isDark ? darkColors : lightColors;
-  // styles is memoized so render paths do not recreate StyleSheet objects.
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  // colors selects one module-stable semantic palette object.
+  const colors: typeof lightColors | typeof darkColors = isDark
+    ? darkColors
+    : lightColors;
+  // styles selects a prebuilt StyleSheet instead of rebuilding it per consumer.
+  const styles: AppStyles = isDark ? darkAppStyles : lightAppStyles;
 
   return { isDark, colors, styles };
 }

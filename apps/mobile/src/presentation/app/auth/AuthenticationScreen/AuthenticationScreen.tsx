@@ -6,8 +6,10 @@ import {
   ScrollView,
   Text,
   TextInput,
+  type ViewStyle,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BubbleButton,
   BubbleStatus,
@@ -17,6 +19,7 @@ import {
 } from '@presentation/app/shared';
 import { useAppStyles } from '@presentation/app/useAppStyles';
 import { useAuthSession } from '../AuthProvider';
+import { AuthEdgeGradients } from './AuthEdgeGradients';
 
 // AuthMode selects whether the form signs in or creates an account.
 type AuthMode = 'sign-in' | 'sign-up';
@@ -25,6 +28,7 @@ type AuthMode = 'sign-in' | 'sign-up';
 export function AuthenticationScreen(): ReactElement {
   const { signIn, signUp } = useAuthSession();
   const { isDark, colors, styles } = useAppStyles();
+  const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -65,15 +69,23 @@ export function AuthenticationScreen(): ReactElement {
 
   const isDisabled =
     isSubmitting || email.trim().length === 0 || password.length === 0;
+  // authContentInsets protect the form while the background and edge fades use the full screen.
+  const authContentInsets: ViewStyle = {
+    paddingTop: insets.top + 28,
+    paddingBottom: insets.bottom + 28,
+  };
 
   return (
-    <RouteScreen isDark={isDark} styles={styles}>
+    <RouteScreen isDark={isDark} isEdgeToEdge styles={styles}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.authKeyboardView}
       >
         <ScrollView
-          contentContainerStyle={styles.authScrollContent}
+          contentContainerStyle={[
+            styles.authScrollContent,
+            authContentInsets,
+          ]}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
         >
@@ -173,6 +185,7 @@ export function AuthenticationScreen(): ReactElement {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <AuthEdgeGradients colors={colors} />
     </RouteScreen>
   );
 }

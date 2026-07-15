@@ -44,10 +44,38 @@ type AppColorTokens = {
   readonly blobBubblegum: string;
   // blobMint tints the tertiary floating background blob behind screens.
   readonly blobMint: string;
-  // tabBarSurface is the translucent fill layered over the floating tab bar blur.
+  // tabBarSurface is the fallback fill beneath the floating toy-gel capsule.
   readonly tabBarSurface: string;
-  // tabBarBorder is the soft highlight hairline around the floating tab bar.
+  // tabBarBorder is the soft toy edge around the floating tab bar.
   readonly tabBarBorder: string;
+  // tabBarToyGradient matches the translucent candy fill used by Sorbet background bubbles.
+  readonly tabBarToyGradient: readonly [string, string, string];
+  // tabBarToyHighlight colors the broad oval reflection on the capsule.
+  readonly tabBarToyHighlight: string;
+  // tabBarToyShade colors the soft lower-right shade that inflates the capsule.
+  readonly tabBarToyShade: string;
+  // tabBarToyRim colors the bright top edge shared by toy-like Sorbet surfaces.
+  readonly tabBarToyRim: string;
+  // tabBarActiveGradient fills the moving bubble with grape-to-sky candy color.
+  readonly tabBarActiveGradient: readonly [string, string, string];
+  // tabBarToyBubbleHighlight colors the oval reflection inside the moving bubble.
+  readonly tabBarToyBubbleHighlight: string;
+  // tabBarToyBubbleShade rounds the moving bubble with a playful lower-right shadow.
+  readonly tabBarToyBubbleShade: string;
+  // tabBarActiveBorder separates the candy bubble from the capsule beneath it.
+  readonly tabBarActiveBorder: string;
+  // tabBarActiveContent is the accessible icon color drawn over the active gradient.
+  readonly tabBarActiveContent: string;
+  // tabBarGlow tints exterior and selection shadows without introducing neutral black elevation.
+  readonly tabBarGlow: string;
+  // tabBarTrail colors the delayed droplet and arrival ripple behind the active lens.
+  readonly tabBarTrail: string;
+  // tabBarRippleBloom colors the broad translucent wash created at touch-down.
+  readonly tabBarRippleBloom: string;
+  // tabBarRippleFront colors the dominant circle traveling across the glass surface.
+  readonly tabBarRippleFront: string;
+  // tabBarRippleEcho colors the delayed secondary ring behind the main wavefront.
+  readonly tabBarRippleEcho: string;
   // bubbleSurface is the default raised Bubble/Sorbet surface fill.
   readonly bubbleSurface: string;
   // bubbleSurfaceMuted is the lower-emphasis surface fill for quiet panels.
@@ -115,8 +143,30 @@ export const lightColors: AppColorTokens = {
   blobGrape: '#a86bff',
   blobBubblegum: '#ff4d97',
   blobMint: '#31b8ff',
-  tabBarSurface: 'rgba(255, 255, 255, 0.76)',
-  tabBarBorder: 'rgba(255, 255, 255, 0.78)',
+  tabBarSurface: 'rgba(255, 255, 255, 0.48)',
+  tabBarBorder: 'rgba(255, 255, 255, 0.70)',
+  tabBarToyGradient: [
+    'rgba(255, 255, 255, 0.78)',
+    'rgba(239, 229, 255, 0.68)',
+    'rgba(222, 244, 255, 0.58)',
+  ],
+  tabBarToyHighlight: 'rgba(255, 255, 255, 0.34)',
+  tabBarToyShade: 'rgba(76, 38, 137, 0.10)',
+  tabBarToyRim: 'rgba(255, 255, 255, 0.82)',
+  tabBarActiveGradient: [
+    'rgba(189, 117, 255, 0.88)',
+    'rgba(107, 53, 255, 0.92)',
+    'rgba(49, 184, 255, 0.64)',
+  ],
+  tabBarToyBubbleHighlight: 'rgba(255, 255, 255, 0.34)',
+  tabBarToyBubbleShade: 'rgba(33, 8, 67, 0.18)',
+  tabBarActiveBorder: 'rgba(255, 255, 255, 0.34)',
+  tabBarActiveContent: '#ffffff',
+  tabBarGlow: '#713cff',
+  tabBarTrail: 'rgba(107, 53, 255, 0.24)',
+  tabBarRippleBloom: 'rgba(107, 53, 255, 0.14)',
+  tabBarRippleFront: 'rgba(107, 53, 255, 0.40)',
+  tabBarRippleEcho: 'rgba(49, 184, 255, 0.26)',
   bubbleSurface: 'rgba(255, 255, 255, 0.78)',
   bubbleSurfaceMuted: 'rgba(255, 255, 255, 0.54)',
   bubbleSurfaceRaised: '#ffffff',
@@ -170,8 +220,30 @@ export const darkColors: AppColorTokens = {
   blobGrape: '#8257ff',
   blobBubblegum: '#ff4f9a',
   blobMint: '#44c8ff',
-  tabBarSurface: 'rgba(18, 11, 31, 0.76)',
-  tabBarBorder: 'rgba(255, 255, 255, 0.11)',
+  tabBarSurface: 'rgba(30, 20, 49, 0.78)',
+  tabBarBorder: 'rgba(255, 255, 255, 0.12)',
+  tabBarToyGradient: [
+    'rgba(56, 37, 84, 0.90)',
+    'rgba(38, 24, 61, 0.88)',
+    'rgba(21, 43, 58, 0.76)',
+  ],
+  tabBarToyHighlight: 'rgba(255, 255, 255, 0.12)',
+  tabBarToyShade: 'rgba(9, 3, 18, 0.22)',
+  tabBarToyRim: 'rgba(255, 255, 255, 0.18)',
+  tabBarActiveGradient: [
+    'rgba(189, 117, 255, 0.86)',
+    'rgba(130, 87, 255, 0.92)',
+    'rgba(68, 200, 255, 0.62)',
+  ],
+  tabBarToyBubbleHighlight: 'rgba(255, 255, 255, 0.26)',
+  tabBarToyBubbleShade: 'rgba(9, 3, 18, 0.28)',
+  tabBarActiveBorder: 'rgba(255, 255, 255, 0.18)',
+  tabBarActiveContent: '#ffffff',
+  tabBarGlow: '#8257ff',
+  tabBarTrail: 'rgba(189, 117, 255, 0.28)',
+  tabBarRippleBloom: 'rgba(130, 87, 255, 0.16)',
+  tabBarRippleFront: 'rgba(255, 255, 255, 0.44)',
+  tabBarRippleEcho: 'rgba(68, 200, 255, 0.30)',
   bubbleSurface: 'rgba(26, 17, 43, 0.86)',
   bubbleSurfaceMuted: 'rgba(30, 20, 49, 0.62)',
   bubbleSurfaceRaised: '#2c1d43',
@@ -257,7 +329,7 @@ export const tabBarLayout: AppTabBarLayoutTokens = {
   minimumBottomInset: 12,
   bottomGap: 6,
   contentGap: spacing.lg,
-  activeIconSize: 36,
+  activeIconSize: 40,
 } as const;
 
 // AppMotionTokens defines reusable minimal motion values for Bubble controls.

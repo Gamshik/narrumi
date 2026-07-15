@@ -3,7 +3,8 @@ import { Stack, ThemeProvider as NavigationThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import {
@@ -46,17 +47,19 @@ export default function Layout(): ReactElement {
   }
 
   return (
-    <ThemeProvider>
-      <ThemedSafeAreaRoot>
-        <AuthProvider>
-          <AuthGate>
-            <BootstrapProvider>
-              <ThemedStack />
-            </BootstrapProvider>
-          </AuthGate>
-        </AuthProvider>
-      </ThemedSafeAreaRoot>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <ThemedSafeAreaRoot>
+          <AuthProvider>
+            <AuthGate>
+              <BootstrapProvider>
+                <ThemedStack />
+              </BootstrapProvider>
+            </AuthGate>
+          </AuthProvider>
+        </ThemedSafeAreaRoot>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -67,10 +70,14 @@ function ThemedSafeAreaRoot({ children }: ThemedSafeAreaRootProps): ReactElement
   const colors: AppColors = isDark ? darkColors : lightColors;
 
   return (
-    <SafeAreaProvider style={{ flex: 1, backgroundColor: colors.backgroundPrimary }}>
-      <View style={{ flex: 1 }}>
+    <SafeAreaProvider
+      style={[styles.root, { backgroundColor: colors.backgroundPrimary }]}
+    >
+      <View style={styles.root}>
         <SorbetBackground colors={colors} />
-        <NavigationThemeProvider value={createNavigationTheme(colors, isDark)}>
+        <NavigationThemeProvider
+          value={isDark ? darkNavigationTheme : lightNavigationTheme}
+        >
           {children}
         </NavigationThemeProvider>
       </View>
@@ -111,10 +118,21 @@ function createNavigationTheme(colors: AppColors, isDark: boolean): NavigationTh
   };
 }
 
+// lightNavigationTheme is built once so Router receives a stable light identity.
+const lightNavigationTheme: NavigationTheme = createNavigationTheme(
+  lightColors,
+  false,
+);
+// darkNavigationTheme is built once so Router receives a stable dark identity.
+const darkNavigationTheme: NavigationTheme = createNavigationTheme(
+  darkColors,
+  true,
+);
+
 // ThemedStack keeps the native navigation surfaces aligned with app appearance during route transitions.
 function ThemedStack(): ReactElement {
   return (
-    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+    <View style={styles.stack}>
       <Stack
         screenOptions={{
           contentStyle: { backgroundColor: 'transparent' },
@@ -146,3 +164,14 @@ function ThemedStack(): ReactElement {
     </View>
   );
 }
+
+// styles keep root layout objects stable during palette commits.
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  stack: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+});

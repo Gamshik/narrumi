@@ -183,13 +183,15 @@ Shared metrics:
 - minimum bottom inset: `12`
 - bottom gap: `6`
 - content gap: `24`
-- active icon backing: `36`
+- active icon backing: `40`
 
 Rules:
 
 - Main scroll containers must reserve enough bottom padding so the floating tab bar never overlaps the final actionable card.
-- The floating tab shell should use translucent Sorbet surface tokens, not a hard opaque slab.
-- The active tab must feel physically selected through a circular backing, stronger shadow, and slight scale lift.
+- The floating tab shell should use the same stylized toy-gel construction as the shared Sorbet bubbles: a translucent candy gradient, one broad oval highlight, a soft lower-right shade, a bright rounded rim, and warm colored elevation. Do not use realistic live blur or optical refraction here; the capsule should feel playful and inflated rather than like system glass.
+- The active tab uses one shared circular jelly bubble that springs between destinations. Render its silhouette as an SVG circle and clip the `fill + highlight + shade` layers with that same vector circle; do not depend on a small native rounded-rectangle mask for the outer shape. Use a grape-to-sky candy fill and a white icon. Touch-down must send a restrained but readable circular wave and one faint delayed echo outward from the pressed item, including repeat presses on the active destination. The bubble may briefly swell uniformly and leave one small delayed droplet, but it must remain mathematically circular at every transition frame and settle back to the canonical `40`-point backing without moving labels or hit targets.
+- Use the shared rounded vector icons for primary destinations. Do not rely on platform emoji, whose weight and color vary between operating systems.
+- Tab content changes use a short directional shift and fade over the persistent background. When the operating system requests reduced motion, both the scene transition and decorative lens movement must become immediate.
 
 ## 8. Motion System
 
@@ -213,6 +215,12 @@ Rules:
 - Large background motion must be sequential, not concurrent chaos. Randomness is allowed only inside bounded scenarios that return to rest cleanly.
 - When animating decorative collisions, keep exact contact believable. Bubbles should appear to meet, compress, and separate, not teleport or repel from visible distance.
 - Background motion must never compete with reading, translation, or form interactions.
+
+### Theme Transition
+
+- A user-triggered light/dark switch must apply the selected palette immediately in the same interaction beat.
+- Do not add app-wide screenshots, masks, waves, overlays, or delayed palette commits to theme switching.
+- Keep feedback local to the switch: its thumb performs one smooth native-driver spring without restarting when the controlled value catches up.
 
 ## 9. Screen-Level Guidance
 

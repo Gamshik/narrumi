@@ -65,10 +65,6 @@ export function BubbleSurface({
       />
       <View
         pointerEvents="none"
-        style={[styles.highlight, { backgroundColor: colors.bubbleBorder }]}
-      />
-      <View
-        pointerEvents="none"
         style={[styles.sheen, { backgroundColor: colors.bubbleBorder }]}
       />
       {children}
@@ -146,15 +142,6 @@ const styles = StyleSheet.create({
   base: {
     borderWidth: 1,
     overflow: 'hidden',
-  },
-  highlight: {
-    borderRadius: radii.pill,
-    height: 1,
-    left: spacing.lg,
-    opacity: 0.58,
-    position: 'absolute',
-    right: spacing.lg,
-    top: 1,
   },
   sheen: {
     borderRadius: 110,

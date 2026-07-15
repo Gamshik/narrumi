@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
   Animated,
@@ -43,16 +43,39 @@ export function BubbleToggle({
   ...pressableProps
 }: BubbleToggleProps): ReactElement {
   // animValue tracks the 0-1 transition state for native-driver animation.
-  const [animValue] = useState(() => new Animated.Value(value ? 1 : 0));
+  const [animValue] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(value ? 1 : 0),
+  );
+  // visualValueRef tracks the target already sent to the native animation driver.
+  const visualValueRef = useRef<boolean>(value);
+  // pendingValueRef identifies a controlled value that must not restart the active spring.
+  const pendingValueRef = useRef<boolean | undefined>(undefined);
 
-  useEffect(() => {
+  // startToggleAnimation gives the control immediate native feedback before parent work begins.
+  const startToggleAnimation = useCallback((nextValue: boolean): void => {
+    visualValueRef.current = nextValue;
     Animated.spring(animValue, {
-      toValue: value ? 1 : 0,
+      toValue: nextValue ? 1 : 0,
       useNativeDriver: true,
       speed: 30,
       bounciness: 5,
     }).start();
-  }, [value, animValue]);
+  }, [animValue]);
+
+  useEffect((): void => {
+    if (pendingValueRef.current === value) {
+      // The parent accepted the optimistic target; keep the running native spring intact.
+      pendingValueRef.current = undefined;
+      visualValueRef.current = value;
+      return;
+    }
+
+    if (visualValueRef.current !== value) {
+      // External controlled updates still animate when they did not originate here.
+      pendingValueRef.current = undefined;
+      startToggleAnimation(value);
+    }
+  }, [startToggleAnimation, value]);
   // resolvedAccessibilityState announces the real checked and disabled state.
   const resolvedAccessibilityState: AccessibilityState = {
     ...accessibilityState,
@@ -69,7 +92,11 @@ export function BubbleToggle({
   // handlePress flips the presentation state through the caller-owned callback.
   const handlePress = (_event: GestureResponderEvent): void => {
     if (!disabled) {
-      onValueChange(!value);
+      // nextValue uses the visual target so rapid input never reads a stale controlled prop.
+      const nextValue: boolean = !visualValueRef.current;
+      pendingValueRef.current = nextValue;
+      startToggleAnimation(nextValue);
+      onValueChange(nextValue);
     }
   };
 
@@ -80,7 +107,10 @@ export function BubbleToggle({
       disabled={disabled}
       onPress={handlePress}
       scaleTo={disabled ? 1 : motion.pressScale}
-      style={[styles.track, disabled && styles.disabled]}
+      style={[
+        styles.track,
+        disabled && styles.disabled,
+      ]}
       containerStyle={style}
       {...pressableProps}
     >

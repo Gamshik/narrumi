@@ -13,6 +13,8 @@ type ScreenEdgeDepths = {
   readonly top: number;
   // compactTop is the reduced upper fade depth for dense navigation-led screens.
   readonly compactTop: number;
+  // readerTop is the shortest upper fade that still clears fixed Reader controls.
+  readonly readerTop: number;
   // bottom is the gradient-only fade depth above the device bottom inset.
   readonly bottom: number;
   // modalBottom is the quieter fade depth used when no bottom navigation is present.
@@ -23,6 +25,7 @@ type ScreenEdgeDepths = {
 export const screenEdgeDepths: ScreenEdgeDepths = {
   top: 124,
   compactTop: 82,
+  readerTop: 70,
   bottom: 132,
   modalBottom: 88,
 };
@@ -30,7 +33,7 @@ export const screenEdgeDepths: ScreenEdgeDepths = {
 // ScreenEdgeBottomVariant selects the lower fade appropriate to persistent navigation or a modal canvas.
 type ScreenEdgeBottomVariant = 'navigation' | 'modal';
 // ScreenEdgeTopVariant selects standard or reduced upper material depth.
-type ScreenEdgeTopVariant = 'standard' | 'compact';
+type ScreenEdgeTopVariant = 'standard' | 'compact' | 'reader';
 
 // mediumBlurDepth adds a second gentle blur step across the upper half of the fade.
 const mediumBlurDepth: number = 82;
@@ -70,9 +73,11 @@ export function ScreenEdgeEffects({
 }: ScreenEdgeEffectsProps): ReactElement {
   // topDepth selects the canonical material height for the current screen density.
   const topDepth: number =
-    topVariant === 'compact'
-      ? screenEdgeDepths.compactTop
-      : screenEdgeDepths.top;
+    topVariant === 'reader'
+      ? screenEdgeDepths.readerTop
+      : topVariant === 'compact'
+        ? screenEdgeDepths.compactTop
+        : screenEdgeDepths.top;
   // topHeight combines the device inset with the selected tint fade depth.
   const topHeight: number = topInset + topDepth;
   // mediumBlurHeight ends the middle blur layer before the transparent tint edge.

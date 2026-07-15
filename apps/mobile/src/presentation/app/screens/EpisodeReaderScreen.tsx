@@ -1,9 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import type { ReactElement, RefObject } from 'react';
+import { BlurTargetView } from 'expo-blur';
+import {
+  Alert,
+  Animated,
+  Easing,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  ScrollView,
+  Text,
+  type ViewStyle,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { darkColors, lightColors } from '@presentation/theme';
 
-import { BackIconButton, JellyPressable } from '../shared';
+import {
+  BackIconButton,
+  JellyPressable,
+  screenEdgeDepths,
+} from '../shared';
 import { useAppTheme } from '../theme';
 
 import type {
@@ -19,6 +36,11 @@ import {
   EpisodeSentence,
   TranslationSheet,
 } from './episodeReader/components';
+import { EpisodeReaderEdgeEffects } from './EpisodeReaderEdgeEffects';
+import {
+  getFocusedEpisodeHeaderIndex,
+  type EpisodeHeaderGeometry,
+} from './EpisodeReaderEdgeEffects/episodeReaderHeaderMotion';
 import type { SpeakerThemeName } from './episodeReader/components/EpisodeSentence/EpisodeSentence';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
@@ -33,6 +55,15 @@ const SPEAKER_THEME_ORDER: readonly SpeakerThemeName[] = [
 
 // CONTINUATION_MINIMUM_LATENCY_MS keeps the inline shimmer visible during fast responses.
 const CONTINUATION_MINIMUM_LATENCY_MS = 1500;
+
+// readerHeaderCollapseOffset matches Home's deliberate upward-scroll threshold.
+const readerHeaderCollapseOffset: number = 38;
+// readerHeaderExpandOffset matches Home's hysteresis against tiny scroll reversals.
+const readerHeaderExpandOffset: number = 12;
+// readerTitleTransitionDuration keeps the large-to-compact title swap identical to Home.
+const readerTitleTransitionDuration: number = 220;
+// readerMaterialTransitionDuration fades top material without a directional reveal.
+const readerMaterialTransitionDuration: number = 180;
 
 // EpisodeReaderScreenProps carries route input and series reader behavior.
 type EpisodeReaderScreenProps = {
@@ -57,7 +88,17 @@ export function EpisodeReaderScreen({
   styles,
 }: EpisodeReaderScreenProps): ReactElement {
   const { isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const colors = isDark ? darkColors : lightColors;
+  // titleTransition drives only the autonomous large-to-compact metadata swap.
+  const [titleTransition] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(0),
+  );
+  // materialTransition controls only the top blur-and-gradient opacity.
+  const [materialTransition] = useState<Animated.Value>(
+    (): Animated.Value => new Animated.Value(0),
+  );
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const [episodes, setEpisodes] = useState<readonly Episode[]>([]);
   const [activeEpisodeIndex, setActiveEpisodeIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string>();
@@ -67,6 +108,47 @@ export function EpisodeReaderScreen({
   const [selectedAnnotation, setSelectedAnnotation] =
     useState<TranslationAnnotation>();
   const scrollViewRef = useRef<ScrollView>(null);
+  // blurTargetRef identifies Reader content for Expo's Android blur implementation.
+  const blurTargetRef: RefObject<View | null> = useRef<View>(null);
+  // episodeBlockTopsRef stores each full-series episode origin in scroll-content coordinates.
+  const episodeBlockTopsRef: RefObject<Map<string, number>> = useRef<
+    Map<string, number>
+  >(new Map<string, number>());
+  // episodeHeadingHeightsRef stores the complete badge-and-title height for each episode.
+  const episodeHeadingHeightsRef: RefObject<Map<string, number>> = useRef<
+    Map<string, number>
+  >(new Map<string, number>());
+  // readerContentInsets reserves only the compact Reader fades to maximize the visible text workspace.
+  const readerContentInsets: ViewStyle = {
+    paddingTop: insets.top + screenEdgeDepths.readerTop + 2,
+    paddingBottom: insets.bottom + screenEdgeDepths.modalBottom + 16,
+  };
+  // readerStateInsets keeps pre-content states clear of system areas on the edge-to-edge route.
+  const readerStateInsets: ViewStyle = {
+    paddingTop: insets.top + 20,
+    paddingBottom: insets.bottom + 20,
+  };
+  // largeTitleOpacity removes large metadata before the compact peer reaches full opacity.
+  const largeTitleOpacity: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.18, 0.58, 1],
+      outputRange: [1, 1, 0, 0],
+      extrapolate: 'clamp',
+    });
+  // largeTitleTranslateY lets the large metadata leave with the reading content.
+  const largeTitleTranslateY: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.58, 1],
+      outputRange: [0, -10, -10],
+      extrapolate: 'clamp',
+    });
+  // largeTitleScale adds the same restrained compression used by Home.
+  const largeTitleScale: Animated.AnimatedInterpolation<number> =
+    titleTransition.interpolate({
+      inputRange: [0, 0.58, 1],
+      outputRange: [1, 0.97, 0.97],
+      extrapolate: 'clamp',
+    });
 
   const activeEpisode = episodes[activeEpisodeIndex];
   // backButton keeps reader navigation identical across loading, error, and content states.
@@ -78,6 +160,37 @@ export function EpisodeReaderScreen({
       onPress={onExit}
     />
   ) : null;
+
+  useEffect(() => {
+    // Reader uses the same autonomous title timing after scroll selects the target state.
+    const titleAnimation: Animated.CompositeAnimation = Animated.timing(
+      titleTransition,
+      {
+        toValue: isHeaderCollapsed ? 1 : 0,
+        duration: readerTitleTransitionDuration,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      },
+    );
+    // Material appears with a short opacity-only fade shared by Home and Settings.
+    const materialAnimation: Animated.CompositeAnimation = Animated.timing(
+      materialTransition,
+      {
+        toValue: isHeaderCollapsed ? 1 : 0,
+        duration: readerMaterialTransitionDuration,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      },
+    );
+
+    titleAnimation.start();
+    materialAnimation.start();
+
+    return (): void => {
+      titleAnimation.stop();
+      materialAnimation.stop();
+    };
+  }, [isHeaderCollapsed, materialTransition, titleTransition]);
 
   const loadReader = useCallback(async (): Promise<void> => {
     try {
@@ -194,9 +307,84 @@ export function EpisodeReaderScreen({
     }
   };
 
+  const handleReaderScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ): void => {
+    const offsetY: number = event.nativeEvent.contentOffset.y;
+
+    if (episodes.length > 1) {
+      // measuredHeaders excludes incomplete layout pairs until both values are available.
+      const measuredHeaders: EpisodeHeaderGeometry[] = episodes.flatMap(
+        (episode: Episode, index: number): EpisodeHeaderGeometry[] => {
+          const top: number | undefined = episodeBlockTopsRef.current.get(
+            episode.id,
+          );
+          const height: number | undefined =
+            episodeHeadingHeightsRef.current.get(episode.id);
+
+          return top === undefined || height === undefined
+            ? []
+            : [{ height, index, top }];
+        },
+      );
+      const focusedEpisodeIndex: number | undefined =
+        getFocusedEpisodeHeaderIndex({
+          blurBottom: insets.top + screenEdgeDepths.readerTop,
+          headers: measuredHeaders,
+          scrollOffset: offsetY,
+        });
+
+      if (focusedEpisodeIndex === undefined) {
+        if (isHeaderCollapsed) {
+          setIsHeaderCollapsed(false);
+        }
+        return;
+      }
+
+      if (focusedEpisodeIndex !== activeEpisodeIndex) {
+        setActiveEpisodeIndex(focusedEpisodeIndex);
+      }
+      if (!isHeaderCollapsed) {
+        setIsHeaderCollapsed(true);
+      }
+      return;
+    }
+
+    if (!isHeaderCollapsed && offsetY >= readerHeaderCollapseOffset) {
+      setIsHeaderCollapsed(true);
+      return;
+    }
+
+    if (isHeaderCollapsed && offsetY <= readerHeaderExpandOffset) {
+      setIsHeaderCollapsed(false);
+    }
+  };
+
+  // handleEpisodeBlockLayout records an episode origin relative to the Reader content container.
+  const handleEpisodeBlockLayout = (
+    episodeIdValue: string,
+    event: LayoutChangeEvent,
+  ): void => {
+    episodeBlockTopsRef.current.set(
+      episodeIdValue,
+      event.nativeEvent.layout.y,
+    );
+  };
+
+  // handleEpisodeHeadingLayout records the full badge-and-title height used by the blur boundary.
+  const handleEpisodeHeadingLayout = (
+    episodeIdValue: string,
+    event: LayoutChangeEvent,
+  ): void => {
+    episodeHeadingHeightsRef.current.set(
+      episodeIdValue,
+      event.nativeEvent.layout.height,
+    );
+  };
+
   if (errorMessage) {
     return (
-      <View style={styles.screenContent}>
+      <View style={[styles.screenContent, readerStateInsets]}>
         {backButton}
         <View style={styles.stateMessage}>
           <Text style={styles.stateMessageTitle}>{errorMessage}</Text>
@@ -207,7 +395,7 @@ export function EpisodeReaderScreen({
 
   if (!activeEpisode) {
     return (
-      <View style={styles.screenContent}>
+      <View style={[styles.screenContent, readerStateInsets]}>
         {backButton}
         <View style={styles.stateMessage}>
           <Text style={styles.stateMessageTitle}>Loading series...</Text>
@@ -216,32 +404,48 @@ export function EpisodeReaderScreen({
     );
   }
 
+  // isSingleEpisode limits header metadata to focused episode reading.
+  const isSingleEpisode: boolean = episodes.length === 1;
+
   return (
-    <>
-      <ScrollView
-        contentContainerStyle={styles.readerContent}
-        ref={scrollViewRef}
-      >
-        <View style={styles.readerHeader}>
-          {backButton}
-          <View style={styles.flex}>
-            <Text style={styles.appCategory}>SERIES READER</Text>
-            <Text style={styles.largeTitle}>
-              {episodes.length} {episodes.length === 1 ? 'episode' : 'episodes'}
-            </Text>
-          </View>
-          <Text style={styles.readerBadge}>AI</Text>
-        </View>
+    <View style={styles.flexOne}>
+      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+        <Animated.ScrollView
+          contentContainerStyle={[styles.readerContent, readerContentInsets]}
+          onScroll={handleReaderScroll}
+          ref={scrollViewRef}
+          scrollEventThrottle={16}
+        >
+          {isSingleEpisode ? (
+            <Animated.View
+              style={{
+                opacity: largeTitleOpacity,
+                transform: [
+                  { translateY: largeTitleTranslateY },
+                  { scale: largeTitleScale },
+                ],
+              }}
+            >
+              <View style={styles.readerTitleBlock}>
+                <Text style={styles.appCategory}>
+                  EPISODE {activeEpisode.orderIndex}
+                </Text>
+                <Text style={styles.largeTitle}>
+                  {activeEpisode.title ?? 'Untitled Episode'}
+                </Text>
+              </View>
+            </Animated.View>
+          ) : null}
 
-        {interactionErrorMessage ? (
-          <View style={styles.stateMessage}>
-            <Text style={styles.stateMessageTitle}>
-              {interactionErrorMessage}
-            </Text>
-          </View>
-        ) : null}
+          {interactionErrorMessage ? (
+            <View style={styles.stateMessage}>
+              <Text style={styles.stateMessageTitle}>
+                {interactionErrorMessage}
+              </Text>
+            </View>
+          ) : null}
 
-        {episodes.map((episode, episodeIndex) => {
+          {episodes.map((episode, episodeIndex) => {
           const isLastEpisode = episodeIndex === episodes.length - 1;
           const pendingInteraction = [...episode.interactions]
             .reverse()
@@ -252,20 +456,28 @@ export function EpisodeReaderScreen({
           const speakerThemes = buildSpeakerThemes(renderedFrames);
 
           return (
-            <View key={episode.id} style={styles.readerEpisodeBlock}>
-              <View style={styles.readerEpisodeHeading}>
-                <Text style={styles.sectionLabel}>
-                  EPISODE {episode.orderIndex}
-                </Text>
-                <Text style={styles.actionTitle}>
-                  {episode.title ?? 'Untitled Episode'}
-                </Text>
-                {episode.previouslyRecap ? (
-                  <Text style={styles.secondaryText}>
-                    {episode.previouslyRecap}
+            <View
+              key={episode.id}
+              style={styles.readerEpisodeBlock}
+              onLayout={(event: LayoutChangeEvent): void =>
+                handleEpisodeBlockLayout(episode.id, event)
+              }
+            >
+              {!isSingleEpisode ? (
+                <View
+                  style={styles.readerEpisodeHeading}
+                  onLayout={(event: LayoutChangeEvent): void =>
+                    handleEpisodeHeadingLayout(episode.id, event)
+                  }
+                >
+                  <Text style={styles.readerEpisodeBadge}>
+                    EPISODE {episode.orderIndex}
                   </Text>
-                ) : null}
-              </View>
+                  <Text style={styles.readerEpisodeTitle}>
+                    {episode.title ?? 'Untitled Episode'}
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={styles.readerStory}>
                 {episode.sentences.map((_sentence, sentenceIndex) => {
@@ -334,16 +546,28 @@ export function EpisodeReaderScreen({
               ) : null}
             </View>
           );
-        })}
-
-      </ScrollView>
+          })}
+        </Animated.ScrollView>
+      </BlurTargetView>
+      <EpisodeReaderEdgeEffects
+        blurTarget={blurTargetRef}
+        bottomInset={insets.bottom}
+        colors={colors}
+        episodeNumber={activeEpisode.orderIndex}
+        isDark={isDark}
+        materialOpacity={materialTransition}
+        topInset={insets.top}
+        transitionProgress={titleTransition}
+        title={activeEpisode.title ?? 'Untitled Episode'}
+        {...(onExit ? { onExit } : {})}
+      />
 
       <TranslationSheet
         annotation={selectedAnnotation}
         styles={styles}
         onClose={() => setSelectedAnnotation(undefined)}
       />
-    </>
+    </View>
   );
 
   // requestScrollToEnd schedules scroll after React Native applies the new row.

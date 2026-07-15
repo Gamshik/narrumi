@@ -425,7 +425,7 @@ function AccountSync({
 // Appearance renders the app theme toggle backed by ThemeProvider state.
 function Appearance({ styles }: SettingsSectionProps): ReactElement {
   const { isDark, setDarkMode } = useAppTheme();
-  // colors lets the reusable toggle render from semantic light/dark tokens.
+  // colors follows the committed choice while the thumb animates on the native driver.
   const colors: AppColors = isDark ? darkColors : lightColors;
 
   return (

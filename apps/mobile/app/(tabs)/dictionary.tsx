@@ -6,11 +6,13 @@ import { DictionaryScreen, RouteScreen, useAppStyles } from '@presentation/app';
 // Route contract: bridges dictionary row selection to the native details sheet route.
 export default function DictionaryRoute(): ReactElement {
   const router = useRouter();
-  const { isDark, styles } = useAppStyles();
+  const { isDark, colors, styles } = useAppStyles();
 
   return (
     <RouteScreen isDark={isDark} styles={styles}>
       <DictionaryScreen
+        colors={colors}
+        isDark={isDark}
         styles={styles}
         onSelectWord={(word) =>
           router.push({

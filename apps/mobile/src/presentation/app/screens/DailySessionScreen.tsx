@@ -11,10 +11,7 @@ import {
   type ViewStyle,
   View,
 } from 'react-native';
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { darkColors, lightColors } from '@presentation/theme';
 
@@ -399,14 +396,12 @@ export function DailySessionScreen({
 
   if (stage === 'reader') {
     return (
-      <SafeAreaView style={styles.flexOne}>
-        <EpisodeReaderScreen
-          {...(generatedEpisodeId ? { episodeId: generatedEpisodeId } : {})}
-          {...(seriesId ? { seriesId } : {})}
-          styles={styles}
-          onExit={onExit}
-        />
-      </SafeAreaView>
+      <EpisodeReaderScreen
+        {...(generatedEpisodeId ? { episodeId: generatedEpisodeId } : {})}
+        {...(seriesId ? { seriesId } : {})}
+        styles={styles}
+        onExit={onExit}
+      />
     );
   }
 
