@@ -22,7 +22,9 @@ export function getSettingsWarning(
   if (state.syncStatus === 'failed') {
     return {
       title: 'Sync Failed',
-      message: 'Your changes are saved locally but could not be backed up.',
+      message: state.syncErrorMessage
+        ? `Your changes are saved locally. ${state.syncErrorMessage}`
+        : 'Your changes are saved locally but could not be backed up.',
       isError: true,
     };
   }

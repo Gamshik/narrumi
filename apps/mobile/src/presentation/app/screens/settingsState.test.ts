@@ -43,10 +43,15 @@ describe('settingsState', () => {
         preferences: mockPreferences,
         recovered: false,
         syncStatus: 'failed',
+        syncErrorMessage: 'preferences preferences: permission denied',
       };
       const warning = getSettingsWarning(state);
       assert.equal(warning?.title, 'Sync Failed');
       assert.equal(warning?.isError, true);
+      assert.equal(
+        warning?.message,
+        'Your changes are saved locally. preferences preferences: permission denied',
+      );
     });
 
     test('returns offline warning when offline', () => {

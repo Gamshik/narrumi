@@ -14,26 +14,20 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BubbleButton,
-  BubbleSegmentedControl,
-  BubbleSlider,
+  CefrLevelSelector,
   BubbleStatus,
   BubbleToggle,
   CollapsingTitleEdgeEffects,
 } from '../shared';
 
-import {
-  cefrLevels,
-  type LearningPreferences,
-  MAX_STORY_WORD_GOAL,
-  MIN_STORY_WORD_GOAL,
-} from '@domain/index';
+import { type LearningPreferences } from '@domain/index';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 import { floatingTabBarMetrics } from '@presentation/theme/layout';
 
-import { localAppServices } from '../services/localAppServices';
 import { useAuthSession } from '../auth';
 import { useAppTheme } from '../theme';
 import type { AppStyles } from '../types';
+import { StoryWordGoalSetting } from './settings/components/StoryWordGoalSetting';
 
 import {
   SettingsSkeleton,
@@ -42,11 +36,6 @@ import {
   type BootstrapReadyState,
 } from '../bootstrap';
 import { getSettingsWarning, getSettingsSaveError } from './settingsState';
-
-// settingsLevels mirrors the domain CEFR set so persisted values always render.
-const settingsLevels = cefrLevels;
-// SettingsLevel narrows the settings selector to supported grammar targets.
-type SettingsLevel = (typeof settingsLevels)[number];
 
 // settingsHeaderCollapseOffset matches Home's deliberate upward-scroll threshold.
 const settingsHeaderCollapseOffset: number = 38;
@@ -87,7 +76,11 @@ export function SettingsScreen({
   styles,
 }: SettingsScreenProps): ReactElement {
   const { session, signOut } = useAuthSession();
-  const { state, syncNow: bootstrapSyncNow } = useBootstrapSession();
+  const {
+    state,
+    syncNow: bootstrapSyncNow,
+    updatePreferences: bootstrapUpdatePreferences,
+  } = useBootstrapSession();
 
   if (state.kind !== 'ready') {
     return <SettingsSkeleton isDark={isDark} styles={styles} />;
@@ -104,6 +97,7 @@ export function SettingsScreen({
       styles={styles}
       onSignOut={signOut}
       onSyncNow={bootstrapSyncNow}
+      onSavePreferences={bootstrapUpdatePreferences}
     />
   );
 }
@@ -116,6 +110,7 @@ function SettingsReadyContent({
   styles,
   onSignOut,
   onSyncNow,
+  onSavePreferences,
 }: SettingsScreenProps & {
   // email identifies the authenticated account shown in sync diagnostics.
   readonly email: string | undefined;
@@ -125,6 +120,10 @@ function SettingsReadyContent({
   readonly onSignOut: () => Promise<void>;
   // onSyncNow triggers the bootstrap-owned sync path from Settings.
   readonly onSyncNow: () => Promise<void>;
+  // onSavePreferences persists settings and updates the bootstrap snapshot.
+  readonly onSavePreferences: (
+    preferences: EditablePreferencePatch,
+  ) => Promise<LearningPreferences>;
 }): ReactElement {
   const colors: AppColors = isDark ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -205,7 +204,7 @@ function SettingsReadyContent({
   useEffect(() => {
     preferencesRef.current = readyState.preferences;
     setPreferences(readyState.preferences);
-  }, [readyState]);
+  }, [readyState.preferences]);
 
   const updatePreferences = async (
     nextPreferences: EditablePreferencePatch,
@@ -221,12 +220,11 @@ function SettingsReadyContent({
     setSaveErrorRaw(undefined);
 
     try {
-      const savedPreferences =
-        await localAppServices.updateLearningPreferences.execute({
-          preferredCefrLevel: optimisticPreferences.preferredCefrLevel,
-          preferredGenre: optimisticPreferences.preferredGenre,
-          storyWordGoal: optimisticPreferences.storyWordGoal,
-        });
+      const savedPreferences = await onSavePreferences({
+        preferredCefrLevel: optimisticPreferences.preferredCefrLevel,
+        preferredGenre: optimisticPreferences.preferredGenre,
+        storyWordGoal: optimisticPreferences.storyWordGoal,
+      });
 
       preferencesRef.current = savedPreferences;
       setPreferences(savedPreferences);
@@ -470,34 +468,22 @@ function LearningPreferencesSection({
     <>
       <Text style={styles.sectionLabel}>LEARNING PREFERENCES</Text>
       <View style={styles.settingsCard}>
-        <View style={styles.settingRow}>
-          <View>
-            <Text style={styles.actionTitle}>CEFR Target Level</Text>
-            <Text style={styles.secondaryText}>
-              Controls generated story grammar
-            </Text>
-          </View>
-          <Text style={styles.settingValue}>{preferences.preferredCefrLevel}</Text>
-        </View>
-        <BubbleSegmentedControl
-          colors={colors}
-          onValueChange={(value) => onUpdatePreferences({ preferredCefrLevel: value as SettingsLevel })}
-          selectedIndex={settingsLevels.indexOf(preferences.preferredCefrLevel as SettingsLevel)}
-          style={styles.cefrSegmentedControl}
-          values={[...settingsLevels]}
-        />
-        
-        <StepSetting
-          colors={colors}
-          max={MAX_STORY_WORD_GOAL}
-          min={MIN_STORY_WORD_GOAL}
-          label="Story Word Suggestions"
+        <CefrLevelSelector
+          isDark={isDark}
+          label="CEFR Target Level"
+          selectedLevel={preferences.preferredCefrLevel}
           styles={styles}
-          suffix="words"
-          value={preferences.storyWordGoal}
-          onChange={(storyWordGoal) =>
-            onUpdatePreferences({ storyWordGoal })
+          onSelect={(preferredCefrLevel) =>
+            void onUpdatePreferences({ preferredCefrLevel })
           }
+        />
+
+        <StoryWordGoalSetting
+          colors={colors}
+          value={preferences.storyWordGoal}
+          onChange={(storyWordGoal: number): void => {
+            void onUpdatePreferences({ storyWordGoal });
+          }}
           onInteractionStart={() => setScrollEnabled(false)}
           onInteractionEnd={() => setScrollEnabled(true)}
         />
@@ -506,60 +492,6 @@ function LearningPreferencesSection({
   );
 }
 
-// StepSetting renders a bounded local setting with tactile increment controls.
-function StepSetting({
-  colors,
-  label,
-  max,
-  min,
-  styles,
-  suffix,
-  value,
-  onChange,
-  onInteractionStart,
-  onInteractionEnd,
-}: {
-  readonly colors: AppColors;
-  readonly label: string;
-  readonly max: number;
-  readonly min: number;
-  readonly styles: AppStyles;
-  readonly suffix: string;
-  readonly value: number;
-  readonly onChange: (value: number) => void;
-  readonly onInteractionStart?: () => void;
-  readonly onInteractionEnd?: () => void;
-}): ReactElement {
-  const [localValue, setLocalValue] = useState(value);
-
-  useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
-
-  return (
-    <View style={styles.settingMeter}>
-      <View style={styles.settingRow}>
-        <Text style={styles.actionTitle}>{label}</Text>
-        <Text style={styles.settingValue}>
-          {localValue} {suffix}
-        </Text>
-      </View>
-      <BubbleSlider
-        min={min}
-        max={max}
-        step={1}
-        value={localValue}
-        onValueChange={setLocalValue}
-        onSlidingComplete={onChange}
-        onInteractionStart={onInteractionStart}
-        onInteractionEnd={onInteractionEnd}
-        minimumTrackTintColor={colors.systemBlue}
-        maximumTrackTintColor={colors.separator}
-        thumbTintColor={colors.systemBlue}
-      />
-    </View>
-  );
-}
 
 // buildOptimisticPreferences updates UI immediately while persistence catches up.
 function buildOptimisticPreferences(

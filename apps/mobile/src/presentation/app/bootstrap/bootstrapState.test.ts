@@ -5,7 +5,10 @@ import type { LearningPreferences } from '@domain/index';
 import { DEFAULT_STORY_WORD_GOAL } from '@domain/index';
 import {
   canRenderGuardedSurfaces,
+  applyBootstrapPreferences,
+  applyBootstrapSyncOutcome,
   getBootstrapSyncWarning,
+  startBootstrapSync,
   type BootstrapState,
 } from './bootstrapState';
 
@@ -98,6 +101,61 @@ describe('bootstrapState', () => {
       assert.deepEqual(getBootstrapSyncWarning(state), {
         warning: 'sync_failed',
       });
+    });
+  });
+
+  describe('preference and sync transitions', () => {
+    test('keeps newly saved preferences through syncing and failure states', () => {
+      const initialState: BootstrapState = {
+        kind: 'ready',
+        preferences: mockPreferences,
+        recovered: false,
+        syncStatus: 'synced',
+      };
+      const savedPreferences: LearningPreferences = {
+        ...mockPreferences,
+        preferredCefrLevel: 'C1',
+        storyWordGoal: 10,
+        updatedAt: '2026-07-16T00:00:00.000Z',
+        sync: {
+          isDirty: true,
+          pendingOperationId: 'preferences:new',
+        },
+      };
+      const savedState = applyBootstrapPreferences(
+        initialState,
+        savedPreferences,
+      );
+      const syncingState = startBootstrapSync(savedState);
+      const failedState = applyBootstrapSyncOutcome(syncingState, {
+        status: 'failed',
+        errorMessage: 'preferences preferences: permission denied',
+      });
+
+      assert.equal(failedState.kind, 'ready');
+      if (failedState.kind !== 'ready') return;
+      assert.equal(failedState.preferences.preferredCefrLevel, 'C1');
+      assert.equal(failedState.preferences.storyWordGoal, 10);
+      assert.equal(
+        failedState.syncErrorMessage,
+        'preferences preferences: permission denied',
+      );
+    });
+
+    test('clears the previous sync error when retrying', () => {
+      const failedState: BootstrapState = {
+        kind: 'ready',
+        preferences: mockPreferences,
+        recovered: false,
+        syncStatus: 'failed',
+        syncErrorMessage: 'old failure',
+      };
+      const syncingState = startBootstrapSync(failedState);
+
+      assert.equal(syncingState.kind, 'ready');
+      if (syncingState.kind !== 'ready') return;
+      assert.equal(syncingState.syncStatus, 'syncing');
+      assert.equal(syncingState.syncErrorMessage, undefined);
     });
   });
 });

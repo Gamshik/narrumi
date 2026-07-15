@@ -14,6 +14,16 @@ export type BootstrapReadyState = {
   readonly preferences: LearningPreferences;
   readonly recovered: boolean;
   readonly syncStatus: BootstrapSyncStatus;
+  // syncErrorMessage preserves the safe application diagnostic for a failed attempt.
+  readonly syncErrorMessage?: string;
+};
+
+// BootstrapSyncOutcome is the completed sync subset needed by presentation state.
+export type BootstrapSyncOutcome = {
+  // status excludes the transient syncing state produced only by the provider.
+  readonly status: Exclude<BootstrapSyncStatus, 'syncing'>;
+  // errorMessage identifies the failed record without exposing raw SDK objects.
+  readonly errorMessage?: string;
 };
 
 // BootstrapState represents the lifecycle of the root authenticated session setup.
@@ -27,6 +37,52 @@ export function canRenderGuardedSurfaces(
   state: BootstrapState,
 ): state is BootstrapReadyState {
   return state.kind === 'ready';
+}
+
+// applyBootstrapPreferences keeps the provider snapshot aligned with local persistence.
+export function applyBootstrapPreferences(
+  state: BootstrapState,
+  preferences: LearningPreferences,
+): BootstrapState {
+  if (state.kind !== 'ready') {
+    return state;
+  }
+
+  return { ...state, preferences };
+}
+
+// startBootstrapSync clears an obsolete diagnostic without changing local preferences.
+export function startBootstrapSync(state: BootstrapState): BootstrapState {
+  if (state.kind !== 'ready') {
+    return state;
+  }
+
+  return {
+    kind: 'ready',
+    preferences: state.preferences,
+    recovered: state.recovered,
+    syncStatus: 'syncing',
+  };
+}
+
+// applyBootstrapSyncOutcome records one completed attempt while preserving current preferences.
+export function applyBootstrapSyncOutcome(
+  state: BootstrapState,
+  outcome: BootstrapSyncOutcome,
+): BootstrapState {
+  if (state.kind !== 'ready') {
+    return state;
+  }
+
+  return {
+    kind: 'ready',
+    preferences: state.preferences,
+    recovered: state.recovered,
+    syncStatus: outcome.status,
+    ...(outcome.status === 'failed' && outcome.errorMessage
+      ? { syncErrorMessage: outcome.errorMessage }
+      : {}),
+  };
 }
 
 // getBootstrapSyncWarning returns diagnostic context if remote sync failed, leaving UI unaffected.
