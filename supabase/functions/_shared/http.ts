@@ -38,16 +38,28 @@ export function safeErrorResponse(
 
 // generationStateResponse reports a duplicate or conflicting logical generation slot.
 export function generationStateResponse(
-  kind: 'generation_in_progress' | 'generation_conflict',
+  kind:
+    | 'generation_in_progress'
+    | 'generation_conflict'
+    | 'episode_incomplete'
+    | 'episode_out_of_order',
 ): Response {
+  const messages = {
+    generation_in_progress:
+      'This generation is already in progress. Please wait and try again.',
+    generation_conflict:
+      'This generation slot was created from different inputs. Refresh the series before retrying.',
+    episode_incomplete:
+      'Finish the current episode before generating the next one.',
+    episode_out_of_order:
+      'Sync the current series before generating the next episode.',
+  } as const;
+
   return jsonResponse(
     {
       error: {
         kind,
-        message:
-          kind === 'generation_in_progress'
-            ? 'This generation is already in progress. Please wait and try again.'
-            : 'This generation slot was created from different inputs. Refresh the series before retrying.',
+        message: messages[kind],
       },
     },
     409,

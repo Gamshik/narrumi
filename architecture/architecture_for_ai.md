@@ -122,6 +122,7 @@ Domain rules:
 - An episode normally contains 5-10 meaningful learner interactions and must not end after only a few routine decisions.
 - Every AI continuation must consider the remaining interaction budget so the same episode can close inside the 5-10 interaction window.
 - The AI decides when the current episode arc is complete.
+- A new episode may be generated only when the latest episode is absent or has `isComplete = true`. This rule must be enforced locally and by the `generate-episode` Edge Function against the synced `episodes.is_complete` value.
 - Completing an episode does not complete the overall personal series.
 - A completed episode must end with a reason to continue the series.
 - AI output is untrusted until validated.
@@ -208,7 +209,7 @@ Required MVP use cases:
 - Apply Story Words actions: use in episode, know it, later, remove.
 - Assemble Episode Words for the next episode.
 - Generate an episode through an Edge Function when online.
-- Assign a stable generation request id and share one in-flight request for the same series or setup action.
+- Assign a stable generation request id. A root presentation context owns the episode-generation Promise and observable state above route lifetimes; setup generation keeps its own single-flight action.
 - Validate and persist generated episode locally first.
 - Play or pause episode audio sentence by sentence.
 - Open inline translation for any episode word.
@@ -306,6 +307,7 @@ Responsibilities:
 - Validate episode length, CEFR fit, word usage, continuity, interaction point, cliffhanger, annotations, feedback, and memory update.
 - Return typed error categories safe for the client.
 - Atomically claim generation scopes before model access. Return cached validated output for completed retries, `generation_in_progress` for an active lease, and `generation_conflict` when the same logical slot has different input.
+- Before a newly claimed episode request reaches the model, verify that the latest synced episode is complete and that the requested `orderIndex` is exactly next. Return a typed conflict when completion or sync state does not permit generation.
 - Store only the request fingerprint and validated response in `generation_requests`; do not persist raw prompts in the idempotency table.
 
 The mobile app must validate Edge Function response shape again before rendering or storing data.

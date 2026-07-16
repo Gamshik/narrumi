@@ -18,6 +18,10 @@ import {
   safeErrorResponse,
 } from '../_shared/http.ts';
 import { runIdempotentGeneration } from '../_shared/generationIdempotency.ts';
+import {
+  assertEpisodeGenerationAllowed,
+  EpisodeGenerationPolicyError,
+} from '../_shared/episodeGenerationPolicy.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
 import {
   buildModerationReview,
@@ -241,7 +245,16 @@ Deno.serve(async (request: Request): Promise<Response> => {
     const { generationRequestId: _generationRequestId, ...fingerprintPayload } =
       parsedRequest.data;
     const generationResult = await runIdempotentGeneration({
-      generate: () => generateValidatedEpisode(payload),
+      generate: async () => {
+        await assertEpisodeGenerationAllowed({
+          authorization,
+          orderIndex: payload.orderIndex,
+          seriesId: payload.seriesId,
+          userId: authResult.user.userId,
+        });
+
+        return generateValidatedEpisode(payload);
+      },
       operation: 'generate-episode',
       parseResponse: (value) => episodePayloadSchema.parse(value),
       requestId: parsedRequest.data.generationRequestId,
@@ -263,6 +276,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
       generationRequestId: generationResult.canonicalRequestId,
     });
   } catch (error) {
+    if (error instanceof EpisodeGenerationPolicyError) {
+      return generationStateResponse(error.kind);
+    }
+
     logSafeError('generate-episode AI generation failed', error, {
       model: openrouterModel,
     });

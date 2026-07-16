@@ -17,6 +17,8 @@ type SupabaseFunctionErrorBody = {
 export type SupabaseFunctionErrorKind =
   | 'generation_in_progress'
   | 'generation_conflict'
+  | 'episode_incomplete'
+  | 'episode_out_of_order'
   | 'moderation_soft_block'
   | 'moderation_warning'
   | 'moderation_banned'
@@ -67,13 +69,19 @@ type SupabaseFunctionErrorContext = {
   readonly context?: unknown;
 };
 
+// JsonResponseLike is the cross-runtime subset exposed by FunctionsHttpError.context.
+type JsonResponseLike = {
+  // json reads the structured Edge Function error body.
+  readonly json: () => Promise<unknown>;
+};
+
 // readSupabaseFunctionErrorInfo extracts user-facing Edge Function errors from non-2xx responses.
 export async function readSupabaseFunctionErrorInfo(
   error: unknown,
 ): Promise<SupabaseFunctionErrorInfo | undefined> {
   const context = (error as SupabaseFunctionErrorContext).context;
 
-  if (!(context instanceof Response)) {
+  if (!isJsonResponseLike(context)) {
     return undefined;
   }
 
@@ -126,13 +134,23 @@ export async function toSupabaseFunctionError(
 
 // readJsonBody parses the response body without letting diagnostics hide the original failure.
 async function readJsonBody(
-  response: Response,
+  response: JsonResponseLike,
 ): Promise<SupabaseFunctionErrorBody | undefined> {
   try {
     return (await response.json()) as SupabaseFunctionErrorBody;
   } catch {
     return undefined;
   }
+}
+
+// isJsonResponseLike avoids brittle instanceof checks across React Native fetch realms.
+function isJsonResponseLike(value: unknown): value is JsonResponseLike {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'json' in value &&
+    typeof value.json === 'function'
+  );
 }
 
 // normalizeKind keeps server kinds stable while defaulting unknown bodies.
@@ -142,6 +160,8 @@ function normalizeKind(
   switch (kind) {
     case 'generation_in_progress':
     case 'generation_conflict':
+    case 'episode_incomplete':
+    case 'episode_out_of_order':
     case 'moderation_soft_block':
     case 'moderation_warning':
     case 'moderation_banned':
