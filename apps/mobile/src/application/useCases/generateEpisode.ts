@@ -57,31 +57,14 @@ export function createGenerateEpisode(
   gateway: EpisodeGenerationGateway,
   clock: Clock,
 ): GenerateEpisode {
-  // activeGenerations shares one AI request for every concurrently requested series.
-  const activeGenerations = new Map<string, Promise<GenerateEpisodeResult>>();
-
   return {
-    execute: (input) => {
-      const activeGeneration = activeGenerations.get(input.seriesId);
-
-      if (activeGeneration) {
-        return activeGeneration;
-      }
-
+    execute: async (input) => {
       const generationRequestId = createGenerationRequestId(
         `episode:${input.seriesId}`,
         clock.now(),
       );
-      const generation = executeEpisodeGeneration(
-        input,
-        generationRequestId,
-      ).finally((): void => {
-        activeGenerations.delete(input.seriesId);
-      });
 
-      activeGenerations.set(input.seriesId, generation);
-
-      return generation;
+      return executeEpisodeGeneration(input, generationRequestId);
     },
   };
 
@@ -113,12 +96,20 @@ export function createGenerateEpisode(
       throw new Error('Your role is required before generating a character-mode episode.');
     }
 
+    const latestEpisode = episodes.at(-1);
+
+    if (latestEpisode && !latestEpisode.isComplete) {
+      throw new Error(
+        'Finish the current episode before generating the next one.',
+      );
+    }
+
     const words = resolveStoryWords({
       maxLevel: series.cefrLevel,
       vocabulary,
       wordIds: episodeWordSet.wordIds,
     });
-    const orderIndex = episodes.length + 1;
+    const orderIndex = (latestEpisode?.orderIndex ?? 0) + 1;
     const generationGenre = genre ?? series.genre;
     const compactSeriesMemory = {
       ...buildCompactSeriesMemoryPayload(memory),
@@ -150,9 +141,7 @@ export function createGenerateEpisode(
       safetyAndCopyrightConstraints: SAFETY_AND_COPYRIGHT_CONSTRAINTS,
     });
     const timestamp = clock.now().toISOString();
-    const canonicalRequestId =
-      payload.generationRequestId ?? generationRequestId;
-    const episodeId = `episode:${seriesId}:${canonicalRequestId}`;
+    const episodeId = `episode:${seriesId}:${orderIndex}`;
     const episode = buildEpisode({
       episodeId,
       orderIndex,

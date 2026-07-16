@@ -100,29 +100,7 @@ describe('generateEpisode', () => {
     // savedEpisodes captures local persistence after the AI payload is validated.
     const savedEpisodes: Episode[] = [];
     // store implements only deterministic in-memory behavior needed by this use case.
-    const store: LocalSeriesStore = {
-      getPreferences: async () => undefined,
-      readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
-      savePreferences: async () => undefined,
-      listSeries: async () => [series],
-      getSeries: async () => series,
-      saveSeries: async () => undefined,
-      deleteSeries: async () => undefined,
-      listEpisodes: async () => [],
-      getEpisode: async () => undefined,
-      saveEpisode: async (episode) => {
-        savedEpisodes.push(episode);
-      },
-      deleteEpisode: async () => undefined,
-      getSeriesMemory: async () => memory,
-      saveSeriesMemory: async () => undefined,
-      listWordSets: async () => [],
-      saveWordSet: async () => undefined,
-      listLearningSignals: async () => [],
-      saveLearningSignal: async () => undefined,
-      getSyncMetadata: async () => undefined,
-      saveSyncMetadata: async () => undefined,
-    };
+    const store = createStore([], savedEpisodes);
     // catalog resolves the selected Oxford ids into bounded AI Story Words.
     const catalog = {
       getById: async (id: string) => vocabulary.find((word) => word.id === id),
@@ -212,14 +190,102 @@ describe('generateEpisode', () => {
       genre: 'travel-leisure',
       seriesId: series.id,
     } as const;
-    const [result, duplicateResult] = await Promise.all([
-      useCase.execute(input),
-      useCase.execute(input),
-    ]);
+    const result = await useCase.execute(input);
 
     assert.equal(result.episode.title, 'The Midnight Gate');
-    assert.equal(duplicateResult.episode.id, result.episode.id);
+    assert.equal(result.episode.id, 'episode:series:test:1');
     assert.equal(gatewayCallCount, 1);
     assert.equal(savedEpisodes.length, 1);
   });
+
+  it('blocks a new episode while the latest local episode is incomplete', async () => {
+    // gatewayCallCount must remain zero when the local completion guard rejects.
+    let gatewayCallCount: number = 0;
+    // gateway would expose a regression if generation reached the remote boundary.
+    const gateway: EpisodeGenerationGateway = {
+      generateEpisode: async () => {
+        gatewayCallCount += 1;
+        throw new Error('Unexpected generation call');
+      },
+    };
+    const store = createStore([createEpisode(false)], []);
+    const useCase = createGenerateEpisode(
+      store,
+      {
+        getById: async () => undefined,
+        list: async () => vocabulary,
+      },
+      { getCurrentState: async () => ({ isOnline: true }) },
+      gateway,
+      { now: () => new Date(timestamp) },
+    );
+
+    await assert.rejects(
+      () =>
+        useCase.execute({
+          episodeWordSet,
+          seriesId: series.id,
+        }),
+      /Finish the current episode/,
+    );
+    assert.equal(gatewayCallCount, 0);
+  });
 });
+
+// createStore builds the local series boundary for episode generation tests.
+function createStore(
+  episodes: readonly Episode[],
+  savedEpisodes: Episode[],
+): LocalSeriesStore {
+  return {
+    getPreferences: async () => undefined,
+    readBootstrapPreferences: async () => ({
+      preferences: undefined,
+      recovered: false,
+    }),
+    savePreferences: async () => undefined,
+    listSeries: async () => [series],
+    getSeries: async () => series,
+    saveSeries: async () => undefined,
+    deleteSeries: async () => undefined,
+    listEpisodes: async () => episodes,
+    getEpisode: async () => undefined,
+    saveEpisode: async (episode) => {
+      savedEpisodes.push(episode);
+    },
+    deleteEpisode: async () => undefined,
+    getSeriesMemory: async () => memory,
+    saveSeriesMemory: async () => undefined,
+    listWordSets: async () => [],
+    saveWordSet: async () => undefined,
+    listLearningSignals: async () => [],
+    saveLearningSignal: async () => undefined,
+    getSyncMetadata: async () => undefined,
+    saveSyncMetadata: async () => undefined,
+  };
+}
+
+// createEpisode returns the latest local completion state under test.
+function createEpisode(isComplete: boolean): Episode {
+  return {
+    id: 'episode:series:test:1',
+    seriesId: series.id,
+    orderIndex: 1,
+    sceneText: 'Mira found a silver gate.',
+    sentences: ['Mira found a silver gate.'],
+    sentenceFrames: [
+      { kind: 'narration', text: 'Mira found a silver gate.' },
+    ],
+    storyWordIds: [],
+    annotations: [],
+    interactions: [],
+    isComplete,
+    summaryUpdate: 'Mira found a silver gate.',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    sync: {
+      isDirty: false,
+      pendingOperationId: 'episode:test',
+    },
+  };
+}

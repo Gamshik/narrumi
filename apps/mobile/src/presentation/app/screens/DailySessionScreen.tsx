@@ -33,6 +33,7 @@ import {
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
+import { useEpisodeGeneration } from '../generation';
 import { DictionaryPickerPanel } from './dailySession/components/DictionaryPickerPanel';
 import { DailySessionEdgeEffects } from './DailySessionEdgeEffects';
 import { EpisodeReaderScreen } from './EpisodeReaderScreen';
@@ -139,11 +140,18 @@ export function DailySessionScreen({
   const [isReplacing, setIsReplacing] = useState(false);
   const [isChoosing, setIsChoosing] = useState(false);
   const [isShuffling, setIsShuffling] = useState(false);
-  // isGenerating prevents duplicate episode requests and keeps progress on the primary action.
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  // generationLockRef closes the same-render gap before isGenerating disables the button.
-  const generationLockRef = useRef<boolean>(false);
-  const [generatedEpisodeId, setGeneratedEpisodeId] = useState<string>();
+  const {
+    clearGeneration,
+    generationStates,
+    generateEpisode: requestEpisodeGeneration,
+  } = useEpisodeGeneration();
+  const generationState = seriesId
+    ? generationStates.get(seriesId)
+    : undefined;
+  // isGenerating follows the root provider instead of this route's mount lifetime.
+  const isGenerating = generationState?.kind === 'generating';
+  const [generatedEpisodeOrderIndex, setGeneratedEpisodeOrderIndex] =
+    useState<number>();
   const [isOnline, setIsOnline] = useState(false);
 
   useEffect(() => {
@@ -181,17 +189,24 @@ export function DailySessionScreen({
 
     try {
       const result = await localAppServices.startEpisodeWordSelection.execute();
-      const loadedSeries = seriesId
-        ? (await localAppServices.listSeries.execute()).series.find(
-            (candidate) => candidate.id === seriesId,
-          )
+      const seriesDetails = seriesId
+        ? await localAppServices.loadSeriesDetails.execute({ seriesId })
         : undefined;
+      const loadedSeries = seriesDetails?.series;
+      const incompleteEpisode = seriesDetails?.episodes
+        .filter((episode) => !episode.isComplete)
+        .at(-1);
 
       if (isActive) {
         setSeries(loadedSeries);
         setSelectionState(result);
         setSelectedGenre(loadedSeries?.genre ?? result.preferences.preferredGenre);
-        setStage('setup');
+        setGeneratedEpisodeOrderIndex(incompleteEpisode?.orderIndex);
+        setStage((currentStage) =>
+          currentStage === 'reader' || incompleteEpisode
+            ? 'reader'
+            : 'setup',
+        );
       }
     } catch {
       if (isActive) {
@@ -218,6 +233,51 @@ export function DailySessionScreen({
       isActive = false;
     };
   }, [loadWordSelection]);
+
+  useEffect((): void => {
+    if (!seriesId || !generationState || generationState.kind === 'generating') {
+      return;
+    }
+
+    if (generationState.kind === 'completed') {
+      setGeneratedEpisodeOrderIndex(generationState.result.episode.orderIndex);
+      setStage('reader');
+      clearGeneration(seriesId);
+
+      return;
+    }
+
+    const error = generationState.error;
+    const isModerationError =
+      error instanceof SupabaseFunctionError &&
+      (error.kind === 'moderation_warning' ||
+        error.kind === 'moderation_banned');
+    const isExpectedGenerationState =
+      error instanceof SupabaseFunctionError &&
+      (error.kind === 'generation_in_progress' ||
+        error.kind === 'generation_conflict' ||
+        error.kind === 'episode_incomplete' ||
+        error.kind === 'episode_out_of_order');
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Episode generation is online-only and requires configured Supabase Edge Functions.';
+
+    if (isModerationError) {
+      Alert.alert(
+        error.kind === 'moderation_banned' ? 'You are banned' : 'Warning',
+        message,
+      );
+    } else if (isExpectedGenerationState) {
+      setErrorMessage(message);
+    } else {
+      console.warn('generateEpisode warning:', error);
+      Alert.alert('Episode generation stopped', message);
+      setErrorMessage(message);
+    }
+
+    clearGeneration(seriesId);
+  }, [clearGeneration, generationState, seriesId]);
 
   useEffect(() => {
     if (!pickerWordId) {
@@ -339,7 +399,7 @@ export function DailySessionScreen({
     }
   };
 
-  const generateEpisode = async (): Promise<void> => {
+  const generateEpisode = (): void => {
     if (!seriesId) {
       setErrorMessage('Open a series before generating an episode.');
 
@@ -352,49 +412,16 @@ export function DailySessionScreen({
       return;
     }
 
-    if (generationLockRef.current) {
+    if (isGenerating) {
       return;
     }
 
-    generationLockRef.current = true;
-    setIsGenerating(true);
-
-    try {
-      const result = await localAppServices.generateEpisode.execute({
-        episodeWordSet: selectionState.episodeWordSet,
-        ...(selectedGenre ? { genre: selectedGenre } : {}),
-        seriesId,
-      });
-
-      setGeneratedEpisodeId(result.episode.id);
-      setStage('reader');
-    } catch (error) {
-      const isModerationError =
-        error instanceof SupabaseFunctionError &&
-        (error.kind === 'moderation_warning' ||
-          error.kind === 'moderation_banned');
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Episode generation is online-only and requires configured Supabase Edge Functions.';
-
-      if (isModerationError) {
-        Alert.alert(
-          error.kind === 'moderation_banned'
-            ? 'You are banned'
-            : 'Warning',
-          message,
-        );
-        return;
-      }
-
-      console.error('generateEpisode error:', error);
-      Alert.alert('Episode generation stopped', message);
-      setErrorMessage(message);
-    } finally {
-      generationLockRef.current = false;
-      setIsGenerating(false);
-    }
+    setErrorMessage(undefined);
+    void requestEpisodeGeneration({
+      episodeWordSet: selectionState.episodeWordSet,
+      ...(selectedGenre ? { genre: selectedGenre } : {}),
+      seriesId,
+    }).catch((): void => undefined);
   };
 
   const handleSetupScroll = (
@@ -415,7 +442,9 @@ export function DailySessionScreen({
   if (stage === 'reader') {
     return (
       <EpisodeReaderScreen
-        {...(generatedEpisodeId ? { episodeId: generatedEpisodeId } : {})}
+        {...(generatedEpisodeOrderIndex
+          ? { episodeOrderIndex: generatedEpisodeOrderIndex }
+          : {})}
         {...(seriesId ? { seriesId } : {})}
         styles={styles}
         onExit={onExit}

@@ -11,6 +11,7 @@ import {
   AuthGate,
   AuthProvider,
   BootstrapProvider,
+  EpisodeGenerationProvider,
   SorbetBackground,
   ThemeProvider,
   useAppTheme,
@@ -53,7 +54,9 @@ export default function Layout(): ReactElement {
           <AuthProvider>
             <AuthGate>
               <BootstrapProvider>
-                <ThemedStack />
+                <EpisodeGenerationProvider>
+                  <ThemedStack />
+                </EpisodeGenerationProvider>
               </BootstrapProvider>
             </AuthGate>
           </AuthProvider>

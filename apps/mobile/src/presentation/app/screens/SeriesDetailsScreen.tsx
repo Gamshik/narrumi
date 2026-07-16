@@ -68,9 +68,9 @@ type SeriesDetailsScreenProps = {
   // onPrepareEpisode opens Story Words setup for this series.
   readonly onPrepareEpisode: (seriesId: string) => void;
   // onOpenEpisode reopens a saved episode in the reader.
-  readonly onOpenEpisode: (episodeId: string) => void;
+  readonly onOpenEpisode: (episodeOrderIndex: number) => void;
   // onContinueEpisode reopens an unfinished episode in editable mode to resume it.
-  readonly onContinueEpisode: (episodeId: string) => void;
+  readonly onContinueEpisode: (episodeOrderIndex: number) => void;
   // onReadSeries opens the complete saved series timeline.
   readonly onReadSeries: (seriesId: string) => void;
 };
@@ -493,7 +493,7 @@ export function SeriesDetailsScreen({
               contentStyle={styles.bannerButton}
               onPress={() => {
                 if (latestEpisode && !latestEpisode.isComplete) {
-                  onContinueEpisode(latestEpisode.id);
+                  onContinueEpisode(latestEpisode.orderIndex);
 
                   return;
                 }
@@ -1057,7 +1057,7 @@ function EpisodeHistoryRow({
   // onDeleteEpisode triggers a confirmation before local deletion.
   readonly onDeleteEpisode: (episode: Episode) => void;
   // onOpenEpisode opens this saved episode in the reader.
-  readonly onOpenEpisode: (episodeId: string) => void;
+  readonly onOpenEpisode: (episodeOrderIndex: number) => void;
 }): ReactElement {
   const { isDark } = useAppTheme();
   const colors = isDark ? darkColors : lightColors;
@@ -1065,7 +1065,7 @@ function EpisodeHistoryRow({
   return (
     <BubbleSurface colors={colors} tone="neutral" variant="card" style={styles.episodeCard}>
       <JellyPressable
-        onPress={() => onOpenEpisode(episode.id)}
+        onPress={() => onOpenEpisode(episode.orderIndex)}
         style={({ pressed }) => [styles.episodeCardContent, pressed && styles.pressed]}
       >
         <Text
@@ -1095,7 +1095,7 @@ function EpisodeHistoryRow({
       </JellyPressable>
       <View style={styles.episodeCardActions}>
         <JellyPressable
-          onPress={() => onOpenEpisode(episode.id)}
+          onPress={() => onOpenEpisode(episode.orderIndex)}
           style={({ pressed }) => [
             styles.smallPrimaryButton,
             styles.flex,

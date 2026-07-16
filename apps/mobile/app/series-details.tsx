@@ -23,21 +23,21 @@ export default function SeriesDetailsRoute(): ReactElement {
             router.dismissTo('/');
           }
         }}
-        onOpenEpisode={(episodeId) =>
+        onOpenEpisode={(episodeOrderIndex) =>
           router.push({
             pathname: '/episode-reader',
             params: {
-              episodeId,
+              episodeOrderIndex: String(episodeOrderIndex),
               readOnly: 'true',
               seriesId: normalizedSeriesId,
             },
           })
         }
-        onContinueEpisode={(episodeId) =>
+        onContinueEpisode={(episodeOrderIndex) =>
           router.push({
             pathname: '/episode-reader',
             params: {
-              episodeId,
+              episodeOrderIndex: String(episodeOrderIndex),
               readOnly: 'false',
               seriesId: normalizedSeriesId,
             },

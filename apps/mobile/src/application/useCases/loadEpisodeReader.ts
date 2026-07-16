@@ -1,10 +1,12 @@
 import type { LocalSeriesStore } from '@application/ports';
 import type { Episode } from '@domain/index';
 
-// LoadEpisodeReaderInput identifies the optional locally stored episode to open.
+// LoadEpisodeReaderInput identifies one episode without exposing its storage id to routing.
 export type LoadEpisodeReaderInput = {
-  // episodeId reads a persisted local episode.
-  readonly episodeId?: string;
+  // seriesId scopes the local ordered episode lookup.
+  readonly seriesId: string;
+  // orderIndex identifies the visible episode number inside the series.
+  readonly orderIndex: number;
 };
 
 // LoadEpisodeReaderResult returns the validated episode rendered by the reader.
@@ -17,20 +19,21 @@ export type LoadEpisodeReaderResult = {
 export type LoadEpisodeReader = {
   // execute resolves an episode without leaking storage wiring into UI.
   readonly execute: (
-    input?: LoadEpisodeReaderInput,
+    input: LoadEpisodeReaderInput,
   ) => Promise<LoadEpisodeReaderResult>;
 };
 
 // createLoadEpisodeReader injects local episode storage behind the reader contract.
 export function createLoadEpisodeReader(store: LocalSeriesStore): LoadEpisodeReader {
   return {
-    execute: async (input = {}) => {
-      if (input.episodeId) {
-        const episode = await store.getEpisode(input.episodeId);
+    execute: async (input) => {
+      const episodes = await store.listEpisodes(input.seriesId);
+      const episode = episodes.find(
+        (candidate) => candidate.orderIndex === input.orderIndex,
+      );
 
-        if (episode) {
-          return { episode };
-        }
+      if (episode) {
+        return { episode };
       }
 
       throw new Error('Episode was not found');

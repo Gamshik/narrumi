@@ -207,10 +207,7 @@ export const localAppServices = {
     startEpisodeWordSelection,
     syncLocalChanges,
   ),
-  generateEpisode: withBackgroundSync(
-    generateEpisode,
-    syncLocalChanges,
-  ),
+  generateEpisode: withGenerationSync(generateEpisode, syncLocalChanges),
   generateSeriesSetupDraft,
   submitEpisodeInteraction: withBackgroundSync(
     submitEpisodeInteraction,
@@ -288,6 +285,31 @@ function withBackgroundSync<TArguments extends readonly unknown[], TResult>(
 ): Executable<TArguments, TResult> {
   return {
     execute: async (...arguments_) => {
+      const result = await service.execute(...arguments_);
+
+      void sync.execute().catch(() => undefined);
+
+      return result;
+    },
+  };
+}
+
+// withGenerationSync publishes completion state before generation and the new episode after it.
+function withGenerationSync<TArguments extends readonly unknown[], TResult>(
+  service: Executable<TArguments, TResult>,
+  sync: SyncLocalChanges,
+): Executable<TArguments, TResult> {
+  return {
+    execute: async (...arguments_) => {
+      const preGenerationSync = await sync.execute();
+
+      if (preGenerationSync.status === 'failed') {
+        throw new Error(
+          preGenerationSync.errorMessage ??
+            'The current episode must sync before generating the next one.',
+        );
+      }
+
       const result = await service.execute(...arguments_);
 
       void sync.execute().catch(() => undefined);

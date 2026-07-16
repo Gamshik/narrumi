@@ -6,15 +6,19 @@ import { EpisodeReaderScreen, RouteScreen, useAppStyles } from '@presentation/ap
 // EpisodeReaderRoute renders a locally persisted structured episode reader.
 export default function EpisodeReaderRoute(): ReactElement {
   const router = useRouter();
-  const { episodeId, readOnly, seriesId } = useLocalSearchParams<{
-    readonly episodeId?: string;
+  const { episodeOrderIndex, readOnly, seriesId } = useLocalSearchParams<{
+    readonly episodeOrderIndex?: string;
     readonly readOnly?: string;
     readonly seriesId?: string;
   }>();
   const { isDark, styles } = useAppStyles();
-  // normalizedEpisodeId protects the screen from array params on web deep links.
-  const normalizedEpisodeId =
-    typeof episodeId === 'string' ? episodeId : undefined;
+  // normalizedEpisodeOrderIndex validates the visible episode number from routing.
+  const parsedEpisodeOrderIndex =
+    typeof episodeOrderIndex === 'string' ? Number(episodeOrderIndex) : NaN;
+  const normalizedEpisodeOrderIndex =
+    Number.isInteger(parsedEpisodeOrderIndex) && parsedEpisodeOrderIndex > 0
+      ? parsedEpisodeOrderIndex
+      : undefined;
   // normalizedSeriesId identifies the owner for full reading and exit navigation.
   const normalizedSeriesId =
     typeof seriesId === 'string' ? seriesId : undefined;
@@ -24,7 +28,9 @@ export default function EpisodeReaderRoute(): ReactElement {
   return (
     <RouteScreen isDark={isDark} isEdgeToEdge styles={styles}>
       <EpisodeReaderScreen
-        {...(normalizedEpisodeId ? { episodeId: normalizedEpisodeId } : {})}
+        {...(normalizedEpisodeOrderIndex
+          ? { episodeOrderIndex: normalizedEpisodeOrderIndex }
+          : {})}
         {...(normalizedSeriesId ? { seriesId: normalizedSeriesId } : {})}
         isReadOnly={isReadOnly}
         styles={styles}

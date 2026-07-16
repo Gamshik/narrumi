@@ -71,8 +71,8 @@ const readerMaterialTransitionDuration: number = 180;
 
 // EpisodeReaderScreenProps carries route input and series reader behavior.
 type EpisodeReaderScreenProps = {
-  // episodeId loads only the selected episode when present.
-  readonly episodeId?: string;
+  // episodeOrderIndex loads only the selected visible episode when present.
+  readonly episodeOrderIndex?: number;
   // seriesId loads the complete locally persisted episode sequence.
   readonly seriesId?: string;
   // isReadOnly prevents completed history from changing saved story outcomes.
@@ -85,7 +85,7 @@ type EpisodeReaderScreenProps = {
 
 // EpisodeReaderScreen renders saved story beats and decisions in episode order.
 export function EpisodeReaderScreen({
-  episodeId,
+  episodeOrderIndex,
   isReadOnly = false,
   onExit,
   seriesId,
@@ -212,9 +212,10 @@ export function EpisodeReaderScreen({
 
   const loadReader = useCallback(async (): Promise<void> => {
     try {
-      if (episodeId) {
+      if (seriesId && episodeOrderIndex) {
         const result = await localAppServices.loadEpisodeReader.execute({
-          episodeId,
+          orderIndex: episodeOrderIndex,
+          seriesId,
         });
 
         setEpisodes([result.episode]);
@@ -242,7 +243,7 @@ export function EpisodeReaderScreen({
     } catch {
       setErrorMessage('Series reader could not load local episodes.');
     }
-  }, [episodeId, seriesId]);
+  }, [episodeOrderIndex, seriesId]);
 
   useEffect(() => {
     void loadReader();
