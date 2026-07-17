@@ -417,22 +417,19 @@ The callback closes over the rendered episode ID; it does not read `activeEpisod
 
 All other implementation and gate claims above were verified against project artifacts, inspected source, official documentation, or the current environment. A1 and A2 must not become locked decisions without device evidence or explicit human resolution. [VERIFIED: research provenance audit]
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Which representative physical devices and OS versions are available?**
+1. **RESOLVED — Which representative physical devices and OS versions are available?**
    - What we know: the stack names an iPhone via Expo Go, and the gate requires physical iOS and Android. [VERIFIED: `stack/tech_stack_mvp.md`; `.planning/ROADMAP.md`]
-   - What's unclear: no device model, OS version, Android device, or Expo Go installation is discoverable from the Windows workspace. [VERIFIED: environment audit]
-   - Recommendation: the first plan checkpoint must record at least one physical iPhone and one physical Android device, their OS/Expo Go versions, and who will execute the matrix. Stop if either platform is unavailable. [VERIFIED: Phase 4 gate]
+   - Resolution contract: Plan 01 is a non-autonomous prerequisite that records one representative physical iPhone and one representative physical Android device, their OS and Expo Go versions, and the operator who will execute the matrix. Execution cannot pass Plan 01 or proceed to probe implementation unless both physical platforms are available; no empirical device availability is asserted by research. [VERIFIED: `04-01-PLAN.md`; Phase 4 gate]
 
-2. **What is the accepted baseline for narration in this gate?**
+2. **RESOLVED — What is the accepted baseline for narration in this gate?**
    - What we know: the phase contract says narration/highlighting must not degrade, but the live reader currently hard-codes inactive sentence state and does not render its existing `AudioControls`. [VERIFIED: `04-CONTEXT.md`; `EpisodeReaderScreen.tsx`]
-   - What's unclear: whether the user expects Phase 4 only to preserve dormant seams or to test an interaction available in another intended flow. [VERIFIED: code/artifact discrepancy]
-   - Recommendation: baseline on a physical device before implementation and ask for direction if narration is absent; do not silently expand Phase 4. [VERIFIED: `AGENTS.md` contradiction rule]
+   - Resolution contract: Plan 01 captures and documents the existing physical-device narration/audio baseline before probe integration. Later evidence compares probe behavior against that recorded baseline. If narration is absent or blocked, execution records the blocker and stops for direction without adding audio work or claiming a passed narration regression. [VERIFIED: `04-01-PLAN.md`; `AGENTS.md` contradiction rule]
 
-3. **Is an undocumented rich-children `TextInput` implementation acceptable if it passes the device matrix?**
+3. **RESOLVED — Is an undocumented rich-children `TextInput` implementation acceptable if it passes the device matrix?**
    - What we know: installed RN 0.86 accepts children internally, but the public docs present `TextInput` as a text input and do not document it as a rich reader surface. [VERIFIED: installed `TextInput.js`] [CITED: https://reactnative.dev/docs/textinput]
-   - What's unclear: whether empirical success on the pinned runtime is sufficient for a GO, or whether reliance on this internal behavior itself requires the narrow native-adapter decision. [ASSUMED]
-   - Recommendation: record this as a human checkpoint in the plan if the only passing core candidate relies on undocumented children behavior. [ASSUMED]
+   - Resolution contract: rich `TextInput` children are not assumed to work or to be supportable. The plans require Probe A before Probe B, then Plan 05 pairs Probe B diagnostics with visible behavior on representative physical iOS and Android devices. Only passing physical evidence, plus an explicit supportability decision when undocumented child behavior is decisive, permits `GO`; any failure or unapproved supportability risk yields `NO-GO`, keeps Phase 5 blocked, and stops for explicit approval before any EAS/native escalation. [VERIFIED: `04-05-PLAN.md`; Phase 4 gate]
 
 ## Environment Availability
 
