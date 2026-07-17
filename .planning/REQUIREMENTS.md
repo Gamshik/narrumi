@@ -86,32 +86,32 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SELC-01 | — | Pending |
-| SELC-02 | — | Pending |
-| SELC-03 | — | Pending |
-| SELC-04 | — | Pending |
-| CTRL-01 | — | Pending |
-| CTRL-02 | — | Pending |
-| CTRL-03 | — | Pending |
-| TRAN-01 | — | Pending |
-| TRAN-02 | — | Pending |
-| TRAN-03 | — | Pending |
-| STAT-01 | — | Pending |
-| STAT-02 | — | Pending |
-| STAT-03 | — | Pending |
-| STAT-04 | — | Pending |
-| A11Y-01 | — | Pending |
-| A11Y-02 | — | Pending |
-| A11Y-03 | — | Pending |
-| SAFE-01 | — | Pending |
-| SAFE-02 | — | Pending |
-| SAFE-03 | — | Pending |
+| SELC-01 | Phase 4 | Pending |
+| SELC-02 | Phase 4 | Pending |
+| SELC-03 | Phase 5 | Pending |
+| SELC-04 | Phase 4 | Pending |
+| CTRL-01 | Phase 8 | Pending |
+| CTRL-02 | Phase 8 | Pending |
+| CTRL-03 | Phase 8 | Pending |
+| TRAN-01 | Phase 7 | Pending |
+| TRAN-02 | Phase 7 | Pending |
+| TRAN-03 | Phase 6 | Pending |
+| STAT-01 | Phase 6 | Pending |
+| STAT-02 | Phase 6 | Pending |
+| STAT-03 | Phase 6 | Pending |
+| STAT-04 | Phase 6 | Pending |
+| A11Y-01 | Phase 9 | Pending |
+| A11Y-02 | Phase 9 | Pending |
+| A11Y-03 | Phase 9 | Pending |
+| SAFE-01 | Phase 7 | Pending |
+| SAFE-02 | Phase 5 | Pending |
+| SAFE-03 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20 ⚠️
+- Mapped to phases: 20
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-17*
-*Last updated: 2026-07-17 after milestone scope confirmation*
+*Last updated: 2026-07-17 after roadmap creation*
