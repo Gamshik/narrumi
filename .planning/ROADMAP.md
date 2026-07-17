@@ -48,7 +48,14 @@ Milestone v1.2 extends the existing AI-series reader with ephemeral contextual p
   1. On physical iOS and Android devices, a learner can select and adjust any non-empty continuous passage in the single-episode reader while scrolling and existing reader interactions remain usable.
   2. In the multi-episode reader, a learner can make the same kind of selection inside any individual displayed episode, including an earlier episode, without the active header determining the selection.
   3. Selection handles and highlighting remain native-feeling and track the exact chosen passage without silently reducing selection to a whole sentence, replacing the reader with a WebView, or degrading narration, dialogue, annotation, and Dynamic Type presentation.
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Confirm physical-device readiness and record the existing reader baseline.
+- [ ] 04-02-PLAN.md — Build exact canonical-document, range-validation, and synthetic-fixture contracts.
+- [ ] 04-03-PLAN.md — Implement ordered React Native core selection probes.
+- [ ] 04-04-PLAN.md — Mount both probes in the real single- and multi-episode reader through a development-only route.
+- [ ] 04-05-PLAN.md — Run the physical iOS/Android matrix and record the strict GO/NO-GO verdict.
 **UI hint**: yes
 **Gate**: Stop before Phase 5 unless representative physical-device evidence proves stable observable ranges in both reader modes. If the Expo Managed core approach fails, obtain explicit approval for an EAS development build and a narrow native adapter; do not begin backend work or silently change the interaction.
 **Scope boundary**: One selection spanning an episode boundary is deferred as SELC-05 and is not part of this gate or milestone.
