@@ -2,9 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Contextual Passage Translation
+current_phase: 4
+current_phase_name: Selection Feasibility Gate; first of 6 v1.2 phases
 status: ready_to_plan
-last_updated: "2026-07-17T18:56:12.6567059+03:00"
+stopped_at: Phase 4 context gathered
+last_updated: "2026-07-17T16:18:27.356Z"
 last_activity: 2026-07-17
+last_activity_desc: Approved the v1.2 roadmap with 20/20 active requirements mapped.
 progress:
   total_phases: 6
   completed_phases: 0
@@ -34,6 +38,7 @@ Progress: [░░░░░░░░░░] 0%
 ## Performance Metrics
 
 **v1.2 velocity:**
+
 - Total plans completed: 0
 - Total planned work: TBD during phase planning
 - Execution duration: Not started
@@ -76,9 +81,9 @@ Four completed uncommitted quick tasks from 2026-07-15 to 2026-07-16 remain unre
 
 ## Session Continuity
 
-Last session: 2026-07-17
-Stopped at: Milestone v1.2 initialized; Phase 4 is ready for discussion or planning.
-Resume file: None
+Last session: 2026-07-17T16:18:27.349Z
+Stopped at: Phase 4 context gathered
+Resume file: .planning/phases/04-selection-feasibility-gate/04-CONTEXT.md
 
 ## Operator Next Steps
 
