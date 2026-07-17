@@ -1,37 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: App Bootstrap Loading
-current_phase: 1
-status: Awaiting next milestone
-stopped_at: Milestone v1.1 archived with acknowledged deferred debug sessions
-last_updated: "2026-07-16T00:23:23+03:00"
-last_activity: 2026-07-16
-last_activity_desc: Added the story continuation generation animation
+milestone: v1.2
+milestone_name: Contextual Passage Translation
+status: planning
+last_updated: "2026-07-17T14:59:26.426Z"
+last_activity: 2026-07-17
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
-current_phase_name: defining requirements
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Phase: Milestone v1.1 complete
-Plan: -
-Status: Awaiting next milestone
-Last activity: 2026-07-16 - Added the story continuation generation animation
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-17 — Milestone v1.2 started
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-07)
+See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** The app must feel like continuing a personal English series that teaches words in context, not like servicing a vocabulary queue.
-**Current focus:** Define the next milestone and requirements for the learning surfaces refresh.
+**Current focus:** Define requirements and a roadmap for contextual passage translation in all episode reader flows.
 
 ## Deferred Items
 
@@ -65,5 +61,5 @@ Items acknowledged and deferred at milestone close on 2026-07-07:
 
 ## Operator Next Steps
 
-- Run /gsd-new-milestone to define the next milestone.
-- Revisit the deferred debug sessions only if they still matter to the next roadmap.
+- Define and approve the v1.2 contextual passage translation requirements.
+- Create the v1.2 roadmap and keep unrelated deferred debug sessions outside its scope.

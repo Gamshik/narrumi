@@ -12,11 +12,16 @@ The app must feel like continuing a personal English series that teaches words i
 
 v1.1 App Bootstrap Loading shipped on 2026-07-06. The app now restores local user preferences before settings-visible screens render, keeps startup usable offline, and surfaces sync, recovery, and save issues through explicit Bubble/Sorbet states instead of visible default-setting flicker.
 
-## Next Milestone Goals
+## Current Milestone: v1.2 Contextual Passage Translation
 
-- Define the next milestone from fresh requirements instead of extending the archived bootstrap scope.
-- Deliver `LEARN-01` by aligning the episode reader, Story Words flow, dictionary, and translation surfaces with the Bubble/Sorbet design direction.
-- Revisit deferred UI/debug artifacts only if they remain relevant to the new milestone scope.
+**Goal:** Let learners translate any selected episode passage into Russian with the correct episode context while keeping the reading flow focused and comfortable.
+
+**Target features:**
+
+- Select any continuous passage in both single-episode and multi-episode reader flows.
+- Show a compact animated Bubble/Sorbet controls panel with Translate and two inactive animated question-mark placeholders.
+- Return only a Russian AI translation of the selected passage, using the relevant episode context without explanations.
+- Handle online loading, offline unavailability, and translation failures through deliberate reader states.
 
 ## Requirements
 
@@ -37,13 +42,15 @@ v1.1 App Bootstrap Loading shipped on 2026-07-06. The app now restores local use
 
 ### Active
 
-- [ ] LEARN-01: User can read the episode reader, Story Words flow, dictionary, and translation surfaces fully aligned with the Bubble/Sorbet mockups.
+- [ ] User can select and contextually translate any passage in single-episode and multi-episode reader flows.
+- [ ] The selection controls and translation states preserve the app's accessible Bubble/Sorbet interaction language.
 
 ### Out of Scope
 
 - Traditional flashcard-first learning as the primary app flow.
 - Scheduled SRS queues, due reviews, review debt, or streak-pressure mechanics.
-- New AI product capabilities, image/video generation, voice conversation, multiplayer, or public sharing.
+- AI product capabilities beyond contextual passage translation, including image/video generation, voice conversation, multiplayer, or public sharing.
+- A full reader, Story Words, dictionary, or translation-surface redesign beyond the changes required for contextual passage translation.
 - Native `ios/` or `android/` project changes.
 - Direct client calls to OpenRouter or other LLM providers.
 
@@ -55,7 +62,7 @@ v1.1 App Bootstrap Loading shipped on 2026-07-06. The app now restores local use
 - Design guidance lives in `design/design_system.html`, `design/design_system_guidelines.md`, and the Bubble/Sorbet screenshots under `design/bubble`.
 - Mobile app commands are declared in `apps/mobile/package.json` and documented in `apps/mobile/README.md`.
 - The startup hydration and sync UX mismatch that defined v1.1 is now resolved in shipped code and validated by recorded UAT plus automated lint, typecheck, test, and build passes.
-- The next milestone has not been defined yet; planning should restart from requirements instead of continuing the archived bootstrap roadmap.
+- Milestone v1.2 is scoped to contextual passage translation across single-episode and multi-episode reader flows.
 
 ## Constraints
 
@@ -74,6 +81,7 @@ v1.1 App Bootstrap Loading shipped on 2026-07-06. The app now restores local use
 | Sync during bootstrap but do not block offline entry | The app must remain local-first while removing settings flicker and reconciling remote state when available | Success |
 | Gate settings-visible surfaces behind bootstrap-managed loading states | Showing default preferences before hydration broke the local-first UX contract | Success |
 | Keep deferred debug sessions outside milestone scope unless they materially affect the shipped milestone | The remaining open artifacts are acknowledged closeout debt, not release blockers | Override closeout |
+| Translate arbitrary reader selections through the existing trusted AI boundary | Context-sensitive translation is an approved extension of the AI-series reading experience, while direct client LLM calls remain forbidden | — Pending |
 
 ## Milestone History
 
@@ -90,5 +98,22 @@ Refresh the mobile shell, auth, series, and settings experience to match the Bub
 
 </details>
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-07-07 after v1.1 milestone*
+*Last updated: 2026-07-17 after starting milestone v1.2*
