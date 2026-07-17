@@ -51,7 +51,7 @@ Milestone v1.2 extends the existing AI-series reader with ephemeral contextual p
   2. In the multi-episode reader, a learner can make the same kind of selection inside any individual displayed episode, including an earlier episode, without the active header determining the selection.
   3. Selection handles and highlighting remain native-feeling and track the exact chosen passage without silently reducing selection to a whole sentence, replacing the reader with a WebView, or degrading narration, dialogue, annotation, and Dynamic Type presentation.
 
-**Plans**: 5 plans
+**Plans**: 0/5 plans completed — blocked at the Plan 04-01 physical-device readiness gate
 
 Plans:
 **Wave 1**
@@ -157,7 +157,7 @@ Plans:
 | 1. Bubble Foundation | v1.0 | 5/5 | Complete | 2026-07-04 |
 | 2. Shell And Series Screens | v1.0 | 10/9 | Complete | 2026-07-05 |
 | 3. Bootstrap Hydration And Sync | v1.1 | 4/4 | Complete | 2026-07-06 |
-| 4. Selection Feasibility Gate | v1.2 | 0/TBD | Not started | - |
+| 4. Selection Feasibility Gate | v1.2 | 0/5 | Blocked — Android device and narration/audio baseline unavailable | - |
 | 5. Selection Ownership And Context Contracts | v1.2 | 0/TBD | Not started | - |
 | 6. Ephemeral Translation Flow | v1.2 | 0/TBD | Not started | - |
 | 7. Trusted Translation Boundary | v1.2 | 0/TBD | Not started | - |
