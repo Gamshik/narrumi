@@ -1,1 +1,0 @@
-{"content":"React docs describe Context as a way for a parent provider to make a value available to any descendant without prop drilling; useContext reads and subscribes to the closest provider above the component.","source":"web","provider":"websearch","confidence":"MEDIUM","fetched_at":"2026-07-06T17:41:40.589Z","ttl":86400000,"kind":"docs"}

@@ -1,1 +1,0 @@
-{"content":"Expo Network docs define NetworkState.isConnected as an active connection indicator and isInternetReachable as whether internet is reachable; iOS reports isInternetReachable the same as isConnected.","source":"web","provider":"websearch","confidence":"MEDIUM","fetched_at":"2026-07-06T17:41:40.606Z","ttl":86400000,"kind":"docs"}

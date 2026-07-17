@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-17)
 Phase: 4 of 9 (Selection Feasibility Gate; first of 6 v1.2 phases)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-07-17 — Created the v1.2 roadmap with 20/20 active requirements mapped.
+Last activity: 2026-07-17 — Approved the v1.2 roadmap with 20/20 active requirements mapped.
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -77,10 +77,10 @@ Four completed uncommitted quick tasks from 2026-07-15 to 2026-07-16 remain unre
 ## Session Continuity
 
 Last session: 2026-07-17
-Stopped at: v1.2 roadmap created; Phase 4 is ready for planning after roadmap approval.
+Stopped at: Milestone v1.2 initialized; Phase 4 is ready for discussion or planning.
 Resume file: None
 
 ## Operator Next Steps
 
-- Review and approve the v1.2 roadmap.
-- Plan Phase 4 and preserve its physical-device stop/go gate before any backend work.
+- Run `/gsd-discuss-phase 4` to clarify the physical-device feasibility approach, or `/gsd-plan-phase 4` to plan it directly.
+- Preserve the Phase 4 stop/go gate before any application or backend implementation.
