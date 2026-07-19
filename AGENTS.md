@@ -18,8 +18,8 @@ Read the relevant artifacts before implementation:
 | `design/design_system.html` | Canonical visual and interaction reference: colors, typography, themes, controls, states, story reader, genre selection, audio controls, inline translation, grammar sheet, quiz feedback, and navigation. Reproduce the design in React Native; do not copy browser-only implementation details blindly. Some screen examples may still reflect the previous card-first concept; when product behavior conflicts, follow the PRD and stack documents first. |
 | `design/design_system_guidelines.md` | Mandatory Sorbet soft-pop design rules for UI work when there is no exact layout or screen-level specification. It defines the shared background, dimensional bubble surfaces, palette, typography, and motion contract. Read before any free-form layout or visual decision. |
 | `words/oxford-5000.json` | Bundled local vocabulary source for offline word lists, lightweight Story Words suggestions, and non-LLM dictionary lookups. Treat as read-only seed data shipped with the app. |
-| `.codex/gsd-core/` | Mandatory GSD operating system for Codex work management: workflows, gates, verification patterns, anti-patterns, templates, and project execution discipline. Use it as the process reference, not as app runtime code. |
-| `.agents/gsd-core/` | Mandatory GSD operating system for Antigravity work management. It mirrors the same process discipline for Antigravity agents and must be treated as equivalent to `.codex/gsd-core/` for workflow rules. |
+| `.codex/gsd-core/` | Optional GSD workflow reference for Codex. Read and use it only when the user explicitly requests GSD or invokes a GSD skill or command. It is process documentation, not app runtime code. |
+| `.agents/gsd-core/` | Optional GSD workflow reference for Antigravity. Read and use it only when the user explicitly requests GSD or invokes a GSD skill or command. It mirrors `.codex/gsd-core/` for Antigravity. |
 
 ## Compliance Rules
 
@@ -50,25 +50,15 @@ Read the relevant artifacts before implementation:
 - Keep LLM context bounded. Use compact series memory and episode summaries instead of sending unbounded full series history.
 - Do not generate or encourage direct copies of copyrighted story worlds, characters, or plots. Use original stories with similar broad genre or mood when needed.
 
-## GSD Operating Rules
+## GSD Usage
 
-All work must follow GSD principles from the available runtime-specific GSD core: `.codex/gsd-core/` for Codex and `.agents/gsd-core/` for Antigravity. GSD is mandatory process discipline for planning, execution, verification, and recovery.
+GSD is opt-in. Do not read GSD core files, invoke GSD skills or commands, create GSD planning artifacts, mutate GSD-managed state, or apply GSD workflows unless the user explicitly asks to use GSD or invokes a GSD skill or command.
 
-- Always route work by intent before acting: quick tasks stay small, bugs are investigated systematically, complex multi-file work requires planning, and reviews/quality concerns require verification.
-- Do not start coding until the goal, scope, relevant artifacts, affected boundaries, and verification path are understood.
-- Work in small, coherent, finishable increments. Each increment must produce a clear result that can be reviewed, tested, and committed independently.
-- Respect GSD gates:
-  - Pre-flight gates block work when required context, files, commands, or prerequisites are missing.
-  - Revision gates require fixing quality issues before completion.
-  - Escalation gates require user input when requirements conflict or automated resolution would be unsafe.
-  - Abort gates stop work when continuing would create damage, waste, or misleading output.
-- Keep scope tight. Do not modify files outside the task scope, and do not create planning or process artifacts unless the user or an active GSD workflow requires them.
-- Preserve existing decisions and project state. Do not re-litigate locked decisions from project artifacts unless the user explicitly asks to change them.
-- Prefer evidence over assumptions: read the relevant files, inspect the current code, run the identified checks, and base conclusions on observed results.
-- Do not bypass verification. A task is not complete until the relevant GSD checks and project lint/typecheck/build/test commands have been run or a precise blocker is reported.
-- Record or report outcomes in a way that the next agent can continue without rediscovery: what changed, what was verified, what remains open, and what is blocked.
-- For GSD-controlled state or roadmap mutations, use the provided GSD tooling when applicable. Do not hand-edit generated GSD state files unless the workflow explicitly allows it.
-- When both Codex and Antigravity GSD cores exist, keep their process meaning aligned. Do not create Codex-only or Antigravity-only exceptions unless the runtime capability itself requires it.
+- A task being complex, multi-file, a bug, a review, or related to existing `.planning/` files does not by itself authorize GSD usage.
+- General mentions of planning, verification, phases, milestones, or progress do not count as a request for GSD unless the user explicitly identifies GSD.
+- When GSD is explicitly requested, use the runtime-specific core: `.codex/gsd-core/` for Codex or `.agents/gsd-core/` for Antigravity, and follow the selected workflow completely.
+- Outside an explicitly requested GSD workflow, use the repository's normal engineering, safety, and verification rules without creating or updating GSD artifacts.
+- Do not suggest, auto-route to, or silently start GSD merely because a matching GSD skill is available.
 
 ## Mandatory Code Rules
 
@@ -108,7 +98,7 @@ These rules are mandatory for 100% of code changes. Do not consider a task compl
 Before completing a change:
 
 1. Identify canonical commands from documentation, CI configuration, and project manifests.
-2. Run the available lint, typecheck, build, and relevant test commands.
+2. Run the available lint, typecheck, build, and relevant test commands. Run GSD-specific checks only when the user explicitly requested a GSD workflow.
 3. Verify affected user flows against the artifacts.
 4. Report commands that passed and any checks that could not run.
 
