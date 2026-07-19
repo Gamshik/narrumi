@@ -1072,31 +1072,8 @@ function createAppStylesImpl(colors: AppColors) {
       fontSize: 13,
       fontWeight: "900",
     },
-    readerSheetScrim: {
-      flex: 1,
-      justifyContent: "flex-end",
-      backgroundColor: "#00000040",
-    },
-    readerTranslationSheet: {
+    readerTranslationContent: {
       gap: 10,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
-      padding: 22,
-      paddingBottom: 38,
-      backgroundColor: colors.backgroundSecondary,
-    },
-    readerSheetHandle: {
-      alignSelf: "center",
-      width: 42,
-      height: 5,
-      borderRadius: 3,
-      backgroundColor: colors.separator,
-      marginBottom: 8,
-    },
-    translationSurface: {
-      color: colors.labelPrimary,
-      fontSize: 26,
-      fontWeight: "900",
     },
     translationText: {
       color: colors.labelPrimary,

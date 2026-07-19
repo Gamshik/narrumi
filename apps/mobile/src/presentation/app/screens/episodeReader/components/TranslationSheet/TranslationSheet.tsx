@@ -1,9 +1,13 @@
 import type { ReactElement } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import type { TranslationAnnotation } from '@domain/index';
 
+import { BubbleSheet } from '@presentation/app/shared';
 import type { AppStyles } from '@presentation/app/types';
+import { darkColors, lightColors, type AppColors } from '@presentation/theme';
+
+import { useAppTheme } from '../../../../theme';
 
 // TranslationSheetProps controls the inline translation bottom sheet.
 type TranslationSheetProps = {
@@ -20,27 +24,31 @@ export function TranslationSheet({
   annotation,
   styles,
   onClose,
-}: TranslationSheetProps): ReactElement {
+}: TranslationSheetProps): ReactElement | null {
+  const { isDark } = useAppTheme();
+  // colors keeps the Reader sheet chrome identical to the Dictionary sheet in both themes.
+  const colors: AppColors = isDark ? darkColors : lightColors;
+
+  if (!annotation) {
+    return null;
+  }
+
   return (
-    <Modal
-      animationType="slide"
-      transparent
-      visible={annotation !== undefined}
-      onRequestClose={onClose}
+    <BubbleSheet
+      closeAccessibilityLabel="Close translation details"
+      colors={colors}
+      onClose={onClose}
+      title={annotation.surfaceText}
     >
-      <Pressable style={styles.readerSheetScrim} onPress={onClose}>
-        <Pressable style={styles.readerTranslationSheet}>
-          <View style={styles.readerSheetHandle} />
-          <Text style={styles.translationSurface}>{annotation?.surfaceText}</Text>
-          <Text style={styles.translationText}>{annotation?.translation}</Text>
-          {annotation?.transcription ? (
-            <Text style={styles.phonetics}>{annotation.transcription}</Text>
-          ) : null}
-          <Text style={styles.secondaryText}>
-            Context-aware hint from the validated episode payload.
-          </Text>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      <View style={styles.readerTranslationContent}>
+        <Text style={styles.translationText}>{annotation.translation}</Text>
+        {annotation.transcription ? (
+          <Text style={styles.phonetics}>{annotation.transcription}</Text>
+        ) : null}
+        <Text style={styles.secondaryText}>
+          Context-aware hint from the validated episode payload.
+        </Text>
+      </View>
+    </BubbleSheet>
   );
 }
