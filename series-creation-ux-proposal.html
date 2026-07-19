@@ -1,0 +1,2497 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Context-English — UX proposal for series creation</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --lab-bg: #120d1d;
+        --lab-panel: rgba(31, 23, 47, 0.82);
+        --lab-panel-strong: #20172f;
+        --lab-line: rgba(255, 255, 255, 0.09);
+        --lab-text: #fffaff;
+        --lab-muted: #b8aec5;
+        --grape: #6b35ff;
+        --purple: #a86bff;
+        --pink: #ff4d97;
+        --teal: #31b8ff;
+        --green: #087f69;
+        --orange: #a84c00;
+        --red: #d6326b;
+        --phone-bg: #f8f5ff;
+        --phone-surface: rgba(255, 255, 255, 0.8);
+        --phone-surface-muted: rgba(255, 255, 255, 0.58);
+        --phone-surface-raised: #ffffff;
+        --phone-border: rgba(255, 255, 255, 0.9);
+        --phone-ink: #211536;
+        --phone-copy: #665a78;
+        --phone-faint: #948aa2;
+        --phone-separator: #ddd3e8;
+        --phone-input: rgba(255, 255, 255, 0.72);
+        --phone-pill: rgba(255, 255, 255, 0.64);
+        --phone-selected: rgba(107, 53, 255, 0.14);
+        --phone-sheet: rgba(255, 255, 255, 0.96);
+        --phone-scrim: rgba(36, 26, 56, 0.36);
+        --soft-shadow: 0 18px 42px rgba(36, 26, 56, 0.16);
+        --clay-shadow: 0 18px 36px rgba(107, 53, 255, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-width: 320px;
+        background: var(--lab-bg);
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        overflow-x: hidden;
+        color: var(--lab-text);
+        background:
+          radial-gradient(circle at 12% 4%, rgba(168, 107, 255, 0.18), transparent 27rem),
+          radial-gradient(circle at 88% 16%, rgba(49, 184, 255, 0.12), transparent 25rem),
+          linear-gradient(145deg, #120d1d 0%, #0b0912 56%, #111726 100%);
+        font-family: Nunito, ui-rounded, "SF Pro Rounded", "Segoe UI", sans-serif;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .ambient-orb {
+        position: fixed;
+        z-index: 0;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        pointer-events: none;
+        filter: blur(2px);
+        opacity: 0.2;
+        animation: drift 14s ease-in-out infinite alternate;
+      }
+
+      .ambient-orb.one {
+        top: 18%;
+        left: -130px;
+        background: var(--pink);
+      }
+
+      .ambient-orb.two {
+        right: -145px;
+        bottom: 10%;
+        background: var(--teal);
+        animation-delay: -6s;
+      }
+
+      @keyframes drift {
+        to {
+          transform: translate3d(20px, 26px, 0) scale(1.08);
+        }
+      }
+
+      .page-header,
+      .workspace {
+        position: relative;
+        z-index: 1;
+      }
+
+      .page-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 32px;
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 30px 34px 22px;
+        border-bottom: 1px solid var(--lab-line);
+      }
+
+      .brand-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        color: #d7c8ff;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+
+      .brand-mark {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #c89bff, var(--grape) 55%, var(--teal));
+        box-shadow: 0 0 22px rgba(168, 107, 255, 0.8);
+      }
+
+      .page-header h1 {
+        max-width: 780px;
+        margin: 0;
+        font-family: "Baloo 2", Nunito, ui-rounded, sans-serif;
+        font-size: clamp(30px, 4vw, 56px);
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+      }
+
+      .page-header p {
+        max-width: 420px;
+        margin: 0 0 4px;
+        color: var(--lab-muted);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(260px, 0.75fr) minmax(420px, 1.12fr) minmax(300px, 0.9fr);
+        gap: 24px;
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 26px 34px 48px;
+      }
+
+      .lab-panel {
+        align-self: start;
+        overflow: hidden;
+        border: 1px solid var(--lab-line);
+        border-radius: 28px;
+        background: var(--lab-panel);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+        backdrop-filter: blur(18px);
+      }
+
+      .lab-panel-header {
+        padding: 22px 22px 16px;
+        border-bottom: 1px solid var(--lab-line);
+      }
+
+      .lab-panel-header h2 {
+        margin: 0 0 5px;
+        font-size: 18px;
+      }
+
+      .lab-panel-header p {
+        margin: 0;
+        color: var(--lab-muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .lab-tabs {
+        display: flex;
+        gap: 5px;
+        padding: 10px;
+        border-bottom: 1px solid var(--lab-line);
+      }
+
+      .lab-tab {
+        flex: 1;
+        min-height: 38px;
+        border: 0;
+        border-radius: 12px;
+        color: var(--lab-muted);
+        background: transparent;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .lab-tab.active {
+        color: #fff;
+        background: rgba(168, 107, 255, 0.18);
+      }
+
+      .lab-tab-panel {
+        display: none;
+        max-height: calc(100vh - 260px);
+        overflow: auto;
+        padding: 20px 22px 24px;
+        scrollbar-width: thin;
+      }
+
+      .lab-tab-panel.active {
+        display: block;
+      }
+
+      .finding {
+        padding: 15px 0;
+        border-bottom: 1px solid var(--lab-line);
+      }
+
+      .finding:first-child {
+        padding-top: 0;
+      }
+
+      .finding:last-child {
+        border-bottom: 0;
+      }
+
+      .finding-kicker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 7px;
+        color: #d8caff;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .finding-number {
+        display: grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        border-radius: 8px;
+        color: #fff;
+        background: rgba(107, 53, 255, 0.75);
+        letter-spacing: 0;
+      }
+
+      .finding h3,
+      .scenario h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+        line-height: 1.25;
+      }
+
+      .finding p,
+      .scenario p {
+        margin: 0;
+        color: var(--lab-muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .guardrail {
+        margin-top: 16px;
+        padding: 14px;
+        border: 1px solid rgba(49, 184, 255, 0.18);
+        border-radius: 16px;
+        color: #ceeaff;
+        background: rgba(49, 184, 255, 0.07);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .field-row {
+        padding: 14px 0;
+        border-bottom: 1px solid var(--lab-line);
+      }
+
+      .field-row:last-child {
+        border-bottom: 0;
+      }
+
+      .field-topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 6px;
+      }
+
+      .field-name {
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .field-tag {
+        flex: 0 0 auto;
+        padding: 4px 8px;
+        border-radius: 999px;
+        color: #d8caff;
+        background: rgba(168, 107, 255, 0.13);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .field-tag.optional {
+        color: #bfeeff;
+        background: rgba(49, 184, 255, 0.1);
+      }
+
+      .field-row p {
+        margin: 0;
+        color: var(--lab-muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .field-disposition {
+        margin-top: 8px;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .not-needed {
+        margin-top: 18px;
+        padding: 15px;
+        border-radius: 18px;
+        background: rgba(255, 77, 151, 0.07);
+      }
+
+      .not-needed strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 12px;
+      }
+
+      .not-needed ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--lab-muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .scenario {
+        position: relative;
+        padding: 2px 0 20px 34px;
+      }
+
+      .scenario::before {
+        position: absolute;
+        top: 4px;
+        left: 5px;
+        width: 10px;
+        height: 10px;
+        border: 3px solid #bd9cff;
+        border-radius: 50%;
+        content: "";
+      }
+
+      .scenario::after {
+        position: absolute;
+        top: 20px;
+        bottom: 2px;
+        left: 11px;
+        width: 1px;
+        background: var(--lab-line);
+        content: "";
+      }
+
+      .scenario:last-child::after {
+        display: none;
+      }
+
+      .prototype-stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .prototype-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        margin-bottom: 14px;
+      }
+
+      .tool-button {
+        display: inline-flex;
+        min-height: 38px;
+        align-items: center;
+        gap: 7px;
+        padding: 0 13px;
+        border: 1px solid var(--lab-line);
+        border-radius: 999px;
+        color: var(--lab-text);
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: 160ms ease;
+      }
+
+      .tool-button:hover {
+        border-color: rgba(168, 107, 255, 0.4);
+        background: rgba(168, 107, 255, 0.12);
+      }
+
+      .tool-button .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #46e8c3;
+        box-shadow: 0 0 10px rgba(70, 232, 195, 0.6);
+      }
+
+      .tool-button.is-offline .status-dot {
+        background: #ffad4d;
+        box-shadow: 0 0 10px rgba(255, 173, 77, 0.45);
+      }
+
+      .phone-shell {
+        position: relative;
+        width: min(100%, 414px);
+        height: min(820px, calc(100vh - 190px));
+        min-height: 620px;
+        overflow: hidden;
+        border: 9px solid #292132;
+        border-radius: 48px;
+        color: var(--phone-ink);
+        background: var(--phone-bg);
+        box-shadow:
+          0 44px 90px rgba(0, 0, 0, 0.42),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+        isolation: isolate;
+      }
+
+      .phone-shell.dark {
+        --phone-bg: #090615;
+        --phone-surface: rgba(26, 17, 43, 0.88);
+        --phone-surface-muted: rgba(30, 20, 49, 0.72);
+        --phone-surface-raised: #2c1d43;
+        --phone-border: rgba(255, 255, 255, 0.11);
+        --phone-ink: #fffaff;
+        --phone-copy: #c4b9d1;
+        --phone-faint: #857992;
+        --phone-separator: #332640;
+        --phone-input: rgba(255, 255, 255, 0.07);
+        --phone-pill: rgba(255, 255, 255, 0.07);
+        --phone-selected: rgba(143, 114, 255, 0.24);
+        --phone-sheet: rgba(20, 13, 34, 0.98);
+        --phone-scrim: rgba(5, 3, 10, 0.62);
+        --soft-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+        --clay-shadow: 0 18px 38px rgba(130, 87, 255, 0.2);
+      }
+
+      .phone-notch {
+        position: absolute;
+        z-index: 12;
+        top: 8px;
+        left: 50%;
+        width: 104px;
+        height: 27px;
+        border-radius: 20px;
+        background: #161219;
+        transform: translateX(-50%);
+      }
+
+      .phone-background {
+        position: absolute;
+        z-index: -3;
+        inset: 0;
+        overflow: hidden;
+        background: linear-gradient(180deg, #fdf8ff 0%, #f1ecff 48%, #eaf9ff 100%);
+      }
+
+      .dark .phone-background {
+        background: linear-gradient(180deg, #090615 0%, #120922 50%, #071721 100%);
+      }
+
+      .bubble {
+        position: absolute;
+        border: 1px solid rgba(255, 255, 255, 0.54);
+        border-radius: 50%;
+        opacity: 0.3;
+        box-shadow: inset -12px -16px 24px rgba(33, 8, 67, 0.12);
+        animation: phoneDrift 10s ease-in-out infinite alternate;
+      }
+
+      .bubble.grape {
+        top: 80px;
+        right: -48px;
+        width: 138px;
+        height: 138px;
+        background: #a86bff;
+      }
+
+      .bubble.pink {
+        top: 390px;
+        left: -68px;
+        width: 124px;
+        height: 124px;
+        background: #ff4d97;
+        animation-delay: -3s;
+      }
+
+      .bubble.teal {
+        right: -44px;
+        bottom: 80px;
+        width: 112px;
+        height: 112px;
+        background: #31b8ff;
+        animation-delay: -6s;
+      }
+
+      @keyframes phoneDrift {
+        to {
+          transform: translate3d(-7px, 11px, 0) scale(1.04);
+        }
+      }
+
+      .phone-screen {
+        position: absolute;
+        inset: 0;
+        overflow-y: auto;
+        padding: 42px 18px 132px;
+        scrollbar-width: none;
+        scroll-behavior: smooth;
+      }
+
+      .phone-screen::-webkit-scrollbar {
+        display: none;
+      }
+
+      .phone-nav {
+        position: sticky;
+        z-index: 4;
+        top: -42px;
+        display: grid;
+        grid-template-columns: 48px 1fr auto;
+        min-height: 74px;
+        align-items: center;
+        margin: -42px -18px 14px;
+        padding: 34px 18px 8px;
+        background: linear-gradient(180deg, color-mix(in srgb, var(--phone-bg) 97%, transparent), color-mix(in srgb, var(--phone-bg) 82%, transparent) 70%, transparent);
+        backdrop-filter: blur(12px);
+      }
+
+      .back-button,
+      .icon-button {
+        display: grid;
+        width: 40px;
+        height: 40px;
+        place-items: center;
+        border: 1px solid var(--phone-border);
+        border-radius: 50%;
+        color: var(--phone-ink);
+        background: var(--phone-surface);
+        box-shadow: 0 8px 20px rgba(36, 26, 56, 0.09);
+        cursor: pointer;
+      }
+
+      .back-button svg {
+        width: 18px;
+      }
+
+      .phone-nav-title {
+        font-size: 14px;
+        font-weight: 900;
+        text-align: center;
+      }
+
+      .save-draft {
+        min-height: 38px;
+        padding: 0 12px;
+        border: 0;
+        border-radius: 999px;
+        color: var(--grape);
+        background: var(--phone-selected);
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .dark .save-draft {
+        color: #d9caff;
+      }
+
+      .phone-eyebrow {
+        margin: 10px 0 8px;
+        color: var(--grape);
+        font-size: 10px;
+        font-weight: 1000;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .dark .phone-eyebrow {
+        color: #bd9cff;
+      }
+
+      .phone-title {
+        margin: 0;
+        font-family: "Baloo 2", Nunito, ui-rounded, sans-serif;
+        font-size: 32px;
+        font-weight: 900;
+        line-height: 1.02;
+        letter-spacing: -0.025em;
+      }
+
+      .phone-intro {
+        margin: 9px 0 20px;
+        color: var(--phone-copy);
+        font-size: 14px;
+        font-weight: 650;
+        line-height: 1.45;
+      }
+
+      .path-switch {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        margin-bottom: 22px;
+        padding: 4px;
+        border: 1px solid var(--phone-border);
+        border-radius: 18px;
+        background: var(--phone-surface-muted);
+        box-shadow: var(--soft-shadow);
+      }
+
+      .path-option {
+        min-height: 48px;
+        border: 0;
+        border-radius: 14px;
+        color: var(--phone-copy);
+        background: transparent;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+        transition: 180ms ease;
+      }
+
+      .path-option.active {
+        color: #fff;
+        background: linear-gradient(135deg, #a86bff, #6b35ff 58%, #5c63ff);
+        box-shadow: 0 8px 20px rgba(107, 53, 255, 0.24);
+      }
+
+      .section-block {
+        margin-top: 24px;
+      }
+
+      .section-heading-row {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 11px;
+      }
+
+      .section-heading {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 1000;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .section-hint {
+        color: var(--phone-faint);
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .settings-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
+      }
+
+      .setting-button {
+        position: relative;
+        min-height: 80px;
+        overflow: hidden;
+        padding: 13px 38px 12px 14px;
+        border: 1px solid var(--phone-border);
+        border-radius: 22px;
+        color: var(--phone-ink);
+        background: var(--phone-surface);
+        box-shadow: var(--soft-shadow);
+        text-align: left;
+        cursor: pointer;
+        transition: transform 150ms ease, border-color 150ms ease;
+      }
+
+      .setting-button:active,
+      .primary-button:active,
+      .secondary-button:active,
+      .save-draft:active,
+      .disclosure:active {
+        transform: scale(0.96);
+      }
+
+      .setting-button:hover {
+        border-color: color-mix(in srgb, var(--grape) 42%, var(--phone-border));
+      }
+
+      .setting-label {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--phone-faint);
+        font-size: 9px;
+        font-weight: 1000;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .setting-value {
+        display: block;
+        overflow: hidden;
+        font-size: 13px;
+        font-weight: 900;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .setting-arrow {
+        position: absolute;
+        top: 50%;
+        right: 14px;
+        display: grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        border-radius: 50%;
+        color: var(--grape);
+        background: var(--phone-selected);
+        font-size: 15px;
+        font-weight: 900;
+        transform: translateY(-50%);
+      }
+
+      .field-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 7px;
+        color: var(--phone-ink);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .optional-label {
+        color: var(--phone-faint);
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .text-input {
+        width: 100%;
+        min-height: 50px;
+        padding: 13px 14px;
+        resize: vertical;
+        border: 1px solid var(--phone-border);
+        border-radius: 18px;
+        outline: none;
+        color: var(--phone-ink);
+        background: var(--phone-input);
+        box-shadow: 0 8px 20px rgba(36, 26, 56, 0.08);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.4;
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+      }
+
+      textarea.text-input {
+        min-height: 104px;
+      }
+
+      .text-input::placeholder {
+        color: var(--phone-faint);
+        opacity: 0.9;
+      }
+
+      .text-input:focus {
+        border-color: rgba(107, 53, 255, 0.52);
+        box-shadow: 0 0 0 3px rgba(107, 53, 255, 0.1);
+      }
+
+      .prompt-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 9px;
+      }
+
+      .prompt-chip {
+        min-height: 32px;
+        padding: 0 10px;
+        border: 1px solid var(--phone-border);
+        border-radius: 999px;
+        color: var(--phone-copy);
+        background: var(--phone-pill);
+        font-size: 10px;
+        font-weight: 850;
+        cursor: pointer;
+      }
+
+      .disclosure {
+        display: flex;
+        width: 100%;
+        min-height: 46px;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 12px;
+        padding: 0 14px;
+        border: 1px dashed color-mix(in srgb, var(--phone-separator) 78%, transparent);
+        border-radius: 16px;
+        color: var(--phone-copy);
+        background: color-mix(in srgb, var(--phone-surface-muted) 70%, transparent);
+        font-size: 11px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .disclosure-icon {
+        display: inline-block;
+        font-size: 16px;
+        transition: transform 180ms ease;
+      }
+
+      .disclosure[aria-expanded="true"] .disclosure-icon {
+        transform: rotate(45deg);
+      }
+
+      .anchor-details {
+        display: none;
+        gap: 13px;
+        margin-top: 10px;
+        padding: 15px;
+        border: 1px solid var(--phone-border);
+        border-radius: 22px;
+        background: var(--phone-surface-muted);
+        animation: reveal 200ms ease both;
+      }
+
+      .anchor-details.open {
+        display: grid;
+      }
+
+      .anchor-field .text-input {
+        min-height: 46px;
+        box-shadow: none;
+      }
+
+      .cast-size-row {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+      }
+
+      .cast-size {
+        min-height: 34px;
+        border: 1px solid var(--phone-border);
+        border-radius: 11px;
+        color: var(--phone-copy);
+        background: var(--phone-pill);
+        font-size: 10px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .cast-size.active {
+        color: var(--grape);
+        border-color: rgba(107, 53, 255, 0.3);
+        background: var(--phone-selected);
+      }
+
+      .ai-panel {
+        position: relative;
+        overflow: hidden;
+        margin-top: 16px;
+        padding: 16px;
+        border: 1px solid rgba(107, 53, 255, 0.14);
+        border-radius: 26px;
+        background: linear-gradient(145deg, var(--phone-surface-raised), color-mix(in srgb, var(--phone-surface-raised) 80%, #efe8ff));
+        box-shadow: var(--clay-shadow);
+      }
+
+      .dark .ai-panel {
+        background: linear-gradient(145deg, #2c1d43, #211433);
+      }
+
+      .ai-panel::after {
+        position: absolute;
+        top: -45px;
+        right: -45px;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(49, 184, 255, 0.2), transparent 70%);
+        content: "";
+        pointer-events: none;
+      }
+
+      .ai-topline {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .ai-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 1000;
+      }
+
+      .spark {
+        display: grid;
+        width: 25px;
+        height: 25px;
+        place-items: center;
+        border-radius: 9px;
+        color: #fff;
+        background: linear-gradient(145deg, var(--purple), var(--grape));
+        box-shadow: 0 7px 15px rgba(107, 53, 255, 0.24);
+      }
+
+      .ai-permission {
+        min-height: 31px;
+        padding: 0 10px;
+        border: 1px solid rgba(107, 53, 255, 0.18);
+        border-radius: 999px;
+        color: var(--grape);
+        background: var(--phone-selected);
+        font-size: 9px;
+        font-weight: 1000;
+        cursor: pointer;
+      }
+
+      .dark .ai-permission {
+        color: #dccfff;
+      }
+
+      .ai-helper {
+        position: relative;
+        z-index: 1;
+        min-height: 35px;
+        margin: 0 0 12px;
+        color: var(--phone-copy);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .primary-button,
+      .secondary-button {
+        display: flex;
+        width: 100%;
+        min-height: 52px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 18px;
+        font-size: 13px;
+        font-weight: 1000;
+        cursor: pointer;
+        transition: transform 150ms ease, opacity 150ms ease;
+      }
+
+      .primary-button {
+        border: 0;
+        color: #fff;
+        background: linear-gradient(135deg, #aa70ff 0%, #6b35ff 55%, #5b61ff 100%);
+        box-shadow: 0 13px 25px rgba(107, 53, 255, 0.3);
+      }
+
+      .primary-button:disabled {
+        cursor: not-allowed;
+        box-shadow: none;
+        filter: grayscale(0.3);
+        opacity: 0.48;
+      }
+
+      .secondary-button {
+        border: 1px solid var(--phone-border);
+        color: var(--phone-copy);
+        background: var(--phone-surface-muted);
+      }
+
+      .small-secondary {
+        width: auto;
+        min-height: 36px;
+        padding: 0 11px;
+        border-radius: 13px;
+        font-size: 10px;
+      }
+
+      .ai-offline {
+        display: none;
+        align-items: flex-start;
+        gap: 9px;
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 14px;
+        color: var(--phone-copy);
+        background: rgba(168, 76, 0, 0.1);
+        font-size: 10px;
+        font-weight: 750;
+        line-height: 1.4;
+      }
+
+      .ai-offline.visible {
+        display: flex;
+      }
+
+      .manual-nudge {
+        display: none;
+        margin-top: 10px;
+      }
+
+      .manual-nudge.visible {
+        display: block;
+      }
+
+      .draft-section {
+        margin-top: 24px;
+      }
+
+      .draft-empty {
+        padding: 18px;
+        border: 1px dashed color-mix(in srgb, var(--phone-separator) 80%, transparent);
+        border-radius: 23px;
+        color: var(--phone-copy);
+        background: color-mix(in srgb, var(--phone-surface-muted) 68%, transparent);
+        text-align: center;
+      }
+
+      .draft-empty-icon {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 10px;
+        place-items: center;
+        border-radius: 16px;
+        color: var(--grape);
+        background: var(--phone-selected);
+        font-size: 21px;
+      }
+
+      .draft-empty strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--phone-ink);
+        font-size: 13px;
+      }
+
+      .draft-empty p {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .draft-requirements {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 5px;
+        margin-top: 11px;
+      }
+
+      .draft-requirements span {
+        padding: 5px 8px;
+        border-radius: 999px;
+        color: var(--phone-copy);
+        background: var(--phone-pill);
+        font-size: 9px;
+        font-weight: 900;
+      }
+
+      .draft-form {
+        display: none;
+        gap: 15px;
+        animation: reveal 260ms ease both;
+      }
+
+      .draft-form.visible {
+        display: grid;
+      }
+
+      @keyframes reveal {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .draft-status {
+        display: none;
+        align-items: center;
+        gap: 9px;
+        padding: 11px 12px;
+        border-radius: 16px;
+        color: var(--green);
+        background: rgba(8, 127, 105, 0.11);
+        font-size: 10px;
+        font-weight: 900;
+      }
+
+      .dark .draft-status {
+        color: #65e6ca;
+      }
+
+      .draft-status.visible {
+        display: flex;
+      }
+
+      .draft-field {
+        position: relative;
+      }
+
+      .ai-badge {
+        display: none;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 7px;
+        border-radius: 999px;
+        color: var(--grape);
+        background: var(--phone-selected);
+        font-size: 8px;
+        font-weight: 1000;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .dark .ai-badge {
+        color: #dccfff;
+      }
+
+      .draft-field.ai-suggested .ai-badge {
+        display: inline-flex;
+      }
+
+      .characters-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .character-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 7px;
+        padding: 11px;
+        border: 1px solid var(--phone-border);
+        border-radius: 18px;
+        background: var(--phone-surface-muted);
+      }
+
+      .character-row .text-input {
+        min-height: 42px;
+        box-shadow: none;
+      }
+
+      .remove-character {
+        position: absolute;
+        z-index: 1;
+        top: 8px;
+        right: 8px;
+        display: grid;
+        width: 25px;
+        height: 25px;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        color: var(--red);
+        background: color-mix(in srgb, var(--phone-surface-raised) 84%, transparent);
+        cursor: pointer;
+      }
+
+      .undo-button {
+        display: none;
+        min-height: 38px;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 13px;
+        color: var(--phone-copy);
+        background: transparent;
+        font-size: 10px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .undo-button.visible {
+        display: flex;
+      }
+
+      .phone-footer {
+        position: absolute;
+        z-index: 8;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding: 18px 18px 22px;
+        background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--phone-bg) 90%, transparent) 25%, var(--phone-bg) 64%);
+        pointer-events: none;
+      }
+
+      .phone-footer .primary-button {
+        pointer-events: auto;
+      }
+
+      .completion-note {
+        margin: 0 0 7px;
+        color: var(--phone-copy);
+        font-size: 9px;
+        font-weight: 850;
+        text-align: center;
+      }
+
+      .sheet-scrim {
+        position: absolute;
+        z-index: 20;
+        inset: 0;
+        display: none;
+        align-items: flex-end;
+        background: var(--phone-scrim);
+        backdrop-filter: blur(3px);
+      }
+
+      .sheet-scrim.visible {
+        display: flex;
+      }
+
+      .bottom-sheet {
+        width: 100%;
+        max-height: 72%;
+        overflow: auto;
+        padding: 10px 18px 26px;
+        border: 1px solid var(--phone-border);
+        border-radius: 30px 30px 0 0;
+        color: var(--phone-ink);
+        background: var(--phone-sheet);
+        box-shadow: 0 -22px 60px rgba(36, 26, 56, 0.22);
+        animation: sheetIn 230ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        scrollbar-width: none;
+      }
+
+      @keyframes sheetIn {
+        from {
+          transform: translateY(36px) scale(0.98);
+          opacity: 0;
+        }
+      }
+
+      .sheet-handle {
+        width: 38px;
+        height: 5px;
+        margin: 0 auto 15px;
+        border-radius: 999px;
+        background: var(--phone-separator);
+      }
+
+      .sheet-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .sheet-header h3 {
+        margin: 0 0 4px;
+        font-size: 19px;
+      }
+
+      .sheet-header p {
+        margin: 0;
+        color: var(--phone-copy);
+        font-size: 11px;
+        line-height: 1.4;
+      }
+
+      .sheet-close {
+        display: grid;
+        flex: 0 0 auto;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        color: var(--phone-copy);
+        background: var(--phone-pill);
+        cursor: pointer;
+      }
+
+      .sheet-options {
+        display: grid;
+        gap: 8px;
+      }
+
+      .sheet-option {
+        display: grid;
+        grid-template-columns: 1fr 24px;
+        gap: 10px;
+        min-height: 61px;
+        align-items: center;
+        padding: 11px 12px;
+        border: 1px solid var(--phone-border);
+        border-radius: 18px;
+        color: var(--phone-ink);
+        background: var(--phone-surface-muted);
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .sheet-option.selected {
+        border-color: rgba(107, 53, 255, 0.3);
+        background: var(--phone-selected);
+      }
+
+      .option-copy strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 12px;
+      }
+
+      .option-copy span {
+        display: block;
+        color: var(--phone-copy);
+        font-size: 10px;
+        line-height: 1.35;
+      }
+
+      .option-check {
+        display: grid;
+        width: 21px;
+        height: 21px;
+        place-items: center;
+        border: 1px solid var(--phone-separator);
+        border-radius: 50%;
+        color: transparent;
+        font-size: 12px;
+      }
+
+      .sheet-option.selected .option-check {
+        color: #fff;
+        border-color: var(--grape);
+        background: var(--grape);
+      }
+
+      .toast {
+        position: absolute;
+        z-index: 30;
+        top: 56px;
+        left: 50%;
+        display: flex;
+        width: max-content;
+        max-width: calc(100% - 38px);
+        min-height: 42px;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 13px;
+        border: 1px solid var(--phone-border);
+        border-radius: 15px;
+        color: var(--phone-ink);
+        background: var(--phone-sheet);
+        box-shadow: 0 14px 30px rgba(36, 26, 56, 0.2);
+        font-size: 11px;
+        font-weight: 900;
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, -12px);
+        transition: 190ms ease;
+      }
+
+      .toast.visible {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      .success-screen {
+        position: absolute;
+        z-index: 25;
+        inset: 0;
+        display: none;
+        place-items: center;
+        padding: 26px;
+        color: var(--phone-ink);
+        background: color-mix(in srgb, var(--phone-bg) 92%, transparent);
+        backdrop-filter: blur(18px);
+      }
+
+      .success-screen.visible {
+        display: grid;
+        animation: reveal 260ms ease both;
+      }
+
+      .success-content {
+        text-align: center;
+      }
+
+      .success-icon {
+        display: grid;
+        width: 84px;
+        height: 84px;
+        margin: 0 auto 18px;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        border-radius: 30px;
+        color: #fff;
+        background: linear-gradient(145deg, #a86bff, #6b35ff 55%, #31b8ff);
+        box-shadow: var(--clay-shadow);
+        font-size: 38px;
+      }
+
+      .success-content h2 {
+        margin: 0 0 8px;
+        font-family: "Baloo 2", Nunito, ui-rounded, sans-serif;
+        font-size: 30px;
+        line-height: 1;
+      }
+
+      .success-content p {
+        margin: 0 0 20px;
+        color: var(--phone-copy);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .annotation {
+        align-self: start;
+      }
+
+      .annotation-content {
+        padding: 20px 22px 24px;
+      }
+
+      .metric {
+        padding: 16px 0;
+        border-bottom: 1px solid var(--lab-line);
+      }
+
+      .metric:first-child {
+        padding-top: 0;
+      }
+
+      .metric:last-child {
+        border-bottom: 0;
+      }
+
+      .metric-value {
+        margin-bottom: 4px;
+        font-family: "Baloo 2", Nunito, ui-rounded, sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .metric-label {
+        color: var(--lab-muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .try-list {
+        display: grid;
+        gap: 9px;
+        margin-top: 16px;
+      }
+
+      .try-item {
+        display: grid;
+        grid-template-columns: 25px 1fr;
+        gap: 9px;
+        color: var(--lab-muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .try-index {
+        display: grid;
+        width: 23px;
+        height: 23px;
+        place-items: center;
+        border-radius: 8px;
+        color: #fff;
+        background: rgba(168, 107, 255, 0.18);
+        font-size: 10px;
+        font-weight: 900;
+      }
+
+      .principle {
+        margin-top: 18px;
+        padding: 15px;
+        border: 1px solid rgba(168, 107, 255, 0.18);
+        border-radius: 18px;
+        background: rgba(168, 107, 255, 0.07);
+      }
+
+      .principle strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 12px;
+      }
+
+      .principle p {
+        margin: 0;
+        color: var(--lab-muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .loading-dots {
+        display: inline-flex;
+        gap: 4px;
+      }
+
+      .loading-dots span {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: dotPulse 900ms ease-in-out infinite;
+      }
+
+      .loading-dots span:nth-child(2) {
+        animation-delay: 120ms;
+      }
+
+      .loading-dots span:nth-child(3) {
+        animation-delay: 240ms;
+      }
+
+      @keyframes dotPulse {
+        50% {
+          opacity: 0.35;
+          transform: translateY(-2px);
+        }
+      }
+
+      @media (max-width: 1120px) {
+        .workspace {
+          grid-template-columns: minmax(280px, 0.85fr) minmax(420px, 1.15fr);
+        }
+
+        .annotation {
+          grid-column: 1 / -1;
+        }
+
+        .annotation-content {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 20px;
+        }
+
+        .try-list,
+        .principle {
+          grid-column: 1 / -1;
+        }
+      }
+
+      @media (max-width: 780px) {
+        .page-header {
+          display: block;
+          padding: 24px 18px 18px;
+        }
+
+        .page-header p {
+          margin-top: 14px;
+        }
+
+        .workspace {
+          display: flex;
+          flex-direction: column;
+          padding: 18px 14px 36px;
+        }
+
+        .prototype-stage {
+          order: -1;
+        }
+
+        .phone-shell {
+          height: min(790px, calc(100vh - 132px));
+        }
+
+        .lab-tab-panel {
+          max-height: none;
+        }
+
+        .annotation-content {
+          display: block;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ambient-orb one"></div>
+    <div class="ambient-orb two"></div>
+
+    <header class="page-header">
+      <div>
+        <div class="brand-line"><span class="brand-mark"></span> Context-English · UX lab</div>
+        <h1>Создание серии без ощущения анкеты</h1>
+      </div>
+      <p>
+        Кликабельное предложение: один экран, как требует PRD, но с ясным первым действием,
+        progressive disclosure и раздельными ролями идеи, AI и итогового draft.
+      </p>
+    </header>
+
+    <main class="workspace">
+      <aside class="lab-panel research-panel">
+        <div class="lab-panel-header">
+          <h2>Что показало исследование</h2>
+          <p>PRD, architecture, stack, текущая форма и domain-модели.</p>
+        </div>
+        <div class="lab-tabs" role="tablist" aria-label="Разделы исследования">
+          <button class="lab-tab active" data-tab="solution" role="tab">Решение</button>
+          <button class="lab-tab" data-tab="fields" role="tab">Поля</button>
+          <button class="lab-tab" data-tab="cases" role="tab">Сценарии</button>
+        </div>
+
+        <section class="lab-tab-panel active" id="solution" role="tabpanel">
+          <article class="finding">
+            <div class="finding-kicker"><span class="finding-number">1</span> Диагноз</div>
+            <h3>Смешаны ввод и результат</h3>
+            <p>
+              Ограничения, творческий brief, разрешения AI и финальная спецификация серии выглядят
+              как равнозначные поля. Пользователь не понимает, что можно не заполнять вручную.
+            </p>
+          </article>
+          <article class="finding">
+            <div class="finding-kicker"><span class="finding-number">2</span> Первый фокус</div>
+            <h3>«Какой сериал?» вместо «заполните форму»</h3>
+            <p>
+              Сначала видны четыре коротких решения и необязательная идея. У каждого значения есть
+              понятный выбор в bottom sheet, но на экране остаётся компактное резюме.
+            </p>
+          </article>
+          <article class="finding">
+            <div class="finding-kicker"><span class="finding-number">3</span> Progressive disclosure</div>
+            <h3>Draft появляется тогда, когда нужен</h3>
+            <p>
+              Пустые Title, Premise и Characters не требуют внимания сразу. Они раскрываются после
+              AI-генерации или по явному выбору «I’ll write it myself».
+            </p>
+          </article>
+          <article class="finding">
+            <div class="finding-kicker"><span class="finding-number">4</span> AI-права</div>
+            <h3>Стратегия — разрешение, а не творческое поле</h3>
+            <p>
+              Fill gaps / Refine / Rebuild собраны в одну компактную настройку рядом с AI-действием.
+              Короткое описание всегда говорит, что именно AI может изменить.
+            </p>
+          </article>
+          <article class="finding">
+            <div class="finding-kicker"><span class="finding-number">5</span> Сохранение</div>
+            <h3>Один action меняет смысл по готовности</h3>
+            <p>
+              Пока обязательные итоговые поля не готовы — Save draft. Когда готовы — Create series.
+              Локальный draft доступен офлайн, AI-действие блокируется отдельно.
+            </p>
+          </article>
+          <div class="guardrail">
+            <strong>Почему не wizard:</strong> канонический PRD прямо требует один setup screen.
+            Поэтому здесь меняется иерархия и момент раскрытия полей, а не количество экранов.
+          </div>
+        </section>
+
+        <section class="lab-tab-panel" id="fields" role="tabpanel">
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">CEFR level</span><span class="field-tag">явно</span></div>
+            <p>Контролирует грамматику и сложность слов. A1–C2, по умолчанию B1.</p>
+            <div class="field-disposition">Оставить видимым · компактный selector</div>
+          </div>
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">Genre</span><span class="field-tag">явно</span></div>
+            <p>Daily Life, Work &amp; IT, Travel, Short Fiction; влияет на генерацию и Story Words.</p>
+            <div class="field-disposition">Оставить видимым · bottom sheet</div>
+          </div>
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">Tone</span><span class="field-tag">явно</span></div>
+            <p>Пять безопасных mood preset; задаёт ощущение истории, не её сюжет.</p>
+            <div class="field-disposition">Оставить видимым · bottom sheet</div>
+          </div>
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">Participation mode</span><span class="field-tag">явно</span></div>
+            <p>Producer управляет событиями снаружи; Character играет роль внутри. После эпизода не меняется.</p>
+            <div class="field-disposition">Оставить видимым · объяснить последствия</div>
+          </div>
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">Your idea</span><span class="field-tag optional">необязательно</span></div>
+            <p>Свободная сцена, образ, герой, конфликт или premise. Текст пользователя AI не переписывает.</p>
+            <div class="field-disposition">Всегда видимо · примеры-семена</div>
+          </div>
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">Story anchors × 6</span><span class="field-tag optional">необязательно</span></div>
+            <p>World, backstory, driver, cast size, must include, avoid — дополнительные границы генерации.</p>
+            <div class="field-disposition">Скрыть под Add story details</div>
+          </div>
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">AI strategy</span><span class="field-tag">permission</span></div>
+            <p>Fill gaps, Refine или Rebuild определяют, какие финальные поля AI имеет право менять.</p>
+            <div class="field-disposition">Компактно рядом с AI-action</div>
+          </div>
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">Title + Premise</span><span class="field-tag">до create</span></div>
+            <p>Обязательные итоговые значения. Можно написать вручную или получить от AI.</p>
+            <div class="field-disposition">Раскрывать как draft, не как стартовый вопрос</div>
+          </div>
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">Characters</span><span class="field-tag">до create</span></div>
+            <p>Хотя бы один профиль; пустая видимая строка означает слот, который AI должен заполнить.</p>
+            <div class="field-disposition">Редактировать после AI или в manual path</div>
+          </div>
+          <div class="field-row">
+            <div class="field-topline"><span class="field-name">Your role</span><span class="field-tag optional">условно</span></div>
+            <p>Обязательно только в Character mode и должно соответствовать профилю персонажа.</p>
+            <div class="field-disposition">Показывать только в Character mode</div>
+          </div>
+          <div class="not-needed">
+            <strong>Не спрашивать в этом окне</strong>
+            <ul>
+              <li>длину эпизода — она адаптивна;</li>
+              <li>Story Words — это следующий отдельный flow;</li>
+              <li>направление следующего эпизода — out of scope;</li>
+              <li>series memory, sync metadata и provenance — системные данные;</li>
+              <li>legacy AI-freedom slider — не даёт прав на замену полей.</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="lab-tab-panel" id="cases" role="tabpanel">
+          <article class="scenario">
+            <h3>«У меня нет идеи»</h3>
+            <p>Выбирает vibe, оставляет Your idea пустым, AI создаёт оригинальный draft из constraints.</p>
+          </article>
+          <article class="scenario">
+            <h3>«Есть один образ»</h3>
+            <p>Пишет одну фразу, при желании добавляет anchors, затем просит AI заполнить итоговые поля.</p>
+          </article>
+          <article class="scenario">
+            <h3>«Хочу всё написать сам»</h3>
+            <p>Переключает path — draft раскрывается сразу; AI остаётся необязательной страховкой.</p>
+          </article>
+          <article class="scenario">
+            <h3>Character mode</h3>
+            <p>Your role появляется только здесь; режим объясняет, что ответы будут от лица героя.</p>
+          </article>
+          <article class="scenario">
+            <h3>Частично заполненный draft</h3>
+            <p>Fill gaps сохраняет написанное, Refine меняет только при реальной пользе, Rebuild требует подтверждения.</p>
+          </article>
+          <article class="scenario">
+            <h3>Нет сети</h3>
+            <p>Форма и Save draft работают; блокируется только AI с явным online-required сообщением.</p>
+          </article>
+          <article class="scenario">
+            <h3>Возврат позже</h3>
+            <p>Новый setup восстанавливает локальный draft целиком, включая anchors и выбранную AI strategy.</p>
+          </article>
+          <article class="scenario">
+            <h3>Редактирование серии</h3>
+            <p>До первого эпизода — тот же editable flow; после первого — те же данные, но read-only.</p>
+          </article>
+        </section>
+      </aside>
+
+      <section class="prototype-stage" aria-label="Интерактивный прототип">
+        <div class="prototype-toolbar">
+          <button class="tool-button" id="themeToggle" type="button">◐ Theme</button>
+          <button class="tool-button" id="networkToggle" type="button">
+            <span class="status-dot"></span><span id="networkLabel">Online</span>
+          </button>
+          <button class="tool-button" id="resetPrototype" type="button">↻ Reset</button>
+        </div>
+
+        <div class="phone-shell" id="phoneShell">
+          <div class="phone-notch"></div>
+          <div class="phone-background">
+            <span class="bubble grape"></span>
+            <span class="bubble pink"></span>
+            <span class="bubble teal"></span>
+          </div>
+
+          <div class="phone-screen" id="phoneScreen">
+            <nav class="phone-nav" aria-label="Series creation navigation">
+              <button class="back-button" type="button" aria-label="Back" data-toast="Prototype: back to My Series">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="m15 5-7 7 7 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <div class="phone-nav-title">New series</div>
+              <button class="save-draft" id="topSaveDraft" type="button">Save draft</button>
+            </nav>
+
+            <div class="phone-eyebrow">Your next English story</div>
+            <h2 class="phone-title">What should it feel like?</h2>
+            <p class="phone-intro">Choose the vibe. Write as much—or as little—as you want.</p>
+
+            <div class="path-switch" aria-label="Creation approach">
+              <button class="path-option active" data-path="assist" type="button">✦ Start with AI</button>
+              <button class="path-option" data-path="manual" type="button">Write it myself</button>
+            </div>
+
+            <section class="section-block" aria-labelledby="directionHeading">
+              <div class="section-heading-row">
+                <h3 class="section-heading" id="directionHeading">Set the direction</h3>
+                <span class="section-hint">4 quick choices</span>
+              </div>
+              <div class="settings-grid">
+                <button class="setting-button" data-setting="level" type="button">
+                  <span class="setting-label">English level</span>
+                  <span class="setting-value" id="levelValue">B1 · Intermediate</span>
+                  <span class="setting-arrow">›</span>
+                </button>
+                <button class="setting-button" data-setting="genre" type="button">
+                  <span class="setting-label">Genre</span>
+                  <span class="setting-value" id="genreValue">Short Fiction</span>
+                  <span class="setting-arrow">›</span>
+                </button>
+                <button class="setting-button" data-setting="tone" type="button">
+                  <span class="setting-label">Mood</span>
+                  <span class="setting-value" id="toneValue">Warm &amp; curious</span>
+                  <span class="setting-arrow">›</span>
+                </button>
+                <button class="setting-button" data-setting="mode" type="button">
+                  <span class="setting-label">How you play</span>
+                  <span class="setting-value" id="modeValue">Producer</span>
+                  <span class="setting-arrow">›</span>
+                </button>
+              </div>
+            </section>
+
+            <section class="section-block" aria-labelledby="ideaHeading">
+              <div class="field-label" id="ideaHeading">
+                <span>Your idea</span><span class="optional-label">Optional · one thought is enough</span>
+              </div>
+              <textarea
+                class="text-input"
+                id="ideaInput"
+                maxlength="1000"
+                placeholder="A place, a character, a strange message, a problem..."
+              ></textarea>
+              <div class="prompt-chips" aria-label="Idea examples">
+                <button class="prompt-chip" data-prompt="A night train where one passenger seems to know the future." type="button">Night train</button>
+                <button class="prompt-chip" data-prompt="A new airport worker receives messages from a pilot who vanished ten years ago." type="button">Airport mystery</button>
+                <button class="prompt-chip" data-prompt="Two coworkers discover that their office AI is secretly asking for help." type="button">Office secret</button>
+              </div>
+
+              <button class="disclosure" id="detailsDisclosure" aria-expanded="false" type="button">
+                <span>＋ Add story details <span class="optional-label">(optional)</span></span>
+                <span class="disclosure-icon">＋</span>
+              </button>
+
+              <div class="anchor-details" id="anchorDetails">
+                <label class="anchor-field">
+                  <span class="field-label">World and setting</span>
+                  <input class="text-input" id="worldInput" maxlength="400" placeholder="Where and when?" />
+                </label>
+                <label class="anchor-field">
+                  <span class="field-label">What happened before?</span>
+                  <textarea class="text-input" id="backstoryInput" maxlength="600" placeholder="Only if it matters"></textarea>
+                </label>
+                <label class="anchor-field">
+                  <span class="field-label">Goal or central problem</span>
+                  <textarea class="text-input" id="driverInput" maxlength="500" placeholder="What keeps the story moving?"></textarea>
+                </label>
+                <div class="anchor-field">
+                  <span class="field-label">Main cast size <span class="optional-label">AI choice by default</span></span>
+                  <div class="cast-size-row">
+                    <button class="cast-size active" data-size="AI" type="button">AI</button>
+                    <button class="cast-size" data-size="1" type="button">1</button>
+                    <button class="cast-size" data-size="2" type="button">2</button>
+                    <button class="cast-size" data-size="3" type="button">3</button>
+                    <button class="cast-size" data-size="4" type="button">4</button>
+                  </div>
+                </div>
+                <label class="anchor-field">
+                  <span class="field-label">Important to include</span>
+                  <input class="text-input" id="includeInput" maxlength="300" placeholder="An object, theme, or relationship" />
+                </label>
+                <label class="anchor-field">
+                  <span class="field-label">Please avoid</span>
+                  <input class="text-input" id="avoidInput" maxlength="300" placeholder="Horror, romance, clichés..." />
+                </label>
+              </div>
+            </section>
+
+            <section class="ai-panel" id="aiPanel">
+              <div class="ai-topline">
+                <div class="ai-title"><span class="spark">✦</span> Let AI build the draft</div>
+                <button class="ai-permission" data-setting="strategy" id="permissionButton" type="button">AI: Fill gaps ▾</button>
+              </div>
+              <p class="ai-helper" id="aiHelper">Fills title, premise, cast and role only when they are empty.</p>
+              <button class="primary-button" id="generateButton" type="button">Fill empty fields</button>
+              <div class="ai-offline" id="offlineNotice"><span>◌</span><span>AI needs a connection. You can keep editing and save this draft offline.</span></div>
+              <button class="undo-button" id="undoButton" type="button">↶ Undo AI changes</button>
+            </section>
+
+            <button class="secondary-button manual-nudge" id="manualNudge" type="button">Open the story draft</button>
+
+            <section class="draft-section" id="draftSection" aria-labelledby="draftHeading">
+              <div class="section-heading-row">
+                <h3 class="section-heading" id="draftHeading">Story draft</h3>
+                <span class="section-hint" id="draftHint">Nothing to review yet</span>
+              </div>
+
+              <div class="draft-empty" id="draftEmpty">
+                <div class="draft-empty-icon">⌁</div>
+                <strong>No blank form to finish</strong>
+                <p>AI can prepare the required setup, or you can open it and write it yourself.</p>
+                <div class="draft-requirements"><span>Title</span><span>Premise</span><span>Characters</span></div>
+              </div>
+
+              <div class="draft-form" id="draftForm">
+                <div class="draft-status" id="draftStatus"><span>✓</span><span>Draft ready · AI suggestions stay editable</span></div>
+                <label class="draft-field" id="titleField">
+                  <span class="field-label"><span>Title</span><span class="ai-badge">✦ AI suggestion</span></span>
+                  <input class="text-input draft-value" id="titleInput" maxlength="160" placeholder="Give your series a name" />
+                </label>
+                <label class="draft-field" id="premiseField">
+                  <span class="field-label"><span>Premise</span><span class="ai-badge">✦ AI suggestion</span></span>
+                  <textarea class="text-input draft-value" id="premiseInput" maxlength="1000" placeholder="What is the series about?"></textarea>
+                </label>
+                <div class="draft-field" id="charactersField">
+                  <span class="field-label"><span>Characters</span><span class="ai-badge">✦ AI suggestion</span></span>
+                  <div class="characters-list" id="charactersList"></div>
+                  <button class="secondary-button small-secondary" id="addCharacter" type="button">＋ Add character</button>
+                </div>
+                <label class="draft-field" id="roleField" hidden>
+                  <span class="field-label"><span>Your role</span><span class="ai-badge">✦ AI suggestion</span></span>
+                  <input class="text-input draft-value" id="roleInput" maxlength="160" placeholder="Choose one character" />
+                  <span class="optional-label">Required in Character mode. Locked after the first episode.</span>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <footer class="phone-footer">
+            <p class="completion-note" id="completionNote">You can save an unfinished draft anytime</p>
+            <button class="primary-button" id="finalAction" type="button">Save draft</button>
+          </footer>
+
+          <div class="sheet-scrim" id="sheetScrim" aria-hidden="true">
+            <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+              <div class="sheet-handle"></div>
+              <div class="sheet-header">
+                <div>
+                  <h3 id="sheetTitle">Choose</h3>
+                  <p id="sheetDescription"></p>
+                </div>
+                <button class="sheet-close" id="sheetClose" type="button" aria-label="Close">×</button>
+              </div>
+              <div class="sheet-options" id="sheetOptions"></div>
+            </div>
+          </div>
+
+          <div class="toast" id="toast" role="status">✓ Draft saved on this device</div>
+
+          <div class="success-screen" id="successScreen">
+            <div class="success-content">
+              <div class="success-icon">✦</div>
+              <h2>Your series is ready</h2>
+              <p id="successCopy">Next, choose the Story Words for Episode 1.</p>
+              <button class="primary-button" id="successReset" type="button">Try another version</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="lab-panel annotation">
+        <div class="lab-panel-header">
+          <h2>Как тестировать прототип</h2>
+          <p>Все ключевые состояния можно вызвать кликами.</p>
+        </div>
+        <div class="annotation-content">
+          <div class="metric">
+            <div class="metric-value">4 + 1</div>
+            <div class="metric-label">четыре явных ограничения и одно необязательное творческое поле в первом фокусе</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">1 screen</div>
+            <div class="metric-label">без wizard: совместимо с PRD и текущим create/edit flow</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">2 paths</div>
+            <div class="metric-label">AI-first и manual используют одну модель данных, но не конкурируют за внимание</div>
+          </div>
+
+          <div class="try-list">
+            <div class="try-item"><span class="try-index">1</span><span>Откройте Level, Genre, Mood и Mode — оцените, понятна ли роль каждого выбора.</span></div>
+            <div class="try-item"><span class="try-index">2</span><span>Нажмите пример идеи или напишите свою, затем раскройте optional details.</span></div>
+            <div class="try-item"><span class="try-index">3</span><span>Сгенерируйте draft и отредактируйте AI-поле — badge исчезнет как provenance feedback.</span></div>
+            <div class="try-item"><span class="try-index">4</span><span>Переключитесь в Character mode: в draft появится условное поле Your role.</span></div>
+            <div class="try-item"><span class="try-index">5</span><span>Включите Offline сверху: форма и Save draft останутся, AI станет недоступен.</span></div>
+            <div class="try-item"><span class="try-index">6</span><span>Выберите Rebuild после заполнения draft — прототип предупредит о замене результата.</span></div>
+          </div>
+
+          <div class="principle">
+            <strong>Ключевой UX-принцип</strong>
+            <p>Пользователь задаёт намерение; AI или manual path превращает его в обязательную спецификацию. Интерфейс не просит делать оба действия одновременно.</p>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <script>
+      const optionSets = {
+        level: {
+          title: 'English level',
+          description: 'Episodes will keep grammar and vocabulary inside this level.',
+          options: [
+            ['A1 · Beginner', 'Very short sentences and everyday words.'],
+            ['A2 · Elementary', 'Simple scenes and familiar conversations.'],
+            ['B1 · Intermediate', 'Natural stories with clear, manageable language.'],
+            ['B2 · Upper-intermediate', 'Richer language and more nuanced situations.'],
+            ['C1 · Advanced', 'Complex ideas with precise, natural English.'],
+            ['C2 · Proficient', 'Highly flexible and nuanced language.'],
+          ],
+        },
+        genre: {
+          title: 'Choose a genre',
+          description: 'Genre shapes situations, vocabulary suggestions, and story expectations.',
+          options: [
+            ['Daily Life', 'Friends, routines, relationships, and familiar places.'],
+            ['Work & IT', 'Teams, projects, technology, and workplace dilemmas.'],
+            ['Travel', 'New places, unexpected encounters, and practical situations.'],
+            ['Short Fiction', 'Original mysteries, adventures, and imaginative worlds.'],
+          ],
+        },
+        tone: {
+          title: 'Choose the mood',
+          description: 'Tone changes how the story feels without deciding the plot for you.',
+          options: [
+            ['Warm & curious', 'Gentle tension, wonder, and human connection.'],
+            ['Calm detective', 'Clues and questions without heavy darkness.'],
+            ['Light adventure', 'Forward motion, discovery, and playful risk.'],
+            ['Everyday realistic', 'Grounded situations and natural dialogue.'],
+            ['Cinematic mystery', 'Atmospheric scenes and a stronger sense of suspense.'],
+          ],
+        },
+        mode: {
+          title: 'How do you want to play?',
+          description: 'This changes every interaction in the series and locks after Episode 1.',
+          options: [
+            ['Producer', 'Direct events from outside: decide what characters do and what happens next.'],
+            ['Character', 'Play one role inside the story: speak, act, ask, and make plans.'],
+          ],
+        },
+        strategy: {
+          title: 'How should AI work?',
+          description: 'This is permission to change the final draft. Your idea and story details always stay unchanged.',
+          options: [
+            ['Fill gaps', 'Fill only empty required fields and visible blank character slots.'],
+            ['Refine draft', 'Fill gaps and replace a field only when it meaningfully improves the story.'],
+            ['Rebuild', 'Create a new final title, premise, cast, and role from your protected idea.'],
+          ],
+        },
+      };
+
+      const state = {
+        online: true,
+        path: 'assist',
+        level: 'B1 · Intermediate',
+        genre: 'Short Fiction',
+        tone: 'Warm & curious',
+        mode: 'Producer',
+        strategy: 'Fill gaps',
+        draftOpen: false,
+        generated: false,
+        characters: [],
+      };
+
+      const phoneShell = document.getElementById('phoneShell');
+      const phoneScreen = document.getElementById('phoneScreen');
+      const sheetScrim = document.getElementById('sheetScrim');
+      const sheetTitle = document.getElementById('sheetTitle');
+      const sheetDescription = document.getElementById('sheetDescription');
+      const sheetOptions = document.getElementById('sheetOptions');
+      const toast = document.getElementById('toast');
+      const ideaInput = document.getElementById('ideaInput');
+      const detailsDisclosure = document.getElementById('detailsDisclosure');
+      const anchorDetails = document.getElementById('anchorDetails');
+      const aiPanel = document.getElementById('aiPanel');
+      const aiHelper = document.getElementById('aiHelper');
+      const permissionButton = document.getElementById('permissionButton');
+      const generateButton = document.getElementById('generateButton');
+      const offlineNotice = document.getElementById('offlineNotice');
+      const manualNudge = document.getElementById('manualNudge');
+      const draftEmpty = document.getElementById('draftEmpty');
+      const draftForm = document.getElementById('draftForm');
+      const draftStatus = document.getElementById('draftStatus');
+      const draftHint = document.getElementById('draftHint');
+      const titleInput = document.getElementById('titleInput');
+      const premiseInput = document.getElementById('premiseInput');
+      const roleInput = document.getElementById('roleInput');
+      const roleField = document.getElementById('roleField');
+      const charactersList = document.getElementById('charactersList');
+      const undoButton = document.getElementById('undoButton');
+      const finalAction = document.getElementById('finalAction');
+      const completionNote = document.getElementById('completionNote');
+      const successScreen = document.getElementById('successScreen');
+      let toastTimer;
+
+      function showToast(message) {
+        window.clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add('visible');
+        toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 1800);
+      }
+
+      function strategyDescription() {
+        if (state.strategy === 'Refine draft') {
+          return 'Fills gaps and changes existing draft fields only when it meaningfully helps.';
+        }
+        if (state.strategy === 'Rebuild') {
+          return 'Replaces the final draft. Your idea, details, level, genre, mood, and mode stay fixed.';
+        }
+        return 'Fills title, premise, cast and role only when they are empty.';
+      }
+
+      function generationLabel() {
+        if (state.strategy === 'Refine draft') return 'Refine my draft';
+        if (state.strategy === 'Rebuild') {
+          const hasIdea = ideaInput.value.trim().length > 0 || hasAnchorText();
+          if (hasIdea) return 'Rebuild from my idea';
+          return isDraftPopulated() ? 'Rebuild draft' : 'Create something for me';
+        }
+        return 'Fill empty fields';
+      }
+
+      function hasAnchorText() {
+        return ['worldInput', 'backstoryInput', 'driverInput', 'includeInput', 'avoidInput']
+          .some((id) => document.getElementById(id).value.trim().length > 0);
+      }
+
+      function isDraftPopulated() {
+        return titleInput.value.trim().length > 0 || premiseInput.value.trim().length > 0 || state.characters.some((character) => character.name.trim());
+      }
+
+      function isDraftComplete() {
+        const hasCharacter = state.characters.some((character) => character.name.trim());
+        const hasRole = state.mode !== 'Character' || roleInput.value.trim().length > 0;
+        return titleInput.value.trim().length > 0 && premiseInput.value.trim().length > 0 && hasCharacter && hasRole;
+      }
+
+      function updateSettingLabels() {
+        document.getElementById('levelValue').textContent = state.level;
+        document.getElementById('genreValue').textContent = state.genre;
+        document.getElementById('toneValue').textContent = state.tone;
+        document.getElementById('modeValue').textContent = state.mode;
+        permissionButton.textContent = `AI: ${state.strategy} ▾`;
+        aiHelper.textContent = strategyDescription();
+        generateButton.textContent = generationLabel();
+        roleField.hidden = state.mode !== 'Character';
+        updateFinalAction();
+      }
+
+      function updatePath() {
+        document.querySelectorAll('.path-option').forEach((button) => {
+          button.classList.toggle('active', button.dataset.path === state.path);
+        });
+        manualNudge.classList.toggle('visible', state.path === 'manual' && !state.draftOpen);
+        if (state.path === 'manual') openDraft(false);
+      }
+
+      function openDraft(scroll = true) {
+        state.draftOpen = true;
+        draftEmpty.style.display = 'none';
+        draftForm.classList.add('visible');
+        draftHint.textContent = state.generated ? 'Review before creating' : 'Write or ask AI for help';
+        if (state.characters.length === 0) addCharacter({ name: '', note: '' }, false);
+        renderCharacters();
+        updateFinalAction();
+        if (scroll) {
+          window.setTimeout(() => document.getElementById('draftSection').scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+        }
+      }
+
+      function addCharacter(character = { name: '', note: '' }, render = true) {
+        if (state.characters.length >= 8) return;
+        state.characters.push({ ...character, ai: state.generated });
+        if (render) renderCharacters();
+      }
+
+      function renderCharacters() {
+        charactersList.innerHTML = '';
+        state.characters.forEach((character, index) => {
+          const row = document.createElement('div');
+          row.className = 'character-row';
+          row.innerHTML = `
+            <button class="remove-character" type="button" aria-label="Remove character">×</button>
+            <input class="text-input character-name" value="${escapeHtml(character.name)}" placeholder="Character name" />
+            <input class="text-input character-note" value="${escapeHtml(character.note)}" placeholder="Role or personality (optional)" />
+          `;
+          row.querySelector('.remove-character').addEventListener('click', () => {
+            state.characters.splice(index, 1);
+            renderCharacters();
+            updateFinalAction();
+          });
+          row.querySelector('.character-name').addEventListener('input', (event) => {
+            state.characters[index].name = event.target.value;
+            state.characters[index].ai = false;
+            document.getElementById('charactersField').classList.remove('ai-suggested');
+            undoButton.classList.remove('visible');
+            updateFinalAction();
+          });
+          row.querySelector('.character-note').addEventListener('input', (event) => {
+            state.characters[index].note = event.target.value;
+            state.characters[index].ai = false;
+            document.getElementById('charactersField').classList.remove('ai-suggested');
+            undoButton.classList.remove('visible');
+          });
+          charactersList.appendChild(row);
+        });
+      }
+
+      function escapeHtml(value) {
+        return value.replace(/[&<>'"]/g, (character) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;',
+        })[character]);
+      }
+
+      function markAiFields(enabled) {
+        ['titleField', 'premiseField', 'charactersField'].forEach((id) => {
+          document.getElementById(id).classList.toggle('ai-suggested', enabled);
+        });
+        roleField.classList.toggle('ai-suggested', enabled && state.mode === 'Character');
+      }
+
+      function generateDraft() {
+        if (!state.online) return;
+        if (state.strategy === 'Rebuild' && isDraftPopulated()) {
+          const confirmed = window.confirm('Rebuild this draft? Title, premise, characters, and role may be replaced. Your idea and story details stay unchanged.');
+          if (!confirmed) return;
+        }
+
+        const originalLabel = generationLabel();
+        generateButton.disabled = true;
+        generateButton.innerHTML = '<span>Building the draft</span><span class="loading-dots"><span></span><span></span><span></span></span>';
+
+        window.setTimeout(() => {
+          state.generated = true;
+          state.draftOpen = true;
+          titleInput.value = state.genre === 'Work & IT' ? 'The Quiet Protocol' : 'Signals After Midnight';
+          premiseInput.value = ideaInput.value.trim() || 'A new airport worker starts receiving short English messages from a pilot who disappeared ten years ago—and each message predicts what will happen next.';
+          state.characters = [
+            { name: 'Maya Chen', note: 'New airport analyst; observant and stubborn', ai: true },
+            { name: 'Jon Bell', note: 'Senior dispatcher who remembers the missing pilot', ai: true },
+          ];
+          roleInput.value = state.mode === 'Character' ? 'Maya Chen' : '';
+          openDraft(false);
+          renderCharacters();
+          markAiFields(true);
+          draftStatus.classList.add('visible');
+          undoButton.classList.add('visible');
+          generateButton.disabled = !state.online;
+          generateButton.textContent = originalLabel;
+          updateSettingLabels();
+          updateFinalAction();
+          document.getElementById('draftSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 950);
+      }
+
+      function undoGeneration() {
+        state.generated = false;
+        titleInput.value = '';
+        premiseInput.value = '';
+        roleInput.value = '';
+        state.characters = [{ name: '', note: '', ai: false }];
+        renderCharacters();
+        markAiFields(false);
+        draftStatus.classList.remove('visible');
+        undoButton.classList.remove('visible');
+        updateSettingLabels();
+        updateFinalAction();
+        showToast('AI changes undone');
+      }
+
+      function updateNetwork() {
+        const networkToggle = document.getElementById('networkToggle');
+        networkToggle.classList.toggle('is-offline', !state.online);
+        document.getElementById('networkLabel').textContent = state.online ? 'Online' : 'Offline';
+        offlineNotice.classList.toggle('visible', !state.online);
+        generateButton.disabled = !state.online;
+        updateFinalAction();
+      }
+
+      function updateFinalAction() {
+        const complete = state.draftOpen && isDraftComplete();
+        finalAction.textContent = complete ? 'Create series' : 'Save draft';
+        completionNote.textContent = complete
+          ? 'Ready now · participation mode locks after Episode 1'
+          : 'You can save an unfinished draft anytime';
+      }
+
+      function openSheet(setting) {
+        const config = optionSets[setting];
+        const key = setting === 'strategy' ? 'strategy' : setting;
+        sheetTitle.textContent = config.title;
+        sheetDescription.textContent = config.description;
+        sheetOptions.innerHTML = '';
+        config.options.forEach(([label, description]) => {
+          const selected = state[key] === label;
+          const button = document.createElement('button');
+          button.className = `sheet-option${selected ? ' selected' : ''}`;
+          button.type = 'button';
+          button.innerHTML = `<span class="option-copy"><strong>${label}</strong><span>${description}</span></span><span class="option-check">✓</span>`;
+          button.addEventListener('click', () => {
+            state[key] = label;
+            updateSettingLabels();
+            closeSheet();
+            if (setting === 'mode' && state.draftOpen) updateFinalAction();
+          });
+          sheetOptions.appendChild(button);
+        });
+        sheetScrim.classList.add('visible');
+        sheetScrim.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeSheet() {
+        sheetScrim.classList.remove('visible');
+        sheetScrim.setAttribute('aria-hidden', 'true');
+      }
+
+      function saveOrCreate() {
+        if (state.draftOpen && isDraftComplete()) {
+          document.getElementById('successCopy').textContent = `“${titleInput.value.trim()}” is ready. Next, choose the Story Words for Episode 1.`;
+          successScreen.classList.add('visible');
+          return;
+        }
+        showToast(state.online ? '✓ Draft saved on this device' : '✓ Draft saved offline on this device');
+      }
+
+      function resetPrototype() {
+        state.online = true;
+        state.path = 'assist';
+        state.level = 'B1 · Intermediate';
+        state.genre = 'Short Fiction';
+        state.tone = 'Warm & curious';
+        state.mode = 'Producer';
+        state.strategy = 'Fill gaps';
+        state.draftOpen = false;
+        state.generated = false;
+        state.characters = [];
+        ['ideaInput', 'worldInput', 'backstoryInput', 'driverInput', 'includeInput', 'avoidInput', 'titleInput', 'premiseInput', 'roleInput']
+          .forEach((id) => { document.getElementById(id).value = ''; });
+        anchorDetails.classList.remove('open');
+        detailsDisclosure.setAttribute('aria-expanded', 'false');
+        draftForm.classList.remove('visible');
+        draftEmpty.style.display = '';
+        draftStatus.classList.remove('visible');
+        undoButton.classList.remove('visible');
+        successScreen.classList.remove('visible');
+        markAiFields(false);
+        renderCharacters();
+        updatePath();
+        updateSettingLabels();
+        updateNetwork();
+        phoneScreen.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      document.querySelectorAll('.lab-tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.lab-tab').forEach((item) => item.classList.remove('active'));
+          document.querySelectorAll('.lab-tab-panel').forEach((panel) => panel.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+      });
+
+      document.querySelectorAll('[data-setting]').forEach((button) => {
+        button.addEventListener('click', () => openSheet(button.dataset.setting));
+      });
+
+      document.querySelectorAll('.path-option').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.path = button.dataset.path;
+          updatePath();
+          if (state.path === 'manual') {
+            document.getElementById('draftSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+
+      document.querySelectorAll('.prompt-chip').forEach((button) => {
+        button.addEventListener('click', () => {
+          ideaInput.value = button.dataset.prompt;
+          updateSettingLabels();
+          ideaInput.focus();
+        });
+      });
+
+      document.querySelectorAll('.cast-size').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('.cast-size').forEach((item) => item.classList.remove('active'));
+          button.classList.add('active');
+        });
+      });
+
+      detailsDisclosure.addEventListener('click', () => {
+        const isOpen = !anchorDetails.classList.contains('open');
+        anchorDetails.classList.toggle('open', isOpen);
+        detailsDisclosure.setAttribute('aria-expanded', String(isOpen));
+      });
+
+      generateButton.addEventListener('click', generateDraft);
+      undoButton.addEventListener('click', undoGeneration);
+      manualNudge.addEventListener('click', () => openDraft());
+      document.getElementById('addCharacter').addEventListener('click', () => addCharacter());
+      document.getElementById('sheetClose').addEventListener('click', closeSheet);
+      sheetScrim.addEventListener('click', (event) => {
+        if (event.target === sheetScrim) closeSheet();
+      });
+
+      document.getElementById('themeToggle').addEventListener('click', () => phoneShell.classList.toggle('dark'));
+      document.getElementById('networkToggle').addEventListener('click', () => {
+        state.online = !state.online;
+        updateNetwork();
+      });
+      document.getElementById('resetPrototype').addEventListener('click', resetPrototype);
+      document.getElementById('topSaveDraft').addEventListener('click', () => showToast(state.online ? '✓ Draft saved on this device' : '✓ Draft saved offline on this device'));
+      document.getElementById('finalAction').addEventListener('click', saveOrCreate);
+      document.getElementById('successReset').addEventListener('click', resetPrototype);
+
+      document.querySelectorAll('[data-toast]').forEach((button) => {
+        button.addEventListener('click', () => showToast(button.dataset.toast));
+      });
+
+      ideaInput.addEventListener('input', updateSettingLabels);
+      ['titleInput', 'premiseInput', 'roleInput'].forEach((id) => {
+        document.getElementById(id).addEventListener('input', () => {
+          const fieldMap = { titleInput: 'titleField', premiseInput: 'premiseField', roleInput: 'roleField' };
+          document.getElementById(fieldMap[id]).classList.remove('ai-suggested');
+          undoButton.classList.remove('visible');
+          updateSettingLabels();
+          updateFinalAction();
+        });
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeSheet();
+      });
+
+      updateSettingLabels();
+      updateNetwork();
+    </script>
+  </body>
+</html>
