@@ -77,6 +77,8 @@ A user-created story container:
 - premise;
 - participation mode;
 - main characters or user role;
+- optional creative brief;
+- per-field setup provenance;
 - compact series memory;
 - sync metadata.
 
@@ -90,9 +92,16 @@ Domain rules:
 - `director` is the internal code value for Producer mode and means learner input directs events from outside the story.
 - `character` means learner input is interpreted as the user's character speech, action, question, or plan.
 - Participation mode can be changed only before the first generated episode. After the first episode exists, it is read-only for that series.
-- Series setup text fields are required before saving: title, premise, main characters, and `userRole` for `character`.
-- Generate setup draft is an online-only AI action before the first episode. It may generate missing text fields, including title, but must not generate or change CEFR level, genre, tone, or participation mode.
-- Character mode requires `userRole` before episode generation. If role or setup context is missing before the first episode, Generate may create a complete bounded setup draft; the user may regenerate or edit that draft before the first episode.
+- Series setup is a single progressive-disclosure screen, not a wizard. CEFR level, genre, tone, and participation mode are explicit selected constraints.
+- `CreativeBrief` contains optional `idea` (shown as `Your idea`), `worldAndSetting`, `backstory`, `storyDriver`, `preferredCastSize` (`1`-`4` or AI choice), `mustInclude`, and `avoid`, plus `draftStrategy` as `fill-missing`, `refine`, or `rebuild`. `fill-missing` is the safe default. Existing character profiles remain editable setup fields.
+- Setup provenance records whether each generated-capable field is `user` or `ai`. A manual edit to an AI field changes that field to `user` provenance.
+- Series setup text fields are required before saving a ready series: title, premise, main characters, and `userRole` for `character`. An incomplete form may be persisted locally as a draft.
+- The AI setup action is online-only before the first episode and obeys `draftStrategy`. The mobile request normalizes completed character profiles separately from `emptyCharacterSlotCount`, so visible blank rows remain explicit generation work. `fill-missing` preserves populated final fields exactly and, when cast size is AI-chosen, may append distinct profiles until the model-selected final cast is complete. It never removes completed profiles, so a smaller numeric preference resolves to the existing count and UI must explain the conflict. `refine` sends the current draft for evaluation and lets the model omit any strong field, except that a numeric `preferredCastSize` is exact and requires resizing the cast, while a visible blank slot without an exact smaller target makes a complete cast response mandatory. `rebuild` also treats numeric cast size as exact, excludes current final fields from model context, and resolves every required field from protected anchors or, when anchors are empty, from selected constraints.
+- A transient setup-generation transport failure is retried once with the same durable `generationRequestId`. The retry must stay inside the original loading state and rely on server idempotency, so one learner tap cannot duplicate model work and does not require a second manual tap.
+- Every strategy must preserve creative anchors and must not generate or change CEFR level, genre, tone, or participation mode. Character mode still requires a resolved `userRole` matching one character profile.
+- The response includes `changedFields`, computed by the Edge Function from the resolved draft rather than trusted from model output. The client uses it for provenance and keeps one in-memory pre-generation snapshot for Undo.
+- Creative brief and setup provenance are local-first series data and participate in remote sync. Backward-compatible reads map missing or legacy strategy data to `fill-missing` and treat already-persisted setup text without provenance as `user`.
+- The setup form and draft are offline-capable; the AI setup action is online-only and exposes an explicit offline state.
 - Opening an existing series must expose a setup menu with the same fields. It is editable only while the series has no episodes and read-only after the first generated episode.
 
 ### Episode
@@ -203,6 +212,9 @@ Required MVP use cases:
 - Browse/search vocabulary for dictionary and Story Words selection.
 - Create a series.
 - Update series settings when allowed by product scope.
+- Save an incomplete setup draft locally.
+- Generate missing or AI-authored setup fields through an Edge Function when online while preserving user-authored fields.
+- Mark an AI-generated setup field as user-authored when the learner edits it.
 - List local series.
 - Open a series and load its episodes, memory, word sets, and learning signals.
 - Build lightweight Story Words suggestions from vocabulary, series context, prior signals, and level.
@@ -229,9 +241,10 @@ Define narrow application-facing ports for external capabilities.
 | Port | Responsibility | Typical MVP implementation |
 | --- | --- | --- |
 | VocabularyCatalog | Load/query bundled Oxford 5000 data | Local JSON adapter |
-| LocalSeriesStore | Persist series, episodes, memory, word sets, signals, preferences | AsyncStorage adapter |
-| RemoteSeriesStore | Read/write authenticated cloud records | Supabase adapter with RLS |
+| LocalSeriesStore | Persist setup drafts, creative briefs, provenance, series, episodes, memory, word sets, signals, preferences | AsyncStorage adapter |
+| RemoteSeriesStore | Read/write authenticated cloud records, including creative briefs and provenance | Supabase adapter with RLS |
 | SyncQueue | Store pending local operations and sync metadata | AsyncStorage metadata adapter |
+| SetupGenerationGateway | Generate validated suggestions only for missing or AI-authored setup fields | Supabase Edge Function client |
 | EpisodeGenerationGateway | Generate validated episode payloads | Supabase Edge Function client |
 | InteractionGateway | Continue episode and correct short user input | Supabase Edge Function client |
 | GrammarGateway | Provide grammar-style explanation when requested | Supabase Edge Function client |
@@ -267,6 +280,7 @@ Presentation must not own:
 Recommended presentation state categories:
 
 - screen state: loading, ready, empty, offline, error;
+- setup state: collapsed or expanded anchors, local draft status, per-field `user` or `ai` provenance, and setup generation status;
 - series state: selected series, selected episode, memory summary preview;
 - Story Words state: suggested words, selected words, warning about difficulty;
 - episode reader state: selected word hint, selected sentence, current sentence index;
@@ -298,7 +312,7 @@ Responsibilities:
 - Authenticate requests when user state is needed.
 - Validate request payloads.
 - Enforce copyright and safety constraints.
-- Build bounded model context from compact series memory, recent summary, selected Story Words, user level, genre, tone, and output schema.
+- Build bounded model context from selected constraints, creative brief, eligible setup fields, provenance, safety constraints, and output schema for setup generation; or from compact series memory, recent summary, selected Story Words, user level, genre, tone, and output schema for episode generation.
 - Never send unbounded full series history.
 - Call OpenRouter using server-side secrets only.
 - Use Vercel AI SDK structured JSON output.
@@ -312,7 +326,7 @@ Responsibilities:
 
 The mobile app must validate Edge Function response shape again before rendering or storing data.
 
-Episode generation scope is `{seriesId}:{orderIndex}`. The Edge Function returns the canonical request id for that scope, and the client includes it in the local episode id. Series-setup scope uses one request id per explicit Generate/Regenerate action so a deliberate later regeneration remains possible.
+Episode generation scope is `{seriesId}:{orderIndex}`. The Edge Function returns the canonical request id for that scope, and the client includes it in the local episode id. Series-setup scope uses one request id per explicit strategy action; its fingerprint includes the strategy, current draft, protected anchors, and selected constraints.
 
 ## Offline-First Persistence
 
@@ -330,6 +344,7 @@ User action
 Offline-capable:
 
 - Existing series list.
+- New and existing setup forms, including local draft saving.
 - Already-generated episodes.
 - Episode reading and local audio playback.
 - Story Words selection from bundled Oxford 5000.
@@ -340,6 +355,7 @@ Offline-capable:
 
 Online-only:
 
+- Series-setup generation through the selected draft-strategy action.
 - Episode generation.
 - AI continuation.
 - AI correction.
@@ -367,6 +383,7 @@ Sync rules:
 Records that must sync when implemented:
 
 - series;
+- creative briefs and setup provenance;
 - episodes;
 - series memory;
 - word sets;
@@ -379,11 +396,18 @@ Records that must sync when implemented:
 ### Series Creation Flow
 
 ```text
-User enters title, genre, CEFR level, tone, participation mode, premise, role
-  -> CreateSeries use case
-  -> validate scope and safety-sensitive inputs
+User opens one progressive-disclosure setup screen
+  -> select CEFR level, genre, tone, participation mode
+  -> optionally enter Your idea, story anchors, and editable character profiles
+  -> choose fill-missing, refine, or rebuild draft strategy
+  -> save form changes locally as a draft
+  -> optionally, when online, call SetupGenerationGateway through the contextual AI action
+  -> Edge Function validates input, safety and copyright boundaries
+  -> resolve final fields under the selected strategy; always preserve creative anchors
+  -> user edits suggestions; edited fields become user-authored
+  -> validate required ready-series fields
   -> create compact initial memory
-  -> write local series
+  -> write local series and provenance
   -> queue sync
   -> show new series
 ```
@@ -465,6 +489,7 @@ Trust boundary rules:
 - Supabase data is remote and validated on read.
 - User input is untrusted.
 - AI output is untrusted.
+- Setup provenance is untrusted on local or remote reads and must be validated before it controls replacement eligibility.
 - Edge Function request payloads are untrusted.
 - Authenticated ownership is enforced by RLS and checked where applicable.
 - `generation_requests` is RLS-protected. Claim, completion, and release RPCs are callable only with the Edge runtime service role after the function has authenticated the user.
@@ -474,6 +499,7 @@ Safety rules:
 - Do not generate unsafe content.
 - Do not directly copy copyrighted worlds, characters, names, or plots.
 - If the user requests a protected franchise, steer to an original story with a similar broad genre or mood.
+- Preserve the user's original draft text locally even when generation is refused or redirected for safety or copyright reasons; preservation does not require the AI response to reproduce disallowed material.
 
 ## SOLID Guidance
 
@@ -503,6 +529,7 @@ Do not implement:
 - direct client calls to OpenRouter or any LLM provider;
 - remote loading of Oxford 5000 at runtime;
 - direct copying of copyrighted story worlds or characters.
+- per-next-episode direction input; co-creation in this iteration applies only to initial series setup.
 
 ## Implementation Checklist For AI Tasks
 

@@ -431,9 +431,10 @@
                         <div class="arrow">↓ вызывает</div>
                         <div class="layer application">
                             <strong>Application</strong>
-                            Use cases: создать серию, выбрать Story Words,
-                            сгенерировать эпизод, обработать ответ,
-                            синхронизировать локальные изменения.
+                            Use cases: сохранить setup draft, достроить setup без
+                            замены пользовательских полей, создать сериал,
+                            выбрать Story Words, сгенерировать эпизод, обработать
+                            ответ, синхронизировать локальные изменения.
                         </div>
                         <div class="arrow">↓ использует</div>
                         <div class="layer domain">
@@ -472,7 +473,7 @@
                     <div class="flow seven">
                         <div class="node connector">
                             <strong>Create Series</strong>
-                            <span>title, genre, CEFR, tone, premise, role</span>
+                            <span>one-screen brief, constraints, editable AI draft</span>
                         </div>
                         <div class="node connector">
                             <strong>Continue</strong>
@@ -503,6 +504,66 @@
             </section>
 
             <section class="card">
+                <h2>Co-creation setup</h2>
+                <p>
+                    Создание и редактирование сериала остается одним экраном с
+                    progressive disclosure, а не wizard. Level, Genre, Tone,
+                    Participation Mode и необязательное <strong>Your idea</strong>
+                    видны сразу. По желанию раскрываются
+                    <code>worldAndSetting</code>, <code>backstory</code>,
+                    <code>storyDriver</code>, <code>preferredCastSize</code>
+                    (1–4 или выбор AI), <code>mustInclude</code> и
+                    <code>avoid</code>; существующие профили персонажей остаются
+                    редактируемыми.
+                </p>
+                <div class="diagram">
+                    <div class="flow five">
+                        <div class="node connector">
+                            <strong>User anchors</strong>
+                            <span>exactly preserved</span>
+                        </div>
+                        <div class="node connector">
+                            <strong>Draft strategy</strong>
+                            <span>fill gaps / refine / rebuild</span>
+                        </div>
+                        <div class="node connector">
+                            <strong>Contextual AI action</strong>
+                            <span>online-only, strategy-enforced</span>
+                        </div>
+                        <div class="node connector">
+                            <strong>Edit suggestions</strong>
+                            <span>edited AI field becomes user-authored</span>
+                        </div>
+                        <div class="node">
+                            <strong>Local first</strong>
+                            <span>brief + provenance + sync</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="note success">
+                    Fill gaps не меняет заполненные поля; Refine выборочно
+                    перерабатывает только полезные кандидаты; Rebuild исключает
+                    старый итоговый черновик из model context. Пустые видимые
+                    карточки персонажей передаются как отдельные AI-fill slots,
+                    а AI choice может дополнить уже начатый состав. Числовой
+                    preferredCastSize точен для Refine и Rebuild; Fill gaps не
+                    сокращает готовый состав и показывает это ограничение в UI. Для старых записей
+                    стратегия безопасно становится fill-missing, а существующие
+                    setup-поля без provenance считаются пользовательскими.
+                </div>
+                <div class="note warning">
+                    Форму и локальный черновик можно использовать офлайн; без
+                    сети отключается только AI-достраивание. После первого
+                    эпизода весь setup становится read-only.
+                </div>
+                <div class="note">
+                    Safety и copyright moderation могут отказать в генерации или
+                    предложить оригинальную альтернативу, но не должны удалять
+                    или переписывать сохраненный локально пользовательский текст.
+                </div>
+            </section>
+
+            <section class="card">
                 <h2>Основные доменные сущности</h2>
                 <div class="entity-grid">
                     <div class="entity">
@@ -510,7 +571,15 @@
                         <p>
                             Контейнер истории: название, жанр, уровень, тон,
                             premise, персонажи или роль пользователя, compact
-                            memory и sync metadata.
+                            memory, creative brief, setup provenance и sync metadata.
+                        </p>
+                    </div>
+                    <div class="entity">
+                        <h3><span class="dot purple"></span>Creative Brief</h3>
+                        <p>
+                            Необязательные пользовательские опоры, draftStrategy и
+                            происхождение каждого генерируемого setup-поля.
+                            Нужен для совместного придумывания без потери авторства.
                         </p>
                     </div>
                     <div class="entity">
@@ -616,7 +685,9 @@
                         Мобильное приложение не хранит LLM ключи, prompts,
                         provider settings или model choices. Оно отправляет
                         компактный контекст и получает структурированный
-                        результат.
+                        результат. Для setup Edge Function валидирует provenance
+                        и возвращает изменения только для пустых или AI-полей;
+                        safety и copyright moderation остаются серверными.
                     </p>
                 </div>
 
@@ -660,7 +731,7 @@
                     <div class="flow">
                         <div class="node connector">
                             <strong>User Action</strong>
-                            <span>series, episode, words, reply, signal</span>
+                            <span>setup draft, series, episode, words, reply, signal</span>
                         </div>
                         <div class="node connector">
                             <strong>Validate</strong>
@@ -709,7 +780,7 @@
                         </tr>
                         <tr>
                             <td><code>LocalSeriesStore</code></td>
-                            <td>Series, episodes, memory, word sets, signals, preferences</td>
+                            <td>Setup drafts, creative briefs, provenance, series, episodes, memory, word sets, signals, preferences</td>
                             <td><code>AsyncStorage</code></td>
                         </tr>
                         <tr>
@@ -721,6 +792,11 @@
                             <td><code>SyncQueue</code></td>
                             <td>Pending local operations и conflict metadata</td>
                             <td>AsyncStorage metadata</td>
+                        </tr>
+                        <tr>
+                            <td><code>SetupGenerationGateway</code></td>
+                            <td>Заполняет только пустые или AI-authored поля setup</td>
+                            <td>Supabase Edge Function + OpenRouter</td>
                         </tr>
                         <tr>
                             <td><code>EpisodeGenerationGateway</code></td>
@@ -762,6 +838,7 @@
                         <li>Story Words из локальных данных.</li>
                         <li>Локальные word sets, signals и preferences.</li>
                         <li>Локальные изменения, не требующие AI.</li>
+                        <li>Заполнение и сохранение локального setup draft.</li>
                     </ul>
                 </div>
 
@@ -769,6 +846,7 @@
                     <h2>Требует интернета</h2>
                     <ul>
                         <li>Генерация нового эпизода.</li>
+                        <li>AI strategy action для series setup.</li>
                         <li>AI continuation после выбора или reply.</li>
                         <li>AI correction и grammar-style explanation.</li>
                         <li>Cloud sync с Supabase.</li>
@@ -847,6 +925,8 @@
                     <li>Не добавлять native <code>ios/</code> или <code>android/</code> code.</li>
                     <li>Не прятать sync, AI validation или правила Story Words в UI.</li>
                     <li>Не перезаписывать свежие локальные записи старым remote state.</li>
+                    <li>Не перезаписывать user-authored setup поля генерацией.</li>
+                    <li>Не добавлять направление для следующего эпизода: co-creation этой итерации относится только к initial series setup.</li>
                 </ul>
             </section>
         </main>

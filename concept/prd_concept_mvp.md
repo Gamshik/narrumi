@@ -21,7 +21,7 @@ The product should feel like creating and watching a personal English series, no
 ---
 
 ### 3. Target User Flow
-1. **Series Creation:** User creates a series by choosing a title, genre, CEFR level, tone, participation mode, and initial premise or role.
+1. **Series Creation:** User creates a series in a single co-creation setup screen: selects genre, CEFR level, tone, and participation mode, optionally describes their idea and story anchors, then writes the remaining setup manually or asks AI to build from that input.
 2. **Continue Series:** User opens an existing series or creates a new one.
 3. **Story Words:** Before generating an episode, the app proposes a small word set from the bundled vocabulary.
 4. **Word Choice:** User accepts the proposed words or makes light edits: add, remove, skip, or keep words.
@@ -46,6 +46,8 @@ The product should feel like creating and watching a personal English series, no
   - premise;
   - participation mode;
   - main characters or user role;
+  - optional creative brief;
+  - setup field provenance;
   - current story memory.
 - A series supports two participation modes:
   - **Producer mode:** the user influences how events unfold from outside the story;
@@ -53,9 +55,17 @@ The product should feel like creating and watching a personal English series, no
 - Participation mode is selected during series setup and becomes read-only after the first episode is generated.
 - In Producer mode, interaction prompts and choices must ask how events unfold, what a character does next, or how the scene changes.
 - In Character mode, interaction prompts and choices must address what the user's character says, does, asks, or plans.
-- Series setup text fields are required before a series can be saved: title, premise, main characters, and user role for Character mode.
-- The setup screen provides a Generate action that can fill all missing text fields, including title, while preserving any text fields the user already entered. Generate must not create or change list-selected fields: CEFR level, genre, tone, or participation mode; it may only use them as constraints.
-- Character mode requires a user role before the first episode is generated. If the user leaves role or setup details blank, Generate may create a complete AI setup draft before the first episode. This draft may be regenerated until the first episode is created.
+- Series setup is one screen with progressive disclosure, not a multi-step wizard. CEFR level, genre, tone, and participation mode remain explicit selected constraints.
+- The always-visible optional `Your idea` field accepts a rough scene, image, character, conflict, or premise. An expandable optional section provides the anchors `worldAndSetting`, `backstory`, `storyDriver`, `preferredCastSize` (`1`-`4` or AI choice), `mustInclude`, and `avoid`. Existing character profiles remain directly editable.
+- The user selects how AI may work with the final setup draft: `fill-missing` (default), `refine`, or `rebuild`. Every strategy preserves `Your idea`, optional story anchors, CEFR level, genre, tone, and participation mode.
+- Series setup text fields are required before a series can be saved as ready: title, premise, main characters, and user role for Character mode. The incomplete setup form may still be saved locally as a draft.
+- The online-only AI setup action follows the selected strategy. `fill-missing` may fill only absent required fields and missing requested cast slots. A visible blank character row is a requested cast slot and must be filled rather than discarded unless an exact smaller cast is applied by a replacement-capable strategy. With `preferredCastSize` left to AI choice, `fill-missing` preserves completed profiles while AI selects an appropriate final cast and supplies additions. A numeric `preferredCastSize` is exact for `refine` and `rebuild`, so either strategy may remove profiles to reach it; in Character mode, refinement should retain the learner's role character when compatible and otherwise return a matching replacement role. `fill-missing` never removes completed profiles, so a numeric size below the current completed count is shown as a visible conflict instead of being silently applied. `refine` otherwise fills gaps and may replace an existing final field only when the model judges that replacement materially improves coherence, originality, or alignment; it must not edit merely to demonstrate a change. `rebuild` ignores every current final setup field and creates title, premise, characters, and Character-mode role from scratch.
+- `rebuild` follows `Your idea` and optional anchors when supplied. When all creative anchors are empty, it deliberately creates an original setup from the selected genre, tone, CEFR level, and participation mode. Its action label is contextual: `Rebuild from my idea`, `Rebuild draft`, or `Create something for me`.
+- A rebuild that would discard visible final fields requires confirmation. A successful AI update keeps one in-memory pre-generation snapshot for `Undo AI changes`; manual edits clear that snapshot.
+- AI suggestions remain editable before save. Provenance records fields actually changed by AI, while editing an AI-generated field changes that field to user-authored.
+- Character mode requires a user role before the first episode is generated. Any strategy may create a missing bounded role as part of a coherent character cast.
+- The creative brief and per-field setup provenance are persisted locally first and synced with the series. Existing series without a draft strategy default safely to `fill-missing`; legacy AI-freedom values never grant replacement permission during upgrade.
+- The setup form and local draft remain usable offline. The AI setup action is disabled with an explicit online-required state until connectivity returns.
 - Opening an existing series must provide a setup menu with the same fields. The menu is editable only while the series has no generated episodes and read-only after the first episode.
 - A series can contain any number of episodes.
 - Each new episode continues the same series instead of starting an unrelated text.
@@ -188,3 +198,4 @@ For MVP implementation, the validation may start with structured JSON schema val
 - *Do NOT implement:* Image, comic, or video generation for episodes.
 - *Do NOT implement:* Unvalidated arbitrary user vocabulary import.
 - *Do NOT implement:* Direct copying of copyrighted story worlds or characters.
+- *Do NOT implement in this iteration:* A per-next-episode direction field; co-creation scope is limited to initial series setup.

@@ -230,6 +230,20 @@ Rules:
 - Cards in the same list should keep a stable typography scale. Do not resize titles per item to fit.
 - "Create story" style entry points should stay compact and intentional rather than billboard-sized.
 
+### Create / Edit Series Setup
+
+- Keep setup on one scrollable screen with progressive disclosure; do not split it into a wizard.
+- Keep Level, Genre, Tone, Participation Mode, and the optional `Your idea` field visible. Place optional story anchors behind one clear "Add details" disclosure.
+- Keep expanded anchors visually lighter than the generated setup draft. Existing character profiles remain editable in the same flow.
+- Present `Fill gaps`, `Refine draft`, and `Rebuild` as one compact answer to "How should AI work?", with `Fill gaps` selected by default. Explain the selected permission in one short line.
+- When `Fill gaps` is paired with a numeric cast size below the completed character count, replace the generic helper with a direct explanation that existing characters are kept and that `Refine` or `Rebuild` is required to reduce them. For `Refine`, describe a numeric cast selection as exact.
+- Use one contextual primary action: `Fill empty fields`, `Refine my draft`, `Rebuild from my idea`, `Rebuild draft`, or `Create something for me`. Confirm only a rebuild that would discard visible final fields.
+- After a successful AI update, show one restrained `Undo AI changes` action. Clear it after the learner edits again; do not add a separate review wizard.
+- Keep generated title, premise, role, and characters editable before save. Do not visually erase the distinction between user-authored and AI-generated values when provenance affects re-generation.
+- Treat every visible blank character row as an intentional AI-fill slot for `Fill gaps` and `Refine draft`; never make a row disappear merely because generation normalized its empty text.
+- Keep every multiline setup input at its specified fixed height before and after AI generation. Long text scrolls inside the focused input; generated content must not reflow the form by growing or shrinking fields.
+- Offline setup editing and local draft saving must remain usable; disable only the AI action and explain that it becomes available online.
+
 ### Series Detail / Episode History
 
 - The continue/resume module should be concise and elevated, not oversized.
