@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { Clock, LocalSeriesStore } from '@application/ports';
+import type {
+  Clock,
+  LocalSeriesStore,
+  SeriesSetupModerationGateway,
+} from '@application/ports';
 import type { Episode, Series, SeriesMemory } from '@domain/index';
 
 import { createUpdateSeriesSetup } from './updateSeriesSetup';
@@ -50,6 +54,16 @@ const series: Series = {
   participationMode: 'director',
   mainCharacters: memory.mainCharacters,
   characterProfiles,
+  creativeBrief: {
+    idea: '',
+    worldAndSetting: '',
+    backstory: '',
+    storyDriver: '',
+    mustInclude: '',
+    avoid: '',
+    draftStrategy: 'fill-missing',
+  },
+  setupDraftMeta: { aiGeneratedFields: [] },
   memory,
   createdAt: timestamp,
   updatedAt: timestamp,
@@ -65,9 +79,20 @@ describe('updateSeriesSetup', () => {
     const savedSeries: Series[] = [];
     // savedMemories captures the updated compact memory.
     const savedMemories: SeriesMemory[] = [];
+    // moderationGateway verifies creative anchors cross the manual-save trust boundary.
+    const moderationGateway: SeriesSetupModerationGateway = {
+      validateSeriesSetup: async (request) => {
+        assert.equal(
+          request.creativeBrief?.idea,
+          'A mysterious map found in a library book.',
+        );
+        assert.equal(request.creativeBrief?.preferredCastSize, 2);
+      },
+    };
     const useCase = createUpdateSeriesSetup(
       createStore([], savedSeries, savedMemories),
       createClock(),
+      moderationGateway,
     );
 
     const result = await useCase.execute({
@@ -80,11 +105,27 @@ describe('updateSeriesSetup', () => {
       participationMode: 'character',
       mainCharacters: ['Mira', 'Leo'],
       userRole: 'Mira',
+      creativeBrief: {
+        idea: 'A mysterious map found in a library book.',
+        worldAndSetting: 'A quiet railway station',
+        backstory: '',
+        storyDriver: 'Find the place shown on the map.',
+        mustInclude: 'A locked waiting room',
+        avoid: 'Violence',
+        preferredCastSize: 2,
+        draftStrategy: 'refine',
+      },
+      setupDraftMeta: { aiGeneratedFields: ['title', 'premise'] },
     });
 
     assert.equal(result.series.title, 'Library Map');
     assert.equal(result.series.participationMode, 'character');
     assert.equal(result.series.userRole, 'Mira');
+    assert.equal(result.series.creativeBrief.preferredCastSize, 2);
+    assert.deepEqual(result.series.setupDraftMeta.aiGeneratedFields, [
+      'title',
+      'premise',
+    ]);
     assert.equal(savedSeries.length, 1);
     assert.equal(savedMemories[0]?.participationMode, 'character');
   });
@@ -126,6 +167,9 @@ function createStore(
   savedMemories: SeriesMemory[],
 ): LocalSeriesStore {
   return {
+    getSeriesSetupDraft: async () => undefined,
+    saveSeriesSetupDraft: async () => undefined,
+    deleteSeriesSetupDraft: async () => undefined,
     getPreferences: async () => undefined,
     readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
     savePreferences: async () => undefined,

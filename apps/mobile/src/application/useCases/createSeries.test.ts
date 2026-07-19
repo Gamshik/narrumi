@@ -11,6 +11,59 @@ import type { Series, SeriesMemory } from '@domain/index';
 import { createCreateSeries } from './createSeries';
 
 describe('createSeries', () => {
+  it('persists creative anchors and setup provenance on the series root', async () => {
+    // savedSeries captures the locally authoritative creative setup.
+    const savedSeries: Series[] = [];
+    // savedMemory confirms creative anchors do not expand compact episode context.
+    const savedMemory: SeriesMemory[] = [];
+    const createSeries = createCreateSeries(
+      createMemoryStore(savedSeries, savedMemory),
+      { now: () => new Date('2026-06-10T10:00:00.000Z') },
+      {
+        validateSeriesSetup: async (request) => {
+          assert.equal(
+            request.creativeBrief?.idea,
+            'A message arrives from a pilot missing for ten years.',
+          );
+          assert.equal(request.creativeBrief?.draftStrategy, 'refine');
+        },
+      },
+    );
+
+    const result = await createSeries.execute({
+      title: 'The Last Flight',
+      genre: 'short-fiction',
+      cefrLevel: 'B1',
+      tone: 'Quiet mystery',
+      premise: 'A new airport worker receives an impossible message.',
+      participationMode: 'director',
+      mainCharacters: ['Mira', 'Jon'],
+      creativeBrief: {
+        idea: 'A message arrives from a pilot missing for ten years.',
+        worldAndSetting: 'A small regional airport at night',
+        backstory: 'The airport never solved the old disappearance.',
+        storyDriver: 'Find out who sent the message.',
+        mustInclude: 'A broken radio',
+        avoid: 'Graphic violence',
+        preferredCastSize: 2,
+        draftStrategy: 'refine',
+      },
+      setupDraftMeta: {
+        aiGeneratedFields: ['title', 'premise', 'characterProfiles'],
+      },
+    });
+
+    assert.equal(result.series.creativeBrief.draftStrategy, 'refine');
+    assert.equal(result.series.creativeBrief.preferredCastSize, 2);
+    assert.deepEqual(result.series.setupDraftMeta.aiGeneratedFields, [
+      'title',
+      'premise',
+      'characterProfiles',
+    ]);
+    assert.equal(savedSeries.length, 1);
+    assert.equal('creativeBrief' in savedMemory[0]!, false);
+  });
+
   it('validates user setup fields before saving a local series', async () => {
     // savedSeries captures whether local persistence happened after moderation.
     const savedSeries: Series[] = [];
@@ -28,6 +81,7 @@ describe('createSeries', () => {
         assert.equal(request.title, 'Bomb, garry potter');
         assert.equal(request.participationMode, 'director');
         assert.equal(request.mainCharacters[0], 'Mira');
+        assert.equal(request.creativeBrief?.draftStrategy, 'fill-missing');
         throw new Error('Series setup matched blocked content rules.');
       },
     };
@@ -118,6 +172,9 @@ function createMemoryStore(
   savedMemory: SeriesMemory[],
 ): LocalSeriesStore {
   return {
+    getSeriesSetupDraft: async () => undefined,
+    saveSeriesSetupDraft: async () => undefined,
+    deleteSeriesSetupDraft: async () => undefined,
     getPreferences: async () => undefined,
     readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
     savePreferences: async () => undefined,

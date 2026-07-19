@@ -308,6 +308,9 @@ function createStore({
   readonly wordSets: readonly WordSet[];
 }): LocalSeriesStore {
   return {
+    getSeriesSetupDraft: async () => undefined,
+    saveSeriesSetupDraft: async () => undefined,
+    deleteSeriesSetupDraft: async () => undefined,
     getPreferences: async () => preferences,
     readBootstrapPreferences: async () => ({ preferences, recovered: false }),
     savePreferences: async () => undefined,

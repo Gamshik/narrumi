@@ -2,6 +2,7 @@ import type {
   Episode,
   LearningPreferences,
   LearningSignal,
+  LocalSeriesSetupDraft,
   Series,
   SeriesMemory,
   SyncMetadata,
@@ -10,6 +11,16 @@ import type {
 
 // LocalSeriesStore is the application port for immediate offline series writes.
 export type LocalSeriesStore = {
+  // getSeriesSetupDraft reads one unfinished local-only setup form.
+  readonly getSeriesSetupDraft: (
+    draftId: string,
+  ) => Promise<LocalSeriesSetupDraft | undefined>;
+  // saveSeriesSetupDraft persists an incomplete form without creating sync work.
+  readonly saveSeriesSetupDraft: (
+    draft: LocalSeriesSetupDraft,
+  ) => Promise<void>;
+  // deleteSeriesSetupDraft removes a completed or explicitly discarded form snapshot.
+  readonly deleteSeriesSetupDraft: (draftId: string) => Promise<void>;
   // getPreferences reads local series defaults or returns undefined before setup.
   readonly getPreferences: () => Promise<LearningPreferences | undefined>;
   // readBootstrapPreferences reads startup settings plus recovery metadata before sync.

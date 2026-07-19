@@ -125,6 +125,9 @@ function createCatalog(): VocabularyCatalog {
 // createStore implements the local ports needed by this use case only.
 function createStore(savedWordSets: WordSet[]): LocalSeriesStore {
   return {
+    getSeriesSetupDraft: async () => undefined,
+    saveSeriesSetupDraft: async () => undefined,
+    deleteSeriesSetupDraft: async () => undefined,
     getPreferences: async (): Promise<LearningPreferences | undefined> => undefined,
     readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
     savePreferences: async () => undefined,

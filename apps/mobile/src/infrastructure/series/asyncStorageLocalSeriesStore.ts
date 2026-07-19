@@ -8,19 +8,27 @@ import type {
 import {
   cefrLevels,
   clampStoryWordGoal,
+  createDefaultSeriesCreativeBrief,
+  createDefaultSeriesSetupDraftMeta,
   createProfilesFromCharacterNames,
   type Episode,
   interactionKinds,
   type LearningGenre,
   type LearningPreferences,
   type LearningSignal,
+  type LocalSeriesSetupDraft,
   learningGenres,
   learningSignalKinds,
   seriesParticipationModes,
   type Series,
   type SeriesCharacterProfile,
+  type SeriesCreativeBrief,
   type SeriesMemory,
   type SeriesParticipationMode,
+  seriesDraftStrategies,
+  type SeriesSetupDraftMeta,
+  type SeriesSetupTextField,
+  seriesSetupTextFields,
   type SyncMetadata,
   type WordSet,
   normalizeCharacterProfiles,
@@ -37,12 +45,42 @@ const STORAGE_KEYS = {
   preferences: '@context-english/preferences',
   series: '@context-english/series',
   seriesMemory: '@context-english/series-memory',
+  seriesSetupDrafts: '@context-english/series-setup-drafts',
   syncMetadata: '@context-english/sync-metadata',
   wordSets: '@context-english/word-sets',
 } as const;
 
 // AsyncStorageLocalSeriesStore persists offline series data and sync metadata.
 export class AsyncStorageLocalSeriesStore implements LocalSeriesStore {
+  // getSeriesSetupDraft reads one validated incomplete local-only setup form.
+  async getSeriesSetupDraft(
+    draftId: string,
+  ): Promise<LocalSeriesSetupDraft | undefined> {
+    const records = await this.readSeriesSetupDraftMap();
+
+    return records[draftId];
+  }
+
+  // saveSeriesSetupDraft upserts incomplete form state without creating a Series.
+  async saveSeriesSetupDraft(draft: LocalSeriesSetupDraft): Promise<void> {
+    const records = await this.readSeriesSetupDraftMap();
+
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.seriesSetupDrafts,
+      JSON.stringify({ ...records, [draft.draftId]: draft }),
+    );
+  }
+
+  // deleteSeriesSetupDraft removes local form state after save or explicit discard.
+  async deleteSeriesSetupDraft(draftId: string): Promise<void> {
+    const records = await this.readSeriesSetupDraftMap();
+
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.seriesSetupDrafts,
+      JSON.stringify(removeRecord(records, draftId)),
+    );
+  }
+
   // getPreferences reads validated local series generation defaults.
   async getPreferences(): Promise<LearningPreferences | undefined> {
     const rawValue = await AsyncStorage.getItem(STORAGE_KEYS.preferences);
@@ -339,7 +377,20 @@ export class AsyncStorageLocalSeriesStore implements LocalSeriesStore {
   private async readSeriesMap(): Promise<Record<string, Series>> {
     const rawValue = await AsyncStorage.getItem(STORAGE_KEYS.series);
 
-    return rawValue ? parseRecordMap(JSON.parse(rawValue), parseSeries) : {};
+    return rawValue
+      ? parseRecordMap(JSON.parse(rawValue), parseLocalSeriesRecord)
+      : {};
+  }
+
+  // readSeriesSetupDraftMap validates incomplete local-only form snapshots.
+  private async readSeriesSetupDraftMap(): Promise<
+    Record<string, LocalSeriesSetupDraft>
+  > {
+    const rawValue = await AsyncStorage.getItem(STORAGE_KEYS.seriesSetupDrafts);
+
+    return rawValue
+      ? parseRecordMap(JSON.parse(rawValue), parseLocalSeriesSetupDraft)
+      : {};
   }
 
   // readEpisodeMap validates mutable local episode records before use cases read them.
@@ -460,8 +511,8 @@ function parsePreferences(value: unknown): LearningPreferences {
   };
 }
 
-// parseSeries validates one local-first personal series record.
-function parseSeries(value: unknown): Series {
+// parseLocalSeriesRecord validates a story root and applies safe legacy defaults.
+export function parseLocalSeriesRecord(value: unknown): Series {
   if (!isRecord(value)) {
     throw new Error('Series must be an object');
   }
@@ -492,11 +543,133 @@ function parseSeries(value: unknown): Series {
     mainCharacters: readStringArray(value, 'mainCharacters'),
     characterProfiles: readCharacterProfiles(value),
     ...(userRole ? { userRole } : {}),
+    creativeBrief: readSeriesCreativeBrief(value),
+    setupDraftMeta: readSeriesSetupDraftMeta(value),
     memory: parseSeriesMemory(value.memory),
     createdAt: readString(value, 'createdAt'),
     updatedAt: readString(value, 'updatedAt'),
     sync: parseSyncMetadata(value.sync),
   };
+}
+
+// parseLocalSeriesSetupDraft validates incomplete values and applies legacy defaults.
+export function parseLocalSeriesSetupDraft(
+  value: unknown,
+): LocalSeriesSetupDraft {
+  if (!isRecord(value)) {
+    throw new Error('Local series setup draft must be an object');
+  }
+
+  const genre = readString(value, 'genre');
+  const cefrLevel = readString(value, 'cefrLevel');
+  const seriesId = readOptionalString(value, 'seriesId');
+
+  if (!isLearningGenre(genre)) {
+    throw new Error('Series setup draft genre is unsupported');
+  }
+
+  if (!cefrLevels.includes(cefrLevel as LocalSeriesSetupDraft['cefrLevel'])) {
+    throw new Error('Series setup draft CEFR level is unsupported');
+  }
+
+  return {
+    draftId: readString(value, 'draftId'),
+    ...(seriesId ? { seriesId } : {}),
+    title: readText(value, 'title'),
+    genre,
+    cefrLevel: cefrLevel as LocalSeriesSetupDraft['cefrLevel'],
+    tone: readText(value, 'tone'),
+    premise: readText(value, 'premise'),
+    participationMode: readParticipationMode(value),
+    characterProfiles: readDraftCharacterProfiles(value),
+    userRole: readOptionalString(value, 'userRole') ?? '',
+    creativeBrief: readSeriesCreativeBrief(value),
+    setupDraftMeta: readSeriesSetupDraftMeta(value),
+    updatedAt: readString(value, 'updatedAt'),
+  };
+}
+
+// readDraftCharacterProfiles migrates early incomplete drafts without character rows.
+function readDraftCharacterProfiles(
+  record: UnknownRecord,
+): readonly SeriesCharacterProfile[] {
+  if (record.characterProfiles === undefined) {
+    return [];
+  }
+
+  return normalizeCharacterProfiles(
+    readArray(record, 'characterProfiles').map(parseCharacterProfile),
+  );
+}
+
+// readSeriesCreativeBrief validates new anchors and migrates legacy series safely.
+function readSeriesCreativeBrief(record: UnknownRecord): SeriesCreativeBrief {
+  if (record.creativeBrief === undefined) {
+    return createDefaultSeriesCreativeBrief();
+  }
+
+  if (!isRecord(record.creativeBrief)) {
+    throw new Error('Series creative brief must be an object');
+  }
+
+  const brief = record.creativeBrief;
+  // Legacy aiFreedom never grants new replacement permission after an upgrade.
+  const draftStrategy =
+    brief.draftStrategy === undefined
+      ? 'fill-missing'
+      : readString(brief, 'draftStrategy');
+  const preferredCastSize = readOptionalNumber(brief, 'preferredCastSize');
+
+  if (
+    !seriesDraftStrategies.includes(
+      draftStrategy as SeriesCreativeBrief['draftStrategy'],
+    )
+  ) {
+    throw new Error('Series draft strategy is unsupported');
+  }
+
+  if (
+    preferredCastSize !== undefined &&
+    ![1, 2, 3, 4].includes(preferredCastSize)
+  ) {
+    throw new Error('Series preferred cast size is unsupported');
+  }
+
+  return {
+    idea: readText(brief, 'idea'),
+    worldAndSetting: readText(brief, 'worldAndSetting'),
+    backstory: readText(brief, 'backstory'),
+    storyDriver: readText(brief, 'storyDriver'),
+    mustInclude: readText(brief, 'mustInclude'),
+    avoid: readText(brief, 'avoid'),
+    ...(preferredCastSize !== undefined
+      ? { preferredCastSize: preferredCastSize as 1 | 2 | 3 | 4 }
+      : {}),
+    draftStrategy: draftStrategy as SeriesCreativeBrief['draftStrategy'],
+  };
+}
+
+// readSeriesSetupDraftMeta validates AI provenance and migrates legacy series safely.
+function readSeriesSetupDraftMeta(record: UnknownRecord): SeriesSetupDraftMeta {
+  if (record.setupDraftMeta === undefined) {
+    return createDefaultSeriesSetupDraftMeta();
+  }
+
+  if (!isRecord(record.setupDraftMeta)) {
+    throw new Error('Series setup draft metadata must be an object');
+  }
+
+  const fields = readStringArray(record.setupDraftMeta, 'aiGeneratedFields');
+
+  if (
+    fields.some(
+      (field) => !seriesSetupTextFields.includes(field as SeriesSetupTextField),
+    )
+  ) {
+    throw new Error('Series setup draft metadata contains an unsupported field');
+  }
+
+  return { aiGeneratedFields: fields as SeriesSetupTextField[] };
 }
 
 // parseSeriesMemory validates bounded continuity context.
@@ -861,6 +1034,17 @@ function readString(record: UnknownRecord, key: string): string {
   }
 
   return value.trim();
+}
+
+// readText validates a string field while preserving intentionally incomplete text.
+function readText(record: UnknownRecord, key: string): string {
+  const value = record[key];
+
+  if (typeof value !== 'string') {
+    throw new Error(`${key} must be a string`);
+  }
+
+  return value;
 }
 
 // readOptionalString validates an optional string field from local storage.

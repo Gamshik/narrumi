@@ -70,8 +70,8 @@ export function createCharacterProfilesEditorStyles(
     },
     descriptionInput: {
       flex: 0,
+      height: 58,
       lineHeight: 20,
-      minHeight: 58,
       paddingTop: 10,
     },
     removeButton: {

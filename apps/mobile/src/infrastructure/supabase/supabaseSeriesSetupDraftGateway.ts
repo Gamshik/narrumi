@@ -9,6 +9,7 @@ import type {
 import {
   createProfilesFromCharacterNames,
   normalizeCharacterProfiles,
+  seriesSetupTextFields,
 } from '@domain/index';
 
 import { toSupabaseFunctionError } from './supabaseFunctionError';
@@ -28,6 +29,7 @@ const seriesSetupDraftSchema = z.object({
     )
     .optional(),
   userRole: z.string().trim().min(1).optional(),
+  changedFields: z.array(z.enum(seriesSetupTextFields)).max(4),
 });
 
 // SupabaseSeriesSetupDraftGateway invokes the generate-series-setup Edge Function.
@@ -69,6 +71,7 @@ export class SupabaseSeriesSetupDraftGateway implements SeriesSetupDraftGateway 
           createProfilesFromCharacterNames(parsed.mainCharacters),
       ),
       ...(parsed.userRole ? { userRole: parsed.userRole } : {}),
+      changedFields: parsed.changedFields,
     };
   }
 }

@@ -110,12 +110,38 @@ async function generateSetupDraft({
     await requestStore.save(operationKey, generationRequestId);
   }
 
-  const draft = await gateway.generateSeriesSetupDraft({
+  // request keeps one stable identity across the automatic transport retry.
+  const request: GenerateSeriesSetupDraftRequest = {
     ...input,
     generationRequestId,
-  });
+  };
+  // draft is assigned by either the initial call or its one safe idempotent retry.
+  let draft: SeriesSetupDraft;
+
+  try {
+    draft = await gateway.generateSeriesSetupDraft(request);
+  } catch (error) {
+    if (!shouldRetrySetupGeneration(error)) {
+      throw error;
+    }
+
+    // The same request id makes this retry read or resume server work without duplicating it.
+    draft = await gateway.generateSeriesSetupDraft(request);
+  }
 
   await requestStore.remove(operationKey, generationRequestId);
 
   return { draft };
+}
+
+// shouldRetrySetupGeneration absorbs the transient first attempt that otherwise required another tap.
+function shouldRetrySetupGeneration(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('kind' in error)) {
+    return error instanceof Error;
+  }
+
+  // kind is read structurally so Application does not depend on Supabase error classes.
+  const kind: unknown = error.kind;
+
+  return kind === 'generation_in_progress' || kind === 'unavailable';
 }

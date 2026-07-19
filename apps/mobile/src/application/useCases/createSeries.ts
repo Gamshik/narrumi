@@ -6,12 +6,16 @@ import type {
 import {
   CefrLevel,
   characterProfileNames,
+  createDefaultSeriesCreativeBrief,
+  createDefaultSeriesSetupDraftMeta,
   createProfilesFromCharacterNames,
   LearningGenre,
   Series,
   type SeriesCharacterProfile,
+  type SeriesCreativeBrief,
   SeriesMemory,
   SeriesParticipationMode,
+  type SeriesSetupDraftMeta,
   SyncMetadata,
   normalizeCharacterProfiles,
 } from '@domain/index';
@@ -36,6 +40,10 @@ export type CreateSeriesInput = {
   readonly characterProfiles?: readonly SeriesCharacterProfile[];
   // userRole records who the learner is in the story when provided.
   readonly userRole?: string;
+  // creativeBrief preserves optional user-authored anchors separately from AI output.
+  readonly creativeBrief?: SeriesCreativeBrief;
+  // setupDraftMeta identifies setup values that a later AI regeneration may replace.
+  readonly setupDraftMeta?: SeriesSetupDraftMeta;
 };
 
 // CreateSeriesResult returns the persisted local series aggregate.
@@ -70,6 +78,9 @@ export function createCreateSeries(
       const canonicalCharacterNames = characterProfileNames(characterProfiles);
       const userRole = input.userRole?.trim();
       const participationMode = input.participationMode;
+      // creativeBrief is normalized before moderation so legacy callers send safe defaults.
+      const creativeBrief =
+        input.creativeBrief ?? createDefaultSeriesCreativeBrief();
 
       if (participationMode === 'character' && !userRole) {
         throw new Error('Your role is required for character mode.');
@@ -87,6 +98,7 @@ export function createCreateSeries(
         mainCharacters: canonicalCharacterNames,
         characterProfiles,
         ...(userRole ? { userRole } : {}),
+        creativeBrief,
       });
 
       const timestamp = clock.now().toISOString();
@@ -122,6 +134,8 @@ export function createCreateSeries(
         mainCharacters: canonicalCharacterNames,
         characterProfiles,
         ...(userRole ? { userRole } : {}),
+        creativeBrief,
+        setupDraftMeta: input.setupDraftMeta ?? createDefaultSeriesSetupDraftMeta(),
         memory,
         createdAt: timestamp,
         updatedAt: timestamp,

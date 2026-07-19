@@ -61,6 +61,16 @@ const series: Series = {
   participationMode: memory.participationMode,
   mainCharacters: memory.mainCharacters,
   characterProfiles,
+  creativeBrief: {
+    idea: 'A learner finds a coded letter.',
+    worldAndSetting: '',
+    backstory: '',
+    storyDriver: 'Discover who sent the letter.',
+    mustInclude: '',
+    avoid: '',
+    draftStrategy: 'fill-missing',
+  },
+  setupDraftMeta: { aiGeneratedFields: ['title'] },
   memory,
   createdAt: timestamp,
   updatedAt: timestamp,
@@ -310,6 +320,9 @@ function createLocalStore(): LocalSeriesStore {
   let preferences: LearningPreferences | undefined;
 
   return {
+    getSeriesSetupDraft: async () => undefined,
+    saveSeriesSetupDraft: async () => undefined,
+    deleteSeriesSetupDraft: async () => undefined,
     getPreferences: async () => preferences,
     readBootstrapPreferences: async () => ({ preferences, recovered: false }),
     savePreferences: async (value) => {

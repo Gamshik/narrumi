@@ -7,14 +7,20 @@ import {
   generationStateResponse,
   jsonResponse,
   logSafeError,
-  logSafeInfo,
   moderationResponse,
   safeErrorResponse,
 } from '../_shared/http.ts';
 import { runIdempotentGeneration } from '../_shared/generationIdempotency.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
-import { isRepeatedSetupConcept } from './regeneration.ts';
-import { resolveDraftFields } from './draftPreservation.ts';
+import {
+  createCharacterProfileId,
+  getCastSizeConstraint,
+  getProvidedCharacterProfiles,
+  resolveDraftFields,
+  shouldEvaluateSetupField,
+  type DraftRequestFields,
+  type SetupDraftField,
+} from './draftResolution.ts';
 import {
   buildModerationReview,
   collectModerationEntries,
@@ -41,11 +47,45 @@ const openrouterProvider = openrouterApiKey
 // setupDraftAttempts is the maximum retry count for structured setup generation.
 const setupDraftAttempts = 3;
 
-// setupTextFields lists the AI-fillable text fields in canonical generation order.
-// Generation follows this order so each field is produced from the selected constraints
-// plus every field before it. This keeps the premise, characters, learner role, and
-// title connected to one coherent story instead of being invented independently.
-const setupTextFields = ['premise', 'mainCharacters', 'userRole', 'title'] as const;
+// setupTextFields lists AI-fillable result fields in their dependency order.
+const setupTextFields = [
+  'premise',
+  'characterProfiles',
+  'userRole',
+  'title',
+] as const satisfies readonly SetupDraftField[];
+
+// characterProfileSchema validates recurring-character input at the trust boundary.
+const characterProfileSchema = z.object({
+  id: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(300),
+});
+
+// creativeBriefSchema bounds all optional human-authored story anchors.
+const creativeBriefSchema = z.object({
+  idea: z.string().trim().max(1000),
+  worldAndSetting: z.string().trim().max(400),
+  backstory: z.string().trim().max(600),
+  storyDriver: z.string().trim().max(500),
+  mustInclude: z.string().trim().max(300),
+  avoid: z.string().trim().max(300),
+  preferredCastSize: z.union([
+    z.literal(1),
+    z.literal(2),
+    z.literal(3),
+    z.literal(4),
+  ]).optional(),
+  draftStrategy: z.enum(['fill-missing', 'refine', 'rebuild']),
+});
+
+// setupDraftFieldSchema validates actual changed-field provenance in responses.
+const setupDraftFieldSchema = z.enum([
+  'title',
+  'premise',
+  'characterProfiles',
+  'userRole',
+]);
 
 // setupDraftRequestSchema validates selected constraints and optional user text.
 const setupDraftRequestSchema = z.object({
@@ -57,17 +97,55 @@ const setupDraftRequestSchema = z.object({
   participationMode: z.enum(['director', 'character']),
   premise: z.string().trim().min(1).max(1000).optional(),
   mainCharacters: z.array(z.string().trim().min(1).max(160)).max(8),
-  characterProfiles: z
-    .array(
-      z.object({
-        id: z.string().trim().min(1).max(120),
-        name: z.string().trim().min(1).max(80),
-        description: z.string().trim().max(300),
-      }),
-    )
-    .max(8)
-    .optional(),
+  characterProfiles: z.array(characterProfileSchema).max(8).default([]),
+  emptyCharacterSlotCount: z.number().int().min(0).max(8).default(0),
   userRole: z.string().trim().min(1).max(160).optional(),
+  creativeBrief: creativeBriefSchema,
+}).superRefine((request, context) => {
+  const providedNames =
+    request.characterProfiles.length > 0
+      ? request.characterProfiles.map((profile) => profile.name)
+      : request.mainCharacters;
+  const normalizedProvidedNames = providedNames.map(normalizeCharacterName);
+
+  if (new Set(normalizedProvidedNames).size !== providedNames.length) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Character profile names must be unique.',
+      path: ['characterProfiles'],
+    });
+  }
+
+  if (
+    providedNames.length + request.emptyCharacterSlotCount > 8
+  ) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Completed and empty character rows must not exceed eight.',
+      path: ['emptyCharacterSlotCount'],
+    });
+  }
+
+  const pinsRole =
+    request.creativeBrief.draftStrategy === 'fill-missing' &&
+    request.participationMode === 'character' &&
+    request.userRole !== undefined;
+  const pinsProfiles =
+    request.creativeBrief.draftStrategy === 'fill-missing' &&
+    providedNames.length > 0;
+
+  if (
+    pinsRole &&
+    pinsProfiles &&
+    request.userRole !== undefined &&
+    !providedNames.includes(request.userRole)
+  ) {
+    context.addIssue({
+      code: 'custom',
+      message: 'A preserved userRole must match a preserved character profile name.',
+      path: ['userRole'],
+    });
+  }
 });
 
 // setupDraftSchema is the complete text setup returned to the mobile form.
@@ -75,31 +153,36 @@ const setupDraftSchema = z.object({
   title: z.string().trim().min(1).max(160),
   premise: z.string().trim().min(1).max(1000),
   mainCharacters: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
-  characterProfiles: z
-    .array(
-      z.object({
-        id: z.string().trim().min(1).max(120),
-        name: z.string().trim().min(1).max(80),
-        description: z.string().trim().max(300),
-      }),
-    )
-    .min(1)
-    .max(8),
+  characterProfiles: z.array(characterProfileSchema).min(1).max(8),
   userRole: z.string().trim().min(1).max(160).optional(),
+  changedFields: z.array(setupDraftFieldSchema).max(4),
 }).superRefine((draft, context) => {
-  if (draft.mainCharacters.length === 0) {
+  const profileNames = draft.characterProfiles.map((profile) => profile.name);
+
+  if (
+    draft.mainCharacters.length !== profileNames.length ||
+    draft.mainCharacters.some((name, index) => name !== profileNames[index])
+  ) {
     context.addIssue({
       code: 'custom',
-      message: 'At least one main character is required.',
+      message: 'mainCharacters must exactly match characterProfiles names.',
       path: ['mainCharacters'],
     });
   }
 
-  if (draft.characterProfiles.length === 0) {
+  if (new Set(profileNames.map(normalizeCharacterName)).size !== profileNames.length) {
     context.addIssue({
       code: 'custom',
-      message: 'At least one character profile is required.',
+      message: 'Character profile names must be unique.',
       path: ['characterProfiles'],
+    });
+  }
+
+  if (draft.userRole !== undefined && !profileNames.includes(draft.userRole)) {
+    context.addIssue({
+      code: 'custom',
+      message: 'userRole must exactly match one character profile name.',
+      path: ['userRole'],
     });
   }
 });
@@ -120,7 +203,6 @@ const modelSetupDraftSchema = z
     // for omitted text (e.g. userRole: null in director mode); they normalize below.
     title: z.string().trim().max(160).nullish(),
     premise: z.string().trim().max(1000).nullish(),
-    mainCharacters: z.array(z.string().trim().max(160).nullish()).max(8).nullish(),
     characterProfiles: z
       .array(
         z
@@ -138,25 +220,24 @@ const modelSetupDraftSchema = z
   .transform((draft) => ({
     title: draft.title ? draft.title : undefined,
     premise: draft.premise ? draft.premise : undefined,
-    mainCharacters: (draft.mainCharacters ?? []).filter(
-      (character): character is string =>
-        typeof character === 'string' && character.length > 0,
-    ),
-    characterProfiles: (draft.characterProfiles ?? []).flatMap((profile, index) => {
-      if (!profile?.name) {
-        return [];
-      }
+    characterProfiles:
+      draft.characterProfiles === null || draft.characterProfiles === undefined
+        ? undefined
+        : draft.characterProfiles.flatMap((profile, index) => {
+            if (!profile?.name) {
+              return [];
+            }
 
-      const name = profile.name;
+            const name = profile.name;
 
-      return [
-        {
-          id: profile.id || createCharacterProfileId(name, index),
-          name,
-          description: profile.description ?? '',
-        },
-      ];
-    }),
+            return [
+              {
+                id: profile.id || createCharacterProfileId(name, index),
+                name,
+                description: profile.description ?? '',
+              },
+            ];
+          }),
     userRole: draft.userRole ? draft.userRole : undefined,
   }));
 
@@ -275,10 +356,19 @@ async function readJsonBody(request: Request): Promise<unknown> {
   }
 }
 
-// generateSetupDraft asks the model for complete setup text and validates preservation.
+// generateSetupDraft asks the model only when the selected strategy has useful work.
 async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraft> {
+  if (getFieldsToEvaluate(request).length === 0) {
+    return finalizeDraft(request, {
+      title: undefined,
+      premise: undefined,
+      characterProfiles: undefined,
+      userRole: undefined,
+    });
+  }
+
   let lastError: Error | undefined;
-  // Validation failures, repeated field values, or repeated full concepts.
+  // maxAttempts bounds retries caused by malformed or contract-breaking AI output.
   const maxAttempts = setupDraftAttempts + 1;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -286,42 +376,21 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
       model: openrouterProvider!(openrouterModel),
       system: buildSystemPrompt(),
       prompt: lastError
-        ? `${buildPrompt(request)}\n\nPrevious attempt failed: ${lastError.message}\nGenerate the JSON object again from scratch.`
+        ? `${buildPrompt(request)}\n\nPrevious output failed validation: ${lastError.message}\nCorrect only the invalid generated values. Keep every creative-brief anchor unchanged.`
         : buildPrompt(request),
-      // Full setup generation needs enough variety to avoid repeating the current concept.
-      temperature: 0.8,
-      maxOutputTokens: 900,
+      // Temperature stays conservative for refinement and opens up only for full rebuilds.
+      temperature: getGenerationTemperature(
+        request.creativeBrief.draftStrategy,
+      ),
+      maxOutputTokens: 1200,
     });
 
     try {
-      // Parse the model output leniently, then preserve provided fields and
-      // strictly validate only the assembled draft inside finalizeDraft.
-      const draft = finalizeDraft(
+      // finalizeDraft is the enforcement layer; prompt compliance is never trusted.
+      return finalizeDraft(
         request,
         modelSetupDraftSchema.parse(parseJsonObject(result.text)),
       );
-
-      const repeatedConcept = isRepeatedSetupConcept({
-        title: request.title,
-        premise: request.premise,
-        userRole: request.userRole,
-        mainCharacters: request.mainCharacters,
-      }, draft);
-
-      if (repeatedConcept && attempt < maxAttempts) {
-        lastError = new Error(
-          `The generated setup concept is too similar to the previous one; produce a completely new story idea.`,
-        );
-
-        logSafeInfo('generate-series-setup retrying repeated concept', {
-          attempt: String(attempt),
-          model: openrouterModel,
-        });
-
-        continue;
-      }
-
-      return draft;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -338,104 +407,230 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
 // buildSystemPrompt keeps setup generation bounded and original.
 function buildSystemPrompt(): string {
   return [
-    'You are a creative writing assistant specialized in TV series setups for language learners.',
-    'Generate a completely new TV series setup draft tailored to the constraints. If a previous concept is provided, create a distinct story, do not repeat the previous one.',
-    'Output must be valid JSON matching this schema: { title, premise, mainCharacters, characterProfiles, userRole? }.',
+    'You are a collaborative writing assistant for original TV series setups used by English learners.',
+    'Extend the learner imagination; never replace or contradict creative-brief anchors.',
+    'Output valid JSON containing only setup fields selected by the strategy: { title?, premise?, characterProfiles?, userRole? }.',
     'Do not generate or change selected list fields: cefrLevel, genre, tone, or participationMode.',
-    'Fill missing text fields with concise, original, safe content.',
-    'Follow generationOrder: build each field from the selected constraints and from every field that',
-    'appears earlier in generationOrder, so the premise, characters, learner role, and title stay',
-    'connected to one story instead of being invented independently.',
-    'In particular, derive characterProfiles and userRole directly from the premise: they must be people who',
-    'plausibly appear in that exact situation and have a clear relationship to it, not unrelated names.',
-    'In character mode, userRole is the character the learner plays and must exactly match one',
-    'characterProfiles[].name rather than inventing a separate person. Never write userRole as a second-person sentence or',
-    'instruction such as "You are ..." or "You play ...".',
+    'All generated fields must describe one coherent story grounded in the creative brief.',
+    'In character mode, userRole must exactly equal one characterProfiles[].name.',
+    'Never phrase userRole as an instruction such as "You are ..." or "You play ...".',
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only: no Markdown, no bullet lists, no typographic quotes.',
   ].join('\n');
 }
 
-// buildPrompt sends selected constraints and optional user-provided setup text.
+// buildPrompt sends protected anchors and only the current-draft context allowed by strategy.
 function buildPrompt(request: SetupDraftRequest): string {
+  const resolutionRequest = toDraftRequestFields(request);
+  const fieldsToEvaluate = getFieldsToEvaluate(request);
+  const currentCharacterProfiles = getProvidedCharacterProfiles(
+    resolutionRequest,
+  );
+  const { draftStrategy, ...protectedCreativeBrief } = request.creativeBrief;
   const payload: Record<string, unknown> = {
     task: 'generate-series-setup',
-    // generationOrder is the canonical dependency order; each field must stay consistent with the
-    // selected constraints and with every field listed before it, whether provided or just generated.
+    draftStrategy,
     generationOrder: setupTextFields,
+    fieldsToEvaluate,
     selectedConstraints: {
       cefrLevel: request.cefrLevel,
       genre: request.genre,
       tone: request.tone,
       participationMode: request.participationMode,
     },
+    protectedCreativeBrief,
+    strategyPolicy: getDraftStrategyPolicy(draftStrategy),
   };
 
+  if (draftStrategy === 'fill-missing') {
+    payload.fixedDraftFields = {
+      title: request.title,
+      premise: request.premise,
+      userRole:
+        request.participationMode === 'character'
+          ? request.userRole
+          : undefined,
+      characterProfiles: currentCharacterProfiles,
+      emptyCharacterSlotCount: request.emptyCharacterSlotCount,
+    };
+  } else if (draftStrategy === 'refine') {
+    payload.currentDraft = {
+      title: request.title,
+      premise: request.premise,
+      userRole:
+        request.participationMode === 'character'
+          ? request.userRole
+          : undefined,
+      characterProfiles: currentCharacterProfiles,
+      emptyCharacterSlotCount: request.emptyCharacterSlotCount,
+    };
+  }
+
   const baseOutputRules = [
-    'Return exactly: title, premise, mainCharacters, characterProfiles, userRole.',
-    'Build fields in generationOrder; each field must stay consistent with the selected constraints and with every earlier field.',
+    'Return only fields permitted by strategyPolicy. Omitted refine fields are preserved by the server.',
+    'Treat idea, worldAndSetting, backstory, storyDriver, and mustInclude as factual human-authored anchors.',
+    'Treat protectedCreativeBrief.avoid as excluded content; do not include any listed theme or element.',
     'premise: two to four sentences in one paragraph that set up a concrete situation and hook for the first episode, match the genre and tone, and leave the story open to continue. In character mode, leave a clear place for the learner to act. Keep it under 900 characters.',
-    'mainCharacters: an array of one to four distinct, original recurring character names only. Do not include titles, roles, descriptions, commas, or phrases such as "the detective". Good: "Corbin". Bad: "Detective Corbin" or "Corbin the detective".',
-    'characterProfiles: one object per mainCharacters entry, with id, name, and description. name must exactly match a mainCharacters entry. description should explain the character role, personality, or story function in one concise sentence.',
+    'characterProfiles: an array of distinct objects with id, name, and description. A generated name must be a name only, without a title or role. A generated description is one concise sentence about role, personality, or story function.',
     'For character mode, userRole is required and must exactly match one characterProfiles[].name: the character the learner plays. Never phrase it as a second-person sentence such as "You are ...". Keep it under 80 characters.',
+    'When refining a Character-mode cast, keep the current userRole character whenever compatible with the protected brief and selected cast size. If that character cannot remain, return a replacement userRole that exactly matches the new cast.',
     'For director mode, omit userRole.',
     'title: two to five words, evocative and memorable, reflecting the premise and tone, with no surrounding quotation marks. Keep it under 150 characters.',
     'Match every generated field to the selected CEFR level and tone: use simpler words and shorter sentences for lower levels (A1, A2) and richer language only for higher levels.',
+    buildCastRule(request, currentCharacterProfiles.length),
   ];
 
-  // avoidText gives the model the current draft only as content to move away from.
-  payload.avoidText = {
-    title: request.title,
-    premise: request.premise,
-    mainCharacters:
-      request.mainCharacters.length > 0 ? request.mainCharacters : undefined,
-    characterProfiles:
-      request.characterProfiles && request.characterProfiles.length > 0
-        ? request.characterProfiles
-        : undefined,
-    userRole: request.userRole,
-  };
-  payload.outputRules = [
-    ...baseOutputRules,
-    'Generate fresh values for every text field from the selected constraints; do not preserve or assume previous setup text.',
-  ];
+  payload.outputRules = baseOutputRules;
 
   return JSON.stringify(payload, null, 2);
 }
 
-// finalizeDraft assembles the kept and regenerated fields, then strictly validates the
-// result. The only setup generation action regenerates every text field coherently.
+// finalizeDraft enforces preservation, cast size, mode, and cross-field consistency.
 function finalizeDraft(
   request: SetupDraftRequest,
   draft: ModelSetupDraft,
 ): SetupDraft {
-  const resolved = resolveDraftFields(request, draft);
-  const characterProfiles =
-    resolved.characterProfiles.length > 0
-      ? resolved.characterProfiles
-      : resolved.mainCharacters.map((name, index) => ({
-          id: createCharacterProfileId(name, index),
-          name,
-          description: name,
-        }));
+  const resolutionRequest = toDraftRequestFields(request);
+  const resolved = resolveDraftFields(resolutionRequest, draft);
+  const castSizeConstraint = getCastSizeConstraint(resolutionRequest);
 
-  return setupDraftSchema.parse({
-    ...resolved,
-    mainCharacters: characterProfiles.map((profile) => profile.name),
-    characterProfiles,
-  });
+  if (
+    castSizeConstraint.exact !== undefined &&
+    resolved.characterProfiles.length !== castSizeConstraint.exact
+  ) {
+    throw new Error(
+      `characterProfiles must contain exactly ${castSizeConstraint.exact} profiles for this request.`,
+    );
+  }
+
+  if (
+    resolved.characterProfiles.length < castSizeConstraint.minimum ||
+    resolved.characterProfiles.length > castSizeConstraint.maximum
+  ) {
+    throw new Error(
+      `characterProfiles must contain ${castSizeConstraint.minimum} to ${castSizeConstraint.maximum} profiles for this request.`,
+    );
+  }
+
+  if (request.participationMode === 'character' && resolved.userRole === undefined) {
+    throw new Error('userRole is required in character mode.');
+  }
+
+  return setupDraftSchema.parse(resolved);
 }
 
-// createCharacterProfileId produces deterministic ids from generated names.
-function createCharacterProfileId(name: string, index: number): string {
-  const slug = name
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
+// toDraftRequestFields maps the transport contract to the pure resolution contract.
+function toDraftRequestFields(request: SetupDraftRequest): DraftRequestFields {
+  return {
+    strategy: request.creativeBrief.draftStrategy,
+    participationMode: request.participationMode,
+    ...(request.title !== undefined ? { title: request.title } : {}),
+    ...(request.premise !== undefined ? { premise: request.premise } : {}),
+    mainCharacters: request.mainCharacters,
+    characterProfiles: request.characterProfiles,
+    emptyCharacterSlotCount: request.emptyCharacterSlotCount,
+    ...(request.userRole !== undefined ? { userRole: request.userRole } : {}),
+    ...(request.creativeBrief.preferredCastSize !== undefined
+      ? { preferredCastSize: request.creativeBrief.preferredCastSize }
+      : {}),
+  };
+}
 
-  return `character:${slug || `profile-${index + 1}`}`;
+// getFieldsToEvaluate derives required or discretionary model work from strategy.
+function getFieldsToEvaluate(
+  request: SetupDraftRequest,
+): readonly SetupDraftField[] {
+  const resolutionRequest = toDraftRequestFields(request);
+
+  return setupTextFields.filter((field) =>
+    shouldEvaluateSetupField(resolutionRequest, field)
+  );
+}
+
+// buildCastRule explains the deterministic preferred-cast behavior to the model.
+function buildCastRule(
+  request: SetupDraftRequest,
+  pinnedCount: number,
+): string {
+  const preferredCastSize = request.creativeBrief.preferredCastSize;
+  const strategy = request.creativeBrief.draftStrategy;
+  const emptyCharacterSlotCount = request.emptyCharacterSlotCount;
+  const minimumVisibleSize = pinnedCount + emptyCharacterSlotCount;
+
+  if (strategy === 'refine') {
+    const requiredSize = preferredCastSize === undefined
+      ? minimumVisibleSize
+      : preferredCastSize;
+    const generatedSizeRule = preferredCastSize !== undefined
+      ? `The learner selected an exact cast size. Return exactly ${preferredCastSize} complete profiles; remove or replace current profiles as needed. Visible rows beyond that selected total do not need to remain.`
+      : emptyCharacterSlotCount > 0
+        ? `Return a complete cast of ${Math.max(requiredSize, 1)} to ${Math.max(requiredSize, 4)} profiles and fill every visible empty character row.`
+        : 'If replacing the cast, return one to four complete profiles.';
+
+    return `Evaluate the current cast as a whole. ${preferredCastSize !== undefined || emptyCharacterSlotCount > 0 ? 'characterProfiles is required when the current complete cast does not satisfy the selected total or visible fill slots.' : 'Omit characterProfiles when no meaningful improvement is needed.'} ${generatedSizeRule}`;
+  }
+
+  if (strategy === 'rebuild') {
+    return preferredCastSize === undefined
+      ? 'Generate one to four completely new character profiles.'
+      : `Generate exactly ${preferredCastSize} completely new character profiles.`;
+  }
+
+  if (preferredCastSize === undefined) {
+    if (pinnedCount === 0) {
+      const minimumGeneratedCount = Math.max(emptyCharacterSlotCount, 1);
+
+      return `Choose an appropriate cast size from ${minimumGeneratedCount} to ${Math.max(minimumGeneratedCount, 4)} and return that many character profiles.`;
+    }
+
+    const minimumFinalSize = Math.max(minimumVisibleSize, Math.min(pinnedCount + 1, 4));
+    const maximumFinalSize = Math.max(minimumFinalSize, 4);
+
+    return `Preserve all ${pinnedCount} pinned profiles. Choose a final cast size from ${minimumFinalSize} to ${maximumFinalSize}, then return only the new profiles needed to reach that size. Do not repeat pinned profiles.`;
+  }
+
+  const expectedCastSize = Math.max(
+    preferredCastSize,
+    minimumVisibleSize,
+  );
+  const additionsNeeded = expectedCastSize - pinnedCount;
+
+  return `Preserve all ${pinnedCount} pinned profiles and return exactly ${additionsNeeded} new distinct profiles to reach ${expectedCastSize} total. Do not repeat pinned profiles.`;
+}
+
+// getDraftStrategyPolicy translates update permission into explicit model behavior.
+function getDraftStrategyPolicy(
+  strategy: SetupDraftRequest['creativeBrief']['draftStrategy'],
+): string {
+  if (strategy === 'fill-missing') {
+    return 'Fill missing required fields only. Never return or change an existing fixedDraftFields value. Preserve every pinned character and supplement the cast when visible empty rows or AI-chosen cast size require additions.';
+  }
+
+  if (strategy === 'refine') {
+    return 'Review the current draft as a whole. Fill every missing required field. An explicit preferredCastSize is an exact learner constraint and requires resizing the cast. Otherwise, return a replacement for an existing field only when doing so meaningfully improves coherence, originality, or alignment with the protected creative brief. Leave strong fields omitted and unchanged. Never edit merely to demonstrate a change.';
+  }
+
+  return 'Build every final draft field from scratch. Ignore the previous final draft completely. Follow protected creative-brief anchors when supplied; when they are empty, invent an original setup from the selected constraints.';
+}
+
+// getGenerationTemperature keeps selective editing stable and full rebuilding inventive.
+function getGenerationTemperature(
+  strategy: SetupDraftRequest['creativeBrief']['draftStrategy'],
+): number {
+  if (strategy === 'fill-missing') {
+    return 0.55;
+  }
+
+  if (strategy === 'refine') {
+    return 0.65;
+  }
+
+  return 0.85;
+}
+
+// normalizeCharacterName supports request-level duplicate and role checks.
+function normalizeCharacterName(name: string): string {
+  return name.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 }
 
 // parseJsonObject extracts a JSON object even when a model adds accidental prose.

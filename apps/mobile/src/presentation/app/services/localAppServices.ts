@@ -12,7 +12,9 @@ import {
   createLoadLearningSignals,
   createLoadSeriesDetails,
   createListSeries,
+  createLoadSeriesSetupDraft,
   createManageAuthSession,
+  createDeleteSeriesSetupDraft,
   createRecordLearningSignal,
   createReplaceEpisodeStoryWord,
   createShuffleEpisodeStoryWords,
@@ -23,6 +25,7 @@ import {
   type SyncLocalChanges,
   createUpdateLearningPreferences,
   createUpdateSeriesSetup,
+  createSaveSeriesSetupDraft,
   createUpdateWordSet,
 } from '@application/index';
 import type {
@@ -106,6 +109,12 @@ const hydrateBootstrapSession = createHydrateBootstrapSession(
 const deleteEpisode = createDeleteEpisode(localSeriesStore, systemClock);
 const deleteSeries = createDeleteSeries(localSeriesStore, systemClock);
 const listSeries = createListSeries(localSeriesStore);
+// loadSeriesSetupDraft restores an unfinished form without pre-sync or network access.
+const loadSeriesSetupDraft = createLoadSeriesSetupDraft(localSeriesStore);
+// saveSeriesSetupDraft persists incomplete form values without final validation.
+const saveSeriesSetupDraft = createSaveSeriesSetupDraft(localSeriesStore);
+// deleteSeriesSetupDraft clears a completed or discarded local form snapshot.
+const deleteSeriesSetupDraft = createDeleteSeriesSetupDraft(localSeriesStore);
 const loadLearningPreferences = createLoadLearningPreferences(
   localSeriesStore,
   systemClock,
@@ -175,6 +184,7 @@ export const localAppServices = {
   createSeries: withBackgroundSync(createSeries, syncLocalChanges),
   deleteEpisode: withBackgroundSync(deleteEpisode, syncLocalChanges),
   deleteSeries: withBackgroundSync(deleteSeries, syncLocalChanges),
+  deleteSeriesSetupDraft,
   hydrateBootstrapSession,
   listSeries: withPreSync(listSeries, syncLocalChanges),
   loadLearningPreferences: withPreSync(
@@ -184,6 +194,7 @@ export const localAppServices = {
   loadLearningSignals,
   loadEpisodeReader,
   loadSeriesDetails,
+  loadSeriesSetupDraft,
   manageAuthSession,
   recordLearningSignal: withBackgroundSync(
     recordLearningSignal,
@@ -214,6 +225,7 @@ export const localAppServices = {
     syncLocalChanges,
   ),
   syncLocalChanges,
+  saveSeriesSetupDraft,
   updateLearningPreferences: withBackgroundSync(
     updateLearningPreferences,
     syncLocalChanges,

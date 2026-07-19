@@ -9,6 +9,7 @@ import type {
   Episode,
   LearningPreferences,
   LearningSignal,
+  LocalSeriesSetupDraft,
   Series,
   SeriesMemory,
   SyncMetadata,
@@ -26,6 +27,23 @@ export class QueuedLocalSeriesStore implements LocalSeriesStore {
   constructor(store: LocalSeriesStore, queue: SyncQueue) {
     this.store = store;
     this.queue = queue;
+  }
+
+  // getSeriesSetupDraft forwards local-only form reads without remote reconciliation.
+  getSeriesSetupDraft(
+    draftId: string,
+  ): Promise<LocalSeriesSetupDraft | undefined> {
+    return this.store.getSeriesSetupDraft(draftId);
+  }
+
+  // saveSeriesSetupDraft persists incomplete form state without queueing remote work.
+  saveSeriesSetupDraft(draft: LocalSeriesSetupDraft): Promise<void> {
+    return this.store.saveSeriesSetupDraft(draft);
+  }
+
+  // deleteSeriesSetupDraft removes local-only form state without queueing remote work.
+  deleteSeriesSetupDraft(draftId: string): Promise<void> {
+    return this.store.deleteSeriesSetupDraft(draftId);
   }
 
   // getPreferences forwards the local preferences read unchanged.

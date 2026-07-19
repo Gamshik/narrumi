@@ -60,6 +60,16 @@ const series: Series = {
   participationMode: memory.participationMode,
   mainCharacters: memory.mainCharacters,
   characterProfiles,
+  creativeBrief: {
+    idea: '',
+    worldAndSetting: '',
+    backstory: '',
+    storyDriver: '',
+    mustInclude: '',
+    avoid: '',
+    draftStrategy: 'fill-missing',
+  },
+  setupDraftMeta: { aiGeneratedFields: [] },
   memory,
   createdAt: timestamp,
   updatedAt: timestamp,
@@ -238,6 +248,9 @@ function createStore(
   savedEpisodes: Episode[],
 ): LocalSeriesStore {
   return {
+    getSeriesSetupDraft: async () => undefined,
+    saveSeriesSetupDraft: async () => undefined,
+    deleteSeriesSetupDraft: async () => undefined,
     getPreferences: async () => undefined,
     readBootstrapPreferences: async () => ({
       preferences: undefined,

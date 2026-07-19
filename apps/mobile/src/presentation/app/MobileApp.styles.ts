@@ -684,12 +684,12 @@ function createAppStylesImpl(colors: AppColors) {
       fontSize: 15,
     },
     formTextArea: {
-      minHeight: 96,
+      height: 96,
       paddingTop: 13,
       lineHeight: 21,
     },
     formCompactTextArea: {
-      minHeight: 58,
+      height: 58,
       paddingTop: 13,
       lineHeight: 21,
     },
@@ -705,6 +705,51 @@ function createAppStylesImpl(colors: AppColors) {
       fontSize: 12,
       lineHeight: 17,
       paddingHorizontal: 4,
+    },
+    setupAiSourceLabel: {
+      color: colors.systemTeal,
+      flexShrink: 1,
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 9,
+      letterSpacing: 0.45,
+      textAlign: "right",
+    },
+    setupReadOnlyInput: {
+      opacity: 0.72,
+    },
+    setupDraftHeader: {
+      gap: 3,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.separator,
+      paddingTop: 15,
+    },
+    setupDraftTitle: {
+      color: colors.labelPrimary,
+      fontFamily: fontFamilies.display,
+      fontSize: 18,
+      lineHeight: 24,
+    },
+    setupBuildAction: {
+      minHeight: 50,
+      alignSelf: "stretch",
+      justifyContent: "center",
+    },
+    setupBuildActionText: {
+      color: "#ffffff",
+      fontFamily: fontFamilies.bodyHeavy,
+      fontSize: 14,
+      textAlign: "center",
+    },
+    setupUndoAction: {
+      minHeight: 44,
+      alignSelf: "stretch",
+      justifyContent: "center",
+    },
+    setupUndoActionText: {
+      color: colors.labelPrimary,
+      fontFamily: fontFamilies.bodyBold,
+      fontSize: 13,
+      textAlign: "center",
     },
     practiceCard: {
       gap: 12,

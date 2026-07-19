@@ -1,5 +1,6 @@
 import type {
   SeriesCharacterProfile,
+  SeriesCreativeBrief,
   SeriesParticipationMode,
 } from '@domain/index';
 
@@ -19,6 +20,8 @@ export type ValidateSeriesSetupRequest = {
   readonly characterProfiles?: readonly SeriesCharacterProfile[];
   // userRole is the optional learner-written role in the story.
   readonly userRole?: string;
+  // creativeBrief contains optional learner-authored story anchors checked on every save.
+  readonly creativeBrief?: SeriesCreativeBrief;
 };
 
 // SeriesSetupModerationGateway hides server-side setup validation from use cases.

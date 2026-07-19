@@ -13,6 +13,7 @@ export * from './loadEpisodeReader';
 export * from './loadSeriesDetails';
 export * from './listSeries';
 export * from './manageAuthSession';
+export * from './manageSeriesSetupDraft';
 export * from './recordLearningSignal';
 export * from './replaceEpisodeStoryWord';
 export * from './shuffleEpisodeStoryWords';

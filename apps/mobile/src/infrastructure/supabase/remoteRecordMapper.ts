@@ -6,6 +6,7 @@ import type {
 } from '@application/ports';
 import {
   cefrLevels,
+  createDefaultSeriesCreativeBrief,
   createProfilesFromCharacterNames,
   interactionKinds,
   learningGenres,
@@ -19,7 +20,11 @@ import {
   type LearningSignal,
   type Series,
   type SeriesCharacterProfile,
+  type SeriesCreativeBrief,
   type SeriesMemory,
+  seriesDraftStrategies,
+  type SeriesSetupDraftMeta,
+  seriesSetupTextFields,
   type SyncMetadata,
   type TranslationAnnotation,
   type WordSet,
@@ -108,6 +113,31 @@ const characterProfileSchema = z.object({
   name: z.string().min(1),
   description: z.string(),
 });
+const seriesCreativeBriefSchema = z.preprocess(
+  (value) => value ?? createDefaultSeriesCreativeBrief(),
+  z.object({
+    idea: z.string(),
+    worldAndSetting: z.string(),
+    backstory: z.string(),
+    storyDriver: z.string(),
+    mustInclude: z.string(),
+    avoid: z.string(),
+    preferredCastSize: z
+      .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
+      .optional(),
+    draftStrategy: z.enum(seriesDraftStrategies).optional(),
+    // aiFreedom is accepted only to migrate remote rows written by older clients.
+    aiFreedom: z.enum(['close', 'collaborative', 'surprise']).optional(),
+  }).transform(({ aiFreedom: _legacyAiFreedom, ...brief }) => ({
+    ...brief,
+    draftStrategy: brief.draftStrategy ?? 'fill-missing' as const,
+  })),
+);
+const seriesSetupDraftMetaSchema = z
+  .object({
+    aiGeneratedFields: z.array(z.enum(seriesSetupTextFields)),
+  })
+  .default({ aiGeneratedFields: [] });
 const seriesRowSchema = ownedColumnsSchema.extend({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -119,6 +149,8 @@ const seriesRowSchema = ownedColumnsSchema.extend({
   main_characters: stringArraySchema,
   character_profiles: z.array(characterProfileSchema).default([]),
   user_role: z.string().nullable(),
+  creative_brief: seriesCreativeBriefSchema,
+  setup_draft_meta: seriesSetupDraftMetaSchema,
   created_at: timestampSchema,
 });
 const seriesMemoryRowSchema = ownedColumnsSchema.extend({
@@ -200,6 +232,8 @@ export function serializeSyncRecord(
           main_characters: record.value.mainCharacters,
           character_profiles: record.value.characterProfiles,
           user_role: record.value.userRole ?? null,
+          creative_brief: record.value.creativeBrief,
+          setup_draft_meta: record.value.setupDraftMeta,
           created_at: record.value.createdAt,
           ...serializeVersion(record.value),
         },
@@ -415,11 +449,38 @@ function mapSeries(
     mainCharacters: row.main_characters,
     characterProfiles: mapCharacterProfiles(row.character_profiles, row.main_characters),
     ...(row.user_role ? { userRole: row.user_role } : {}),
+    creativeBrief: mapSeriesCreativeBrief(row.creative_brief),
+    setupDraftMeta: mapSeriesSetupDraftMeta(row.setup_draft_meta),
     memory,
     createdAt: row.created_at,
     updatedAt: row.client_updated_at,
     sync: mapCleanSync(row),
   };
+}
+
+// mapSeriesCreativeBrief removes undefined optional keys from validated JSON.
+function mapSeriesCreativeBrief(
+  brief: z.infer<typeof seriesCreativeBriefSchema>,
+): SeriesCreativeBrief {
+  return {
+    idea: brief.idea,
+    worldAndSetting: brief.worldAndSetting,
+    backstory: brief.backstory,
+    storyDriver: brief.storyDriver,
+    mustInclude: brief.mustInclude,
+    avoid: brief.avoid,
+    ...(brief.preferredCastSize
+      ? { preferredCastSize: brief.preferredCastSize }
+      : {}),
+    draftStrategy: brief.draftStrategy,
+  };
+}
+
+// mapSeriesSetupDraftMeta isolates validated provenance from the transport object.
+function mapSeriesSetupDraftMeta(
+  metadata: z.infer<typeof seriesSetupDraftMetaSchema>,
+): SeriesSetupDraftMeta {
+  return { aiGeneratedFields: metadata.aiGeneratedFields };
 }
 
 // parseSeriesMemory validates one remote bounded-memory record.

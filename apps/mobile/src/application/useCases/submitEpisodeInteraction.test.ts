@@ -54,6 +54,16 @@ const series: Series = {
   participationMode: memory.participationMode,
   mainCharacters: memory.mainCharacters,
   characterProfiles,
+  creativeBrief: {
+    idea: '',
+    worldAndSetting: '',
+    backstory: '',
+    storyDriver: '',
+    mustInclude: '',
+    avoid: '',
+    draftStrategy: 'fill-missing',
+  },
+  setupDraftMeta: { aiGeneratedFields: [] },
   memory,
   createdAt: timestamp,
   updatedAt: timestamp,
@@ -131,6 +141,9 @@ describe('submitEpisodeInteraction', () => {
     const savedMemories: SeriesMemory[] = [];
     // store implements only deterministic in-memory behavior needed by this use case.
     const store: LocalSeriesStore = {
+      getSeriesSetupDraft: async () => undefined,
+      saveSeriesSetupDraft: async () => undefined,
+      deleteSeriesSetupDraft: async () => undefined,
       getPreferences: async () => undefined,
       readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
       savePreferences: async () => undefined,
@@ -279,6 +292,9 @@ describe('submitEpisodeInteraction', () => {
     const savedEpisodes: Episode[] = [];
     // store returns the long episode while keeping unrelated ports inert.
     const store: LocalSeriesStore = {
+      getSeriesSetupDraft: async () => undefined,
+      saveSeriesSetupDraft: async () => undefined,
+      deleteSeriesSetupDraft: async () => undefined,
       getPreferences: async () => undefined,
       readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
       savePreferences: async () => undefined,
@@ -494,6 +510,9 @@ function createTestStore(
   onSaveEpisode?: (episode: Episode) => void,
 ): LocalSeriesStore {
   return {
+    getSeriesSetupDraft: async () => undefined,
+    saveSeriesSetupDraft: async () => undefined,
+    deleteSeriesSetupDraft: async () => undefined,
     getPreferences: async () => undefined,
     readBootstrapPreferences: async () => ({ preferences: undefined, recovered: false }),
     savePreferences: async () => undefined,

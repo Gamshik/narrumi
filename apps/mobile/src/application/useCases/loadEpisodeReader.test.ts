@@ -36,6 +36,9 @@ describe('loadEpisodeReader', () => {
   it('loads an episode by series and order without routing its internal id', async () => {
     // store returns the legacy episode only through its ordered series collection.
     const store: LocalSeriesStore = {
+      getSeriesSetupDraft: async () => undefined,
+      saveSeriesSetupDraft: async () => undefined,
+      deleteSeriesSetupDraft: async () => undefined,
       getPreferences: async () => undefined,
       readBootstrapPreferences: async () => ({
         preferences: undefined,

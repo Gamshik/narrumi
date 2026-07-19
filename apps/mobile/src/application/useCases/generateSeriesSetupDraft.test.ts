@@ -6,6 +6,7 @@ import type {
   NetworkStatus,
   SeriesSetupDraftGateway,
 } from '@application/ports';
+import { createDefaultSeriesCreativeBrief } from '@domain/index';
 
 import { createGenerateSeriesSetupDraft } from './generateSeriesSetupDraft';
 
@@ -22,6 +23,12 @@ const characterProfiles = [
     description: 'A library assistant who knows old building stories.',
   },
 ] as const;
+
+// creativeBrief is the exact user-authored setup context forwarded through retries.
+const creativeBrief = {
+  ...createDefaultSeriesCreativeBrief(),
+  idea: 'A quiet blue door appears under the library stairs.',
+};
 
 describe('generateSeriesSetupDraft', () => {
   it('passes selected fields as constraints and returns a complete draft', async () => {
@@ -41,12 +48,15 @@ describe('generateSeriesSetupDraft', () => {
         assert.equal(request.tone, 'Calm detective');
         assert.equal(request.participationMode, 'director');
         assert.equal(request.title, 'Blue Door');
+        assert.equal(request.creativeBrief.idea, creativeBrief.idea);
+        assert.equal(request.creativeBrief.draftStrategy, 'fill-missing');
 
         return {
           title: 'Blue Door',
           premise: 'Mira finds a quiet blue door under the library stairs.',
           mainCharacters: ['Mira', 'Leo'],
           characterProfiles,
+          changedFields: ['premise', 'characterProfiles'],
         };
       },
     };
@@ -61,6 +71,7 @@ describe('generateSeriesSetupDraft', () => {
       tone: 'Calm detective',
       participationMode: 'director',
       mainCharacters: [],
+      creativeBrief,
     } as const;
     const [result, duplicateResult] = await Promise.all([
       useCase.execute(input),
@@ -76,7 +87,7 @@ describe('generateSeriesSetupDraft', () => {
     assert.equal(gatewayCallCount, 2);
   });
 
-  it('reuses an unfinished request id after a failed remote attempt', async () => {
+  it('automatically retries a transient first attempt with the same request id', async () => {
     // networkStatus keeps both retry attempts inside the online generation path.
     const networkStatus: NetworkStatus = {
       getCurrentState: async () => ({ isOnline: true }),
@@ -97,6 +108,7 @@ describe('generateSeriesSetupDraft', () => {
           premise: 'Mira finds a quiet blue door under the library stairs.',
           mainCharacters: ['Mira', 'Leo'],
           characterProfiles,
+          changedFields: ['title', 'premise', 'characterProfiles'],
         };
       },
     };
@@ -113,13 +125,52 @@ describe('generateSeriesSetupDraft', () => {
       tone: 'Calm detective',
       participationMode: 'director',
       mainCharacters: [],
+      creativeBrief,
     } as const;
 
-    await assert.rejects(() => useCase.execute(input), /Temporary/);
     await useCase.execute(input);
 
     assert.equal(requestIds.length, 2);
     assert.equal(requestIds[1], requestIds[0]);
+  });
+
+  it('does not retry a non-recoverable typed generation error', async () => {
+    // networkStatus keeps the request inside the online generation path.
+    const networkStatus: NetworkStatus = {
+      getCurrentState: async () => ({ isOnline: true }),
+    };
+    // gatewayCallCount proves validation failures are not repeated automatically.
+    let gatewayCallCount = 0;
+    const validationError = Object.assign(new Error('Invalid setup request'), {
+      kind: 'validation',
+    });
+    // gateway returns a stable contract error that requires input changes.
+    const gateway: SeriesSetupDraftGateway = {
+      generateSeriesSetupDraft: async () => {
+        gatewayCallCount += 1;
+        throw validationError;
+      },
+    };
+    const useCase = createGenerateSeriesSetupDraft(
+      networkStatus,
+      gateway,
+      { now: () => new Date('2026-07-16T00:00:00.000Z') },
+      createMemoryGenerationRequestStore(),
+    );
+
+    await assert.rejects(
+      () =>
+        useCase.execute({
+          cefrLevel: 'B1',
+          genre: 'short-fiction',
+          tone: 'Calm detective',
+          participationMode: 'director',
+          mainCharacters: [],
+          creativeBrief,
+        }),
+      /Invalid setup request/,
+    );
+    assert.equal(gatewayCallCount, 1);
   });
 
   it('blocks setup generation while offline', async () => {
@@ -145,6 +196,7 @@ describe('generateSeriesSetupDraft', () => {
           tone: 'Calm detective',
           participationMode: 'director',
           mainCharacters: [],
+          creativeBrief,
         }),
       /only when online/,
     );

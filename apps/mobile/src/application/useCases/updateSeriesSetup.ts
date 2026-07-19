@@ -6,12 +6,16 @@ import type {
 import {
   CefrLevel,
   characterProfileNames,
+  createDefaultSeriesCreativeBrief,
+  createDefaultSeriesSetupDraftMeta,
   createProfilesFromCharacterNames,
   LearningGenre,
   Series,
   type SeriesCharacterProfile,
+  type SeriesCreativeBrief,
   SeriesMemory,
   SeriesParticipationMode,
+  type SeriesSetupDraftMeta,
   SyncMetadata,
   normalizeCharacterProfiles,
 } from '@domain/index';
@@ -38,6 +42,10 @@ export type UpdateSeriesSetupInput = {
   readonly characterProfiles?: readonly SeriesCharacterProfile[];
   // userRole records who the learner is in the story for character mode.
   readonly userRole?: string;
+  // creativeBrief preserves optional user-authored anchors separately from AI output.
+  readonly creativeBrief?: SeriesCreativeBrief;
+  // setupDraftMeta identifies setup values that a later AI regeneration may replace.
+  readonly setupDraftMeta?: SeriesSetupDraftMeta;
 };
 
 // UpdateSeriesSetupResult returns the saved local series after setup editing.
@@ -77,6 +85,11 @@ export function createUpdateSeriesSetup(
       }
 
       const normalized = normalizeSetupInput(input);
+      // creativeBrief reuses the stored value for legacy edit callers before moderation.
+      const creativeBrief =
+        normalized.creativeBrief ??
+        series.creativeBrief ??
+        createDefaultSeriesCreativeBrief();
 
       await seriesSetupModerationGateway?.validateSeriesSetup({
         title: normalized.title,
@@ -86,6 +99,7 @@ export function createUpdateSeriesSetup(
         mainCharacters: normalized.mainCharacters,
         characterProfiles: normalized.characterProfiles,
         ...(normalized.userRole ? { userRole: normalized.userRole } : {}),
+        creativeBrief,
       });
 
       const timestamp = clock.now().toISOString();
@@ -120,6 +134,11 @@ export function createUpdateSeriesSetup(
         mainCharacters: normalized.mainCharacters,
         characterProfiles: normalized.characterProfiles ?? [],
         ...(normalized.userRole ? { userRole: normalized.userRole } : {}),
+        creativeBrief,
+        setupDraftMeta:
+          normalized.setupDraftMeta ??
+          series.setupDraftMeta ??
+          createDefaultSeriesSetupDraftMeta(),
         memory: updatedMemory,
         updatedAt: timestamp,
         sync,
@@ -165,6 +184,8 @@ function normalizeSetupInput(input: UpdateSeriesSetupInput): RequiredSetup {
     mainCharacters: canonicalCharacterNames,
     characterProfiles,
     ...(userRole ? { userRole } : {}),
+    ...(input.creativeBrief ? { creativeBrief: input.creativeBrief } : {}),
+    ...(input.setupDraftMeta ? { setupDraftMeta: input.setupDraftMeta } : {}),
   };
 }
 

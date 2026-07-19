@@ -18,3 +18,5 @@ export * from './CharacterProfilesEditor';
 export * from './BubbleSlider';
 export * from './BackIconButton';
 export * from './CollapsingTitleEdgeEffects';
+export * from './SeriesCreativeBriefEditor';
+export * from './SeriesSetupTextField';

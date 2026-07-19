@@ -11,6 +11,7 @@ import {
 } from '../_shared/http.ts';
 import {
   buildModerationReview,
+  collectModerationEntries,
   createModerationStore,
   scanModerationEntries,
   type ModerationEntry,
@@ -18,6 +19,39 @@ import {
 
 // SERIES_SETUP_SOFT_BLOCK_LIMIT is the number of blocked setup attempts allowed per hour before warnings start.
 const SERIES_SETUP_SOFT_BLOCK_LIMIT = 10;
+
+// seriesCreativeBriefSchema bounds optional human-authored anchors saved without AI generation.
+const seriesCreativeBriefSchema = z.object({
+  idea: z.string().trim().max(1000),
+  worldAndSetting: z.string().trim().max(400),
+  backstory: z.string().trim().max(600),
+  storyDriver: z.string().trim().max(500),
+  mustInclude: z.string().trim().max(300),
+  avoid: z.string().trim().max(300),
+  preferredCastSize: z.union([
+    z.literal(1),
+    z.literal(2),
+    z.literal(3),
+    z.literal(4),
+  ]).optional(),
+  draftStrategy: z.enum(['fill-missing', 'refine', 'rebuild']).optional(),
+  // aiFreedom is accepted only for requests from clients released before draft strategies.
+  aiFreedom: z.enum(['close', 'collaborative', 'surprise']).optional(),
+}).transform(({ aiFreedom: _legacyAiFreedom, ...brief }) => ({
+  ...brief,
+  draftStrategy: brief.draftStrategy ?? 'fill-missing' as const,
+}));
+
+// defaultSeriesCreativeBrief keeps manual saves from older clients compatible.
+const defaultSeriesCreativeBrief = {
+  idea: '',
+  worldAndSetting: '',
+  backstory: '',
+  storyDriver: '',
+  mustInclude: '',
+  avoid: '',
+  draftStrategy: 'fill-missing' as const,
+};
 
 // seriesSetupSchema validates user-filled setup fields before local series creation.
 const seriesSetupSchema = z.object({
@@ -37,6 +71,7 @@ const seriesSetupSchema = z.object({
     .max(8)
     .optional(),
   userRole: z.string().trim().max(160).optional(),
+  creativeBrief: seriesCreativeBriefSchema.default(defaultSeriesCreativeBrief),
 }).superRefine((payload, context) => {
   if (payload.participationMode === 'character' && !payload.userRole?.trim()) {
     context.addIssue({
@@ -174,6 +209,10 @@ function collectSeriesSetupModerationEntries(
   if (payload.userRole?.trim()) {
     entries.push({ sourceLabel: 'userRole', text: payload.userRole });
   }
+
+  entries.push(
+    ...collectModerationEntries({ creativeBrief: payload.creativeBrief }),
+  );
 
   return entries;
 }

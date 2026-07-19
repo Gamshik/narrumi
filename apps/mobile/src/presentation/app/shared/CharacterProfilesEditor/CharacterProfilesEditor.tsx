@@ -191,6 +191,7 @@ export function CharacterProfilesEditor({
                   onFocus={() => focusField(descriptionFieldId)}
                   placeholder="Role or personality (optional)"
                   placeholderTextColor={colors.labelTertiary}
+                  scrollEnabled
                   style={[
                     styles.input,
                     styles.descriptionInput,
