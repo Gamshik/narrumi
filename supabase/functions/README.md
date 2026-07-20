@@ -5,6 +5,7 @@ Production AI calls are routed through these functions:
 - `generate-episode`
 - `generate-series-setup`
 - `submit-interaction`
+- `translate-excerpt`
 - `validate-series-setup`
 
 Required server secrets:

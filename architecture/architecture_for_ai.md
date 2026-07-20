@@ -224,7 +224,8 @@ Required MVP use cases:
 - Assign a stable generation request id. A root presentation context owns the episode-generation Promise and observable state above route lifetimes; setup generation keeps its own single-flight action.
 - Validate and persist generated episode locally first.
 - Play or pause episode audio sentence by sentence.
-- Open inline translation for any episode word.
+- Open inline translation for prepared Story Words and story-critical annotations.
+- Select visible episode story or interaction copy and request a plain Russian translation of exactly that selection when online.
 - Record translation/usage/correction learning signals locally.
 - Submit a choice or short reply for an episode interaction.
 - Request AI continuation/correction through an Edge Function when online.
@@ -247,6 +248,7 @@ Define narrow application-facing ports for external capabilities.
 | SetupGenerationGateway | Generate validated suggestions only for missing or AI-authored setup fields | Supabase Edge Function client |
 | EpisodeGenerationGateway | Generate validated episode payloads | Supabase Edge Function client |
 | InteractionGateway | Continue episode and correct short user input | Supabase Edge Function client |
+| ExcerptTranslationGateway | Translate exactly the selected episode text into Russian without adjacent context | Supabase Edge Function client |
 | GrammarGateway | Provide grammar-style explanation when requested | Supabase Edge Function client |
 | AudioNarrator | Speak sentence list and report progress | `expo-speech` adapter |
 | NetworkStatus | Report online/offline capability | Expo/React Native network adapter |
@@ -264,7 +266,7 @@ React Native presentation code should stay thin:
 - Forward user intent to application actions.
 - Show loading, empty, success, offline, validation, and error states.
 - Preserve the Sorbet soft-pop UI language from the design artifacts: shared atmospheric background, dimensional bubble surfaces, light/dark theme support, restrained spring motion, and iOS-friendly ergonomics.
-- Keep story reading, inline translation, audio controls, Story Words selection, and bottom sheets accessible.
+- Keep story reading, inline word translation, native excerpt selection, the floating selection action panel, audio controls, Story Words selection, and bottom sheets accessible.
 
 Presentation must not own:
 
@@ -283,7 +285,7 @@ Recommended presentation state categories:
 - setup state: collapsed or expanded anchors, local draft status, per-field `user` or `ai` provenance, and setup generation status;
 - series state: selected series, selected episode, memory summary preview;
 - Story Words state: suggested words, selected words, warning about difficulty;
-- episode reader state: selected word hint, selected sentence, current sentence index;
+- episode reader state: selected word hint, exact selected excerpt and owner, excerpt source/translation result, selected sentence, current sentence index;
 - interaction state: choice selected, reply draft, feedback visible;
 - sync state: local only, syncing, synced, failed.
 
@@ -302,6 +304,8 @@ Rules:
 - All AI calls go through Supabase Edge Functions.
 - All cloud records are protected by Supabase RLS.
 - Treat local storage, remote records, user input, and AI output as untrusted at boundaries.
+
+Selected-text translation is an ephemeral reader action: it does not mutate episode or series records. The client sends only the exact selected fragment through `ExcerptTranslationGateway`, validates the one-field AI response, and pairs the locally retained source text with the Russian translation in the result sheet. Translation completion and result-sheet dismissal preserve the selected source range; a tap elsewhere in the reader or real reader scroll clears it. The request never sends adjacent sentence or paragraph context. To avoid stale mobile reachability data blocking a valid request, the use case attempts the gateway first and checks offline status only after transport fails. The Edge Function owns the prompt, provider configuration, authentication, request limits, and response validation.
 
 ## Backend Boundary: Supabase Edge Functions
 

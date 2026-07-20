@@ -26,7 +26,7 @@ The product should feel like creating and watching a personal English series, no
 3. **Story Words:** Before generating an episode, the app proposes a small word set from the bundled vocabulary.
 4. **Word Choice:** User accepts the proposed words or makes light edits: add, remove, skip, or keep words.
 5. **Episode Generation:** The app generates a short episode that continues the series, uses selected Story Words naturally across the episode arc, respects the user's level, and ends with a narrative hook.
-6. **Read & Listen:** User reads the episode, listens to sentence-by-sentence audio, and can tap words for translation and transcription without leaving the episode.
+6. **Read & Listen:** User reads the episode, listens to sentence-by-sentence audio, can tap prepared Story Words for the word, transcription, context-aware translation, and part of speech, and can select visible story or interaction copy for an exact Russian translation without leaving the episode.
 7. **Interact:** User influences the same episode through several choices or short replies while the scene continues.
 8. **Feedback And Continuation:** After every reply, the app provides concise correction or support, continues the same episode, and presents another interaction when the episode arc is not complete.
 9. **Episode Completion:** The AI decides when the current episode has reached a meaningful ending. An episode normally contains 5-10 learner interactions and must not end after only a few routine choices.
@@ -148,9 +148,16 @@ The product should feel like creating and watching a personal English series, no
 - These signals guide future word suggestions and natural resurfacing.
 - The user must not be shown a punitive "due reviews" queue.
 
-#### FEATURE G: Inline Translation (Tap-to-Translate)
-- Tapping a word inside an episode opens an inline hint showing translation and transcription.
+#### FEATURE G: Inline Translation And Selected-Text Translation
+- Tapping a prepared Story Word inside an episode opens a compact sliding card showing only the word, transcription, context-aware translation, and part of speech.
 - **Context-Aware Translation:** For selected Story Words and story-critical words, translations must match the meaning in the current episode.
+- The user can select any phrase inside visible episode prose, dialogue, a Story Choice prompt, a saved answer, or feedback. Choice option controls remain interactive and are not selectable.
+- Native selection handles remain available while a compact floating action panel appears without shifting the reading layout. Repeated taps inside the selected range restore its native highlight and keep the panel visible; a tap outside that range clears both together. Completing or closing a translation keeps the exact source text selected; only a normal tap elsewhere in the reader or a real reader scroll clears the previous selection.
+- The first action is `Translate`; two disabled question-mark slots remain visible after it as reserved future reader actions and use restrained alternating ambient motion unless Reduce Motion is enabled.
+- `Translate` sends only the exact selected text through the authenticated AI boundary, with no adjacent sentence or paragraph context, then returns a natural Russian translation of that text alone.
+- Selected-text translation must contain only the translation: no grammar notes, explanations, labels, transcription, or teaching commentary.
+- The result sheet must show the exact selected source text together with its Russian translation so the learner can verify what was translated.
+- Selected-text translation is online-only and must show an explicit unavailable state while offline.
 - The user must not leave the episode screen to see translations.
 
 #### FEATURE H: Audio Assistant
