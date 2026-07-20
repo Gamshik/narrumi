@@ -2,13 +2,26 @@ import type {
   VocabularyCatalog,
   VocabularyQuery,
 } from '@application/ports/vocabularyCatalog';
-import type { VocabularyItem } from '@domain/index';
+import type { CefrLevel, VocabularyItem } from '@domain/index';
+
+import {
+  isStoryWordCandidate,
+  normalizeStoryWordText,
+} from './storyWordSelection';
+
+// BrowseVocabularyInput extends general catalog filters for Story Words replacement.
+export type BrowseVocabularyInput = VocabularyQuery & {
+  // excludedWordIds removes the current Story Words and duplicate headwords.
+  readonly excludedWordIds?: readonly string[];
+  // maxLevel limits picker results to valid Story Word candidates for the learner.
+  readonly maxLevel?: CefrLevel;
+};
 
 // BrowseVocabulary exposes the dictionary list use case to presentation code.
 export type BrowseVocabulary = {
   // execute returns vocabulary rows from the injected catalog using optional filters.
   readonly execute: (
-    query?: VocabularyQuery,
+    input?: BrowseVocabularyInput,
   ) => Promise<readonly VocabularyItem[]>;
 };
 
@@ -17,6 +30,26 @@ export function createBrowseVocabulary(
   catalog: VocabularyCatalog,
 ): BrowseVocabulary {
   return {
-    execute: (query) => catalog.list(query),
+    execute: async (input = {}): Promise<readonly VocabularyItem[]> => {
+      const { excludedWordIds = [], maxLevel, ...query } = input;
+      const [words, excludedWords] = await Promise.all([
+        catalog.list(query),
+        Promise.all(excludedWordIds.map((wordId) => catalog.getById(wordId))),
+      ]);
+      // excludedWordKeys also hides alternate Oxford entries for a selected headword.
+      const excludedWordKeys: ReadonlySet<string> = new Set(
+        excludedWords.flatMap((word) =>
+          word ? [normalizeStoryWordText(word.word)] : [],
+        ),
+      );
+
+      return words.filter((word) => {
+        if (excludedWordKeys.has(normalizeStoryWordText(word.word))) {
+          return false;
+        }
+
+        return maxLevel ? isStoryWordCandidate(word, maxLevel) : true;
+      });
+    },
   };
 }

@@ -19,6 +19,7 @@ import {
   JellyPressable,
   screenEdgeDepths,
   SeriesSetupChoiceGroup,
+  useReducedMotionPreference,
 } from '../shared';
 import { useAppTheme } from '../theme';
 
@@ -35,6 +36,7 @@ import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
 import { useEpisodeGeneration } from '../generation';
 import { DictionaryPickerPanel } from './dailySession/components/DictionaryPickerPanel';
+import { StoryWordsPanel } from './dailySession/components/StoryWordsPanel';
 import { DailySessionEdgeEffects } from './DailySessionEdgeEffects';
 import { EpisodeReaderScreen } from './EpisodeReaderScreen';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
@@ -73,8 +75,6 @@ type EpisodeFlowStage = 'loading' | 'setup' | 'reader';
 type EpisodeWordSelectionState = {
   // preferences define the configured number of proposed Story Words.
   readonly preferences: LearningPreferences;
-  // todayWordSet is preserved as the local daily source.
-  readonly todayWordSet: WordSet;
   // episodeWordSet is the editable current generation set.
   readonly episodeWordSet: WordSet;
   // words are the resolved visible words for the current episode.
@@ -88,6 +88,8 @@ export function DailySessionScreen({
   styles,
 }: DailySessionScreenProps): ReactElement {
   const { isDark } = useAppTheme();
+  // reduceMotion is resolved while setup is visible so picker transitions respect accessibility immediately.
+  const reduceMotion: boolean = useReducedMotionPreference();
   const insets = useSafeAreaInsets();
   const colors = isDark ? darkColors : lightColors;
   // titleTransition drives the autonomous large-to-compact title swap.
@@ -137,7 +139,8 @@ export function DailySessionScreen({
   const [dictionarySearch, setDictionarySearch] = useState('');
   const [dictionaryWords, setDictionaryWords] = useState<readonly VocabularyItem[]>([]);
   const [isDictionaryLoading, setIsDictionaryLoading] = useState(false);
-  const [isReplacing, setIsReplacing] = useState(false);
+  // replacingWordId keeps per-word progress local instead of dimming the full Story Words grid.
+  const [replacingWordId, setReplacingWordId] = useState<string>();
   const [isChoosing, setIsChoosing] = useState(false);
   const [isShuffling, setIsShuffling] = useState(false);
   const {
@@ -280,7 +283,7 @@ export function DailySessionScreen({
   }, [clearGeneration, generationState, seriesId]);
 
   useEffect(() => {
-    if (!pickerWordId) {
+    if (!pickerWordId || !selectionState) {
       setDictionaryWords([]);
 
       return;
@@ -291,7 +294,11 @@ export function DailySessionScreen({
     setIsDictionaryLoading(true);
 
     void localAppServices.browseVocabulary
-      .execute(dictionarySearch.trim() ? { search: dictionarySearch } : {})
+      .execute({
+        excludedWordIds: selectionState.episodeWordSet.wordIds,
+        maxLevel: selectionState.preferences.preferredCefrLevel,
+        ...(dictionarySearch.trim() ? { search: dictionarySearch } : {}),
+      })
       .then((words) => {
         if (isActive) {
           setDictionaryWords(words.slice(0, 32));
@@ -311,14 +318,14 @@ export function DailySessionScreen({
     return () => {
       isActive = false;
     };
-  }, [dictionarySearch, pickerWordId]);
+  }, [dictionarySearch, pickerWordId, selectionState]);
 
   const replaceWord = async (wordId: string): Promise<void> => {
-    if (!selectionState) {
+    if (!selectionState || replacingWordId || isShuffling) {
       return;
     }
 
-    setIsReplacing(true);
+    setReplacingWordId(wordId);
     setErrorMessage(undefined);
 
     try {
@@ -335,7 +342,7 @@ export function DailySessionScreen({
     } catch {
       setErrorMessage('Story Word could not be replaced locally.');
     } finally {
-      setIsReplacing(false);
+      setReplacingWordId(undefined);
     }
   };
 
@@ -365,9 +372,9 @@ export function DailySessionScreen({
     }
   };
 
-  const chooseWord = async (replacementWordId: string): Promise<void> => {
+  const chooseWord = async (replacementWordId: string): Promise<boolean> => {
     if (!selectionState || !pickerWordId) {
-      return;
+      return false;
     }
 
     setIsChoosing(true);
@@ -386,18 +393,26 @@ export function DailySessionScreen({
         episodeWordSet: result.episodeWordSet,
         words: result.words,
       });
-      setPickerWordId(undefined);
-      setDictionarySearch('');
+
+      return true;
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
           : 'Selected dictionary word could not be used.',
       );
+
+      return false;
     } finally {
       setIsChoosing(false);
     }
   };
+
+  // closeDictionaryPicker clears picker-only state after its visual exit completes.
+  const closeDictionaryPicker = useCallback((): void => {
+    setPickerWordId(undefined);
+    setDictionarySearch('');
+  }, []);
 
   const generateEpisode = (): void => {
     if (!seriesId) {
@@ -495,8 +510,10 @@ export function DailySessionScreen({
         <>
           {pickerWordId ? (
             <DictionaryPickerPanel
+              colors={colors}
               isChoosing={isChoosing}
               isLoading={isDictionaryLoading}
+              reduceMotion={reduceMotion}
               search={dictionarySearch}
               styles={styles}
               targetWord={
@@ -504,19 +521,16 @@ export function DailySessionScreen({
               }
               words={dictionaryWords}
               onChangeSearch={setDictionarySearch}
-              onChooseWord={(wordId) => {
-                void chooseWord(wordId);
-              }}
-              onClose={() => {
-                setPickerWordId(undefined);
-                setDictionarySearch('');
-              }}
+              onChooseWord={chooseWord}
+              onClose={closeDictionaryPicker}
             />
           ) : (
             <StoryWordsPanel
-              isUpdating={isReplacing || isChoosing || isShuffling}
-              selectionState={selectionState}
+              colors={colors}
+              isShuffling={isShuffling}
+              replacingWordId={replacingWordId}
               styles={styles}
+              words={selectionState.words}
               onPickWord={(wordId) => {
                 setPickerWordId(wordId);
               }}
@@ -557,94 +571,6 @@ export function DailySessionScreen({
         topInset={insets.top}
         onExit={onExit}
       />
-    </View>
-  );
-}
-
-// StoryWordsPanel shows the current editable words while preserving today's source.
-function StoryWordsPanel({
-  isUpdating,
-  selectionState,
-  styles,
-  onPickWord,
-  onReplaceWord,
-  onShuffleWords,
-}: {
-  // isUpdating disables duplicate local writes while words are changing.
-  readonly isUpdating: boolean;
-  // selectionState carries today's source and current episode words.
-  readonly selectionState: EpisodeWordSelectionState;
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // onPickWord opens the local dictionary for one editable slot.
-  readonly onPickWord: (wordId: string) => void;
-  // onReplaceWord changes only the current episode word set.
-  readonly onReplaceWord: (wordId: string) => void;
-  // onShuffleWords replaces the full current episode word set by explicit choice.
-  readonly onShuffleWords: () => void;
-}): ReactElement {
-  return (
-    <View style={styles.settingsCard}>
-      <View style={styles.settingRow}>
-        <View style={styles.flex}>
-          <Text style={styles.actionTitle}>Story Words</Text>
-          <Text style={styles.secondaryText}>
-            Showing {selectionState.words.length} of{' '}
-            {selectionState.preferences.storyWordGoal} words from settings.
-          </Text>
-        </View>
-        <Text style={styles.settingValue}>
-          Today: {selectionState.todayWordSet.wordIds.length}
-        </Text>
-        <JellyPressable
-          disabled={isUpdating}
-          onPress={onShuffleWords}
-          style={({ pressed }) => [
-            styles.smallPrimaryButton,
-            isUpdating && styles.disabledControl,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={styles.smallPrimaryButtonText}>Shuffle</Text>
-        </JellyPressable>
-      </View>
-      {selectionState.words.map((word) => (
-        <View key={word.id} style={styles.storyWordRow}>
-          <View style={styles.flex}>
-            <View style={styles.wordHeading}>
-              <Text style={styles.wordTitle}>{word.word}</Text>
-              <Text style={styles.partOfSpeech}>{word.partOfSpeech}</Text>
-            </View>
-            <Text style={styles.secondaryText} numberOfLines={2}>
-              {word.examples[0] ?? 'No local example'}
-            </Text>
-          </View>
-          <View style={styles.rowActionStack}>
-            <JellyPressable
-              disabled={isUpdating}
-              onPress={() => onPickWord(word.id)}
-              style={({ pressed }) => [
-                styles.smallPrimaryButton,
-                isUpdating && styles.disabledControl,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.smallPrimaryButtonText}>Pick</Text>
-            </JellyPressable>
-            <JellyPressable
-              disabled={isUpdating}
-              onPress={() => onReplaceWord(word.id)}
-              style={({ pressed }) => [
-                styles.secondarySmallButton,
-                isUpdating && styles.disabledControl,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.secondarySmallButtonText}>Random</Text>
-            </JellyPressable>
-          </View>
-        </View>
-      ))}
     </View>
   );
 }

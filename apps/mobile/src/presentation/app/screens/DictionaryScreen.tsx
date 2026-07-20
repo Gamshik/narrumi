@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import type { VocabularyItem } from '@domain/index';
+import { getPreferredPhonetics } from '@presentation/app/vocabulary';
 import type { AppColors } from '@presentation/theme';
 
 import { localAppServices } from '../services/localAppServices';
@@ -480,7 +481,7 @@ function DictionaryWordRow({
           </Text>
         </View>
         <Text style={styles.phonetics}>
-          {word.phonetics.us ?? word.phonetics.uk ?? 'No phonetics'}
+          {getPreferredPhonetics(word)}
         </Text>
       </View>
       <LevelBadge level={word.level} styles={styles} />

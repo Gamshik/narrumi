@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { VocabularyItem } from '@domain/index';
+import { getPreferredPhonetics } from '@presentation/app/vocabulary';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 
 import type { AppStyles } from '@presentation/app/types';
@@ -68,7 +69,7 @@ export function DictionaryWordDetailsSheet({
     >
       <View style={styles.dictionarySheetContent}>
         <Text style={styles.phonetics}>
-          {word.phonetics.us ?? word.phonetics.uk ?? 'No phonetics'}
+          {getPreferredPhonetics(word)}
         </Text>
         <View style={styles.sheetDivider} />
         <Text style={styles.sectionLabel}>PART OF SPEECH</Text>

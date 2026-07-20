@@ -413,20 +413,6 @@ function createAppStylesImpl(colors: AppColors) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.separator,
     },
-    rowActionStack: {
-      alignItems: "flex-end",
-      justifyContent: "center",
-      gap: 8,
-    },
-    storyWordRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      minHeight: 76,
-      paddingVertical: 10,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.separator,
-    },
     seriesMeta: {
       overflow: "hidden",
       borderRadius: radii.pill,
