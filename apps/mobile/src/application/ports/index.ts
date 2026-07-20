@@ -1,4 +1,3 @@
-export * from './audioNarrator';
 export * from './authGateway';
 export * from './authSessionProvider';
 export * from './clock';

@@ -43,7 +43,6 @@ import {
   AsyncStorageLocalSeriesStore,
   BundledOxfordVocabularyCatalog,
   createSupabaseClient,
-  ExpoSpeechAudioNarrator,
   ExpoNetworkStatus,
   QueuedLocalSeriesStore,
   SupabaseAuthSessionProvider,
@@ -72,8 +71,6 @@ const vocabularyCatalog = new BundledOxfordVocabularyCatalog();
 const systemClock = new SystemClock();
 // networkStatus gates server-only features through real device connectivity.
 const networkStatus = new ExpoNetworkStatus();
-// audioNarrator speaks episode sentences through the Expo-managed TTS boundary.
-const audioNarrator = new ExpoSpeechAudioNarrator();
 // supabaseServices owns optional AI, auth, and remote persistence adapters.
 const supabaseServices = createSupabaseServices();
 // syncLocalChanges keeps local mode functional when Supabase or auth is unavailable.
@@ -209,7 +206,6 @@ export const localAppServices = {
     syncLocalChanges,
   ),
   networkStatus,
-  audioNarrator,
   startTodaysWordSet: withBackgroundSync(
     startTodaysWordSet,
     syncLocalChanges,

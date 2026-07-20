@@ -1,4 +1,3 @@
-export * from './audio/expoSpeechAudioNarrator';
 export * from './generation';
 export * from './network/expoNetworkStatus';
 export * from './network/localOnlyNetworkStatus';
