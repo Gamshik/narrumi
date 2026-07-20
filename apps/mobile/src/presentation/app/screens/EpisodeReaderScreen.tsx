@@ -34,9 +34,25 @@ import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
 import {
   EpisodeSentence,
+  ExcerptTranslationSheet,
+  SelectableReaderText,
+  SelectionActionBar,
   StoryContinuationPrelude,
   TranslationSheet,
 } from './episodeReader/components';
+import {
+  createSelectionOwnerKey,
+  shouldDismissReaderSelectionForScroll,
+  type EpisodeSelectionRange,
+} from './episodeReader/episodeExcerptSelection';
+import {
+  useEpisodeExcerptTranslation,
+  type EpisodeExcerptTranslationController,
+} from './episodeReader/useEpisodeExcerptTranslation';
+import {
+  useStoryWordSheet,
+  type StoryWordSheetController,
+} from './episodeReader/useStoryWordSheet';
 import { EpisodeReaderEdgeEffects } from './EpisodeReaderEdgeEffects';
 import {
   getFocusedEpisodeHeaderIndex,
@@ -109,9 +125,15 @@ export function EpisodeReaderScreen({
   const [interactionErrorMessage, setInteractionErrorMessage] =
     useState<string>();
   const [isSubmittingInteraction, setIsSubmittingInteraction] = useState(false);
-  const [selectedAnnotation, setSelectedAnnotation] =
-    useState<TranslationAnnotation>();
+  // excerptTranslation owns the ephemeral native selection and AI request lifecycle.
+  const excerptTranslation: EpisodeExcerptTranslationController =
+    useEpisodeExcerptTranslation();
+  // storyWordSheet owns one-tap Story Word details and offline dictionary enrichment.
+  const storyWordSheet: StoryWordSheetController = useStoryWordSheet();
   const scrollViewRef = useRef<ScrollView>(null);
+  // readerDragStartOffsetRef distinguishes real scrolling from a selection micro-drag.
+  const readerDragStartOffsetRef: RefObject<number | undefined> =
+    useRef<number | undefined>(undefined);
   // componentMountedRef prevents background continuation work from updating an exited reader.
   const componentMountedRef: RefObject<boolean> = useRef<boolean>(false);
   // resumedInteractionKeysRef limits automatic retry to one attempt per reader mount.
@@ -412,6 +434,17 @@ export function EpisodeReaderScreen({
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ): void => {
     const offsetY: number = event.nativeEvent.contentOffset.y;
+    const dragStartOffset: number | undefined =
+      readerDragStartOffsetRef.current;
+
+    if (
+      excerptTranslation.selection &&
+      dragStartOffset !== undefined &&
+      shouldDismissReaderSelectionForScroll(dragStartOffset, offsetY)
+    ) {
+      readerDragStartOffsetRef.current = undefined;
+      excerptTranslation.clear();
+    }
 
     if (episodes.length > 1) {
       // measuredHeaders excludes incomplete layout pairs until both values are available.
@@ -459,6 +492,24 @@ export function EpisodeReaderScreen({
     if (isHeaderCollapsed && offsetY <= readerHeaderExpandOffset) {
       setIsHeaderCollapsed(false);
     }
+  };
+
+  // handleReaderScrollBeginDrag records position without clearing a possible native selection.
+  const handleReaderScrollBeginDrag = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ): void => {
+    readerDragStartOffsetRef.current = event.nativeEvent.contentOffset.y;
+  };
+
+  // handleReaderScrollEndDrag releases scroll tracking after a stationary selection gesture.
+  const handleReaderScrollEndDrag = (): void => {
+    readerDragStartOffsetRef.current = undefined;
+  };
+
+  // handleAnnotationPress preserves the existing one-tap Story Word translation path.
+  const handleAnnotationPress = (annotation: TranslationAnnotation): void => {
+    excerptTranslation.clear();
+    storyWordSheet.open(annotation);
   };
 
   // handleEpisodeBlockLayout records an episode origin relative to the Reader content container.
@@ -512,8 +563,12 @@ export function EpisodeReaderScreen({
     <View style={styles.flexOne}>
       <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
         <Animated.ScrollView
+          canCancelContentTouches
           contentContainerStyle={[styles.readerContent, readerContentInsets]}
           onScroll={handleReaderScroll}
+          onScrollBeginDrag={handleReaderScrollBeginDrag}
+          onScrollEndDrag={handleReaderScrollEndDrag}
+          onTouchStart={excerptTranslation.clearForReaderTouchStart}
           ref={scrollViewRef}
           scrollEventThrottle={16}
         >
@@ -555,6 +610,15 @@ export function EpisodeReaderScreen({
             episode.sentenceFrames,
           );
           const speakerThemes = buildSpeakerThemes(renderedFrames);
+          // completionText is the exact visible epilogue copy available for translation.
+          const completionText: string =
+            episode.cliffhanger ??
+            'This episode is complete. The series can continue.';
+          // completionOwnerKey keeps the epilogue range independent from story sentences.
+          const completionOwnerKey: string = createSelectionOwnerKey(
+            episode.id,
+            'complete',
+          );
 
           return (
             <View
@@ -596,6 +660,12 @@ export function EpisodeReaderScreen({
                           normalizeSpeakerName(sentenceFrame.speaker),
                         )
                       : undefined;
+                  // sentenceSelectionOwnerKey keeps native selection scoped to this story unit.
+                  const sentenceSelectionOwnerKey: string =
+                    createSelectionOwnerKey(
+                      episode.id,
+                      `sentence:${sentenceIndex}`,
+                    );
 
                   return (
                     <View key={`${episode.id}:${sentenceIndex}`}>
@@ -603,12 +673,29 @@ export function EpisodeReaderScreen({
                         annotations={episode.annotations}
                         isActive={false}
                         isDimmed={false}
+                        isSelectionOwner={
+                          excerptTranslation.isSelectionOwner(
+                            sentenceSelectionOwnerKey,
+                          )
+                        }
                         sentenceFrame={sentenceFrame}
                         sentenceIndex={sentenceIndex}
                         {...(speakerThemeName ? { speakerThemeName } : {})}
                         styles={styles}
-                        onPressAnnotation={setSelectedAnnotation}
-                        onSelectSentence={() => undefined}
+                        onPressAnnotation={handleAnnotationPress}
+                        onSelectionOwnerTouchStart={
+                          excerptTranslation.markSelectionOwnerTouchStart
+                        }
+                        onSelectExcerpt={(
+                          range: EpisodeSelectionRange | undefined,
+                        ): void => {
+                          storyWordSheet.close();
+                          excerptTranslation.selectRange(
+                            sentenceSelectionOwnerKey,
+                            sentenceFrame.text,
+                            range,
+                          );
+                        }}
                       />
                       {interactionsAtBoundary.map((interaction) => (
                         <EpisodeInteractionBlock
@@ -618,11 +705,13 @@ export function EpisodeReaderScreen({
                             pendingInteraction?.id === interaction.id
                           }
                           interaction={interaction}
+                          excerptTranslation={excerptTranslation}
                           isReadOnly={isReadOnly}
                           isSubmitting={isSubmittingInteraction}
                           key={interaction.id}
                           styles={styles}
                           onSelectChoice={(choiceId) => {
+                            excerptTranslation.clear();
                             void submitChoice(
                               episodeIndex,
                               interaction.id,
@@ -639,10 +728,26 @@ export function EpisodeReaderScreen({
               {episode.isComplete ? (
                 <View style={styles.readerComplete}>
                   <Text style={styles.sectionLabel}>EPISODE COMPLETE</Text>
-                  <Text style={styles.secondaryText}>
-                    {episode.cliffhanger ??
-                      'This episode is complete. The series can continue.'}
-                  </Text>
+                  <SelectableReaderText
+                    isSelectionOwner={
+                      excerptTranslation.isSelectionOwner(completionOwnerKey)
+                    }
+                    text={completionText}
+                    textStyle={styles.secondaryText}
+                    onSelectionOwnerTouchStart={
+                      excerptTranslation.markSelectionOwnerTouchStart
+                    }
+                    onSelectionChange={(
+                      range: EpisodeSelectionRange | undefined,
+                    ): void => {
+                      storyWordSheet.close();
+                      excerptTranslation.selectRange(
+                        completionOwnerKey,
+                        completionText,
+                        range,
+                      );
+                    }}
+                  />
                 </View>
               ) : null}
             </View>
@@ -663,10 +768,25 @@ export function EpisodeReaderScreen({
         {...(onExit ? { onExit } : {})}
       />
 
+      <SelectionActionBar
+        bottomInset={insets.bottom}
+        colors={colors}
+        isTranslating={excerptTranslation.isTranslating}
+        isVisible={Boolean(
+          excerptTranslation.selection && !excerptTranslation.result,
+        )}
+        onTranslate={(): void => {
+          void excerptTranslation.translate();
+        }}
+      />
+
       <TranslationSheet
-        annotation={selectedAnnotation}
-        styles={styles}
-        onClose={() => setSelectedAnnotation(undefined)}
+        details={storyWordSheet.details}
+        onClose={storyWordSheet.close}
+      />
+      <ExcerptTranslationSheet
+        result={excerptTranslation.result}
+        onClose={excerptTranslation.clearResult}
       />
     </View>
   );
@@ -801,6 +921,7 @@ function applyOptimisticChoice({
 // EpisodeInteractionBlock chooses read-only, answered, or active interaction UI.
 function EpisodeInteractionBlock({
   canAnswer,
+  excerptTranslation,
   interaction,
   isReadOnly,
   isSubmitting,
@@ -809,6 +930,8 @@ function EpisodeInteractionBlock({
 }: {
   // canAnswer permits only the latest pending turn in the current episode.
   readonly canAnswer: boolean;
+  // excerptTranslation owns selectable prompt, answer, and feedback copy.
+  readonly excerptTranslation: EpisodeExcerptTranslationController;
   // interaction is one ordered decision inside the episode timeline.
   readonly interaction: EpisodeInteraction;
   // isReadOnly prevents historical episodes from becoming interactive.
@@ -837,6 +960,7 @@ function EpisodeInteractionBlock({
     return (
       <View style={styles.readerInteraction}>
         <SavedEpisodeAnswer
+          excerptTranslation={excerptTranslation}
           interaction={interaction}
           isGenerating={false}
           savedChoiceLabel={savedChoice?.label}
@@ -850,6 +974,7 @@ function EpisodeInteractionBlock({
     return (
       <View style={styles.readerInteraction}>
         <SavedEpisodeAnswer
+          excerptTranslation={excerptTranslation}
           interaction={interaction}
           isGenerating={isSubmitting}
           savedChoiceLabel={savedChoice?.label}
@@ -863,6 +988,7 @@ function EpisodeInteractionBlock({
     return (
       <View style={styles.readerInteraction}>
         <EpisodeChoice
+          excerptTranslation={excerptTranslation}
           interaction={interaction}
           isSubmitting={isSubmitting}
           styles={styles}
@@ -877,11 +1003,14 @@ function EpisodeInteractionBlock({
 
 // EpisodeChoice renders the active controlled decision inside the episode.
 function EpisodeChoice({
+  excerptTranslation,
   interaction,
   isSubmitting,
   styles,
   onSelectChoice,
 }: {
+  // excerptTranslation makes only the visible story prompt selectable.
+  readonly excerptTranslation: EpisodeExcerptTranslationController;
   // interaction is the current unanswered story turn.
   readonly interaction: EpisodeInteraction;
   // isSubmitting disables duplicate local and remote writes.
@@ -891,10 +1020,34 @@ function EpisodeChoice({
   // onSelectChoice persists one learner-controlled outcome.
   readonly onSelectChoice: (choiceId: string) => void;
 }): ReactElement {
+  // promptOwnerKey distinguishes choice copy from answer and feedback surfaces.
+  const promptOwnerKey: string = createSelectionOwnerKey(
+    interaction.id,
+    'prompt',
+  );
+
   return (
     <>
       <Text style={styles.sectionLabel}>STORY CHOICE</Text>
-      <Text style={styles.actionTitle}>{interaction.prompt}</Text>
+      <SelectableReaderText
+        isSelectionOwner={
+          excerptTranslation.isSelectionOwner(promptOwnerKey)
+        }
+        text={interaction.prompt}
+        textStyle={styles.actionTitle}
+        onSelectionOwnerTouchStart={
+          excerptTranslation.markSelectionOwnerTouchStart
+        }
+        onSelectionChange={(
+          range: EpisodeSelectionRange | undefined,
+        ): void =>
+          excerptTranslation.selectRange(
+            promptOwnerKey,
+            interaction.prompt,
+            range,
+          )
+        }
+      />
       <View style={styles.choiceRow}>
         {interaction.choices.map((choice) => {
           const isSelected = interaction.selectedChoiceId === choice.id;
@@ -924,11 +1077,14 @@ function EpisodeChoice({
 
 // SavedEpisodeAnswer renders one persisted answer and its language feedback.
 function SavedEpisodeAnswer({
+  excerptTranslation,
   interaction,
   isGenerating,
   savedChoiceLabel,
   styles,
 }: {
+  // excerptTranslation makes saved answer and feedback copy selectable.
+  readonly excerptTranslation: EpisodeExcerptTranslationController;
   // interaction contains the persisted learner answer and feedback.
   readonly interaction: EpisodeInteraction;
   // isGenerating shows the inline next-scene prelude below the saved answer.
@@ -943,28 +1099,94 @@ function SavedEpisodeAnswer({
     (choice) => choice.id === interaction.selectedChoiceId,
   );
   const isSpeechAnswer = savedChoice?.isSpeech !== false;
+  // answerText is the exact visible answer copy translated from this block.
+  const answerText: string = isSpeechAnswer
+    ? cleanSelectedReply(answer) || 'No answer was saved.'
+    : `You decided to: ${cleanSelectedReply(answer) || 'No action was saved.'}`;
+  // feedbackText narrows optional feedback once for rendering and selection callbacks.
+  const feedbackText: string | undefined = interaction.feedback;
+  // answerOwnerKey keeps answer selection separate from feedback selection.
+  const answerOwnerKey: string = createSelectionOwnerKey(
+    interaction.id,
+    'answer',
+  );
+  // feedbackOwnerKey scopes optional language feedback selection.
+  const feedbackOwnerKey: string = createSelectionOwnerKey(
+    interaction.id,
+    'feedback',
+  );
 
   return (
     <>
       <Text style={styles.sectionLabel}>YOUR ANSWER</Text>
       {isSpeechAnswer ? (
         <View style={styles.readerSavedAnswer}>
-          <Text style={styles.readerSavedAnswerText}>
-            {cleanSelectedReply(answer) || 'No answer was saved.'}
-          </Text>
+          <SelectableReaderText
+            isSelectionOwner={
+              excerptTranslation.isSelectionOwner(answerOwnerKey)
+            }
+            text={answerText}
+            textStyle={styles.readerSavedAnswerText}
+            onSelectionOwnerTouchStart={
+              excerptTranslation.markSelectionOwnerTouchStart
+            }
+            onSelectionChange={(
+              range: EpisodeSelectionRange | undefined,
+            ): void =>
+              excerptTranslation.selectRange(
+                answerOwnerKey,
+                answerText,
+                range,
+              )
+            }
+          />
         </View>
       ) : (
         <View style={styles.readerNarrativeAnswer}>
-          <Text style={styles.readerNarrativeAnswerText}>
-            You decided to: {cleanSelectedReply(answer) || 'No action was saved.'}
-          </Text>
+          <SelectableReaderText
+            isSelectionOwner={
+              excerptTranslation.isSelectionOwner(answerOwnerKey)
+            }
+            text={answerText}
+            textStyle={styles.readerNarrativeAnswerText}
+            onSelectionOwnerTouchStart={
+              excerptTranslation.markSelectionOwnerTouchStart
+            }
+            onSelectionChange={(
+              range: EpisodeSelectionRange | undefined,
+            ): void =>
+              excerptTranslation.selectRange(
+                answerOwnerKey,
+                answerText,
+                range,
+              )
+            }
+          />
         </View>
       )}
       {isGenerating ? <StoryContinuationPrelude /> : null}
-      {interaction.feedback ? (
+      {feedbackText ? (
         <View style={styles.readerFeedback}>
           <Text style={styles.sectionLabel}>FEEDBACK</Text>
-          <Text style={styles.secondaryText}>{interaction.feedback}</Text>
+          <SelectableReaderText
+            isSelectionOwner={
+              excerptTranslation.isSelectionOwner(feedbackOwnerKey)
+            }
+            text={feedbackText}
+            textStyle={styles.secondaryText}
+            onSelectionOwnerTouchStart={
+              excerptTranslation.markSelectionOwnerTouchStart
+            }
+            onSelectionChange={(
+              range: EpisodeSelectionRange | undefined,
+            ): void =>
+              excerptTranslation.selectRange(
+                feedbackOwnerKey,
+                feedbackText,
+                range,
+              )
+            }
+          />
         </View>
       ) : null}
     </>

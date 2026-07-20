@@ -6,6 +6,7 @@ import {
   createDeleteSeries,
   createGenerateEpisode,
   createGenerateSeriesSetupDraft,
+  createGetVocabularyItem,
   createHydrateBootstrapSession,
   createLoadLearningPreferences,
   createLoadEpisodeReader,
@@ -21,6 +22,7 @@ import {
   createStartOrResumeEpisodeWordSelection,
   createStartOrResumeTodaysWordSet,
   createSubmitEpisodeInteraction,
+  createTranslateEpisodeExcerpt,
   createSyncLocalChanges,
   type SyncLocalChanges,
   createUpdateLearningPreferences,
@@ -32,6 +34,7 @@ import type {
   AuthGateway,
   AuthSessionProvider,
   EpisodeGenerationGateway,
+  ExcerptTranslationGateway,
   InteractionGateway,
   RemoteSeriesStore,
   SeriesSetupDraftGateway,
@@ -47,6 +50,7 @@ import {
   QueuedLocalSeriesStore,
   SupabaseAuthSessionProvider,
   SupabaseEpisodeGenerationGateway,
+  SupabaseExcerptTranslationGateway,
   SupabaseInteractionGateway,
   SupabaseRemoteSeriesStore,
   SupabaseSeriesSetupDraftGateway,
@@ -99,6 +103,8 @@ const generateSeriesSetupDraft = createGenerateSeriesSetupDraft(
   systemClock,
   generationRequestStore,
 );
+// getVocabularyItem resolves one Story Word from the bundled offline dictionary.
+const getVocabularyItem = createGetVocabularyItem(vocabularyCatalog);
 const hydrateBootstrapSession = createHydrateBootstrapSession(
   localSeriesStore,
   systemClock,
@@ -156,6 +162,11 @@ const submitEpisodeInteraction = createSubmitEpisodeInteraction(
   networkStatus,
   supabaseServices.interactionGateway,
   systemClock,
+);
+// translateEpisodeExcerpt is online-only and does not mutate local episode state.
+const translateEpisodeExcerpt = createTranslateEpisodeExcerpt(
+  networkStatus,
+  supabaseServices.excerptTranslationGateway,
 );
 const updateLearningPreferences = createUpdateLearningPreferences(
   localSeriesStore,
@@ -216,10 +227,12 @@ export const localAppServices = {
   ),
   generateEpisode: withGenerationSync(generateEpisode, syncLocalChanges),
   generateSeriesSetupDraft,
+  getVocabularyItem,
   submitEpisodeInteraction: withBackgroundSync(
     submitEpisodeInteraction,
     syncLocalChanges,
   ),
+  translateEpisodeExcerpt,
   syncLocalChanges,
   saveSeriesSetupDraft,
   updateLearningPreferences: withBackgroundSync(
@@ -236,6 +249,8 @@ type SupabaseServices = {
   readonly authGateway: AuthGateway;
   // episodeGenerationGateway calls generate-episode or reports missing config.
   readonly episodeGenerationGateway: EpisodeGenerationGateway;
+  // excerptTranslationGateway translates selected reader prose through the AI boundary.
+  readonly excerptTranslationGateway: ExcerptTranslationGateway;
   // interactionGateway calls submit-interaction or reports missing config.
   readonly interactionGateway: InteractionGateway;
   // seriesSetupModerationGateway validates setup fields before local series creation.
@@ -258,6 +273,9 @@ function createSupabaseServices(): SupabaseServices {
       episodeGenerationGateway: new SupabaseEpisodeGenerationGateway(
         supabaseClient,
       ),
+      excerptTranslationGateway: new SupabaseExcerptTranslationGateway(
+        supabaseClient,
+      ),
       interactionGateway: new SupabaseInteractionGateway(supabaseClient),
       seriesSetupModerationGateway: new SupabaseSeriesSetupModerationGateway(
         supabaseClient,
@@ -272,6 +290,7 @@ function createSupabaseServices(): SupabaseServices {
     return {
       authGateway: unavailableAuthGateway,
       episodeGenerationGateway: unavailableEpisodeGenerationGateway,
+      excerptTranslationGateway: unavailableExcerptTranslationGateway,
       interactionGateway: unavailableInteractionGateway,
       authSessionProvider: unauthenticatedSessionProvider,
       remoteSeriesStore: unavailableRemoteSeriesStore,
@@ -351,6 +370,13 @@ const unavailableEpisodeGenerationGateway: EpisodeGenerationGateway = {
 // unavailableInteractionGateway fails only server-backed interaction actions.
 const unavailableInteractionGateway: InteractionGateway = {
   submitInteraction: async () => {
+    throw new Error('Supabase Edge Functions are not configured.');
+  },
+};
+
+// unavailableExcerptTranslationGateway fails only selected-text translation actions.
+const unavailableExcerptTranslationGateway: ExcerptTranslationGateway = {
+  translateExcerpt: async (): Promise<never> => {
     throw new Error('Supabase Edge Functions are not configured.');
   },
 };

@@ -20,6 +20,7 @@ export * from './shuffleEpisodeStoryWords';
 export * from './startOrResumeTodaysWordSet';
 export * from './startOrResumeEpisodeWordSelection';
 export * from './submitEpisodeInteraction';
+export * from './translateEpisodeExcerpt';
 export * from './syncLocalChanges';
 export * from './updateLearningPreferences';
 export * from './updateSeriesSetup';

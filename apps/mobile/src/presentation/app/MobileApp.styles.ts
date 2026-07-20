@@ -943,7 +943,6 @@ function createAppStylesImpl(colors: AppColors) {
     },
     readerAnnotatedWord: {
       color: colors.systemBlue,
-      fontWeight: "800",
       textDecorationLine: "underline",
     },
     readerInteraction: {

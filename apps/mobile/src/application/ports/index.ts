@@ -2,6 +2,7 @@ export * from './authGateway';
 export * from './authSessionProvider';
 export * from './clock';
 export * from './episodeGenerationGateway';
+export * from './excerptTranslationGateway';
 export * from './generationRequestStore';
 export * from './interactionGateway';
 export * from './localSeriesStore';

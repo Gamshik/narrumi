@@ -1,35 +1,39 @@
-import type { ReactElement } from 'react';
+import { useMemo, type ReactElement } from 'react';
 import { Text, View } from 'react-native';
 
-import type { TranslationAnnotation } from '@domain/index';
-
 import { BubbleSheet } from '@presentation/app/shared';
-import type { AppStyles } from '@presentation/app/types';
 import { darkColors, lightColors, type AppColors } from '@presentation/theme';
 
 import { useAppTheme } from '../../../../theme';
+import type { StoryWordSheetDetails } from '../../storyWordSheetDetails';
+import {
+  createTranslationSheetStyles,
+  type TranslationSheetStyles,
+} from './TranslationSheet.styles';
 
 // TranslationSheetProps controls the inline translation bottom sheet.
 type TranslationSheetProps = {
-  // annotation is the selected inline hint; undefined keeps the sheet hidden.
-  readonly annotation: TranslationAnnotation | undefined;
-  // styles is the shared themed StyleSheet contract.
-  readonly styles: AppStyles;
-  // onClose clears the selected annotation.
+  // details contains exactly the four fields shown for a prepared Story Word.
+  readonly details: StoryWordSheetDetails | undefined;
+  // onClose clears the selected Story Word.
   readonly onClose: () => void;
 };
 
 // TranslationSheet shows context-aware translation without leaving the reader.
 export function TranslationSheet({
-  annotation,
-  styles,
+  details,
   onClose,
 }: TranslationSheetProps): ReactElement | null {
   const { isDark } = useAppTheme();
   // colors keeps the Reader sheet chrome identical to the Dictionary sheet in both themes.
   const colors: AppColors = isDark ? darkColors : lightColors;
+  // styles gives the compact card active-theme colors without Reader-wide style coupling.
+  const styles: TranslationSheetStyles = useMemo(
+    () => createTranslationSheetStyles(colors),
+    [colors],
+  );
 
-  if (!annotation) {
+  if (!details) {
     return null;
   }
 
@@ -38,16 +42,38 @@ export function TranslationSheet({
       closeAccessibilityLabel="Close translation details"
       colors={colors}
       onClose={onClose}
-      title={annotation.surfaceText}
+      style={styles.overlay}
     >
-      <View style={styles.readerTranslationContent}>
-        <Text style={styles.translationText}>{annotation.translation}</Text>
-        {annotation.transcription ? (
-          <Text style={styles.phonetics}>{annotation.transcription}</Text>
-        ) : null}
-        <Text style={styles.secondaryText}>
-          Context-aware hint from the validated episode payload.
-        </Text>
+      <View style={styles.content}>
+        <View style={styles.identityRow}>
+          <View style={styles.identity}>
+            <Text accessibilityLabel={`Word: ${details.word}`} style={styles.word}>
+              {details.word}
+            </Text>
+            <Text
+              accessibilityLabel={`Transcription: ${details.transcription}`}
+              style={styles.transcription}
+            >
+              {details.transcription}
+            </Text>
+          </View>
+          <View style={styles.partOfSpeechBadge}>
+            <Text
+              accessibilityLabel={`Part of speech: ${details.partOfSpeech}`}
+              style={styles.partOfSpeechText}
+            >
+              {details.partOfSpeech}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.translationSurface}>
+          <Text
+            accessibilityLabel={`Translation: ${details.translation}`}
+            style={styles.translationText}
+          >
+            {details.translation}
+          </Text>
+        </View>
       </View>
     </BubbleSheet>
   );

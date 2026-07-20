@@ -2,8 +2,12 @@ import type { TranslationAnnotation } from '@domain/index';
 
 // SentenceTextChunk is a renderable part of a sentence with optional hint data.
 export type SentenceTextChunk = {
+  // endOffset is the exclusive UTF-16 boundary inside the complete sentence.
+  readonly endOffset: number;
   // id keeps React text fragments stable after annotation selection changes.
   readonly id: string;
+  // startOffset is the inclusive UTF-16 boundary inside the complete sentence.
+  readonly startOffset: number;
   // text is the exact visible sentence fragment.
   readonly text: string;
   // annotation is present when the fragment can open an inline translation hint.
@@ -28,7 +32,14 @@ export function buildSentenceTextChunks({
   );
 
   if (sentenceAnnotations.length === 0) {
-    return [{ id: `${sentenceIndex}:plain`, text: sentence }];
+    return [
+      {
+        endOffset: sentence.length,
+        id: `${sentenceIndex}:plain`,
+        startOffset: 0,
+        text: sentence,
+      },
+    ];
   }
 
   const chunks: SentenceTextChunk[] = [];
@@ -45,7 +56,9 @@ export function buildSentenceTextChunks({
 
     if (matchIndex > cursor) {
       chunks.push({
+        endOffset: matchIndex,
         id: `${sentenceIndex}:plain:${cursor}`,
+        startOffset: cursor,
         text: sentence.slice(cursor, matchIndex),
       });
     }
@@ -54,7 +67,9 @@ export function buildSentenceTextChunks({
 
     chunks.push({
       annotation,
+      endOffset: endIndex,
       id: `${sentenceIndex}:hint:${matchIndex}`,
+      startOffset: matchIndex,
       text: sentence.slice(matchIndex, endIndex),
     });
     cursor = endIndex;
@@ -62,10 +77,57 @@ export function buildSentenceTextChunks({
 
   if (cursor < sentence.length) {
     chunks.push({
+      endOffset: sentence.length,
       id: `${sentenceIndex}:plain:${cursor}`,
+      startOffset: cursor,
       text: sentence.slice(cursor),
     });
   }
 
-  return chunks.length > 0 ? chunks : [{ id: `${sentenceIndex}:plain`, text: sentence }];
+  return chunks.length > 0
+    ? chunks
+    : [
+        {
+          endOffset: sentence.length,
+          id: `${sentenceIndex}:plain`,
+          startOffset: 0,
+          text: sentence,
+        },
+      ];
+}
+
+// findSentenceAnnotationAtOffset resolves a tap cursor to an existing Story Word hint.
+export function findSentenceAnnotationAtOffset({
+  annotations,
+  offset,
+  sentence,
+  sentenceIndex,
+}: {
+  // annotations are validated inline hints for the current episode.
+  readonly annotations: readonly TranslationAnnotation[];
+  // offset is the collapsed native selection cursor inside the sentence.
+  readonly offset: number;
+  // sentence is the exact visible text used to build annotated chunks.
+  readonly sentence: string;
+  // sentenceIndex scopes annotations to the visible playback unit.
+  readonly sentenceIndex: number;
+}): TranslationAnnotation | undefined {
+  const chunks: readonly SentenceTextChunk[] = buildSentenceTextChunks({
+    annotations,
+    sentence,
+    sentenceIndex,
+  });
+  let cursor: number = 0;
+
+  for (const chunk of chunks) {
+    const chunkEnd: number = cursor + chunk.text.length;
+
+    if (chunk.annotation && offset >= cursor && offset < chunkEnd) {
+      return chunk.annotation;
+    }
+
+    cursor = chunkEnd;
+  }
+
+  return undefined;
 }

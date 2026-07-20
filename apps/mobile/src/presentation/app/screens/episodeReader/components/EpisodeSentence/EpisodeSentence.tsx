@@ -2,14 +2,13 @@ import type { ReactElement } from 'react';
 import { Text, View } from 'react-native';
 
 import type { EpisodeSentenceFrame, TranslationAnnotation } from '@domain/index';
-import { JellyPressable } from '@presentation/app/shared';
 import type { AppStyles } from '@presentation/app/types';
 import { useAppTheme } from '@presentation/app/theme';
 import { darkColors, lightColors } from '@presentation/theme/tokens';
 import type { AppColors } from '@presentation/theme/tokens';
 
-import { buildSentenceTextChunks } from '../../episodeReaderText';
-import type { SentenceTextChunk } from '../../episodeReaderText';
+import type { EpisodeSelectionRange } from '../../episodeExcerptSelection';
+import { SelectableReaderText } from '../SelectableReaderText';
 
 // SpeakerThemeName is the limited dialogue palette assigned by encounter order.
 export type SpeakerThemeName = 'blue' | 'orange' | 'purple' | 'pink' | 'teal';
@@ -22,6 +21,8 @@ type EpisodeSentenceProps = {
   readonly isActive: boolean;
   // isDimmed reduces emphasis only inside the episode currently being narrated.
   readonly isDimmed: boolean;
+  // isSelectionOwner keeps native selection handles on this sentence only.
+  readonly isSelectionOwner: boolean;
   // sentenceFrame is the explicit narration/dialogue layout for this playback unit.
   readonly sentenceFrame: EpisodeSentenceFrame;
   // sentenceIndex is the stable sentence order from the episode payload.
@@ -32,8 +33,12 @@ type EpisodeSentenceProps = {
   readonly styles: AppStyles;
   // onPressAnnotation opens the inline translation sheet.
   readonly onPressAnnotation: (annotation: TranslationAnnotation) => void;
-  // onSelectSentence lets the audio controller jump to this sentence.
-  readonly onSelectSentence: (sentenceIndex: number) => void;
+  // onSelectionOwnerTouchStart preserves a range while its own native surface handles a tap.
+  readonly onSelectionOwnerTouchStart: () => void;
+  // onSelectExcerpt reports a native range or clears this sentence selection.
+  readonly onSelectExcerpt: (
+    range: EpisodeSelectionRange | undefined,
+  ) => void;
 };
 
 // getSpeakerColor resolves one semantic dialogue theme to the active color token.
@@ -61,12 +66,14 @@ export function EpisodeSentence({
   annotations,
   isActive,
   isDimmed,
+  isSelectionOwner,
   sentenceFrame,
   sentenceIndex,
   speakerThemeName,
   styles,
   onPressAnnotation,
-  onSelectSentence,
+  onSelectionOwnerTouchStart,
+  onSelectExcerpt,
 }: EpisodeSentenceProps): ReactElement {
   const { isDark } = useAppTheme();
   const themeColors: AppColors = isDark ? darkColors : lightColors;
@@ -80,11 +87,10 @@ export function EpisodeSentence({
   const bubbleBorderOpacity: string = isDark ? '33' : '1f';
 
   return (
-    <JellyPressable
-      onPress={() => onSelectSentence(sentenceIndex)}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.readerSentence,
-        // Disable whole row background highlight for dialogue view
+        // Dialogue keeps only its own bubble border while narration may use karaoke fill.
         sentenceFrame.kind === 'dialogue'
           ? isDimmed
             ? styles.readerSentenceDimmed
@@ -94,7 +100,6 @@ export function EpisodeSentence({
             : isDimmed
               ? styles.readerSentenceDimmed
               : styles.readerSentenceRest,
-        pressed && styles.pressed,
       ]}
     >
       {sentenceFrame.kind === 'dialogue' ? (
@@ -124,110 +129,38 @@ export function EpisodeSentence({
                 },
               ]}
             >
-              <SentenceText
+              <SelectableReaderText
+                annotationStyle={styles.readerAnnotatedWord}
                 annotations={annotations}
+                isSelectionOwner={isSelectionOwner}
                 sentenceIndex={sentenceIndex}
-                styles={styles}
                 text={sentenceFrame.text}
-                variant="dialogue"
+                textStyle={[
+                  styles.readerSentenceText,
+                  styles.readerDialogueText,
+                ]}
                 onPressAnnotation={onPressAnnotation}
+                onSelectionOwnerTouchStart={onSelectionOwnerTouchStart}
+                onSelectionChange={onSelectExcerpt}
               />
             </View>
           </View>
         </View>
       ) : (
         <View style={styles.readerNarrativeSentenceFrame}>
-          <SentenceText
+          <SelectableReaderText
+            annotationStyle={styles.readerAnnotatedWord}
             annotations={annotations}
+            isSelectionOwner={isSelectionOwner}
             sentenceIndex={sentenceIndex}
-            styles={styles}
             text={sentenceFrame.text}
+            textStyle={styles.readerSentenceText}
             onPressAnnotation={onPressAnnotation}
+            onSelectionOwnerTouchStart={onSelectionOwnerTouchStart}
+            onSelectionChange={onSelectExcerpt}
           />
         </View>
       )}
-    </JellyPressable>
+    </View>
   );
-}
-
-// SentenceTextProps carries one text surface that may contain tappable translation chunks.
-type SentenceTextProps = {
-  // annotations are validated inline translation hints for the whole episode.
-  readonly annotations: readonly TranslationAnnotation[];
-  // sentenceIndex scopes annotation lookup to the original playback sentence.
-  readonly sentenceIndex: number;
-  // styles is the shared themed StyleSheet contract.
-  readonly styles: AppStyles;
-  // text is the visible prose or dialogue fragment.
-  readonly text: string;
-  // variant changes typography inside the highlighted dialogue bubble.
-  readonly variant?: 'dialogue';
-  // onPressAnnotation opens the inline translation sheet.
-  readonly onPressAnnotation: (annotation: TranslationAnnotation) => void;
-};
-
-// SentenceText renders prose with nested tappable annotation spans.
-function SentenceText({
-  annotations,
-  sentenceIndex,
-  styles,
-  text,
-  variant,
-  onPressAnnotation,
-}: SentenceTextProps): ReactElement {
-  const chunks = buildSentenceTextChunks({
-    annotations,
-    sentence: text,
-    sentenceIndex,
-  });
-
-  return (
-    <Text
-      style={[
-        styles.readerSentenceText,
-        variant === 'dialogue' && styles.readerDialogueText,
-      ]}
-    >
-      {chunks.map((chunk) => (
-        <SentenceTextFragment
-          chunk={chunk}
-          key={chunk.id}
-          styles={styles}
-          onPressAnnotation={onPressAnnotation}
-        />
-      ))}
-    </Text>
-  );
-}
-
-// SentenceTextFragmentProps carries one rendered fragment and its optional annotation action.
-type SentenceTextFragmentProps = {
-  // chunk is a stable text fragment produced by the reader text builder.
-  readonly chunk: SentenceTextChunk;
-  // styles is the shared themed StyleSheet contract.
-  readonly styles: AppStyles;
-  // onPressAnnotation opens the inline translation sheet.
-  readonly onPressAnnotation: (annotation: TranslationAnnotation) => void;
-};
-
-// SentenceTextFragment renders a plain or tappable text fragment inside one sentence.
-function SentenceTextFragment({
-  chunk,
-  styles,
-  onPressAnnotation,
-}: SentenceTextFragmentProps): ReactElement {
-  const annotation = chunk.annotation;
-
-  if (annotation) {
-    return (
-      <Text
-        onPress={() => onPressAnnotation(annotation)}
-        style={styles.readerAnnotatedWord}
-      >
-        {chunk.text}
-      </Text>
-    );
-  }
-
-  return <Text>{chunk.text}</Text>;
 }
