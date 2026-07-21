@@ -8,7 +8,7 @@ import { dailySessionEdgeEffectStyles } from './DailySessionEdgeEffects.styles';
 
 // DailySessionEdgeEffectsProps combines shared edge material with setup exit navigation.
 type DailySessionEdgeEffectsProps = {
-  // blurTarget identifies the Story Words scroll content captured on Android.
+  // blurTarget identifies the source view on platforms where progressive blur sampling is enabled.
   readonly blurTarget: RefObject<View | null>;
   // bottomInset keeps the quiet lower fade continuous through the home indicator.
   readonly bottomInset: number;

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement, RefObject } from 'react';
-import { BlurTargetView } from 'expo-blur';
 import {
   Alert,
   Animated,
@@ -17,6 +16,7 @@ import { darkColors, lightColors } from '@presentation/theme';
 
 import {
   JellyPressable,
+  PlatformBlurTargetView,
   screenEdgeDepths,
   SeriesSetupChoiceGroup,
   useReducedMotionPreference,
@@ -101,7 +101,7 @@ export function DailySessionScreen({
     (): Animated.Value => new Animated.Value(0),
   );
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  // blurTargetRef identifies the edge-to-edge Story Words scroll surface for Android blur.
+  // blurTargetRef preserves the shared edge-effect source contract around Story Words.
   const blurTargetRef: RefObject<View | null> = useRef<View>(null);
   // setupContentInsets places the hero below top glass and clears the quiet lower fade.
   const setupContentInsets: ViewStyle = {
@@ -469,7 +469,10 @@ export function DailySessionScreen({
 
   return (
     <View style={styles.flexOne}>
-      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+      <PlatformBlurTargetView
+        blurTargetRef={blurTargetRef}
+        style={styles.flexOne}
+      >
         <Animated.ScrollView
           contentContainerStyle={[styles.screenContent, setupContentInsets]}
           onScroll={handleSetupScroll}
@@ -559,7 +562,7 @@ export function DailySessionScreen({
         </>
       )}
         </Animated.ScrollView>
-      </BlurTargetView>
+      </PlatformBlurTargetView>
       <DailySessionEdgeEffects
         blurTarget={blurTargetRef}
         bottomInset={insets.bottom}

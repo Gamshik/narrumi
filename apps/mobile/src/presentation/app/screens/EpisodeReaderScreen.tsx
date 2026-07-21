@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement, RefObject } from 'react';
-import { BlurTargetView } from 'expo-blur';
 import {
   Alert,
   Animated,
@@ -19,6 +18,7 @@ import { darkColors, lightColors } from '@presentation/theme';
 import {
   BackIconButton,
   JellyPressable,
+  PlatformBlurTargetView,
   screenEdgeDepths,
 } from '../shared';
 import { useAppTheme } from '../theme';
@@ -140,7 +140,7 @@ export function EpisodeReaderScreen({
   const resumedInteractionKeysRef: RefObject<Set<string>> = useRef<Set<string>>(
     new Set<string>(),
   );
-  // blurTargetRef identifies Reader content for Expo's Android blur implementation.
+  // blurTargetRef preserves the shared edge-effect source contract around Reader content.
   const blurTargetRef: RefObject<View | null> = useRef<View>(null);
   // episodeBlockTopsRef stores each full-series episode origin in scroll-content coordinates.
   const episodeBlockTopsRef: RefObject<Map<string, number>> = useRef<
@@ -561,7 +561,10 @@ export function EpisodeReaderScreen({
 
   return (
     <View style={styles.flexOne}>
-      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+      <PlatformBlurTargetView
+        blurTargetRef={blurTargetRef}
+        style={styles.flexOne}
+      >
         <Animated.ScrollView
           canCancelContentTouches
           contentContainerStyle={[styles.readerContent, readerContentInsets]}
@@ -754,7 +757,7 @@ export function EpisodeReaderScreen({
           );
           })}
         </Animated.ScrollView>
-      </BlurTargetView>
+      </PlatformBlurTargetView>
       <EpisodeReaderEdgeEffects
         blurTarget={blurTargetRef}
         bottomInset={insets.bottom}

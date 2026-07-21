@@ -1,7 +1,7 @@
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactElement, RefObject } from 'react';
-import { Animated, View } from 'react-native';
+import { Animated, Platform, View } from 'react-native';
 
 import type { AppColors } from '@presentation/theme';
 
@@ -39,10 +39,12 @@ type ScreenEdgeTopVariant = 'standard' | 'compact' | 'reader';
 const mediumBlurDepth: number = 82;
 // strongBlurDepth adds the final small blur increment nearest the status area.
 const strongBlurDepth: number = 44;
+// supportsProgressiveBlur excludes Android where live capture produces white bands and stalls palette commits.
+const supportsProgressiveBlur: boolean = Platform.OS !== 'android';
 
 // ScreenEdgeEffectsProps defines the shared material inputs for any edge-to-edge scroll surface.
 type ScreenEdgeEffectsProps = {
-  // blurTarget identifies the content captured by Expo's Android blur implementation.
+  // blurTarget identifies the source view on platforms where progressive blur sampling is enabled.
   readonly blurTarget: RefObject<View | null>;
   // colors supplies the current Sorbet palette for both gradient fades.
   readonly colors: AppColors;
@@ -108,33 +110,37 @@ export function ScreenEdgeEffects({
             { opacity: materialOpacity },
           ]}
         >
-          <BlurView
-            blurMethod="dimezisBlurViewSdk31Plus"
-            blurTarget={blurTarget}
-            intensity={2}
-            style={[screenEdgeEffectStyles.topBlur, { height: topHeight }]}
-            tint={isDark ? 'dark' : 'light'}
-          />
-          <BlurView
-            blurMethod="dimezisBlurViewSdk31Plus"
-            blurTarget={blurTarget}
-            intensity={3}
-            style={[
-              screenEdgeEffectStyles.topBlur,
-              { height: mediumBlurHeight },
-            ]}
-            tint={isDark ? 'dark' : 'light'}
-          />
-          <BlurView
-            blurMethod="dimezisBlurViewSdk31Plus"
-            blurTarget={blurTarget}
-            intensity={4}
-            style={[
-              screenEdgeEffectStyles.topBlur,
-              { height: strongBlurHeight },
-            ]}
-            tint={isDark ? 'dark' : 'light'}
-          />
+          {supportsProgressiveBlur ? (
+            <>
+              <BlurView
+                blurTarget={blurTarget}
+                intensity={2}
+                style={[
+                  screenEdgeEffectStyles.topBlur,
+                  { height: topHeight },
+                ]}
+                tint={isDark ? 'dark' : 'light'}
+              />
+              <BlurView
+                blurTarget={blurTarget}
+                intensity={3}
+                style={[
+                  screenEdgeEffectStyles.topBlur,
+                  { height: mediumBlurHeight },
+                ]}
+                tint={isDark ? 'dark' : 'light'}
+              />
+              <BlurView
+                blurTarget={blurTarget}
+                intensity={4}
+                style={[
+                  screenEdgeEffectStyles.topBlur,
+                  { height: strongBlurHeight },
+                ]}
+                tint={isDark ? 'dark' : 'light'}
+              />
+            </>
+          ) : null}
           <LinearGradient
             colors={colors.edgeFadeTopGradient}
             locations={[0, 0.28, 0.66, 1]}

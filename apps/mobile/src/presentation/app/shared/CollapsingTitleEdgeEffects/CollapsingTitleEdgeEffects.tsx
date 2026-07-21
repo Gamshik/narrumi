@@ -8,7 +8,7 @@ import { collapsingTitleEdgeEffectStyles } from './CollapsingTitleEdgeEffects.st
 
 // CollapsingTitleEdgeEffectsProps combines shared material with a compact section title.
 type CollapsingTitleEdgeEffectsProps = {
-  // blurTarget identifies the scroll content captured by Expo's Android blur implementation.
+  // blurTarget identifies the source view on platforms where progressive blur sampling is enabled.
   readonly blurTarget: RefObject<View | null>;
   // bottomInset keeps the lower fade continuous through the home indicator.
   readonly bottomInset: number;

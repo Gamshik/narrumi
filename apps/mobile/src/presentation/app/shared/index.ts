@@ -20,3 +20,4 @@ export * from './BackIconButton';
 export * from './CollapsingTitleEdgeEffects';
 export * from './SeriesCreativeBriefEditor';
 export * from './SeriesSetupTextField';
+export * from './PlatformBlurTargetView';

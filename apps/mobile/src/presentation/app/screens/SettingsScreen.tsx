@@ -1,7 +1,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement, RefObject } from 'react';
-import { BlurTargetView } from 'expo-blur';
 import {
   Animated,
   Easing,
@@ -18,6 +17,7 @@ import {
   BubbleStatus,
   BubbleToggle,
   CollapsingTitleEdgeEffects,
+  PlatformBlurTargetView,
 } from '../shared';
 
 import { type LearningPreferences } from '@domain/index';
@@ -136,7 +136,7 @@ function SettingsReadyContent({
     (): Animated.Value => new Animated.Value(0),
   );
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  // blurTargetRef identifies Settings scroll content for Expo's Android blur API.
+  // blurTargetRef preserves the shared edge-effect source contract around Settings content.
   const blurTargetRef: RefObject<View | null> = useRef<View>(null);
   // settingsContentInsets matches Home's initial safe spacing and tab clearance.
   const settingsContentInsets: ViewStyle = {
@@ -264,7 +264,10 @@ function SettingsReadyContent({
 
   return (
     <View style={styles.flexOne}>
-      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+      <PlatformBlurTargetView
+        blurTargetRef={blurTargetRef}
+        style={styles.flexOne}
+      >
         <Animated.ScrollView
           contentContainerStyle={[styles.screenContent, settingsContentInsets]}
           onScroll={handleSettingsScroll}
@@ -326,7 +329,7 @@ function SettingsReadyContent({
         onSyncNow={handleSyncNow}
           />
         </Animated.ScrollView>
-      </BlurTargetView>
+      </PlatformBlurTargetView>
       <CollapsingTitleEdgeEffects
         blurTarget={blurTargetRef}
         bottomInset={insets.bottom}

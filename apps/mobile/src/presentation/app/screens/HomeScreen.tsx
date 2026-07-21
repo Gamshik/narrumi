@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement, RefObject } from 'react';
-import { BlurTargetView } from 'expo-blur';
 import { useFocusEffect } from 'expo-router';
 import {
   Alert,
@@ -29,6 +28,7 @@ import {
   SeriesCreativeBriefEditor,
   SeriesSetupTextField,
   CollapsingTitleEdgeEffects,
+  PlatformBlurTargetView,
   ScreenEdgeEffects,
   screenEdgeDepths,
 } from '../shared';
@@ -160,7 +160,7 @@ export function HomeScreen({
   const setupGenerationLockRef = useRef<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [formActionError, setFormActionError] = useState<string>();
-  // blurTargetRef identifies the Home scroll surface for Expo's current Android blur API.
+  // blurTargetRef preserves the shared edge-effect source contract around Home content.
   const blurTargetRef: RefObject<View | null> = useRef<View>(null);
 
   useEffect(() => {
@@ -437,7 +437,10 @@ export function HomeScreen({
 
   return (
     <View style={styles.flexOne}>
-      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+      <PlatformBlurTargetView
+        blurTargetRef={blurTargetRef}
+        style={styles.flexOne}
+      >
         <Animated.ScrollView
           contentContainerStyle={[styles.screenContent, homeContentInsets]}
           onScroll={handleHomeScroll}
@@ -494,7 +497,7 @@ export function HomeScreen({
             </>
           )}
         </Animated.ScrollView>
-      </BlurTargetView>
+      </PlatformBlurTargetView>
       <CollapsingTitleEdgeEffects
         blurTarget={blurTargetRef}
         bottomInset={insets.bottom}
@@ -741,7 +744,7 @@ function CreateSeriesModal({
   const bottomInset: number = insets.bottom;
   const scrollViewRef = useRef<ScrollView>(null);
   const fieldOffsetsRef = useRef<Record<string, number>>({});
-  // modalBlurTargetRef identifies the create-series scroll content for Android blur.
+  // modalBlurTargetRef preserves the shared edge-effect source contract inside the setup modal.
   const modalBlurTargetRef: RefObject<View | null> = useRef<View>(null);
   // modalContentInsets keeps initial and final form content clear of the shared edge material.
   const modalContentInsets: ViewStyle = {
@@ -806,7 +809,10 @@ function CreateSeriesModal({
         keyboardVerticalOffset={0}
         style={styles.modalScreen}
       >
-        <BlurTargetView ref={modalBlurTargetRef} style={styles.flexOne}>
+        <PlatformBlurTargetView
+          blurTargetRef={modalBlurTargetRef}
+          style={styles.flexOne}
+        >
           <ScrollView
             ref={scrollViewRef}
             contentContainerStyle={[styles.modalContent, modalContentInsets]}
@@ -1018,7 +1024,7 @@ function CreateSeriesModal({
               />
             ) : null}
           </ScrollView>
-        </BlurTargetView>
+        </PlatformBlurTargetView>
         <ScreenEdgeEffects
           blurTarget={modalBlurTargetRef}
           bottomInset={bottomInset}

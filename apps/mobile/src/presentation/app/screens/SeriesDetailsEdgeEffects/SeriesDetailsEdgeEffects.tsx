@@ -13,7 +13,7 @@ import { seriesDetailsEdgeEffectStyles } from './SeriesDetailsEdgeEffects.styles
 
 // SeriesDetailsEdgeEffectsProps combines shared edge material with series navigation chrome.
 type SeriesDetailsEdgeEffectsProps = {
-  // blurTarget identifies the series content captured by Expo's Android blur implementation.
+  // blurTarget identifies the source view on platforms where progressive blur sampling is enabled.
   readonly blurTarget: RefObject<View | null>;
   // bottomInset keeps the quiet lower fade continuous through the home-indicator area.
   readonly bottomInset: number;

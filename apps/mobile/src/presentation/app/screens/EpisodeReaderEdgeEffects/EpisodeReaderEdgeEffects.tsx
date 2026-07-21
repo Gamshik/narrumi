@@ -8,7 +8,7 @@ import { episodeReaderEdgeEffectStyles } from './EpisodeReaderEdgeEffects.styles
 
 // EpisodeReaderEdgeEffectsProps combines shared material with fixed Reader orientation controls.
 type EpisodeReaderEdgeEffectsProps = {
-  // blurTarget identifies the Reader scroll content captured on Android.
+  // blurTarget identifies the source view on platforms where progressive blur sampling is enabled.
   readonly blurTarget: RefObject<View | null>;
   // bottomInset keeps the lower fade continuous through the home indicator.
   readonly bottomInset: number;

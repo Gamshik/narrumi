@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement, RefObject } from 'react';
-import { BlurTargetView } from 'expo-blur';
 import { useFocusEffect } from 'expo-router';
 import {
   Alert,
@@ -28,6 +27,7 @@ import {
   SeriesCreativeBriefEditor,
   SeriesSetupTextField,
   JellyPressable,
+  PlatformBlurTargetView,
   ScreenEdgeEffects,
   screenEdgeDepths,
 } from '../shared';
@@ -133,7 +133,7 @@ export function SeriesDetailsScreen({
   const [deletingEpisodeId, setDeletingEpisodeId] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
   const [setupActionError, setSetupActionError] = useState<string>();
-  // blurTargetRef identifies the edge-to-edge series scroll surface for Android blur.
+  // blurTargetRef preserves the shared edge-effect source contract around series content.
   const blurTargetRef: RefObject<View | null> = useRef<View>(null);
   // seriesHeaderTopRef stores the header position needed to resolve title edges in scroll coordinates.
   const seriesHeaderTopRef: RefObject<number | undefined> = useRef<
@@ -490,7 +490,10 @@ export function SeriesDetailsScreen({
 
   return (
     <View style={styles.flexOne}>
-      <BlurTargetView ref={blurTargetRef} style={styles.flexOne}>
+      <PlatformBlurTargetView
+        blurTargetRef={blurTargetRef}
+        style={styles.flexOne}
+      >
         <Animated.ScrollView
           contentContainerStyle={[styles.screenContent, seriesContentInsets]}
           onScroll={handleSeriesScroll}
@@ -645,7 +648,7 @@ export function SeriesDetailsScreen({
             />
           ) : null}
         </Animated.ScrollView>
-      </BlurTargetView>
+      </PlatformBlurTargetView>
       <SeriesDetailsEdgeEffects
         blurTarget={blurTargetRef}
         bottomInset={insets.bottom}
@@ -720,7 +723,7 @@ function SeriesSetupModal({
   const bottomInset: number = insets.bottom;
   const scrollViewRef = useRef<ScrollView>(null);
   const fieldOffsetsRef = useRef<Record<string, number>>({});
-  // setupModalBlurTargetRef identifies the setup scroll content for Android blur.
+  // setupModalBlurTargetRef preserves the shared edge-effect source contract inside setup.
   const setupModalBlurTargetRef: RefObject<View | null> = useRef<View>(null);
   // setupModalContentInsets matches the create-series modal's edge clearances.
   const setupModalContentInsets: ViewStyle = {
@@ -783,7 +786,10 @@ function SeriesSetupModal({
         keyboardVerticalOffset={0}
         style={styles.modalScreen}
       >
-        <BlurTargetView ref={setupModalBlurTargetRef} style={styles.flexOne}>
+        <PlatformBlurTargetView
+          blurTargetRef={setupModalBlurTargetRef}
+          style={styles.flexOne}
+        >
           <ScrollView
             ref={scrollViewRef}
             contentContainerStyle={[
@@ -1029,7 +1035,7 @@ function SeriesSetupModal({
             />
           )}
           </ScrollView>
-        </BlurTargetView>
+        </PlatformBlurTargetView>
         <ScreenEdgeEffects
           blurTarget={setupModalBlurTargetRef}
           bottomInset={bottomInset}
