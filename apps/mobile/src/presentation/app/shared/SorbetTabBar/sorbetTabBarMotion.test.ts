@@ -58,6 +58,10 @@ test('tab navigation uses toy-gel motion without platform emoji', (): void => {
     resolve(__dirname, 'useActiveTabLensMotion.ts'),
     'utf8',
   );
+  const tabSceneTransitionSource = readFileSync(
+    resolve(__dirname, 'tabSceneTransition.ts'),
+    'utf8',
+  );
   const tabsLayoutSource = readFileSync(
     resolve(__dirname, '../../../../../app/(tabs)/_layout.tsx'),
     'utf8',
@@ -83,6 +87,12 @@ test('tab navigation uses toy-gel motion without platform emoji', (): void => {
   assert.match(preferenceSource, /AccessibilityInfo\.isReduceMotionEnabled/);
   assert.match(
     tabsLayoutSource,
-    /animation:\s*reduceMotion \? 'none' : 'shift'/,
+    /Platform\.OS === 'android'[\s\S]*?\? 'fade'[\s\S]*?: 'shift'/,
   );
+  assert.match(tabsLayoutSource, /sceneStyleInterpolator:\s*interpolateAndroidTabScene/);
+  assert.match(
+    tabSceneTransitionSource,
+    /inputRange:\s*\[-1, -0\.52, 0, 0\.52, 1\]/,
+  );
+  assert.match(tabSceneTransitionSource, /outputRange:\s*\[-18, 0, 18\]/);
 });

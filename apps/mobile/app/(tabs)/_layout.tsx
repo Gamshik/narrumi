@@ -1,10 +1,12 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { useSegments } from 'expo-router';
 import type { ReactElement } from 'react';
+import { Platform } from 'react-native';
 
 import {
   SorbetTabBar,
   canRenderGuardedSurfaces,
+  interpolateAndroidTabScene,
   useBootstrapSession,
   useReducedMotionPreference,
 } from '@presentation/app';
@@ -24,7 +26,15 @@ export default function TabsLayout(): ReactElement {
   return (
     <Tabs
       screenOptions={{
-        animation: reduceMotion ? 'none' : 'shift',
+        // Android fade avoids transparent scenes sliding over one another while iOS keeps directional motion.
+        animation: reduceMotion
+          ? 'none'
+          : Platform.OS === 'android'
+            ? 'fade'
+            : 'shift',
+        ...(Platform.OS === 'android' && !reduceMotion
+          ? { sceneStyleInterpolator: interpolateAndroidTabScene }
+          : {}),
         headerShown: false,
         sceneStyle: { backgroundColor: 'transparent' },
       }}
