@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
   getSliderPercentage,
+  getSliderTouchPosition,
   getSliderValueFromPosition,
   getSteppedSliderValue,
 } from './BubbleSlider.helpers';
@@ -24,6 +25,12 @@ test('slider candidates clamp and snap safely', (): void => {
   assert.equal(getSteppedSliderValue(0.74, 0, 1, 0.25), 0.75);
 });
 
+// The test protects Android drag mapping from child-relative locationX changes during one gesture.
+test('slider touch position prefers measured window coordinates', (): void => {
+  assert.equal(getSliderTouchPosition(184, 64, 9, 12), 120);
+  assert.equal(getSliderTouchPosition(184, undefined, 49, 12), 37);
+});
+
 // The test callback keeps visual progress bounded for stale persisted values.
 test('slider progress remains between zero and one', (): void => {
   assert.equal(getSliderPercentage(-2, 0, 12), 0);
@@ -38,11 +45,21 @@ test('slider keeps position and micro-bubble motion on the JS driver', (): void 
     resolve(__dirname, 'BubbleSlider.tsx'),
     'utf8',
   );
+  // particleSource keeps decorative iOS motion separate from Android drag rendering.
+  const particleSource: string = readFileSync(
+    resolve(__dirname, 'BubbleSliderParticles.tsx'),
+    'utf8',
+  );
 
   assert.doesNotMatch(sliderSource, /useNativeDriver:\s*true/);
   assert.match(sliderSource, /useNativeDriver:\s*false/);
-  assert.match(sliderSource, /styles\.particleLarge/);
+  assert.match(sliderSource, /<BubbleSliderParticles/);
+  assert.match(particleSource, /styles\.particleLarge/);
+  assert.match(sliderSource, /supportsSliderParticles:\s*boolean = Platform\.OS !== 'android'/);
   assert.match(sliderSource, /emitMicroBubbles\(movementDirection\)/);
-  assert.match(sliderSource, /outputRange: \[0\.9, 0\.82, 0\.28, 0\]/);
+  assert.match(sliderSource, /event\.nativeEvent\.pageX/);
+  assert.match(sliderSource, /gestureState\.moveX - trackPageXRef\.current/);
+  assert.match(sliderSource, /measureInWindow/);
+  assert.match(particleSource, /outputRange: \[0\.9, 0\.82, 0\.28, 0\]/);
   assert.doesNotMatch(sliderSource, /styles\.valueBubble/);
 });

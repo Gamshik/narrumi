@@ -8,6 +8,7 @@ import {
   PanResponder,
   type PanResponderGestureState,
   type PanResponderInstance,
+  Platform,
   Text,
   View,
 } from 'react-native';
@@ -17,14 +18,18 @@ import { motion } from '@presentation/theme';
 import { useReducedMotionPreference } from '../SorbetTabBar';
 import {
   getSliderPercentage,
+  getSliderTouchPosition,
   getSliderValueFromPosition,
   getSteppedSliderValue,
 } from './BubbleSlider.helpers';
+import { BubbleSliderParticles } from './BubbleSliderParticles';
 import { bubbleSliderStyles as styles } from './BubbleSlider.styles';
 import type { BubbleSliderProps } from './BubbleSlider.types';
 
 // sliderTrackInset matches the horizontal margin that keeps the thumb inside its surface.
 const sliderTrackInset: number = 12;
+// supportsSliderParticles avoids restarting JS-driven decorative motion during Android drag events.
+const supportsSliderParticles: boolean = Platform.OS !== 'android';
 
 // BubbleSlider renders a tactile, accessible Sorbet slider without owning persistence.
 export function BubbleSlider({
@@ -43,10 +48,13 @@ export function BubbleSlider({
   onInteractionEnd,
 }: BubbleSliderProps): ReactElement {
   const reduceMotion: boolean = useReducedMotionPreference();
+  // gestureAreaRef measures the track in window coordinates for stable Android pageX mapping.
+  const gestureAreaRef = useRef<View>(null);
   const trackWidthRef = useRef<number>(0);
+  const trackPageXRef = useRef<number | undefined>(undefined);
   const isInteractingRef = useRef<boolean>(false);
   const currentValueRef = useRef<number>(value);
-  const startValueRef = useRef<number>(value);
+  const startPositionRef = useRef<number>(0);
   const [localValue, setLocalValue] = useState<number>(value);
   const [progress] = useState<Animated.Value>(
     (): Animated.Value => new Animated.Value(getSliderPercentage(value, min, max)),
@@ -60,13 +68,14 @@ export function BubbleSlider({
   const [particleDirection] = useState<Animated.Value>(
     (): Animated.Value => new Animated.Value(1),
   );
+  // panResponder is installed after render so responder callbacks may safely read live refs.
   const [panResponder, setPanResponder] =
     useState<PanResponderInstance | null>(null);
 
   // emitMicroBubbles marks a snapped change with a brief directional particle response.
   const emitMicroBubbles = useCallback(
     (direction: number): void => {
-      if (reduceMotion || direction === 0) {
+      if (!supportsSliderParticles || reduceMotion || direction === 0) {
         return;
       }
 
@@ -160,6 +169,10 @@ export function BubbleSlider({
 
   // finishInteraction restores parent scrolling and persists the final snapped value once.
   const finishInteraction = useCallback((): void => {
+    if (!isInteractingRef.current) {
+      return;
+    }
+
     isInteractingRef.current = false;
     setInteractionState(false);
     onInteractionEnd?.();
@@ -167,7 +180,7 @@ export function BubbleSlider({
   }, [onInteractionEnd, onSlidingComplete, setInteractionState]);
 
   useEffect((): void => {
-    // responder converts taps and horizontal dragging into bounded discrete values after render.
+    // responder converts absolute touches into bounded values while reading measurements only during gestures.
     const responder: PanResponderInstance = PanResponder.create({
       onMoveShouldSetPanResponder: (): boolean => true,
       onMoveShouldSetPanResponderCapture: (): boolean => true,
@@ -175,16 +188,23 @@ export function BubbleSlider({
         isInteractingRef.current = true;
         onInteractionStart?.();
         setInteractionState(true);
+        const touchPosition: number = getSliderTouchPosition(
+          event.nativeEvent.pageX,
+          trackPageXRef.current,
+          event.nativeEvent.locationX,
+          sliderTrackInset,
+        );
+
+        startPositionRef.current = touchPosition;
         applyValue(
           getSliderValueFromPosition(
-            event.nativeEvent.locationX - sliderTrackInset,
+            touchPosition,
             trackWidthRef.current,
             min,
             max,
             step,
           ),
         );
-        startValueRef.current = currentValueRef.current;
       },
       onPanResponderMove: (
         _event: GestureResponderEvent,
@@ -196,9 +216,19 @@ export function BubbleSlider({
           return;
         }
 
+        const touchPosition: number =
+          trackPageXRef.current === undefined
+            ? startPositionRef.current + gestureState.dx
+            : gestureState.moveX - trackPageXRef.current;
+
         applyValue(
-          startValueRef.current +
-            (gestureState.dx / trackWidth) * (max - min),
+          getSliderValueFromPosition(
+            touchPosition,
+            trackWidth,
+            min,
+            max,
+            step,
+          ),
         );
       },
       onPanResponderRelease: finishInteraction,
@@ -239,6 +269,15 @@ export function BubbleSlider({
   // handleTrackLayout retains only the usable distance between the thumb endpoints.
   const handleTrackLayout = (event: LayoutChangeEvent): void => {
     trackWidthRef.current = event.nativeEvent.layout.width;
+    gestureAreaRef.current?.measureInWindow(
+      (x: number, _y: number, width: number, _height: number): void => {
+        trackPageXRef.current = x;
+
+        if (width > 0) {
+          trackWidthRef.current = width;
+        }
+      },
+    );
   };
 
   // fillWidth drives both the colored track and compact thumb from one progress value.
@@ -246,60 +285,6 @@ export function BubbleSlider({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
-  // directedParticleProgress mirrors the horizontal scatter for leftward movement.
-  const directedParticleProgress: Animated.AnimatedMultiplication<number> =
-    Animated.multiply(particleBurst, particleDirection);
-  const particleAOpacity: Animated.AnimatedInterpolation<number> =
-    particleBurst.interpolate({
-      inputRange: [0, 0.22, 0.75, 1],
-      outputRange: [0.9, 0.82, 0.28, 0],
-    });
-  const particleBOpacity: Animated.AnimatedInterpolation<number> =
-    particleBurst.interpolate({
-      inputRange: [0, 0.32, 0.78, 1],
-      outputRange: [0.78, 0.7, 0.22, 0],
-    });
-  const particleCOpacity: Animated.AnimatedInterpolation<number> =
-    particleBurst.interpolate({
-      inputRange: [0, 0.38, 0.82, 1],
-      outputRange: [0.68, 0.62, 0.18, 0],
-    });
-  const particleARise: Animated.AnimatedInterpolation<number> =
-    particleBurst.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, -18],
-    });
-  const particleBRise: Animated.AnimatedInterpolation<number> =
-    particleBurst.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, -11],
-    });
-  const particleCRise: Animated.AnimatedInterpolation<number> =
-    particleBurst.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, -21],
-    });
-  const particleADrift: Animated.AnimatedMultiplication<number> =
-    Animated.multiply(directedParticleProgress, -9);
-  const particleBDrift: Animated.AnimatedMultiplication<number> =
-    Animated.multiply(directedParticleProgress, 10);
-  const particleCDrift: Animated.AnimatedMultiplication<number> =
-    Animated.multiply(directedParticleProgress, -3);
-  const particleAScale: Animated.AnimatedInterpolation<number> =
-    particleBurst.interpolate({
-      inputRange: [0, 0.22, 1],
-      outputRange: [0.76, 1, 0.72],
-    });
-  const particleBScale: Animated.AnimatedInterpolation<number> =
-    particleBurst.interpolate({
-      inputRange: [0, 0.32, 1],
-      outputRange: [0.7, 1, 0.68],
-    });
-  const particleCScale: Animated.AnimatedInterpolation<number> =
-    particleBurst.interpolate({
-      inputRange: [0, 0.38, 1],
-      outputRange: [0.64, 1, 0.62],
-    });
   const accessibilityText: string = `${localValue}${
     valueUnit ? ` ${valueUnit}` : ''
   }`;
@@ -324,7 +309,11 @@ export function BubbleSlider({
       style={styles.container}
       {...panResponder?.panHandlers}
     >
-      <View onLayout={handleTrackLayout} style={styles.gestureArea}>
+      <View
+        onLayout={handleTrackLayout}
+        ref={gestureAreaRef}
+        style={styles.gestureArea}
+      >
         <View
           pointerEvents="none"
           style={[
@@ -341,60 +330,14 @@ export function BubbleSlider({
             ]}
           />
         </View>
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.particle,
-            styles.particleLarge,
-            {
-              backgroundColor: colors.systemPurple,
-              left: fillWidth,
-              opacity: particleAOpacity,
-              transform: [
-                { translateX: -10 },
-                { translateX: particleADrift },
-                { translateY: particleARise },
-                { scale: particleAScale },
-              ],
-            },
-          ]}
-        />
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.particle,
-            styles.particleMedium,
-            {
-              backgroundColor: colors.systemTeal,
-              left: fillWidth,
-              opacity: particleBOpacity,
-              transform: [
-                { translateX: 6 },
-                { translateX: particleBDrift },
-                { translateY: particleBRise },
-                { scale: particleBScale },
-              ],
-            },
-          ]}
-        />
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.particle,
-            styles.particleSmall,
-            {
-              backgroundColor: colors.systemBlue,
-              left: fillWidth,
-              opacity: particleCOpacity,
-              transform: [
-                { translateX: -2 },
-                { translateX: particleCDrift },
-                { translateY: particleCRise },
-                { scale: particleCScale },
-              ],
-            },
-          ]}
-        />
+        {supportsSliderParticles ? (
+          <BubbleSliderParticles
+            colors={colors}
+            fillWidth={fillWidth}
+            particleBurst={particleBurst}
+            particleDirection={particleDirection}
+          />
+        ) : null}
         <Animated.View
           pointerEvents="none"
           style={[

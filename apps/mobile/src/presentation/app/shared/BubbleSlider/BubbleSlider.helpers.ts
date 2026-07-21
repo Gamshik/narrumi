@@ -44,6 +44,20 @@ export function getSliderValueFromPosition(
   );
 }
 
+// getSliderTouchPosition resolves a pointer against the measured track instead of an Android child target.
+export function getSliderTouchPosition(
+  pageX: number,
+  trackPageX: number | undefined,
+  fallbackLocationX: number,
+  fallbackInset: number,
+): number {
+  if (trackPageX !== undefined && Number.isFinite(trackPageX)) {
+    return pageX - trackPageX;
+  }
+
+  return fallbackLocationX - fallbackInset;
+}
+
 // getSliderPercentage converts a bounded value into the 0-1 visual progress range.
 export function getSliderPercentage(
   value: number,
