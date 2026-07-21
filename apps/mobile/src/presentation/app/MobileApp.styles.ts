@@ -1048,6 +1048,14 @@ function createAppStylesImpl(colors: AppColors) {
       top: 0,
       zIndex: 20,
     },
+    dictionaryAndroidBottomFade: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 132,
+      zIndex: 10,
+    },
     searchBarShell: {
       height: 54,
       marginHorizontal: 20,

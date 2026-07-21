@@ -185,7 +185,10 @@ test('episode setup uses fixed icon navigation over shared screen edges', (): vo
     dailySessionRouteSource,
     /<RouteScreen isDark=\{isDark\} isEdgeToEdge/,
   );
-  assert.match(dailySessionSource, /<BlurTargetView ref=\{blurTargetRef\}/);
+  assert.match(
+    dailySessionSource,
+    /<PlatformBlurTargetView[\s\S]*?blurTargetRef=\{blurTargetRef\}/,
+  );
   assert.match(dailySessionSource, /<Animated\.ScrollView/);
   assert.match(dailySessionSource, /onScroll=\{handleSetupScroll\}/);
   assert.match(dailySessionSource, /setupHeaderCollapseOffset:\s*number = 38/);
@@ -297,7 +300,10 @@ test('reader header follows focused metadata without hiding full-series headings
   assert.match(readerSource, /style=\{styles\.readerEpisodeTitle\}/);
   assert.doesNotMatch(readerSource, /!isSingleEpisode[\s\S]{0,120}largeTitleOpacity/);
   assert.match(readerRouteSource, /<RouteScreen isDark=\{isDark\} isEdgeToEdge/);
-  assert.match(readerSource, /<BlurTargetView ref=\{blurTargetRef\}/);
+  assert.match(
+    readerSource,
+    /<PlatformBlurTargetView[\s\S]*?blurTargetRef=\{blurTargetRef\}/,
+  );
   assert.match(readerSource, /<Animated\.ScrollView/);
   assert.match(readerSource, /<EpisodeReaderEdgeEffects/);
   assert.match(readerSource, /paddingTop: insets\.top \+ screenEdgeDepths\.readerTop \+ 2/);
@@ -422,6 +428,16 @@ test('dictionary uses floating tools and symmetric edge depth', (): void => {
   assert.match(dictionarySource, /onFocus=\{\(\) => setIsSearchFocused\(true\)\}/);
   assert.match(dictionarySource, /getWordLevelRailStyle/);
   assert.match(dictionarySource, /pressAnimationDelayMs=\{70\}/);
+  assert.match(dictionarySource, /getItemLayout=\{getDictionaryItemLayout\}/);
+  assert.match(
+    dictionarySource,
+    /removeClippedSubviews=\{Platform\.OS !== 'android'\}/,
+  );
+  assert.match(
+    dictionarySource,
+    /Platform\.OS === 'android' \|\| viewportHeight <= 0/,
+  );
+  assert.match(dictionarySource, /colors\.edgeFadeBottomGradient/);
   assert.doesNotMatch(dictionarySource, /expo-blur|<BlurView/);
   assert.match(levelButtonSource, /<Svg/);
   assert.match(levelButtonSource, /level !== 'ALL'/);
@@ -439,10 +455,13 @@ test('dictionary uses floating tools and symmetric edge depth', (): void => {
   assert.match(searchIconSource, /isFocused \? \[1, 13\] : \[13, 1\]/);
   assert.match(searchIconSource, /useNativeDriver:\s*true/);
   assert.match(levelPopoverSource, /<BlurView/);
+  assert.match(levelPopoverSource, /Platform\.OS !== 'android'/);
   assert.match(levelPopoverSource, /Animated\.spring/);
   assert.match(levelPopoverSource, /BackHandler\.addEventListener/);
   assert.doesNotMatch(levelPopoverSource, /<Modal|animationType="slide"/);
   assert.match(levelPopoverStylesSource, /top:\s*76/);
+  assert.match(levelPopoverStylesSource, /flexBasis:\s*'30%'/);
+  assert.match(levelPopoverStylesSource, /flexBasis:\s*'100%'/);
   assert.equal((levelPopoverSource.match(/\{ level:/g) ?? []).length, 7);
   assert.match(stylesSource, /wordList:\s*\{\s*gap:\s*5,/);
   assert.match(
@@ -452,7 +471,7 @@ test('dictionary uses floating tools and symmetric edge depth', (): void => {
   assert.match(stylesSource, /wordList:\s*\{[\s\S]*?paddingTop:\s*82,/);
   assert.match(stylesSource, /wordRow:\s*\{[\s\S]*?height:\s*62,/);
   assert.match(stylesSource, /wordRowGradient:/);
-  assert.doesNotMatch(dictionarySource, /DictionaryListFades|LevelFilters|edgeFade/);
+  assert.doesNotMatch(dictionarySource, /DictionaryListFades|LevelFilters/);
   assert.doesNotMatch(stylesSource, /filterViewport|counterText/);
   assert.doesNotMatch(stylesSource, /wordRowContainer:/);
   assert.doesNotMatch(stylesSource, /wordRowSheen:/);
@@ -532,6 +551,13 @@ test('Home and create-series share top glass and a gradient-only bottom edge', (
     ),
     'utf8',
   );
+  const platformBlurTargetSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/shared/PlatformBlurTargetView/PlatformBlurTargetView.tsx',
+    ),
+    'utf8',
+  );
 
   assert.match(homeRouteSource, /<RouteScreen isDark=\{isDark\} isEdgeToEdge/);
   assert.match(homeScreenSource, /paddingTop:\s*insets\.top \+ 20/);
@@ -547,7 +573,10 @@ test('Home and create-series share top glass and a gradient-only bottom edge', (
   assert.match(homeScreenSource, /<CollapsingTitleEdgeEffects/);
   assert.match(edgeEffectsSource, /<ScreenEdgeEffects/);
   assert.match(edgeEffectsSource, /inputRange:\s*\[0, 0\.5, 0\.82, 1\]/);
-  assert.match(homeScreenSource, /ref=\{modalBlurTargetRef\}/);
+  assert.match(
+    homeScreenSource,
+    /blurTargetRef=\{modalBlurTargetRef\}/,
+  );
   assert.match(homeScreenSource, /<ScreenEdgeEffects/);
   assert.match(homeScreenSource, /blurTarget=\{modalBlurTargetRef\}/);
   assert.match(homeScreenSource, /screenEdgeDepths\.modalBottom/);
@@ -557,13 +586,18 @@ test('Home and create-series share top glass and a gradient-only bottom edge', (
     (sharedEdgeEffectsSource.match(/blurTarget=\{blurTarget\}/g) ?? []).length,
     3,
   );
-  assert.equal(
-    (sharedEdgeEffectsSource.match(
-      /blurMethod="dimezisBlurViewSdk31Plus"/g,
-    ) ?? []).length,
-    3,
+  assert.match(
+    sharedEdgeEffectsSource,
+    /supportsProgressiveBlur:\s*boolean = Platform\.OS !== 'android'/,
   );
-  assert.doesNotMatch(sharedEdgeEffectsSource, /experimentalBlurMethod/);
+  assert.match(sharedEdgeEffectsSource, /supportsProgressiveBlur \? \(/);
+  assert.doesNotMatch(
+    sharedEdgeEffectsSource,
+    /blurMethod|experimentalBlurMethod/,
+  );
+  assert.match(platformBlurTargetSource, /Platform\.OS === 'android'/);
+  assert.match(platformBlurTargetSource, /<View ref=\{blurTargetRef\}/);
+  assert.match(platformBlurTargetSource, /<BlurTargetView ref=\{blurTargetRef\}/);
   assert.match(sharedEdgeEffectsSource, /intensity=\{2\}/);
   assert.match(sharedEdgeEffectsSource, /intensity=\{3\}/);
   assert.match(sharedEdgeEffectsSource, /intensity=\{4\}/);
@@ -598,7 +632,10 @@ test('Settings reuses the Home collapsing title edge treatment', (): void => {
     settingsRouteSource,
     /<RouteScreen isDark=\{isDark\} isEdgeToEdge/,
   );
-  assert.match(settingsScreenSource, /<BlurTargetView ref=\{blurTargetRef\}/);
+  assert.match(
+    settingsScreenSource,
+    /<PlatformBlurTargetView[\s\S]*?blurTargetRef=\{blurTargetRef\}/,
+  );
   assert.match(settingsScreenSource, /<Animated\.ScrollView/);
   assert.match(settingsScreenSource, /onScroll=\{handleSettingsScroll\}/);
   assert.match(settingsScreenSource, /settingsHeaderCollapseOffset:\s*number = 38/);
@@ -655,7 +692,10 @@ test('series details reveals only a compact title inside shared top glass', (): 
   );
 
   assert.match(seriesRouteSource, /<RouteScreen isDark=\{isDark\} isEdgeToEdge/);
-  assert.match(seriesScreenSource, /<BlurTargetView ref=\{blurTargetRef\}/);
+  assert.match(
+    seriesScreenSource,
+    /<PlatformBlurTargetView[\s\S]*?blurTargetRef=\{blurTargetRef\}/,
+  );
   assert.match(seriesScreenSource, /<Animated\.ScrollView/);
   assert.match(seriesScreenSource, /onScroll=\{handleSeriesScroll\}/);
   assert.match(seriesScreenSource, /onLayout=\{handleSeriesHeaderLayout\}/);
@@ -690,7 +730,10 @@ test('series details reveals only a compact title inside shared top glass', (): 
   assert.match(seriesEdgeEffectsSource, /numberOfLines=\{1\}/);
   assert.doesNotMatch(seriesEdgeEffectsSource, /adjustsFontSizeToFit/);
   assert.doesNotMatch(seriesEdgeEffectsSource, /minimumFontScale/);
-  assert.match(seriesScreenSource, /ref=\{setupModalBlurTargetRef\}/);
+  assert.match(
+    seriesScreenSource,
+    /blurTargetRef=\{setupModalBlurTargetRef\}/,
+  );
   assert.match(
     seriesScreenSource,
     /blurTarget=\{setupModalBlurTargetRef\}/,

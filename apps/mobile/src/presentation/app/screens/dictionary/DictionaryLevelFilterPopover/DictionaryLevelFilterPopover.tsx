@@ -5,6 +5,7 @@ import type { ReactElement } from 'react';
 import {
   Animated,
   BackHandler,
+  Platform,
   Pressable,
   Text,
   View,
@@ -83,6 +84,11 @@ export function DictionaryLevelFilterPopover({
   const [progress] = useState<Animated.Value>(
     (): Animated.Value => new Animated.Value(0),
   );
+  // materialColors keep the Android panel opaque enough to hide moving dictionary rows beneath it.
+  const materialColors: readonly [string, string] =
+    Platform.OS === 'android'
+      ? [colors.backgroundTertiary, colors.backgroundSecondary]
+      : [colors.bubbleSurfaceRaised, colors.bubbleSurface];
 
   useEffect((): (() => void) | undefined => {
     if (!visible) {
@@ -162,14 +168,16 @@ export function DictionaryLevelFilterPopover({
         style={styles.scrim}
       />
       <Animated.View style={[styles.panel, panelMotion]}>
-        <BlurView
-          intensity={30}
-          pointerEvents="none"
-          style={styles.material}
-          tint={isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'}
-        />
+        {Platform.OS !== 'android' ? (
+          <BlurView
+            intensity={30}
+            pointerEvents="none"
+            style={styles.material}
+            tint={isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'}
+          />
+        ) : null}
         <LinearGradient
-          colors={[colors.bubbleSurfaceRaised, colors.bubbleSurface]}
+          colors={materialColors}
           end={{ x: 1, y: 1 }}
           pointerEvents="none"
           start={{ x: 0, y: 0 }}

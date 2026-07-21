@@ -123,10 +123,12 @@ export function createDictionaryLevelFilterPopoverStyles(
       gap: 7,
     },
     optionContainer: {
-      width: '31.8%',
+      flexBasis: '30%',
+      flexGrow: 1,
     },
     allOptionContainer: {
-      width: '100%',
+      flexBasis: '100%',
+      flexGrow: 0,
     },
     option: {
       alignItems: 'center',

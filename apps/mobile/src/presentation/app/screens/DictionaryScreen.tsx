@@ -5,6 +5,7 @@ import {
   Animated,
   Keyboard,
   type LayoutChangeEvent,
+  Platform,
   Text,
   TextInput,
   View,
@@ -34,6 +35,18 @@ const dictionaryEdgeDepth: number = 44;
 const dictionaryTopOcclusionHeight: number = 72;
 // dictionaryBottomOcclusionHeight moves the visible lower edge above the floating tab bar.
 const dictionaryBottomOcclusionHeight: number = 102;
+// dictionaryRowStride is the fixed virtualized distance occupied by one row and its following gap.
+const dictionaryRowStride: number = dictionaryRowHeight + dictionaryRowGap;
+
+// DictionaryItemLayout is the fixed geometry returned to FlatList for stable Android virtualization.
+type DictionaryItemLayout = {
+  // index is the requested item position in the catalog.
+  readonly index: number;
+  // length is the fixed row-plus-gap stride used by the virtualized list.
+  readonly length: number;
+  // offset is the row's virtual position before content-container padding.
+  readonly offset: number;
+};
 // DictionaryScreenProps defines the dictionary list screen dependencies.
 type DictionaryScreenProps = {
   // colors supplies theme-aware depth for the framed scroll viewport.
@@ -187,6 +200,14 @@ export function DictionaryScreen({
           words={words}
           onSelectWord={onSelectWord}
         />
+        {Platform.OS === 'android' ? (
+          <LinearGradient
+            colors={colors.edgeFadeBottomGradient}
+            locations={[0, 0.52, 1]}
+            pointerEvents="none"
+            style={styles.dictionaryAndroidBottomFade}
+          />
+        ) : null}
         <View pointerEvents="box-none" style={styles.dictionarySearchOverlay}>
           <SearchBar
             colors={colors}
@@ -243,6 +264,11 @@ function SearchBar({
   const searchPlaceholder: string = isLoading
     ? 'Loading local catalog…'
     : `Search ${wordCount.toLocaleString()} words…`;
+  // materialColors use opaque semantic fills on Android to prevent list text bleeding through the search surface.
+  const materialColors: readonly [string, string] =
+    Platform.OS === 'android'
+      ? [colors.backgroundTertiary, colors.backgroundSecondary]
+      : [colors.bubbleSurfaceRaised, colors.bubbleSurface];
 
   // handleSearchIconPress moves focus into the input from the larger bubble touch target.
   const handleSearchIconPress = (): void => {
@@ -253,7 +279,7 @@ function SearchBar({
     <View style={styles.searchBarShell}>
       <View style={styles.searchBar}>
         <LinearGradient
-          colors={[colors.bubbleSurfaceRaised, colors.bubbleSurface]}
+          colors={materialColors}
           end={{ x: 1, y: 1 }}
           pointerEvents="none"
           start={{ x: 0, y: 0 }}
@@ -342,6 +368,7 @@ function DictionaryContent({
         <Animated.FlatList<VocabularyItem>
           contentContainerStyle={styles.wordList}
           data={words}
+          getItemLayout={getDictionaryItemLayout}
           initialNumToRender={24}
           keyExtractor={(item) => item.id}
           keyboardShouldPersistTaps="handled"
@@ -349,6 +376,7 @@ function DictionaryContent({
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
             { useNativeDriver: true },
           )}
+          removeClippedSubviews={Platform.OS !== 'android'}
           scrollEventThrottle={16}
           style={styles.flex}
           renderItem={({ index, item }) => (
@@ -378,13 +406,13 @@ function DictionaryDepthCell({
   scrollY,
   viewportHeight,
 }: DictionaryDepthCellProps): ReactElement {
-  if (viewportHeight <= 0) {
+  if (Platform.OS === 'android' || viewportHeight <= 0) {
     return <View>{children}</View>;
   }
 
   // rowTop is the stable virtual position produced by fixed compact cells and spacing.
   const rowTop: number =
-    dictionaryListTopPadding + index * (dictionaryRowHeight + dictionaryRowGap);
+    dictionaryListTopPadding + index * dictionaryRowStride;
   // bottomBoundary places the perceived viewport above navigation while guarding very short layouts.
   const bottomBoundary: number = Math.max(
     viewportHeight - dictionaryBottomOcclusionHeight,
@@ -452,6 +480,12 @@ function DictionaryWordRow({
   styles,
   word,
 }: DictionaryWordRowProps): ReactElement {
+  // materialColors keep Android rows opaque enough for reliable clipping and translucent elsewhere.
+  const materialColors: readonly [string, string] =
+    Platform.OS === 'android'
+      ? [colors.backgroundTertiary, colors.backgroundSecondary]
+      : [colors.bubbleSurfaceRaised, colors.bubbleSurface];
+
   return (
     <JellyPressable
       onPress={onPress}
@@ -459,7 +493,7 @@ function DictionaryWordRow({
       style={({ pressed }) => [styles.wordRow, pressed && styles.pressed]}
     >
       <LinearGradient
-        colors={[colors.bubbleSurfaceRaised, colors.bubbleSurface]}
+        colors={materialColors}
         end={{ x: 0.78, y: 1 }}
         pointerEvents="none"
         start={{ x: 0.16, y: 0 }}
@@ -487,6 +521,18 @@ function DictionaryWordRow({
       <LevelBadge level={word.level} styles={styles} />
     </JellyPressable>
   );
+}
+
+// getDictionaryItemLayout prevents Android from estimating fixed row positions while cells animate or recycle.
+function getDictionaryItemLayout(
+  _words: ArrayLike<VocabularyItem> | null | undefined,
+  index: number,
+): DictionaryItemLayout {
+  return {
+    index,
+    length: dictionaryRowStride,
+    offset: dictionaryRowStride * index,
+  };
 }
 
 // getWordLevelRailStyle maps CEFR progression to one narrow scanning accent.
