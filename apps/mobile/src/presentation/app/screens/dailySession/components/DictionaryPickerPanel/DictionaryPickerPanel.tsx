@@ -22,7 +22,7 @@ import { dictionaryPickerPanelStyles as panelStyles } from './DictionaryPickerPa
 import { useDictionaryPickerTransition } from './useDictionaryPickerTransition';
 
 // pickerRowHeight mirrors the fixed compact result surface used for depth motion.
-const pickerRowHeight: number = 68;
+const pickerRowHeight: number = 82;
 // pickerRowGap mirrors the stable spacing between picker result bubbles.
 const pickerRowGap: number = 8;
 // pickerListPadding keeps the first result clear of the rounded viewport edge.
@@ -91,6 +91,10 @@ export function DictionaryPickerPanel({
   const [targetWordLabel] = useState<string>(
     (): string => targetWord?.word ?? 'selected word',
   );
+  // targetWordTranslation preserves the original meaning while the picker exits.
+  const [targetWordTranslation] = useState<string>(
+    (): string => targetWord?.translation ?? '',
+  );
   // wordRowStyle applies the active bubble material to compact dictionary rows.
   const wordRowStyle: ViewStyle = {
     backgroundColor: colors.bubbleSurfaceMuted,
@@ -108,6 +112,10 @@ export function DictionaryPickerPanel({
   // wordPhoneticsStyle gives pronunciation the same semantic accent as Dictionary.
   const wordPhoneticsStyle: TextStyle = {
     color: colors.systemOrange,
+  };
+  // wordTranslationStyle gives meanings one calm branded cue across picker rows.
+  const wordTranslationStyle: TextStyle = {
+    color: colors.systemBlue,
   };
   // wordPartOfSpeechStyle keeps grammatical metadata intentionally quieter.
   const wordPartOfSpeechStyle: TextStyle = {
@@ -153,13 +161,29 @@ export function DictionaryPickerPanel({
         <View style={panelStyles.header}>
         <View style={styles.flex}>
           <Text style={styles.actionTitle}>Choose from Dictionary</Text>
-          <Text style={styles.secondaryText}>
-            Replacing{' '}
-            <Text style={panelStyles.targetWord}>
+          <Text style={styles.secondaryText}>Replacing</Text>
+          <View
+            style={[
+              panelStyles.targetWordPill,
+              {
+                backgroundColor: colors.pillSelectedSurface,
+                borderColor: colors.pillBorder,
+              },
+            ]}
+          >
+            <Text style={[panelStyles.targetWord, { color: colors.labelPrimary }]}>
               {targetWordLabel}
             </Text>
-            .
-          </Text>
+            <Text
+              numberOfLines={1}
+              style={[
+                panelStyles.targetWordTranslation,
+                { color: colors.labelSecondary },
+              ]}
+            >
+              {targetWordTranslation}
+            </Text>
+          </View>
         </View>
         <JellyPressable
           onPress={closePicker}
@@ -243,7 +267,7 @@ export function DictionaryPickerPanel({
             >
               <JellyPressable
                 accessibilityHint="Replaces the current Story Word"
-                accessibilityLabel={`Choose ${word.word}`}
+                accessibilityLabel={`Choose ${word.word}, ${word.translation}`}
                 disabled={isChoosing}
                 onPress={() => {
                   void chooseWord(word.id);
@@ -290,6 +314,12 @@ export function DictionaryPickerPanel({
                     style={[panelStyles.wordPhonetics, wordPhoneticsStyle]}
                   >
                     {getPreferredPhonetics(word)}
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={[panelStyles.wordTranslation, wordTranslationStyle]}
+                  >
+                    {word.translation}
                   </Text>
                 </View>
               </JellyPressable>

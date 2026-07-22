@@ -18,6 +18,10 @@ type StoryWordCardStyles = {
   readonly wordCopy: ViewStyle;
   // wordTitle makes the vocabulary item the strongest content in each bubble.
   readonly wordTitle: TextStyle;
+  // translation presents the Russian meaning as a calm secondary line.
+  readonly translation: TextStyle;
+  // wordMeta keeps pronunciation and grammar on one quiet supporting row.
+  readonly wordMeta: ViewStyle;
   // phonetics gives pronunciation stronger hierarchy than grammatical metadata.
   readonly phonetics: TextStyle;
   // partOfSpeech keeps the grammatical category available but visually quiet.
@@ -33,14 +37,14 @@ export const storyWordCardStyles: StoryWordCardStyles = StyleSheet.create({
   wordBubble: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    height: 94,
+    height: 112,
     position: 'relative',
     width: '47%',
     ...shadows.soft,
   },
   wordButton: {
     borderRadius: radii.lg,
-    height: 94,
+    height: 112,
     justifyContent: 'center',
     overflow: 'hidden',
     padding: 13,
@@ -73,6 +77,17 @@ export const storyWordCardStyles: StoryWordCardStyles = StyleSheet.create({
     fontFamily: fontFamilies.displayHeavy,
     fontSize: 18,
     lineHeight: 23,
+  },
+  translation: {
+    fontFamily: fontFamilies.bodyBold,
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  wordMeta: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    gap: 6,
+    minWidth: 0,
   },
   phonetics: {
     fontFamily: fontFamilies.bodyBold,

@@ -6,6 +6,8 @@ export type VocabularyItem = {
   readonly id: string;
   // word is the dictionary headword shown in lists and details.
   readonly word: string;
+  // translation is the concise Russian meaning bundled for offline selection surfaces.
+  readonly translation: string;
   // partOfSpeech stores Oxford's grammatical category for the headword.
   readonly partOfSpeech: string;
   // level is the CEFR bucket used by dictionary filters and badges.

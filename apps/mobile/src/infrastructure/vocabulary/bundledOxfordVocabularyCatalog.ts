@@ -5,6 +5,7 @@ import type {
 import { cefrLevels, type CefrLevel, type VocabularyItem } from '@domain/index';
 
 import rawOxfordVocabulary from './oxford-5000.json';
+import rawRussianTranslations from './oxford-5000-ru.json';
 
 // UnknownRecord is the safe object shape used while validating untrusted JSON.
 type UnknownRecord = Record<string, unknown>;
@@ -76,6 +77,23 @@ function readOptionalCefrLevel(
   return normalizedLevel as CefrLevel;
 }
 
+// Translation parser validates the bundled Russian sidecar before domain objects use it.
+function parseRussianTranslations(rawValue: unknown): ReadonlyMap<string, string> {
+  if (!isRecord(rawValue)) {
+    throw new Error('Russian vocabulary translations must be an object');
+  }
+
+  return new Map(
+    Object.entries(rawValue).map(([id, translation]) => {
+      if (typeof translation !== 'string' || translation.trim().length === 0) {
+        throw new Error(`Russian vocabulary translation ${id} must be non-empty`);
+      }
+
+      return [id, translation.trim()] as const;
+    }),
+  );
+}
+
 // Example reader validates the offline sentences shown in dictionary details.
 function readExamples(value: unknown, context: string): readonly string[] {
   if (!Array.isArray(value)) {
@@ -96,6 +114,10 @@ function parseVocabulary(rawValue: unknown): readonly VocabularyItem[] {
   if (!Array.isArray(rawValue)) {
     throw new Error('Oxford vocabulary seed must be an array');
   }
+
+  // translationsById joins the independently licensed sidecar by stable Oxford id.
+  const translationsById: ReadonlyMap<string, string> =
+    parseRussianTranslations(rawRussianTranslations);
 
   return rawValue.flatMap((entry, index) => {
     const context = `Oxford vocabulary seed[${index}]`;
@@ -137,9 +159,17 @@ function parseVocabulary(rawValue: unknown): readonly VocabularyItem[] {
       return [];
     }
 
+    // translation is required for every word exposed by the offline catalog.
+    const translation: string | undefined = translationsById.get(String(entry.id));
+
+    if (!translation) {
+      throw new Error(`${context} must include a Russian translation`);
+    }
+
     return [{
       id: String(entry.id),
       word,
+      translation,
       partOfSpeech,
       level,
       examples,

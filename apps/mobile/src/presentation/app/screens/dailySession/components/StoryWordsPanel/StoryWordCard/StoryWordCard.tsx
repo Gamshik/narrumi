@@ -214,6 +214,10 @@ export function StoryWordCard({
   const phoneticsStyle: TextStyle = {
     color: colors.systemOrange,
   };
+  // translationStyle keeps the requested meaning visible without competing with the headword.
+  const translationStyle: TextStyle = {
+    color: colors.systemBlue,
+  };
   // partOfSpeechStyle keeps grammar metadata readable without competing with pronunciation.
   const partOfSpeechStyle: TextStyle = {
     color: colors.labelTertiary,
@@ -223,7 +227,7 @@ export function StoryWordCard({
     <View style={[localStyles.wordBubble, wordBubbleStyle]}>
       <JellyPressable
         accessibilityHint="Opens the local dictionary for this slot"
-        accessibilityLabel={`Change ${displayedWord.word}`}
+        accessibilityLabel={`Change ${displayedWord.word}, ${displayedWord.translation}`}
         disabled={isDisabled}
         onPress={() => onPickWord(displayedWord.id)}
         style={({ pressed }) => [
@@ -265,18 +269,23 @@ export function StoryWordCard({
           >
             {displayedWord.word}
           </Text>
-          <Text
-            numberOfLines={1}
-            style={[localStyles.phonetics, phoneticsStyle]}
-          >
-            {getPreferredPhonetics(displayedWord)}
+          <Text numberOfLines={1} style={[localStyles.translation, translationStyle]}>
+            {displayedWord.translation}
           </Text>
-          <Text
-            numberOfLines={1}
-            style={[localStyles.partOfSpeech, partOfSpeechStyle]}
-          >
-            {displayedWord.partOfSpeech}
-          </Text>
+          <View style={localStyles.wordMeta}>
+            <Text
+              numberOfLines={1}
+              style={[localStyles.phonetics, phoneticsStyle]}
+            >
+              {getPreferredPhonetics(displayedWord)}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={[localStyles.partOfSpeech, partOfSpeechStyle]}
+            >
+              {displayedWord.partOfSpeech}
+            </Text>
+          </View>
         </Animated.View>
       </JellyPressable>
       <JellyPressable

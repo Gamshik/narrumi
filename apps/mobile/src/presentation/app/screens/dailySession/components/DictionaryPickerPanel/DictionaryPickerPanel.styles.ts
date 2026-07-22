@@ -8,6 +8,10 @@ type DictionaryPickerPanelStyles = {
   readonly header: ViewStyle;
   // targetWord emphasizes the Story Word being replaced.
   readonly targetWord: TextStyle;
+  // targetWordPill groups the current headword with its Russian meaning.
+  readonly targetWordPill: ViewStyle;
+  // targetWordTranslation keeps replacement context visually secondary.
+  readonly targetWordTranslation: TextStyle;
   // resultSummary reserves stable space for loading and search feedback.
   readonly resultSummary: TextStyle;
   // listViewport bounds results so the parent setup screen does not expand.
@@ -32,6 +36,8 @@ type DictionaryPickerPanelStyles = {
   readonly wordPartOfSpeech: TextStyle;
   // wordPhonetics makes pronunciation the primary supporting cue in each result.
   readonly wordPhonetics: TextStyle;
+  // wordTranslation keeps the Russian meaning visible inside every result bubble.
+  readonly wordTranslation: TextStyle;
   // emptyState centers settled empty-result guidance.
   readonly emptyState: ViewStyle;
 };
@@ -46,6 +52,22 @@ export const dictionaryPickerPanelStyles: DictionaryPickerPanelStyles = StyleShe
   },
   targetWord: {
     fontFamily: fontFamilies.bodyHeavy,
+  },
+  targetWordPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  targetWordTranslation: {
+    fontFamily: fontFamilies.bodyBold,
+    fontSize: 12,
+    lineHeight: 16,
   },
   resultSummary: {
     fontFamily: fontFamilies.bodyBold,
@@ -82,7 +104,7 @@ export const dictionaryPickerPanelStyles: DictionaryPickerPanelStyles = StyleShe
     elevation: 3,
     flexDirection: 'row',
     gap: 10,
-    minHeight: 68,
+    minHeight: 82,
     overflow: 'hidden',
     paddingHorizontal: 12,
     paddingVertical: 9,
@@ -127,6 +149,11 @@ export const dictionaryPickerPanelStyles: DictionaryPickerPanelStyles = StyleShe
     fontSize: 14,
     letterSpacing: 0.12,
     lineHeight: 19,
+  },
+  wordTranslation: {
+    fontFamily: fontFamilies.bodyBold,
+    fontSize: 13,
+    lineHeight: 18,
   },
   emptyState: {
     alignItems: 'center',

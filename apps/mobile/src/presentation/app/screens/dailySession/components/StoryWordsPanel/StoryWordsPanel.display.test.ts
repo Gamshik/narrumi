@@ -15,11 +15,14 @@ const dictionaryPickerSource: string = readFileSync(
 );
 
 test('Story Words surfaces show phonetics instead of example sentences', (): void => {
+  assert.match(storyWordCardSource, /displayedWord\.translation/);
   assert.match(storyWordCardSource, /getPreferredPhonetics\(displayedWord\)/);
   assert.match(storyWordCardSource, /localStyles\.phonetics/);
   assert.match(storyWordCardSource, /color: colors\.labelTertiary/);
   assert.doesNotMatch(storyWordCardSource, /displayedWord\.examples\[0\]/);
 
+  assert.match(dictionaryPickerSource, /word\.translation/);
+  assert.match(dictionaryPickerSource, /targetWord\?\.translation/);
   assert.match(dictionaryPickerSource, /getPreferredPhonetics\(word\)/);
   assert.match(dictionaryPickerSource, /panelStyles\.wordPhonetics/);
   assert.match(dictionaryPickerSource, /color: colors\.labelTertiary/);
