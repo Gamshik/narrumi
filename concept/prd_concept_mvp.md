@@ -26,7 +26,7 @@ The product should feel like creating and watching a personal English series, no
 3. **Story Words:** Before generating an episode, the app proposes a small word set from the bundled vocabulary.
 4. **Word Choice:** User accepts the proposed words or makes light edits: add, remove, skip, or keep words.
 5. **Episode Generation:** The app generates a short episode that continues the series, uses selected Story Words naturally across the episode arc, respects the user's level, and ends with a narrative hook.
-6. **Read & Listen:** User reads the episode, listens to sentence-by-sentence audio, can tap prepared Story Words for the word, transcription, context-aware translation, and part of speech, and can select visible story or interaction copy for an exact Russian translation without leaving the episode.
+6. **Read & Listen:** User reads the episode, listens block by block using semantic paragraphs and separate dialogue turns, can tap prepared Story Words for the word, transcription, context-aware translation, and part of speech, and can select visible story or interaction copy for an exact Russian translation without leaving the episode.
 7. **Interact:** User influences the same episode through several choices or short replies while the scene continues.
 8. **Feedback And Continuation:** After every reply, the app provides concise correction or support, continues the same episode, and presents another interaction when the episode arc is not complete.
 9. **Episode Completion:** The AI decides when the current episode has reached a meaningful ending. An episode normally contains 5-10 learner interactions and must not end after only a few routine choices.
@@ -94,6 +94,7 @@ The product should feel like creating and watching a personal English series, no
 
 #### FEATURE C: Story Words Selection
 - The app uses `words/oxford-5000.json` as the bundled local vocabulary source.
+- Story Word cards and Dictionary replacement results show a concise bundled Russian translation alongside the English word.
 - Story Words selection is not a flashcard learning session. It is a lightweight step for choosing words that should appear in the next episode.
 - Word suggestions may come from:
   - recommended words for the user's level;
@@ -161,7 +162,7 @@ The product should feel like creating and watching a personal English series, no
 - The user must not leave the episode screen to see translations.
 
 #### FEATURE H: Audio Assistant
-- **Karaoke Sync Effect:** The episode is played sentence by sentence. The active sentence is highlighted on screen while others are slightly dimmed.
+- **Karaoke Sync Effect:** The episode is played one semantic reader block at a time. Related narration sentences stay in one meaningful paragraph or action beat, while dialogue turns remain separate. The active block is highlighted on screen while others are slightly dimmed. Legacy fields named `sentences` carry these blocks for client compatibility.
 - A central Play/Pause audio controller controls the playback state.
 - Audio should use native device TTS for the MVP.
 
@@ -188,10 +189,12 @@ The product should feel like creating and watching a personal English series, no
 ### 5. AI Quality Control
 To keep episodes useful, safe, and level-appropriate, the product concept uses a controlled generation process:
 
-1. **Episode Writer:** Creates the episode using series memory, selected Story Words, genre, user level, and required episode structure.
-2. **Language & Safety Validator:** Reviews the episode for CEFR fit, grammar complexity, word usage, continuity, safety, and output shape before the user sees it.
+1. **Story Writer & Decision Builder:** The Story Writer creates the series setup and story prose using bounded series memory, selected Story Words, genre, user level, participation mode, and required episode structure. For episode openings and incomplete continuations, a cheaper structure-focused Decision Builder generates the next prompt and choices only after the story prose is frozen so they cannot pull the scene into a different scenario.
+2. **Language, Continuity & Safety Validator:** Independently reviews each creative candidate for CEFR fit, grammar complexity, word usage, continuity, learner-action and scenario alignment, repetition, participation mode, episode pacing, choice diversity, safety, copyright constraints, and output shape before the user sees it.
+3. **Independent Learner Feedback:** Learner correction is generated separately from story continuation so the creative writer cannot conflate language evaluation with narrative consequences or invent an error for a valid predefined choice.
+4. **Bounded Recovery:** A complete writer candidate rejected by the reviewer may be edited once by a stronger model using the original candidate plus concrete issue codes, evidence, and repair instructions. The editor must preserve unaffected fields. If the writer pipeline fails structurally and there is no complete candidate to repair, one complete fallback candidate is allowed instead. Every repaired or fallback candidate passes the same reviewer again, and every unresolved semantic issue remains blocking. Unreviewed or structurally invalid output is never returned or persisted, and the full pipeline is not repeated inside one request.
 
-For MVP implementation, the validation may start with structured JSON schema validation and explicit length/safety/level checks, then evolve into a stronger two-step Writer -> Validator pipeline.
+Structured schema validation, deterministic safety and pacing rules, and final response invariants remain mandatory in addition to the semantic Writer -> Validator pipeline.
 
 ---
 

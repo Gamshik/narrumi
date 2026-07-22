@@ -112,7 +112,7 @@ A generated learning unit linked to a series:
 - series id;
 - optional "previously" recap;
 - main scene or dialogue;
-- sentence list;
+- semantic reader-block list stored under the legacy sentence field;
 - selected Story Words;
 - inline translation annotations;
 - ordered interaction turns;
@@ -223,7 +223,7 @@ Required MVP use cases:
 - Generate an episode through an Edge Function when online.
 - Assign a stable generation request id. A root presentation context owns the episode-generation Promise and observable state above route lifetimes; setup generation keeps its own single-flight action.
 - Validate and persist generated episode locally first.
-- Play or pause episode audio sentence by sentence.
+- Play or pause episode audio one semantic reader block at a time.
 - Open inline translation for prepared Story Words and story-critical annotations.
 - Select visible episode story or interaction copy and request a plain Russian translation of exactly that selection when online.
 - Record translation/usage/correction learning signals locally.
@@ -250,7 +250,7 @@ Define narrow application-facing ports for external capabilities.
 | InteractionGateway | Continue episode and correct short user input | Supabase Edge Function client |
 | ExcerptTranslationGateway | Translate exactly the selected episode text into Russian without adjacent context | Supabase Edge Function client |
 | GrammarGateway | Provide grammar-style explanation when requested | Supabase Edge Function client |
-| AudioNarrator | Speak sentence list and report progress | `expo-speech` adapter |
+| AudioNarrator | Speak semantic reader blocks and report progress | `expo-speech` adapter |
 | NetworkStatus | Report online/offline capability | Expo/React Native network adapter |
 | AuthSessionProvider | Expose user and JWT state | Supabase Auth adapter |
 | Clock | Provide timestamps for conflict handling | System clock adapter |
@@ -295,7 +295,7 @@ Infrastructure implements ports and owns concrete SDK details.
 
 Rules:
 
-- Load `words/oxford-5000.json` from the app bundle only.
+- Load `words/oxford-5000.json` and its Russian translation sidecar from the app bundle only.
 - Validate bundled vocabulary shape before creating domain values.
 - Prefer `@react-native-async-storage/async-storage` for MVP local records.
 - Move to `expo-sqlite` only if AsyncStorage becomes insufficient for local episode history or indexing.
@@ -320,11 +320,20 @@ Responsibilities:
 - Never send unbounded full series history.
 - Call OpenRouter using server-side secrets only.
 - Use Vercel AI SDK structured JSON output.
-- For weak or budget models, decompose complex continuation generation into smaller model tasks such as core continuation, next-choice writing, sentence-frame labeling, and translation enrichment, then assemble one final validated payload inside the Edge Function.
-- Run Episode Writer and Language/Safety Validator flow when required.
+- For budget models, generate episode story prose or continuation first, freeze it, and only then generate the next choice from that text. Generate semantic English reader frames without translation instructions, find Story Word targets deterministically, and only then request Russian translations for those exact targets. Keep learner feedback and compact memory together, then assemble one final validated payload inside the Edge Function.
+- Route model work by responsibility behind one shared server gateway: Writer for creative setup and story prose; Decision for prompts and choices derived from frozen story text; Reviewer for workflow-specific semantic review; Validator for learner feedback and compact memory; Utility for translation and reader metadata; and Fallback for one targeted evidence-based repair or one complete replacement after structural writer failure. Give Writer, Decision, Reviewer, and Fallback a low reasoning budget while Validator and Utility use the minimal reasoning effort required by current GPT-5 endpoints.
+- Run the Episode Writer and independent Language/Continuity/Safety Reviewer flow for series setup, episode openings, and every interaction continuation. Structural schema success alone is not acceptance.
+- The semantic Reviewer checks only the closed issue taxonomy relevant to the current workflow. It may reject only high-confidence violations supported by concrete candidate evidence, including applicable CEFR, continuity, learner-action and scenario alignment, recent-text repetition, participation mode, Story Word naturalness, episode pacing, next-choice alignment and diversity, safety, and copyright constraints. It returns only a bounded verdict and targeted retry hints; it does not silently rewrite accepted story content.
+- Permit one quality-gated Writer candidate. If a complete candidate is rejected, permit one stronger model to repair that exact candidate from reviewer issue codes, evidence, and instructions while preserving unaffected fields. If the Writer fails structurally before producing a complete candidate, permit one complete Fallback candidate instead. Review the recovery candidate once more and block persistence for every unresolved issue, including continuity, scenario, CEFR, repetition, participation, choice, pacing, safety, copyright, and protected setup violations. Do not repeat the full multi-model pipeline inside one Edge request.
+- Keep incomplete episode opening and continuation latency bounded to five normal provider waves: Story Writer, Decision Builder from frozen story text, semantic Reviewer, parallel Validator plus English reader framing, then exact-target Story Word translation. Completed interactions skip the decision call, and requests without Story Word targets skip translation. The rare repair path adds only one editor call and one re-review. Apply a short per-model timeout, disable hidden SDK retries, and permit at most one explicit schema-repair retry for a small enrichment contract.
+- Generate learner-language feedback separately from creative continuation. The feedback model may correct only real language problems and must not invent an error for a predefined choice or already-natural reply.
+- Use deterministic server logic for ids, Story Word occurrence matching, completion bounds, request idempotency, and final contract invariants. Use the Utility model only where semantic transformation is required, such as dialogue framing or translation.
+- Reader framing is semantic, not sentence-tokenization: group related narration sentences into meaningful paragraph or action-beat blocks, while keeping actual dialogue turns separate with pinned speaker metadata. The legacy `sentences` and `continuationSentences` field names carry these semantic blocks for mobile compatibility.
+- Require learner-facing generated fields to be predominantly English at prompt, schema, and finalization boundaries. Permit Russian Cyrillic only in validated annotation translation values and explicit excerpt-translation responses.
+- Require OpenRouter endpoints to support requested structured-output parameters, deny provider data collection, and preserve OpenRouter's default price-aware uptime load balancing. Do not force explicit price sorting because it disables that balancing. Zero-data-retention routing is an explicit operator opt-in after compatible OpenRouter account routes are confirmed; it must not block generation by default. Provider failover addresses endpoint failure only; semantic fallback is controlled by the Edge Function pipeline.
 - Validate episode length, CEFR fit, word usage, continuity, interaction point, cliffhanger, annotations, feedback, and memory update.
 - Return typed error categories safe for the client.
-- Atomically claim generation scopes before model access. Return cached validated output for completed retries, `generation_in_progress` for an active lease, and `generation_conflict` when the same logical slot has different input.
+- Atomically claim generation scopes before model access. Return cached validated output for completed retries and `generation_in_progress` for the same active lease. Return `generation_conflict` when a completed slot or a still-active lease has different input. A failed or expired slot may atomically adopt a new request id and fingerprint so corrected inputs can retry without manual database cleanup.
 - Before a newly claimed episode request reaches the model, verify that the latest synced episode is complete and that the requested `orderIndex` is exactly next. Return a typed conflict when completion or sync state does not permit generation.
 - Store only the request fingerprint and validated response in `generation_requests`; do not persist raw prompts in the idempotency table.
 
@@ -461,12 +470,12 @@ Load vocabulary index
 ### Audio Flow
 
 ```text
-Episode sentence list
-  -> AudioNarrator.speak(sentence[index])
+Episode semantic reader-block list
+  -> AudioNarrator.speak(block[index])
   -> set currentSentenceIndex
   -> expo-speech onDone
-  -> speak next sentence
-  -> stop at final sentence or user pause
+  -> speak next semantic block
+  -> stop at final block or user pause
 ```
 
 ## Error And State Policy

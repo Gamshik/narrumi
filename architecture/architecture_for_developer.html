@@ -669,11 +669,11 @@
                             </div>
                             <div class="node connector">
                                 <strong>Episode Writer</strong>
-                                <span>scene, words, interaction, hook</span>
+                                <span>Gemini 3.5 Flash-Lite: story prose</span>
                             </div>
                             <div class="node connector">
-                                <strong>Validator</strong>
-                                <span>CEFR, safety, continuity, shape</span>
+                                <strong>Reviewer</strong>
+                                <span>GPT Mini: workflow rules + evidence</span>
                             </div>
                             <div class="node">
                                 <strong>Episode JSON</strong>
@@ -688,6 +688,21 @@
                         результат. Для setup Edge Function валидирует provenance
                         и возвращает изменения только для пустых или AI-полей;
                         safety и copyright moderation остаются серверными.
+                        Learner feedback и compact memory создаются отдельно от
+                        creative continuation. Сначала Gemini Writer создает story prose,
+                        затем GPT-5.4 Nano Decision Builder строит prompt и choices только
+                        из замороженного текста. Отклоненный полный draft получает одну
+                        точечную правку stronger model по issue code, evidence и
+                        repair instruction; структурно сорванный writer допускает один
+                        полный fallback. Результат снова проходит тот же reviewer, и
+                        любое оставшееся semantic violation блокирует сохранение.
+                        Дешевый GPT Nano используется отдельно для learner feedback
+                        и compact memory. Utility сначала создает только английские
+                        semantic reader blocks, затем сервер находит Story Word targets,
+                        и отдельный запрос переводит только эти targets на русский.
+                        Связанные предложения остаются одним смысловым блоком, реальные
+                        реплики отделяются с pinned speaker metadata, а Cyrillic запрещен
+                        во всех learner-facing полях кроме translation values.
                     </p>
                 </div>
 
@@ -810,7 +825,7 @@
                         </tr>
                         <tr>
                             <td><code>AudioNarrator</code></td>
-                            <td>Sentence-by-sentence TTS и karaoke highlight</td>
+                            <td>Semantic-block TTS и karaoke highlight</td>
                             <td><code>expo-speech</code></td>
                         </tr>
                         <tr>
@@ -833,7 +848,7 @@
                     <ul>
                         <li>Список уже созданных серий.</li>
                         <li>Чтение уже сгенерированных эпизодов.</li>
-                        <li>Sentence-by-sentence TTS для сохраненных эпизодов.</li>
+                        <li>TTS по смысловым блокам для сохраненных эпизодов.</li>
                         <li>Oxford 5000 browsing/search.</li>
                         <li>Story Words из локальных данных.</li>
                         <li>Локальные word sets, signals и preferences.</li>
