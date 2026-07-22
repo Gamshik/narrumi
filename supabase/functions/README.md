@@ -38,7 +38,10 @@ Gemini story writer -> GPT-5.4 Nano decision builder from frozen story text
 The repair model receives the original candidate plus reviewer issue codes, evidence,
 and instructions, and must preserve unaffected fields. The recovery candidate must pass
 the same review contract; continuity, scenario, CEFR, repetition, participation, choice,
-pacing, safety, copyright, and protected setup findings all remain blocking.
+safety, copyright, and protected setup findings all remain blocking. Episode timing is
+deterministic instead of reviewer-preference-driven: the server prevents completion before
+interaction 5, permits a logical Writer-selected ending on interactions 5-9, and forces
+completion on interaction 10. A standalone reviewer `pacing_error` is discarded.
 Deterministic schemas and finalizers always remain mandatory.
 
 Writer, Decision, Reviewer, and Fallback use low reasoning. Validator and Utility use

@@ -7,6 +7,10 @@ import {
 } from '../_shared/episodeContracts.ts';
 import { finalizeInteractionPayload } from '../_shared/episodeFinalizers.ts';
 import {
+  EPISODE_INTERACTION_LIMITS,
+  resolveEpisodeCompletion,
+} from '../_shared/episodePacingPolicy.ts';
+import {
   type DialogueFrameDraft,
   looksLikeNarrationInDialogue,
 } from '../_shared/dialogueFramePolicy.ts';
@@ -47,14 +51,6 @@ const writerModel: string = getAiModelId('writer');
 
 // PREVIOUS_DECISION_PROMPT_LIMIT keeps prompt context bounded for one episode.
 const PREVIOUS_DECISION_PROMPT_LIMIT = 10;
-
-// INTERACTION_LIMITS are the server-side episode pacing bounds.
-const INTERACTION_LIMITS = {
-  // minimumBeforeCompletion prevents short one-answer episodes.
-  minimumBeforeCompletion: 5,
-  // maximumBeforeCompletion forces the current episode to close.
-  maximumBeforeCompletion: 10,
-} as const;
 
 // PIPELINE_ATTEMPTS avoids repeating the full multi-model pipeline inside one Edge request.
 const PIPELINE_ATTEMPTS = 1;
@@ -415,18 +411,25 @@ async function generateInteractionCreativeCandidate(
         payload,
         combinedRetryHints,
       );
-      const isEpisodeComplete = coreDraft.isEpisodeComplete ||
-        payload.interactionCount >= INTERACTION_LIMITS.maximumBeforeCompletion;
+      const isEpisodeComplete = resolveEpisodeCompletion({
+        interactionCount: payload.interactionCount,
+        modelRequestedCompletion: coreDraft.isEpisodeComplete,
+      });
+      // pacedCoreDraft prevents an early model ending from leaking a cliffhanger into Decision context.
+      const pacedCoreDraft: CoreInteractionDraft = normalizeCoreDraftForPacing(
+        coreDraft,
+        isEpisodeComplete,
+      );
       const choiceDraft = isEpisodeComplete
         ? null
         : await generateNextChoiceDraft(
           payload,
-          coreDraft,
+          pacedCoreDraft,
           combinedRetryHints,
         );
 
       return finalizeInteractionCreativeCandidate(payload, {
-        coreDraft,
+        coreDraft: pacedCoreDraft,
         choiceDraft,
       });
     },
@@ -444,7 +447,7 @@ async function generateInteractionCreativeCandidate(
           'Unused selected Story Words should appear naturally when relevant and must never be forced.',
           `Participation behavior must remain ${payload.participationMode} mode.`,
           'A next prompt and its choices must align with the new continuation; the prompt must be a concise decision cue that does not repeat, quote, or paraphrase the continuation ending, and choices must be meaningfully different.',
-          `The episode cannot complete before interaction ${INTERACTION_LIMITS.minimumBeforeCompletion} and must complete by interaction ${INTERACTION_LIMITS.maximumBeforeCompletion}.`,
+          `Do not reject a candidate only because it completes or continues on a particular turn from ${EPISODE_INTERACTION_LIMITS.minimumBeforeCompletion} through ${EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion - 1}; the server enforces hard completion bounds deterministically.`,
           'Episode completion must close the local arc and preserve a clear hook for the next episode.',
           'The story must remain original and satisfy the supplied safety and copyright constraints.',
         ],
@@ -556,13 +559,15 @@ function finalizeInteractionCreativeCandidate(
   payload: SubmitInteractionRequest,
   draft: InteractionCreativeDraft,
 ): InteractionCreativeCandidate {
-  const isEpisodeComplete = draft.coreDraft.isEpisodeComplete ||
-    payload.interactionCount >= INTERACTION_LIMITS.maximumBeforeCompletion;
+  const isEpisodeComplete = resolveEpisodeCompletion({
+    interactionCount: payload.interactionCount,
+    modelRequestedCompletion: draft.coreDraft.isEpisodeComplete,
+  });
   // coreDraft carries the server-enforced completion state into review and enrichment.
-  const coreDraft: CoreInteractionDraft = {
-    ...draft.coreDraft,
+  const coreDraft: CoreInteractionDraft = normalizeCoreDraftForPacing(
+    draft.coreDraft,
     isEpisodeComplete,
-  };
+  );
   // choiceDraft is forbidden after completion and required for every incomplete turn.
   const choiceDraft: ChoiceDraft | undefined = isEpisodeComplete
     ? undefined
@@ -577,6 +582,20 @@ function finalizeInteractionCreativeCandidate(
   }
 
   return { coreDraft, choiceDraft, isEpisodeComplete };
+}
+
+// normalizeCoreDraftForPacing removes completion-only data from a server-kept-open turn.
+function normalizeCoreDraftForPacing(
+  draft: CoreInteractionDraft,
+  isEpisodeComplete: boolean,
+): CoreInteractionDraft {
+  if (isEpisodeComplete) {
+    return { ...draft, isEpisodeComplete: true };
+  }
+
+  const { cliffhanger: _prematureCliffhanger, ...continuingDraft } = draft;
+
+  return { ...continuingDraft, isEpisodeComplete: false };
 }
 
 // generateInteractionSupportDraft keeps tutoring and memory independent from the writer.
@@ -1063,13 +1082,14 @@ function buildInteractionCorePrompt(
         ),
         interactionCount: payload.interactionCount,
         minimumInteractionsBeforeCompletion:
-          INTERACTION_LIMITS.minimumBeforeCompletion,
+          EPISODE_INTERACTION_LIMITS.minimumBeforeCompletion,
         maximumInteractionsBeforeCompletion:
-          INTERACTION_LIMITS.maximumBeforeCompletion,
+          EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion,
         mustCompleteThisTurn: payload.interactionCount >=
-          INTERACTION_LIMITS.maximumBeforeCompletion,
+          EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion,
         remainingInteractionsBeforeHardStop: Math.max(
-          INTERACTION_LIMITS.maximumBeforeCompletion - payload.interactionCount,
+          EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion -
+          payload.interactionCount,
           0,
         ),
         episodePacingStage: getEpisodePacingStage(payload.interactionCount),
@@ -1172,13 +1192,14 @@ function buildInteractionFallbackPrompt(
         ),
         interactionCount: payload.interactionCount,
         minimumInteractionsBeforeCompletion:
-          INTERACTION_LIMITS.minimumBeforeCompletion,
+          EPISODE_INTERACTION_LIMITS.minimumBeforeCompletion,
         maximumInteractionsBeforeCompletion:
-          INTERACTION_LIMITS.maximumBeforeCompletion,
+          EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion,
         mustCompleteThisTurn: payload.interactionCount >=
-          INTERACTION_LIMITS.maximumBeforeCompletion,
+          EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion,
         remainingInteractionsBeforeHardStop: Math.max(
-          INTERACTION_LIMITS.maximumBeforeCompletion - payload.interactionCount,
+          EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion -
+          payload.interactionCount,
           0,
         ),
         episodePacingStage: getEpisodePacingStage(payload.interactionCount),
@@ -1242,9 +1263,9 @@ function buildInteractionRepairPrompt(
         encounteredStoryWordIds: payload.encounteredStoryWordIds,
         interactionCount: payload.interactionCount,
         minimumInteractionsBeforeCompletion:
-          INTERACTION_LIMITS.minimumBeforeCompletion,
+          EPISODE_INTERACTION_LIMITS.minimumBeforeCompletion,
         maximumInteractionsBeforeCompletion:
-          INTERACTION_LIMITS.maximumBeforeCompletion,
+          EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion,
         safetyAndCopyrightConstraints: payload.safetyAndCopyrightConstraints,
       },
       boundedContext: {

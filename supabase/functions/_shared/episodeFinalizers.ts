@@ -8,6 +8,7 @@ import {
 } from './episodeContracts.ts';
 import { resolveDecisionPrompt } from './decisionPromptPolicy.ts';
 import { looksLikeNarrationInDialogue } from './dialogueFramePolicy.ts';
+import { EPISODE_INTERACTION_LIMITS } from './episodePacingPolicy.ts';
 import { assertEnglishGeneratedTextFields } from './generatedLanguage.ts';
 
 // CYRILLIC_PATTERN identifies Russian translations required by the current learner UI.
@@ -23,14 +24,6 @@ const MEMORY_LIMITS = {
   importantObjectsOrLocations: 6,
   // recurringStoryWordIds can be wider because ids are small and user-selected.
   recurringStoryWordIds: 24,
-} as const;
-
-// EPISODE_INTERACTION_LIMITS bound one MVP episode arc.
-const EPISODE_INTERACTION_LIMITS = {
-  // minimum prevents one-answer episodes.
-  minimumBeforeCompletion: 5,
-  // maximum prevents open-ended episodes inside one local unit.
-  maximumBeforeForcedCompletion: 10,
 } as const;
 
 // FinalizeEpisodePayloadInput joins validated AI output with trusted request context.
@@ -288,7 +281,7 @@ export function finalizeInteractionPayload({
   });
   const summaryUpdate = parsed.summaryUpdate;
   const shouldForceCompletion = request.interactionCount >=
-    EPISODE_INTERACTION_LIMITS.maximumBeforeForcedCompletion;
+    EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion;
   const isEpisodeComplete = parsed.isEpisodeComplete || shouldForceCompletion;
 
   if (
