@@ -83,6 +83,26 @@ export function looksLikeNarrationInDialogue(
   return speakerPrefix.test(text.trim()) || attributionSuffix.test(text.trim());
 }
 
+// downgradeUnquotedDialogueFrames keeps speech bubbles tied to explicit source quotation marks.
+export function downgradeUnquotedDialogueFrames(
+  sourceText: string,
+  frames: readonly ReaderFrameDraft[],
+): readonly ReaderFrameDraft[] {
+  // quotedSpeechBlocks are the only source regions eligible for dialogue presentation.
+  const quotedSpeechBlocks: readonly string[] = extractQuotedSpeech(sourceText);
+
+  return frames.map((frame): ReaderFrameDraft => {
+    if (
+      frame.kind === 'narration' ||
+      isTextInsideQuotedSpeech(frame.text, quotedSpeechBlocks)
+    ) {
+      return frame;
+    }
+
+    return { kind: 'narration', text: frame.text };
+  });
+}
+
 // isDialogueRepeatedByNarration detects a dialogue block copied from the preceding prose tail.
 export function isDialogueRepeatedByNarration(
   narration: string,
@@ -172,6 +192,61 @@ function normalizeOverlapText(value: string): readonly string[] {
     .trim()
     .split(/\s+/)
     .filter((word: string): boolean => word.length > 0);
+}
+
+// extractQuotedSpeech returns complete and trailing unmatched double-quoted source spans.
+function extractQuotedSpeech(sourceText: string): readonly string[] {
+  const normalizedSource: string = sourceText.replace(/[“”]/g, '"');
+  const quotedSpeechBlocks: string[] = [];
+  // quotedSpeechPattern also accepts a missing closing quote so recoverable model punctuation does not hide speech.
+  const quotedSpeechPattern: RegExp = /"([^"\n]+)(?:"|$)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = quotedSpeechPattern.exec(normalizedSource)) !== null) {
+    const quotedText: string | undefined = match[1];
+
+    if (quotedText?.trim()) {
+      quotedSpeechBlocks.push(quotedText);
+    }
+  }
+
+  return quotedSpeechBlocks;
+}
+
+// isTextInsideQuotedSpeech compares punctuation-independent token sequences from source and frame output.
+function isTextInsideQuotedSpeech(
+  frameText: string,
+  quotedSpeechBlocks: readonly string[],
+): boolean {
+  const frameWords: readonly string[] = normalizeOverlapText(frameText);
+
+  if (frameWords.length === 0) {
+    return false;
+  }
+
+  return quotedSpeechBlocks.some((quotedSpeech: string): boolean =>
+    containsWordSequence(normalizeOverlapText(quotedSpeech), frameWords)
+  );
+}
+
+// containsWordSequence finds one complete dialogue token sequence inside a quoted source span.
+function containsWordSequence(
+  sourceWords: readonly string[],
+  candidateWords: readonly string[],
+): boolean {
+  if (
+    candidateWords.length === 0 ||
+    candidateWords.length > sourceWords.length
+  ) {
+    return false;
+  }
+
+  return sourceWords.some((_, startIndex: number): boolean =>
+    candidateWords.every(
+      (word: string, wordIndex: number): boolean =>
+        sourceWords[startIndex + wordIndex] === word,
+    )
+  );
 }
 
 // findAttributedSpeaker requires both a pinned name and a nearby speech verb before a quote.

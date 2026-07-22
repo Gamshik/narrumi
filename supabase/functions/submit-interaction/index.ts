@@ -11,6 +11,7 @@ import {
   resolveEpisodeCompletion,
 } from '../_shared/episodePacingPolicy.ts';
 import {
+  downgradeUnquotedDialogueFrames,
   type DialogueFrameDraft,
   looksLikeNarrationInDialogue,
 } from '../_shared/dialogueFramePolicy.ts';
@@ -633,7 +634,8 @@ async function generateInteractionFrameDraft(
   payload: SubmitInteractionRequest,
   coreDraft: CoreInteractionDraft,
 ): Promise<SentenceFrameDraft> {
-  return await generateJsonWithSchema({
+  // generatedDraft is untrusted semantic framing returned by the Utility model.
+  const generatedDraft: SentenceFrameDraft = await generateJsonWithSchema({
     prompt: buildInteractionFramePrompt(payload, coreDraft),
     role: 'utility',
     schema: sentenceFrameDraftSchema,
@@ -643,6 +645,15 @@ async function generateInteractionFrameDraft(
     maxOutputTokens: 1200,
     maxAttempts: 2,
   });
+
+  return {
+    frames: [
+      ...downgradeUnquotedDialogueFrames(
+        coreDraft.continuationText,
+        generatedDraft.frames,
+      ),
+    ],
+  };
 }
 
 // generateInteractionTranslationDraft translates only verified Story Word occurrences.
@@ -942,6 +953,7 @@ function buildInteractionCoreSystemPrompt(): string {
     'Develop each incomplete continuation through two or three connected narrative beats before the next decision.',
     'When unused Story Words remain, normally introduce one or two naturally; after coverage, reuse selected words only when they fit.',
     ...STORY_WORD_USAGE_RULES,
+    'Put every direct speech passage inside ASCII double quotation marks. Unquoted reported speech and character actions remain narration.',
     'Advance the story instead of repeating or paraphrasing recent events.',
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only with ASCII punctuation and no Markdown.',
@@ -984,6 +996,7 @@ function buildInteractionFallbackSystemPrompt(): string {
     'Develop each incomplete continuation through two or three connected narrative beats before the next decision.',
     'When unused Story Words remain, normally introduce one or two naturally; after coverage, reuse selected words only when they fit.',
     ...STORY_WORD_USAGE_RULES,
+    'Put every direct speech passage inside ASCII double quotation marks. Unquoted reported speech and character actions remain narration.',
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only: no Markdown, no bullet lists, no italics markers, no typographic quotes.',
     'Use ASCII punctuation in English text: apostrophe, quotation mark, three dots, and hyphen.',
@@ -1002,6 +1015,7 @@ function buildInteractionRepairSystemPrompt(): string {
     'For continuity, repetition, scenario, language, Story Word, or CEFR issues, make the smallest necessary edit and preserve the same event.',
     'For insufficient_development, add only a connected consequence, action, discovery, or dialogue implied by the learner answer and existing context.',
     'When repairing a Story Word, preserve its exact supplied partOfSpeech and usageExample sense.',
+    'Keep every direct speech passage inside ASCII double quotation marks so it can be verified before rendering.',
     'Keep completion state, pacing rules, continuation, cliffhanger, prompt, and choices mutually consistent.',
     'A repaired decision prompt must contain only a concise question or short choice cue, never repeated story prose.',
     'Do not introduce unrelated people, objects, locations, facts, or plot branches.',
@@ -1034,6 +1048,7 @@ function buildInteractionFrameSystemPrompt(): string {
     'Preserve every meaningful part of the original continuation and its event order.',
     'Every frame text must remain in English and must copy the supplied English wording without translation or paraphrase.',
     'Do not add new story events, choices, feedback, explanations, or prose.',
+    'Use dialogue only for wording that appears inside double quotation marks in the supplied continuationText. Unquoted actions, descriptions, and reported speech are narration.',
     'Dialogue frame text contains only words actually spoken aloud, without quotation marks or attribution.',
     'When narration contains a speaker attribution followed by quoted words, split the attribution into narration and put the complete quoted words in a separate dialogue frame for that speaker.',
     'Never create a dialogue frame whose wording already appears at the end of the preceding narration frame as reported speech.',
@@ -1381,7 +1396,7 @@ function buildInteractionFramePrompt(
         'Each frame must include kind and text.',
         'Dialogue frames must also include speaker.',
         'For pinned characters, speaker must exactly match characterProfiles[].name. Do not include titles, roles, or descriptions in speaker.',
-        'Dialogue frame text must contain only words actually spoken aloud, without quotation marks or attribution.',
+        'Dialogue frame text must contain only words actually spoken aloud inside double quotation marks in continuationText, without copying the quotation marks or attribution.',
         'If one source passage contains narration such as Vlad says followed by quoted speech, return the attribution as narration and the entire quoted speech as a separate Vlad dialogue frame.',
         'Do not repeat the end of a narration frame as a separate dialogue frame, including wording already presented as reported speech.',
         'Never put a character name, speech tag, body movement, facial expression, or stage direction inside dialogue text.',
@@ -1391,7 +1406,7 @@ function buildInteractionFramePrompt(
         'Do not create one frame per grammatical sentence. Group adjacent narration sentences into one frame when they form the same meaningful paragraph, action beat, description, or idea.',
         'A narration frame may contain several related sentences. Start a new narration frame only when the meaning, focus, time, location, or action beat changes.',
         'Keep actual dialogue turns separate from narration even when speech is embedded inside a prose paragraph.',
-        'Separate embedded speech from attribution: Mira whispered open it should become narration Mira whispered. and dialogue Open it.',
+        'Separate quoted speech from attribution: Mira whispered, "Open it." should become narration Mira whispered. and dialogue Open it.',
         'If consecutive lines are spoken by the same speaker, keep them as adjacent dialogue frames; the server will merge them for playback.',
         'Do not omit any meaningful story information from continuationText.',
         'Do not invent information that is not present in continuationText.',

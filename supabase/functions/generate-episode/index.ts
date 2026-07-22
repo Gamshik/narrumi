@@ -8,6 +8,7 @@ import {
 } from '../_shared/episodeContracts.ts';
 import { finalizeEpisodePayload } from '../_shared/episodeFinalizers.ts';
 import {
+  downgradeUnquotedDialogueFrames,
   type DialogueFrameDraft,
   looksLikeNarrationInDialogue,
 } from '../_shared/dialogueFramePolicy.ts';
@@ -552,7 +553,8 @@ async function generateReaderFrameDraft(
   payload: GenerateEpisodeRequest,
   coreDraft: CoreEpisodeDraft,
 ): Promise<SentenceFrameDraft> {
-  return await generateJsonWithSchema({
+  // generatedDraft is untrusted semantic framing returned by the Utility model.
+  const generatedDraft: SentenceFrameDraft = await generateJsonWithSchema({
     prompt: buildReaderFramePrompt(payload, coreDraft),
     role: 'utility',
     schema: sentenceFrameDraftSchema,
@@ -562,6 +564,15 @@ async function generateReaderFrameDraft(
     maxOutputTokens: 2200,
     maxAttempts: 2,
   });
+
+  return {
+    frames: [
+      ...downgradeUnquotedDialogueFrames(
+        coreDraft.sceneText,
+        generatedDraft.frames,
+      ),
+    ],
+  };
 }
 
 // generateEpisodeTranslationDraft translates only verified Story Word occurrences.
@@ -875,6 +886,7 @@ function buildEpisodeCoreSystemPrompt(): string {
     'Respect the requested CEFR level and participation mode strictly.',
     'Use only some selected Story Words naturally when the set is large.',
     ...STORY_WORD_USAGE_RULES,
+    'Put every direct speech passage inside ASCII double quotation marks. Unquoted reported speech and character actions remain narration.',
     'Advance supplied continuity instead of repeating or paraphrasing it.',
     'Keep the scene concise enough for mobile reading but substantial enough to set up a meaningful decision.',
     'Use plain text only with ASCII punctuation and no Markdown.',
@@ -909,6 +921,7 @@ function buildEpisodeFallbackSystemPrompt(): string {
     'Respect the requested CEFR level strictly.',
     'Use only some selected Story Words naturally in the opening when the set is large.',
     ...STORY_WORD_USAGE_RULES,
+    'Put every direct speech passage inside ASCII double quotation marks. Unquoted reported speech and character actions remain narration.',
     'Keep the scene concise enough for mobile reading but substantial enough to set up a meaningful first decision.',
     'The decision prompt must not repeat or paraphrase the final story sentences.',
     'Choices are story decisions, never vocabulary or comprehension quizzes.',
@@ -929,6 +942,7 @@ function buildEpisodeRepairSystemPrompt(): string {
     'For choice_mismatch or choice_similarity, edit interactionDraft only unless the evidence proves the cliffhanger itself is defective.',
     'For continuity, repetition, language, Story Word, or CEFR issues, make the smallest necessary edits and keep the same story event.',
     'When repairing a Story Word, preserve its exact supplied partOfSpeech and usageExample sense.',
+    'Keep every direct speech passage inside ASCII double quotation marks so it can be verified before rendering.',
     'Do not introduce new characters, objects, locations, facts, or plot branches unless an issue explicitly requires it.',
     'Keep the scene, cliffhanger, prompt, and choices mutually consistent.',
     'A repaired decision prompt must contain only a concise question or short choice cue, never repeated story prose.',
@@ -945,6 +959,7 @@ function buildReaderFrameSystemPrompt(): string {
     'Preserve every meaningful part of the original scene and its event order.',
     'Every frame text must remain in English and must copy the supplied English wording without translation or paraphrase.',
     'Do not add new story events, choices, feedback, explanations, or prose.',
+    'Use dialogue only for wording that appears inside double quotation marks in the supplied sceneText. Unquoted actions, descriptions, and reported speech are narration.',
     'Dialogue frame text contains only spoken words, without quotation marks or attribution.',
     'When narration contains a speaker attribution followed by quoted words, split the attribution into narration and put the complete quoted words in a separate dialogue frame for that speaker.',
     'Never create a dialogue frame whose wording already appears at the end of the preceding narration frame as reported speech.',
@@ -1188,7 +1203,7 @@ function buildReaderFramePrompt(
         'Each frame must include kind and text.',
         'Dialogue frames must also include speaker.',
         'For pinned characters, speaker must exactly match characterProfiles[].name. Do not include titles, roles, or descriptions in speaker.',
-        'Dialogue frame text must contain only words actually spoken aloud, without quotation marks or attribution.',
+        'Dialogue frame text must contain only words actually spoken aloud inside double quotation marks in sceneText, without copying the quotation marks or attribution.',
         'If one source passage contains narration such as Vlad says followed by quoted speech, return the attribution as narration and the entire quoted speech as a separate Vlad dialogue frame.',
         'Do not repeat the end of a narration frame as a separate dialogue frame, including wording already presented as reported speech.',
         'Never put a character name, speech tag, body movement, facial expression, or stage direction inside dialogue text.',
@@ -1198,7 +1213,7 @@ function buildReaderFramePrompt(
         'Do not create one frame per grammatical sentence. Group adjacent narration sentences into one frame when they form the same meaningful paragraph, action beat, description, or idea.',
         'A narration frame may contain several related sentences. Start a new narration frame only when the meaning, focus, time, location, or action beat changes.',
         'Keep actual dialogue turns separate from narration even when speech is embedded inside a prose paragraph.',
-        'Separate embedded speech from attribution: Mira whispered open it should become narration Mira whispered. and dialogue Open it.',
+        'Separate quoted speech from attribution: Mira whispered, "Open it." should become narration Mira whispered. and dialogue Open it.',
         'If consecutive lines are spoken by the same speaker, keep them as adjacent dialogue frames; the server will merge them for playback.',
         'Do not omit any meaningful story information from sceneText.',
         'Do not invent information that is not present in sceneText.',
