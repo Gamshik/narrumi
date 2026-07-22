@@ -6,6 +6,8 @@ import {
   interactionPayloadSchema,
   type SubmitInteractionRequest,
 } from './episodeContracts.ts';
+import { resolveDecisionPrompt } from './decisionPromptPolicy.ts';
+import { looksLikeNarrationInDialogue } from './dialogueFramePolicy.ts';
 import { assertEnglishGeneratedTextFields } from './generatedLanguage.ts';
 
 // CYRILLIC_PATTERN identifies Russian translations required by the current learner UI.
@@ -111,6 +113,11 @@ export function finalizeEpisodePayload({
   const sentences = playback.sentences;
   const sentenceFrames = playback.frames;
   const sceneText = sentences.join(' ');
+  const interactionPrompt: string = resolveDecisionPrompt({
+    prompt: parsed.interaction.prompt,
+    storyBlocks: sentences,
+    participationMode: request.participationMode,
+  });
 
   const selectedWordsById = new Map(
     request.selectedStoryWords.map((word) => [word.id, word]),
@@ -141,6 +148,7 @@ export function finalizeEpisodePayload({
     interaction: {
       ...parsed.interaction,
       kind: 'choice',
+      prompt: interactionPrompt,
       choices,
     },
     summaryUpdate,
@@ -303,6 +311,11 @@ export function finalizeInteractionPayload({
   const nextInteraction = parsed.nextInteraction
     ? {
       ...parsed.nextInteraction,
+      prompt: resolveDecisionPrompt({
+        prompt: parsed.nextInteraction.prompt,
+        storyBlocks: continuationSentences,
+        participationMode: request.participationMode,
+      }),
       choices: uniqueById(parsed.nextInteraction.choices),
     }
     : undefined;
@@ -531,9 +544,24 @@ function normalizeFrameText({
   readonly speakerNames: readonly string[];
 }): NormalizedSentenceFrame {
   if (frame.kind === 'dialogue') {
+    const normalizedSpeaker: string = normalizePinnedSpeakerName(
+      frame.speaker,
+      speakerNames,
+    );
+
+    if (
+      looksLikeNarrationInDialogue(sentence, frame.speaker) ||
+      looksLikeNarrationInDialogue(sentence, normalizedSpeaker)
+    ) {
+      return {
+        kind: 'narration',
+        text: stripSpeechQuotes(sentence),
+      };
+    }
+
     return {
       kind: 'dialogue',
-      speaker: normalizePinnedSpeakerName(frame.speaker, speakerNames),
+      speaker: normalizedSpeaker,
       text: stripSpeechQuotes(sentence),
     };
   }

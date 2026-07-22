@@ -7,6 +7,10 @@ import {
 } from '../_shared/episodeContracts.ts';
 import { finalizeInteractionPayload } from '../_shared/episodeFinalizers.ts';
 import {
+  type DialogueFrameDraft,
+  looksLikeNarrationInDialogue,
+} from '../_shared/dialogueFramePolicy.ts';
+import {
   createEnglishGeneratedTextSchema,
   createRussianTranslationSchema,
 } from '../_shared/generatedLanguage.ts';
@@ -36,6 +40,7 @@ import {
   type QualityReview,
   reviewGeneratedCandidate,
 } from '../_shared/aiQuality.ts';
+import { resolveOptionalAiEnrichment } from '../_shared/optionalAiEnrichment.ts';
 
 // writerModel is logged without exposing prompts or server secrets.
 const writerModel: string = getAiModelId('writer');
@@ -62,22 +67,40 @@ const optionalDraftTextSchema = z.preprocess(
   (value) => (value === null ? undefined : value),
   z.string().trim().min(1).optional(),
 );
+// SentenceFrameDraftItem is one narration or spoken reader block before finalization.
+type SentenceFrameDraftItem =
+  | {
+    // kind marks non-spoken story prose.
+    readonly kind: 'narration';
+    // text preserves one semantic narration block.
+    readonly text: string;
+  }
+  | DialogueFrameDraft;
+
+// sentenceFrameDraftItemSchema downgrades narration mislabeled as speech without failing generation.
+const sentenceFrameDraftItemSchema: z.ZodType<SentenceFrameDraftItem> = z
+  .discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('narration'),
+      text: createEnglishGeneratedTextSchema(600),
+    }),
+    z.object({
+      kind: z.literal('dialogue'),
+      speaker: z.string().trim().min(1).max(80),
+      text: createEnglishGeneratedTextSchema(600),
+    }),
+  ])
+  .transform((frame: SentenceFrameDraftItem): SentenceFrameDraftItem =>
+    frame.kind === 'dialogue' &&
+      looksLikeNarrationInDialogue(frame.text, frame.speaker)
+      ? { kind: 'narration', text: frame.text }
+      : frame
+  );
+
 // sentenceFrameDraftSchema is the small AI contract for reader dialogue metadata.
 const sentenceFrameDraftSchema = z.object({
   frames: z
-    .array(
-      z.discriminatedUnion('kind', [
-        z.object({
-          kind: z.literal('narration'),
-          text: createEnglishGeneratedTextSchema(600),
-        }),
-        z.object({
-          kind: z.literal('dialogue'),
-          speaker: z.string().trim().min(1).max(80),
-          text: createEnglishGeneratedTextSchema(600),
-        }),
-      ]),
-    )
+    .array(sentenceFrameDraftItemSchema)
     .min(1)
     .max(8),
 });
@@ -319,11 +342,16 @@ async function generateValidatedInteraction(
       const translationDraftPromise: Promise<TranslationDraft> =
         annotationTargets.length === 0
           ? Promise.resolve({ translations: [] })
-          : generateInteractionTranslationDraft(
-            payload,
-            continuationSentences,
-            annotationTargets,
-          );
+          : resolveOptionalAiEnrichment({
+            stage: 'interaction_story_word_translations',
+            generate: (): Promise<TranslationDraft> =>
+              generateInteractionTranslationDraft(
+                payload,
+                continuationSentences,
+                annotationTargets,
+              ),
+            fallback: { translations: [] },
+          });
       const [supportDraft, translationDraft] = await Promise.all([
         supportDraftPromise,
         translationDraftPromise,
@@ -415,7 +443,7 @@ async function generateInteractionCreativeCandidate(
           'The continuation must add a meaningful consequence instead of repeating or paraphrasing recent text and decisions.',
           'Unused selected Story Words should appear naturally when relevant and must never be forced.',
           `Participation behavior must remain ${payload.participationMode} mode.`,
-          'A next prompt and its choices must align with the new continuation and choices must be meaningfully different.',
+          'A next prompt and its choices must align with the new continuation; the prompt must be a concise decision cue that does not repeat, quote, or paraphrase the continuation ending, and choices must be meaningfully different.',
           `The episode cannot complete before interaction ${INTERACTION_LIMITS.minimumBeforeCompletion} and must complete by interaction ${INTERACTION_LIMITS.maximumBeforeCompletion}.`,
           'Episode completion must close the local arc and preserve a clear hook for the next episode.',
           'The story must remain original and satisfy the supplied safety and copyright constraints.',
@@ -893,6 +921,8 @@ function buildNextChoiceSystemPrompt(): string {
     'Treat the supplied continuation as immutable truth and do not extend or rewrite it.',
     'Write the prompt and every choice label in English only.',
     'The prompt and every choice must be immediately possible from supplied story facts.',
+    'The prompt is a decision cue, not narration: never copy, quote, summarize, or restate the ending of the supplied continuation.',
+    'Ask one concrete question; if the decision is already obvious from the choices, use a very short cue such as What now?',
     'Choices must be short, concrete, meaningfully different story actions, never quizzes.',
     'Respect the supplied participation mode and use plain text with ASCII punctuation.',
   ].join('\n');
@@ -914,6 +944,7 @@ function buildInteractionFallbackSystemPrompt(): string {
     'Never complete an episode before the fifth learner interaction.',
     'At the tenth learner interaction, you must complete the current episode.',
     'Pace every continuation toward ending the current episode inside 5-10 learner interactions.',
+    'When choiceDraft is present, its prompt must not repeat or paraphrase the final continuation sentences.',
     'Respect the requested CEFR level strictly.',
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only: no Markdown, no bullet lists, no italics markers, no typographic quotes.',
@@ -932,6 +963,7 @@ function buildInteractionRepairSystemPrompt(): string {
     'For choice_mismatch or choice_similarity, edit choiceDraft only unless the evidence proves continuationText is defective.',
     'For continuity, repetition, scenario, or CEFR issues, make the smallest necessary edit and preserve the same event.',
     'Keep completion state, pacing rules, continuation, cliffhanger, prompt, and choices mutually consistent.',
+    'A repaired decision prompt must contain only a concise question or short choice cue, never repeated story prose.',
     'Do not introduce unrelated people, objects, locations, facts, or plot branches.',
     'Use plain text only with ASCII punctuation and no Markdown.',
   ].join('\n');
@@ -963,6 +995,8 @@ function buildInteractionFrameSystemPrompt(): string {
     'Every frame text must remain in English and must copy the supplied English wording without translation or paraphrase.',
     'Do not add new story events, choices, feedback, explanations, or prose.',
     'Dialogue frame text contains only words actually spoken aloud, without quotation marks or attribution.',
+    'Never classify text beginning with a character name plus says, said, asks, replies, or an action as dialogue.',
+    'Example: Vlad says, leaning against the desk belongs in narration, not in Vlad dialogue.',
     'Narration frames contain actions, descriptions, attribution, thoughts, and other non-spoken text.',
     'Use an exact pinned character name for every known dialogue speaker.',
     'Use plain ASCII punctuation and no Markdown.',
@@ -1099,6 +1133,8 @@ function buildNextChoicePrompt(
       outputRules: [
         'Return { "prompt": string, "choices": [{ "label": string, "isSpeech"?: boolean }] }.',
         'The prompt must directly follow frozenStory.continuationText.',
+        'The prompt must not copy, quote, summarize, paraphrase, or restate any sentence from frozenStory.continuationText.',
+        'Use one concise concrete question. If the choices make the decision obvious, a short cue such as What now? is enough.',
         'Every choice must be possible using only people, objects, facts, and actions established in frozenStory or relevantContext.',
         'Return two or three short, concrete choices with meaningfully different actions or intentions.',
         'Do not create choices that differ only by wording, tone, or synonyms.',
@@ -1300,6 +1336,9 @@ function buildInteractionFramePrompt(
         'Dialogue frames must also include speaker.',
         'For pinned characters, speaker must exactly match characterProfiles[].name. Do not include titles, roles, or descriptions in speaker.',
         'Dialogue frame text must contain only words actually spoken aloud, without quotation marks or attribution.',
+        'Never put a character name, speech tag, body movement, facial expression, or stage direction inside dialogue text.',
+        'Wrong dialogue: speaker Vlad, text Vlad says, leaning against the desk.',
+        'Correct: make Vlad says, leaning against the desk a narration frame; place only separately quoted words in a Vlad dialogue frame.',
         'Narration frame text must be natural reader text, not labels or summaries.',
         'Do not create one frame per grammatical sentence. Group adjacent narration sentences into one frame when they form the same meaningful paragraph, action beat, description, or idea.',
         'A narration frame may contain several related sentences. Start a new narration frame only when the meaning, focus, time, location, or action beat changes.',

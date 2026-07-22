@@ -50,6 +50,24 @@ translation use separate structured requests so translation instructions cannot 
 text. Every learner-facing generated field must pass a predominantly-English schema and
 finalizer check; Cyrillic is allowed only in validated translation values.
 
+Dialogue frames contain spoken words only. Prompts explicitly separate speech from tags,
+actions, and stage directions. A deterministic frame policy downgrades output such as
+`Vlad says, leaning against the desk` to narration, so attribution cannot appear as if the
+character spoke it and this correction never fails the user request.
+
+The highlighted interaction prompt is a decision cue, not repeated story prose. Decision
+and review prompts require one concise question or a very short cue when the choices are
+self-explanatory. Before persistence, deterministic policy removes copied ending sentences;
+if nothing distinct remains or the prompt nearly duplicates the ending, it uses `What do you
+do next?` in character mode or `What happens next?` in director mode. This normalization
+does not spend another model call and cannot fail the user request.
+
+Story Word translation is optional enrichment after the story has passed its quality gate.
+If both bounded translation attempts fail schema validation, the server logs a safe
+`AI optional enrichment skipped` diagnostic and returns the valid episode or continuation
+without those annotations. It must not fail the request, show a client error, or regenerate
+the already accepted creative pipeline.
+
 OpenRouter requests require parameter support, deny provider data collection, and allow
 price-aware uptime load balancing with infrastructure provider failover. Explicit price
 sorting is intentionally omitted because it disables OpenRouter's normal load balancing.

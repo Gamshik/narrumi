@@ -151,7 +151,7 @@ Deno.test('finalizeEpisodePayload synchronizes story text and compact memory', (
       ],
       interaction: {
         kind: 'choice',
-        prompt: 'What should Mira do?',
+        prompt: 'We should listen first.',
         choices: [
           { id: 'open', label: 'Open the door carefully' },
           { id: 'wait', label: 'Wait and listen' },
@@ -171,6 +171,7 @@ Deno.test('finalizeEpisodePayload synchronizes story text and compact memory', (
   });
 
   assertEquals(result.sceneText, episodeSentences.join(' '));
+  assertEquals(result.interaction.prompt, 'What do you do next?');
   assertEquals(result.storyWordIds, ['word:curious', 'word:whisper']);
   assertEquals(
     result.memoryUpdate.lastEpisodeSummary,
@@ -353,7 +354,7 @@ Deno.test('finalizeEpisodePayload rejects a reformatted series title phrase', ()
   );
 });
 
-Deno.test('finalizeEpisodePayload normalizes only dialogue speaker labels to pinned names', () => {
+Deno.test('finalizeEpisodePayload keeps attribution out of dialogue frames', () => {
   const result = finalizeEpisodePayload({
     request: {
       ...generateRequest,
@@ -380,11 +381,11 @@ Deno.test('finalizeEpisodePayload normalizes only dialogue speaker labels to pin
     payload: {
       title: 'The Quiet Case',
       sceneText:
-        'Detective Corbin raised one hand. Wait here. The hall went quiet.',
+        'Detective Corbin raised one hand. Wait here. Corbin says, leaning against the wall.',
       sentences: [
         'Detective Corbin raised one hand.',
         'Wait here.',
-        'The hall went quiet.',
+        'Corbin says, leaning against the wall.',
       ],
       sentenceFrames: [
         {
@@ -397,8 +398,9 @@ Deno.test('finalizeEpisodePayload normalizes only dialogue speaker labels to pin
           text: 'Wait here.',
         },
         {
-          kind: 'narration',
-          text: 'The hall went quiet.',
+          kind: 'dialogue',
+          speaker: 'Detective Corbin',
+          text: 'Corbin says, leaning against the wall.',
         },
       ],
       storyWordIds: [],
@@ -427,6 +429,10 @@ Deno.test('finalizeEpisodePayload normalizes only dialogue speaker labels to pin
 
   assertEquals(result.sentences[0], 'Detective Corbin raised one hand.');
   assertEquals(dialogueFrame?.kind, 'dialogue');
+  assertEquals(result.sentenceFrames[2], {
+    kind: 'narration',
+    text: 'Corbin says, leaning against the wall.',
+  });
 
   if (dialogueFrame?.kind === 'dialogue') {
     assertEquals(dialogueFrame.speaker, 'Corbin');
@@ -744,7 +750,8 @@ Deno.test('finalizeInteractionPayload synchronizes continuation and summary', ()
       isEpisodeComplete: false,
       nextInteraction: {
         kind: 'choice',
-        prompt: 'What should Mira do inside the passage?',
+        prompt:
+          'A blue passage appeared behind the door. What should Mira do inside the passage?',
         choices: [
           { id: 'enter', label: 'Enter the passage' },
           { id: 'listen', label: 'Stop and listen' },
@@ -780,6 +787,10 @@ Deno.test('finalizeInteractionPayload synchronizes continuation and summary', ()
     'Good choice. "Open the door carefully" sounds natural.',
   );
   assertEquals(result.isEpisodeComplete, false);
+  assertEquals(
+    result.nextInteraction?.prompt,
+    'What should Mira do inside the passage?',
+  );
   assertEquals(result.nextInteraction?.choices.length, 2);
 });
 

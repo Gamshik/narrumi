@@ -8,6 +8,10 @@ import {
 } from '../_shared/episodeContracts.ts';
 import { finalizeEpisodePayload } from '../_shared/episodeFinalizers.ts';
 import {
+  type DialogueFrameDraft,
+  looksLikeNarrationInDialogue,
+} from '../_shared/dialogueFramePolicy.ts';
+import {
   createEnglishGeneratedTextSchema,
   createRussianTranslationSchema,
 } from '../_shared/generatedLanguage.ts';
@@ -43,6 +47,7 @@ import {
   type QualityReview,
   reviewGeneratedCandidate,
 } from '../_shared/aiQuality.ts';
+import { resolveOptionalAiEnrichment } from '../_shared/optionalAiEnrichment.ts';
 
 // writerModel is logged without exposing prompts or server secrets.
 const writerModel: string = getAiModelId('writer');
@@ -72,22 +77,40 @@ const coreEpisodeDraftSchema = z.object({
   summaryUpdate: createEnglishGeneratedTextSchema(600),
 });
 
+// SentenceFrameDraftItem is one narration or spoken reader block before finalization.
+type SentenceFrameDraftItem =
+  | {
+    // kind marks non-spoken story prose.
+    readonly kind: 'narration';
+    // text preserves one semantic narration block.
+    readonly text: string;
+  }
+  | DialogueFrameDraft;
+
+// sentenceFrameDraftItemSchema downgrades narration mislabeled as speech without failing generation.
+const sentenceFrameDraftItemSchema: z.ZodType<SentenceFrameDraftItem> = z
+  .discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('narration'),
+      text: createEnglishGeneratedTextSchema(600),
+    }),
+    z.object({
+      kind: z.literal('dialogue'),
+      speaker: z.string().trim().min(1).max(80),
+      text: createEnglishGeneratedTextSchema(600),
+    }),
+  ])
+  .transform((frame: SentenceFrameDraftItem): SentenceFrameDraftItem =>
+    frame.kind === 'dialogue' &&
+      looksLikeNarrationInDialogue(frame.text, frame.speaker)
+      ? { kind: 'narration', text: frame.text }
+      : frame
+  );
+
 // sentenceFrameDraftSchema is the small AI contract for reader dialogue metadata.
 const sentenceFrameDraftSchema = z.object({
   frames: z
-    .array(
-      z.discriminatedUnion('kind', [
-        z.object({
-          kind: z.literal('narration'),
-          text: createEnglishGeneratedTextSchema(600),
-        }),
-        z.object({
-          kind: z.literal('dialogue'),
-          speaker: z.string().trim().min(1).max(80),
-          text: createEnglishGeneratedTextSchema(600),
-        }),
-      ]),
-    )
+    .array(sentenceFrameDraftItemSchema)
     .min(3)
     .max(16),
 });
@@ -329,11 +352,16 @@ async function generateValidatedEpisode(
       const translationDraftPromise: Promise<TranslationDraft> =
         annotationTargets.length === 0
           ? Promise.resolve({ translations: [] })
-          : generateEpisodeTranslationDraft(
-            payload,
-            sentences,
-            annotationTargets,
-          );
+          : resolveOptionalAiEnrichment({
+            stage: 'episode_story_word_translations',
+            generate: (): Promise<TranslationDraft> =>
+              generateEpisodeTranslationDraft(
+                payload,
+                sentences,
+                annotationTargets,
+              ),
+            fallback: { translations: [] },
+          });
       const [memoryDraft, translationDraft] = await Promise.all([
         memoryDraftPromise,
         translationDraftPromise,
@@ -411,6 +439,7 @@ async function generateEpisodeCreativeCandidate(
           'When a previous summary or unresolved cliffhanger exists, the scene must advance it instead of repeating or lightly paraphrasing it.',
           'Selected Story Words must be used naturally and only some should be introduced in the opening when the set is large.',
           'The scene, cliffhanger, prompt, and choices must describe one aligned scenario.',
+          'The interaction prompt must be a concise decision cue and must not repeat, quote, or paraphrase the final scene sentences.',
           'Choices must be meaningfully different, story-specific, and must not be knowledge quizzes.',
           `Participation behavior must remain ${payload.participationMode} mode.`,
           'The story must be original and must satisfy the supplied safety and copyright constraints.',
@@ -848,6 +877,8 @@ function buildEpisodeInteractionSystemPrompt(): string {
     'Treat the supplied story draft as immutable truth. Do not rewrite, extend, or reinterpret it.',
     'Write the prompt, choice labels, and outcome hints in English only.',
     'The prompt and every choice must be immediately possible in the supplied scene and cliffhanger.',
+    'The prompt is a decision cue, not narration: never copy, quote, summarize, or restate the ending of the supplied scene.',
+    'Ask one concrete question; if the decision is already obvious from the choices, use a very short cue such as What now?',
     'Choices must be short, concrete, meaningfully different story decisions, never quizzes.',
     'Respect the supplied participation mode and use plain text with ASCII punctuation.',
   ].join('\n');
@@ -865,6 +896,7 @@ function buildEpisodeFallbackSystemPrompt(): string {
     'Respect the requested CEFR level strictly.',
     'Use only some selected Story Words naturally in the opening when the set is large.',
     'Keep the scene concise enough for mobile reading but substantial enough to set up a meaningful first decision.',
+    'The decision prompt must not repeat or paraphrase the final story sentences.',
     'Choices are story decisions, never vocabulary or comprehension quizzes.',
     'Use plain text only: no Markdown, no bullet lists, no italics markers, no typographic quotes.',
     'Use ASCII punctuation in English text: apostrophe, quotation mark, three dots, and hyphen.',
@@ -884,6 +916,7 @@ function buildEpisodeRepairSystemPrompt(): string {
     'For continuity, repetition, or CEFR issues, make the smallest necessary edits and keep the same story event.',
     'Do not introduce new characters, objects, locations, facts, or plot branches unless an issue explicitly requires it.',
     'Keep the scene, cliffhanger, prompt, and choices mutually consistent.',
+    'A repaired decision prompt must contain only a concise question or short choice cue, never repeated story prose.',
     'Use plain text only with ASCII punctuation and no Markdown.',
   ].join('\n');
 }
@@ -898,6 +931,8 @@ function buildReaderFrameSystemPrompt(): string {
     'Every frame text must remain in English and must copy the supplied English wording without translation or paraphrase.',
     'Do not add new story events, choices, feedback, explanations, or prose.',
     'Dialogue frame text contains only spoken words, without quotation marks or attribution.',
+    'Never classify text beginning with a character name plus says, said, asks, replies, or an action as dialogue.',
+    'Example: Vlad says, leaning against the desk belongs in narration, not in Vlad dialogue.',
     'Narration frames contain actions, descriptions, attribution, thoughts, and other non-spoken text.',
     'Use an exact pinned character name for every known dialogue speaker.',
     'Use plain ASCII punctuation and no Markdown.',
@@ -1018,6 +1053,8 @@ function buildEpisodeInteractionPrompt(
       outputRules: [
         'Return { "prompt": string, "choices": [{ "label": string, "isSpeech"?: boolean, "outcomeHint"?: string }] }.',
         'The interaction prompt must directly follow the frozen scene and cliffhanger.',
+        'The prompt must not copy, quote, summarize, paraphrase, or restate any sentence from frozenStory.',
+        'Use one concise concrete question. If the choices make the decision obvious, a short cue such as What now? is enough.',
         'Every choice must be possible using only people, objects, facts, and actions established in frozenStory.',
         'Return two or three short, concrete, story-specific choices with meaningfully different actions or intentions.',
         'Do not create choices that differ only by wording, tone, or synonyms.',
@@ -1135,6 +1172,9 @@ function buildReaderFramePrompt(
         'Dialogue frames must also include speaker.',
         'For pinned characters, speaker must exactly match characterProfiles[].name. Do not include titles, roles, or descriptions in speaker.',
         'Dialogue frame text must contain only words actually spoken aloud, without quotation marks or attribution.',
+        'Never put a character name, speech tag, body movement, facial expression, or stage direction inside dialogue text.',
+        'Wrong dialogue: speaker Vlad, text Vlad says, leaning against the desk.',
+        'Correct: make Vlad says, leaning against the desk a narration frame; place only separately quoted words in a Vlad dialogue frame.',
         'Narration frame text must be natural reader text, not labels or summaries.',
         'Do not create one frame per grammatical sentence. Group adjacent narration sentences into one frame when they form the same meaningful paragraph, action beat, description, or idea.',
         'A narration frame may contain several related sentences. Start a new narration frame only when the meaning, focus, time, location, or action beat changes.',
