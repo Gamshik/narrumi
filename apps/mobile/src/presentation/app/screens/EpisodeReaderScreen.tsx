@@ -61,6 +61,7 @@ import {
 import { shouldRenderSettledEpisodeAnswer } from './episodeReader/episodeInteractionPresentation';
 import { findPendingEpisodeContinuation } from './episodeReader/episodeReaderContinuationResume';
 import type { PendingEpisodeContinuation } from './episodeReader/episodeReaderContinuationResume';
+import { submitInteractionWithSilentRetry } from './episodeReader/interactionRequestPolicy';
 import type { SpeakerThemeName } from './episodeReader/components/EpisodeSentence/EpisodeSentence';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
@@ -286,9 +287,9 @@ export function EpisodeReaderScreen({
     void loadReader();
   }, [loadReader]);
 
-  // handleInteractionError keeps manual and restored continuation failures consistent.
+  // handleInteractionError presents only a final handled state after silent retry exhaustion.
   const handleInteractionError = useCallback(
-    async (error: unknown, source: string): Promise<void> => {
+    (error: unknown): void => {
       if (!componentMountedRef.current) {
         return;
       }
@@ -309,13 +310,11 @@ export function EpisodeReaderScreen({
         return;
       }
 
-      console.error(`${source} error:`, error);
-      Alert.alert('Story interaction stopped', message);
-      setInteractionErrorMessage(message);
-      // The answer remains durable, so reload its pending state after a failed continuation.
-      await loadReader();
+      setInteractionErrorMessage(
+        `${message} Your answer is saved and can continue when the service recovers.`,
+      );
     },
-    [loadReader],
+    [],
   );
 
   useEffect((): void => {
@@ -352,16 +351,18 @@ export function EpisodeReaderScreen({
         )?.sentences.length ?? 0;
 
       try {
-        const result = await localAppServices.submitEpisodeInteraction.execute({
-          episodeId: pendingContinuation.episodeId,
-          interactionId: pendingContinuation.interactionId,
-          ...(pendingContinuation.choiceId
-            ? { choiceId: pendingContinuation.choiceId }
-            : {}),
-          ...(pendingContinuation.userReply
-            ? { userReply: pendingContinuation.userReply }
-            : {}),
-        });
+        const result = await submitInteractionWithSilentRetry(() =>
+          localAppServices.submitEpisodeInteraction.execute({
+            episodeId: pendingContinuation.episodeId,
+            interactionId: pendingContinuation.interactionId,
+            ...(pendingContinuation.choiceId
+              ? { choiceId: pendingContinuation.choiceId }
+              : {}),
+            ...(pendingContinuation.userReply
+              ? { userReply: pendingContinuation.userReply }
+              : {}),
+          })
+        );
         await waitForRemainingLatency(startedAt);
 
         if (!componentMountedRef.current) {
@@ -381,7 +382,7 @@ export function EpisodeReaderScreen({
         );
         setInteractionErrorMessage(undefined);
       } catch (error) {
-        await handleInteractionError(error, 'resumePendingContinuation');
+        handleInteractionError(error);
       } finally {
         if (componentMountedRef.current) {
           if (pendingContinuationScrollRef.current === operationKey) {
@@ -416,7 +417,10 @@ export function EpisodeReaderScreen({
       ?.choices.find((choice) => choice.id === choiceId);
     const submittedText = cleanSelectedReply(selectedChoice?.label);
     const startedAt = Date.now();
+    // operationKey prevents the restoration effect from adding an unbounded third attempt.
+    const operationKey: string = `${targetEpisode.id}:${interactionId}`;
 
+    resumedInteractionKeysRef.current.add(operationKey);
     setIsSubmittingInteraction(true);
     setEpisodes((currentEpisodes) =>
       applyOptimisticChoice({
@@ -429,11 +433,13 @@ export function EpisodeReaderScreen({
     );
 
     try {
-      const result = await localAppServices.submitEpisodeInteraction.execute({
-        choiceId,
-        episodeId: targetEpisode.id,
-        interactionId,
-      });
+      const result = await submitInteractionWithSilentRetry(() =>
+        localAppServices.submitEpisodeInteraction.execute({
+          choiceId,
+          episodeId: targetEpisode.id,
+          interactionId,
+        })
+      );
       await waitForRemainingLatency(startedAt);
 
       if (!componentMountedRef.current) {
@@ -452,7 +458,7 @@ export function EpisodeReaderScreen({
       );
       setInteractionErrorMessage(undefined);
     } catch (error) {
-      await handleInteractionError(error, 'submitChoice');
+      handleInteractionError(error);
     } finally {
       if (componentMountedRef.current) {
         setIsSubmittingInteraction(false);

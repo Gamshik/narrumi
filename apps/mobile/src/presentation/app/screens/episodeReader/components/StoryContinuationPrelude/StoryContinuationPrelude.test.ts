@@ -49,6 +49,12 @@ test('reveals a restored pending continuation after its loading state is laid ou
   assert.match(readerSource, /scrollToEnd\(\{ animated: true \}\)/);
 });
 
+test('keeps the first temporary continuation failure inside the loading state', (): void => {
+  assert.match(readerSource, /submitInteractionWithSilentRetry/);
+  assert.doesNotMatch(readerSource, /console\.error/);
+  assert.doesNotMatch(readerSource, /Story interaction stopped/);
+});
+
 test('keeps the atmospheric motion accessible and optional', (): void => {
   assert.match(componentSource, /useReducedMotionPreference/);
   assert.match(componentSource, /if \(reduceMotion\)/);
