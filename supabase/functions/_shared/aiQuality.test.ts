@@ -71,6 +71,30 @@ Deno.test('interaction review ignores subjective pacing diagnoses', (): void => 
   assertEquals(result, { accepted: true, issues: [] });
 });
 
+Deno.test('interaction review preserves concrete prose quality diagnoses', (): void => {
+  const result = normalizeQualityReview('episode-interaction', {
+    accepted: false,
+    issues: [
+      {
+        code: 'language_error',
+        evidence: 'The continuation contains an ungrammatical verb phrase.',
+        retryInstruction: 'Rewrite the verb phrase in natural B1 English.',
+      },
+      {
+        code: 'insufficient_development',
+        evidence: 'The continuation only restates the selected choice.',
+        retryInstruction: 'Add a connected consequence before the next choice.',
+      },
+    ],
+  });
+
+  assertEquals(result.accepted, false);
+  assertEquals(
+    result.issues.map((issue) => issue.code),
+    ['language_error', 'insufficient_development'],
+  );
+});
+
 Deno.test('quality gate sends reviewer hints to fallback', async (): Promise<void> => {
   // roles records the model-role sequence selected by the quality gate.
   const roles: string[] = [];

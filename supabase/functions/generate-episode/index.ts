@@ -48,6 +48,10 @@ import {
   reviewGeneratedCandidate,
 } from '../_shared/aiQuality.ts';
 import { resolveOptionalAiEnrichment } from '../_shared/optionalAiEnrichment.ts';
+import {
+  omitStoryWordExamplesFromModeration,
+  STORY_WORD_USAGE_RULES,
+} from '../_shared/storyWordPolicy.ts';
 
 // writerModel is logged without exposing prompts or server secrets.
 const writerModel: string = getAiModelId('writer');
@@ -247,7 +251,13 @@ Deno.serve(async (request: Request): Promise<Response> => {
     }
 
     const payload = normalizeGenerationRequest(parsedRequest.data);
-    const moderationEntries = collectModerationEntries(payload);
+    // Oxford examples guide word sense but are not learner-authored strike evidence.
+    const moderationEntries = collectModerationEntries({
+      ...payload,
+      selectedStoryWords: omitStoryWordExamplesFromModeration(
+        payload.selectedStoryWords,
+      ),
+    });
     const moderationSignals = scanModerationEntries(moderationEntries);
 
     if (moderationSignals.length > 0) {
@@ -435,8 +445,10 @@ async function generateEpisodeCreativeCandidate(
         criteria: [
           'All learner-facing story prose, titles, recaps, summaries, prompts, and choice labels must be written in English. Russian is allowed only inside annotation translation fields, which are generated later.',
           `English grammar and vocabulary must be broadly suitable for CEFR ${payload.cefrLevel}; reject only a sustained mismatch, not isolated contextual words or names.`,
+          'Use language_error only for a concrete grammar error, malformed sentence, incorrect collocation, or clearly unnatural English construction, not for subjective style preferences.',
           'When compact memory or a previous episode summary contains facts, the scene must not contradict them; empty prior context creates no continuity requirement.',
           'When a previous summary or unresolved cliffhanger exists, the scene must advance it instead of repeating or lightly paraphrasing it.',
+          'Every used Story Word must match its supplied partOfSpeech and the dictionary sense demonstrated by usageExamples; the exact headword must be integrated into natural grammar rather than used as another part of speech.',
           'Selected Story Words must be used naturally and only some should be introduced in the opening when the set is large.',
           'The scene, cliffhanger, prompt, and choices must describe one aligned scenario.',
           'The interaction prompt must be a concise decision cue and must not repeat, quote, or paraphrase the final scene sentences.',
@@ -862,6 +874,7 @@ function buildEpisodeCoreSystemPrompt(): string {
     'Write original stories only. Do not copy protected worlds, names, characters, or plots.',
     'Respect the requested CEFR level and participation mode strictly.',
     'Use only some selected Story Words naturally when the set is large.',
+    ...STORY_WORD_USAGE_RULES,
     'Advance supplied continuity instead of repeating or paraphrasing it.',
     'Keep the scene concise enough for mobile reading but substantial enough to set up a meaningful decision.',
     'Use plain text only with ASCII punctuation and no Markdown.',
@@ -895,6 +908,7 @@ function buildEpisodeFallbackSystemPrompt(): string {
     'Write original stories only. Do not copy protected worlds, names, characters, or plots.',
     'Respect the requested CEFR level strictly.',
     'Use only some selected Story Words naturally in the opening when the set is large.',
+    ...STORY_WORD_USAGE_RULES,
     'Keep the scene concise enough for mobile reading but substantial enough to set up a meaningful first decision.',
     'The decision prompt must not repeat or paraphrase the final story sentences.',
     'Choices are story decisions, never vocabulary or comprehension quizzes.',
@@ -913,7 +927,8 @@ function buildEpisodeRepairSystemPrompt(): string {
     'Keep every learner-facing field in English; Russian is never allowed in story content.',
     'Preserve fields and wording that are not implicated by an issue.',
     'For choice_mismatch or choice_similarity, edit interactionDraft only unless the evidence proves the cliffhanger itself is defective.',
-    'For continuity, repetition, or CEFR issues, make the smallest necessary edits and keep the same story event.',
+    'For continuity, repetition, language, Story Word, or CEFR issues, make the smallest necessary edits and keep the same story event.',
+    'When repairing a Story Word, preserve its exact supplied partOfSpeech and usageExample sense.',
     'Do not introduce new characters, objects, locations, facts, or plot branches unless an issue explicitly requires it.',
     'Keep the scene, cliffhanger, prompt, and choices mutually consistent.',
     'A repaired decision prompt must contain only a concise question or short choice cue, never repeated story prose.',
@@ -1025,7 +1040,7 @@ function buildEpisodeCorePrompt(
         'Do not return sentences, sentenceFrames, annotations, translations, or memoryUpdate.',
         'Use 2-4 selected Story Words in the initial scene, or fewer when the selected set is smaller.',
         'Do not force all selected Story Words into the initial scene; unused words can appear in later submit-interaction continuations.',
-        'When using a selected Story Word, use the exact selected dictionary form in scene text.',
+        'When using a selected Story Word, obey its partOfSpeech and usageExamples, then build a grammatical sentence around the exact headword.',
         'Use characterProfiles[].description for personality and role context.',
         'When writing direct speech for a pinned character, the later dialogue speaker label must be exactly characterProfiles[].name, not a title or description.',
         'cliffhanger must create a clear reason to continue this episode with a learner decision.',

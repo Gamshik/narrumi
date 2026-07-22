@@ -12,6 +12,8 @@ const qualityIssueCodeSchema = z.enum([
   'choice_mismatch',
   'choice_similarity',
   'story_word_misuse',
+  'language_error',
+  'insufficient_development',
   'pacing_error',
   'memory_conflict',
   'safety_or_copyright',

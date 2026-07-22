@@ -45,6 +45,10 @@ import {
   reviewGeneratedCandidate,
 } from '../_shared/aiQuality.ts';
 import { resolveOptionalAiEnrichment } from '../_shared/optionalAiEnrichment.ts';
+import {
+  omitStoryWordExamplesFromModeration,
+  STORY_WORD_USAGE_RULES,
+} from '../_shared/storyWordPolicy.ts';
 
 // writerModel is logged without exposing prompts or server secrets.
 const writerModel: string = getAiModelId('writer');
@@ -98,7 +102,7 @@ const sentenceFrameDraftSchema = z.object({
   frames: z
     .array(sentenceFrameDraftItemSchema)
     .min(1)
-    .max(8),
+    .max(10),
 });
 
 // choiceDraftSchema is the small AI contract for the next creative decision.
@@ -150,7 +154,7 @@ const memoryDraftSchema = z.object({
 
 // coreInteractionDraftSchema is the only creative story continuation contract.
 const coreInteractionDraftSchema = z.object({
-  continuationText: createEnglishGeneratedTextSchema(600),
+  continuationText: createEnglishGeneratedTextSchema(1000),
   isEpisodeComplete: z.boolean(),
   cliffhanger: optionalDraftTextSchema.pipe(
     createEnglishGeneratedTextSchema(1000).optional(),
@@ -269,7 +273,13 @@ Deno.serve(async (request: Request): Promise<Response> => {
     }
 
     const payload = parsedRequest.data;
-    const moderationEntries = collectModerationEntries(payload);
+    // Oxford examples guide word sense but are not learner-authored strike evidence.
+    const moderationEntries = collectModerationEntries({
+      ...payload,
+      selectedStoryWords: omitStoryWordExamplesFromModeration(
+        payload.selectedStoryWords,
+      ),
+    });
     const moderationSignals = scanModerationEntries(moderationEntries);
 
     if (moderationSignals.length > 0) {
@@ -441,10 +451,13 @@ async function generateInteractionCreativeCandidate(
         criteria: [
           'All generated continuation, summary, feedback, prompts, and choice labels must be written in English. Russian is allowed only inside annotation translation fields generated later.',
           `English grammar and vocabulary must be broadly suitable for CEFR ${payload.cefrLevel}; reject only a sustained mismatch, not isolated contextual words or names.`,
+          'Use language_error only for a concrete grammar error, malformed sentence, incorrect collocation, or clearly unnatural English construction, not for subjective style preferences.',
           'The continuation must follow the exact learner choice or reply and the current interaction prompt.',
           'The continuation must remain in the same episode and preserve compact memory, characters, facts, objects, and open questions.',
           'The continuation must add a meaningful consequence instead of repeating or paraphrasing recent text and decisions.',
-          'Unused selected Story Words should appear naturally when relevant and must never be forced.',
+          'Every used Story Word must match its supplied partOfSpeech and the dictionary sense demonstrated by usageExamples; the exact headword must be integrated into natural grammar rather than used as another part of speech.',
+          'When unused selected Story Words remain, the continuation should normally introduce one or two naturally; after coverage, previously encountered Story Words may recur when they fit the scene.',
+          'Use insufficient_development only when an incomplete continuation is a thin single beat: it should normally include the direct consequence of the learner answer plus a connected action, discovery, or dialogue before the next decision. A clear completed closing beat may be shorter.',
           `Participation behavior must remain ${payload.participationMode} mode.`,
           'A next prompt and its choices must align with the new continuation; the prompt must be a concise decision cue that does not repeat, quote, or paraphrase the continuation ending, and choices must be meaningfully different.',
           `Do not reject a candidate only because it completes or continues on a particular turn from ${EPISODE_INTERACTION_LIMITS.minimumBeforeCompletion} through ${EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion - 1}; the server enforces hard completion bounds deterministically.`,
@@ -491,7 +504,7 @@ async function generateInteractionCoreDraft(
     system: buildInteractionCoreSystemPrompt(),
     temperature: 0.85,
     frequencyPenalty: 0.25,
-    maxOutputTokens: 1100,
+    maxOutputTokens: 1450,
   });
 }
 
@@ -531,7 +544,7 @@ async function generateInteractionFallbackDraft(
     taskName: 'interaction_complete_fallback',
     system: buildInteractionFallbackSystemPrompt(),
     temperature: 0.7,
-    maxOutputTokens: 1900,
+    maxOutputTokens: 2400,
   });
 }
 
@@ -548,7 +561,7 @@ async function repairInteractionCreativeCandidate(
     taskName: 'interaction_candidate_repair',
     system: buildInteractionRepairSystemPrompt(),
     temperature: 0.3,
-    maxOutputTokens: 1900,
+    maxOutputTokens: 2400,
   });
 
   return finalizeInteractionCreativeCandidate(payload, repairedDraft);
@@ -926,6 +939,9 @@ function buildInteractionCoreSystemPrompt(): string {
     'Continuation text belongs to the same episode, not a new episode.',
     'Pace the episode toward a closing beat inside 5-10 meaningful learner interactions.',
     'Respect the requested CEFR level and participation mode strictly.',
+    'Develop each incomplete continuation through two or three connected narrative beats before the next decision.',
+    'When unused Story Words remain, normally introduce one or two naturally; after coverage, reuse selected words only when they fit.',
+    ...STORY_WORD_USAGE_RULES,
     'Advance the story instead of repeating or paraphrasing recent events.',
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only with ASCII punctuation and no Markdown.',
@@ -965,6 +981,9 @@ function buildInteractionFallbackSystemPrompt(): string {
     'Pace every continuation toward ending the current episode inside 5-10 learner interactions.',
     'When choiceDraft is present, its prompt must not repeat or paraphrase the final continuation sentences.',
     'Respect the requested CEFR level strictly.',
+    'Develop each incomplete continuation through two or three connected narrative beats before the next decision.',
+    'When unused Story Words remain, normally introduce one or two naturally; after coverage, reuse selected words only when they fit.',
+    ...STORY_WORD_USAGE_RULES,
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only: no Markdown, no bullet lists, no italics markers, no typographic quotes.',
     'Use ASCII punctuation in English text: apostrophe, quotation mark, three dots, and hyphen.',
@@ -980,7 +999,9 @@ function buildInteractionRepairSystemPrompt(): string {
     'Keep every learner-facing field in English; Russian is never allowed in story content.',
     'Preserve fields and wording that are not implicated by an issue.',
     'For choice_mismatch or choice_similarity, edit choiceDraft only unless the evidence proves continuationText is defective.',
-    'For continuity, repetition, scenario, or CEFR issues, make the smallest necessary edit and preserve the same event.',
+    'For continuity, repetition, scenario, language, Story Word, or CEFR issues, make the smallest necessary edit and preserve the same event.',
+    'For insufficient_development, add only a connected consequence, action, discovery, or dialogue implied by the learner answer and existing context.',
+    'When repairing a Story Word, preserve its exact supplied partOfSpeech and usageExample sense.',
     'Keep completion state, pacing rules, continuation, cliffhanger, prompt, and choices mutually consistent.',
     'A repaired decision prompt must contain only a concise question or short choice cue, never repeated story prose.',
     'Do not introduce unrelated people, objects, locations, facts, or plot branches.',
@@ -1108,9 +1129,10 @@ function buildInteractionCorePrompt(
       outputRules: [
         'Return { "continuationText": string, "isEpisodeComplete": boolean, "cliffhanger"?: string, "summaryUpdate": string }.',
         'continuationText must show the direct consequence of the selected choice or user reply before adding another event.',
-        'Keep continuationText as one coherent paragraph or short passage under 500 characters.',
+        'Write continuationText as a coherent short passage under 900 characters with two or three connected narrative beats: first the direct consequence, then a related action, discovery, or dialogue that earns the next decision.',
         'Keep summaryUpdate concise and under 500 characters.',
-        'Use 1-2 remainingStoryWords naturally when possible, but never force them.',
+        'When remainingStoryWords is not empty, naturally use one or two of those exact entries unless doing so would break grammar or continuity.',
+        'When every Story Word was already encountered, naturally reuse one selected word when it fits; never turn the passage into a vocabulary list.',
         'Preserve established characters, facts, objects, locations, and unresolved questions.',
         'Do not repeat or paraphrase episodeSummary, previousDecisions, or compact memory.',
         'If isEpisodeComplete is false, omit cliffhanger.',
@@ -1218,10 +1240,11 @@ function buildInteractionFallbackPrompt(
       outputRules: [
         'Return { "coreDraft": { "continuationText": string, "isEpisodeComplete": boolean, "cliffhanger"?: string, "summaryUpdate": string }, "choiceDraft": { "prompt": string, "choices": [{ "label": string, "isSpeech"?: boolean }] } | null }.',
         'continuationText must be the only story text. Do not return continuationSentences.',
-        'continuationText must be one coherent paragraph or short passage for this turn. Keep it under 500 characters.',
+        'continuationText must be one coherent short passage under 900 characters with two or three connected narrative beats: the direct consequence followed by a related action, discovery, or dialogue.',
         'Keep summaryUpdate concise (under 500 characters).',
         'Do not split continuationText into an array.',
-        'Use 1-2 remainingStoryWords naturally when possible, especially before interaction 8.',
+        'When remainingStoryWords is not empty, naturally use one or two of those exact entries unless doing so would break grammar or continuity.',
+        'When every Story Word was already encountered, naturally reuse one selected word when it fits; never turn the passage into a vocabulary list.',
         'Use compactSeriesMemory.characterProfiles[].description for personality and role context.',
         'When writing direct speech for a pinned character, the later dialogue speaker label must be exactly compactSeriesMemory.characterProfiles[].name, not a title or description.',
         'Do not force all remainingStoryWords into one continuation.',
@@ -1354,7 +1377,7 @@ function buildInteractionFramePrompt(
       continuationText: coreDraft.continuationText,
       outputRules: [
         'Return { "frames": [...] }.',
-        'Return 1-8 semantic reader blocks in the same order as continuationText.',
+        'Return 1-10 semantic reader blocks in the same order as continuationText.',
         'Each frame must include kind and text.',
         'Dialogue frames must also include speaker.',
         'For pinned characters, speaker must exactly match characterProfiles[].name. Do not include titles, roles, or descriptions in speaker.',

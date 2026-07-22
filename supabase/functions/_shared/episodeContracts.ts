@@ -146,9 +146,9 @@ export const episodePayloadSchema = z.object({
 // interactionPayloadSchema validates submit-interaction structured output.
 export const interactionPayloadSchema = z.object({
   feedback: feedbackTextSchema.pipe(z.string().max(500)),
-  continuationText: readableTextSchema.pipe(z.string().max(600)),
-  continuationSentences: z.array(readableTextSchema).min(1).max(8),
-  continuationSentenceFrames: z.array(sentenceFrameSchema).min(1).max(8),
+  continuationText: readableTextSchema.pipe(z.string().max(1000)),
+  continuationSentences: z.array(readableTextSchema).min(1).max(10),
+  continuationSentenceFrames: z.array(sentenceFrameSchema).min(1).max(10),
   continuationAnnotations: z.preprocess(
     (value) => (Array.isArray(value) ? value : []),
     z.array(annotationSchema),
