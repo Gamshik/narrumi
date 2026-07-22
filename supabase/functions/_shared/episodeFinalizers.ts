@@ -1,11 +1,12 @@
 import {
-  episodePayloadSchema,
-  interactionPayloadSchema,
   type EpisodePayload,
+  episodePayloadSchema,
   type GenerateEpisodeRequest,
   type InteractionPayload,
+  interactionPayloadSchema,
   type SubmitInteractionRequest,
 } from './episodeContracts.ts';
+import { assertEnglishGeneratedTextFields } from './generatedLanguage.ts';
 
 // CYRILLIC_PATTERN identifies Russian translations required by the current learner UI.
 const CYRILLIC_PATTERN = /[А-Яа-яЁё]/;
@@ -52,6 +53,50 @@ export function finalizeEpisodePayload({
   request,
 }: FinalizeEpisodePayloadInput): EpisodePayload {
   const parsed = episodePayloadSchema.parse(payload);
+
+  assertEnglishGeneratedTextFields('episode', [
+    { fieldName: 'title', value: parsed.title },
+    { fieldName: 'previouslyRecap', value: parsed.previouslyRecap },
+    { fieldName: 'sceneText', value: parsed.sceneText },
+    { fieldName: 'cliffhanger', value: parsed.cliffhanger },
+    { fieldName: 'summaryUpdate', value: parsed.summaryUpdate },
+    ...parsed.sentences.map((value, index) => ({
+      fieldName: `sentences.${index}`,
+      value,
+    })),
+    { fieldName: 'interaction.prompt', value: parsed.interaction.prompt },
+    ...parsed.interaction.choices.flatMap((choice, index) => [
+      { fieldName: `interaction.choices.${index}.label`, value: choice.label },
+      {
+        fieldName: `interaction.choices.${index}.outcomeHint`,
+        value: choice.outcomeHint,
+      },
+    ]),
+    {
+      fieldName: 'memoryUpdate.currentConflict',
+      value: parsed.memoryUpdate.currentConflict,
+    },
+    {
+      fieldName: 'memoryUpdate.lastEpisodeSummary',
+      value: parsed.memoryUpdate.lastEpisodeSummary,
+    },
+    {
+      fieldName: 'memoryUpdate.unresolvedCliffhanger',
+      value: parsed.memoryUpdate.unresolvedCliffhanger,
+    },
+    ...parsed.memoryUpdate.knownFacts.map((value, index) => ({
+      fieldName: `memoryUpdate.knownFacts.${index}`,
+      value,
+    })),
+    ...parsed.memoryUpdate.openQuestions.map((value, index) => ({
+      fieldName: `memoryUpdate.openQuestions.${index}`,
+      value,
+    })),
+    ...parsed.memoryUpdate.importantObjectsOrLocations.map((value, index) => ({
+      fieldName: `memoryUpdate.importantObjectsOrLocations.${index}`,
+      value,
+    })),
+  ]);
 
   if (parsed.title) {
     assertIndependentEpisodeTitle(parsed.title, request.seriesTitle);
@@ -142,7 +187,8 @@ function assertIndependentEpisodeTitle(
 
 // normalizeTitleWords makes the invariant resilient to casing and separator changes.
 function normalizeTitleWords(value: string): readonly string[] {
-  return value.normalize('NFKC').toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  return value.normalize('NFKC').toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ??
+    [];
 }
 
 // containsWordSequence finds an exact contiguous phrase without matching partial words.
@@ -161,7 +207,7 @@ function containsWordSequence(
     protectedWords.every(
       (protectedWord, protectedIndex): boolean =>
         sourceWords[startIndex + protectedIndex] === protectedWord,
-    ),
+    )
   );
 }
 
@@ -171,6 +217,49 @@ export function finalizeInteractionPayload({
   request,
 }: FinalizeInteractionPayloadInput): InteractionPayload {
   const parsed = interactionPayloadSchema.parse(payload);
+
+  assertEnglishGeneratedTextFields('interaction', [
+    { fieldName: 'feedback', value: parsed.feedback },
+    { fieldName: 'continuationText', value: parsed.continuationText },
+    { fieldName: 'cliffhanger', value: parsed.cliffhanger },
+    { fieldName: 'summaryUpdate', value: parsed.summaryUpdate },
+    ...parsed.continuationSentences.map((value, index) => ({
+      fieldName: `continuationSentences.${index}`,
+      value,
+    })),
+    {
+      fieldName: 'nextInteraction.prompt',
+      value: parsed.nextInteraction?.prompt,
+    },
+    ...(parsed.nextInteraction?.choices ?? []).map((choice, index) => ({
+      fieldName: `nextInteraction.choices.${index}.label`,
+      value: choice.label,
+    })),
+    {
+      fieldName: 'memoryUpdate.currentConflict',
+      value: parsed.memoryUpdate.currentConflict,
+    },
+    {
+      fieldName: 'memoryUpdate.lastEpisodeSummary',
+      value: parsed.memoryUpdate.lastEpisodeSummary,
+    },
+    {
+      fieldName: 'memoryUpdate.unresolvedCliffhanger',
+      value: parsed.memoryUpdate.unresolvedCliffhanger,
+    },
+    ...parsed.memoryUpdate.knownFacts.map((value, index) => ({
+      fieldName: `memoryUpdate.knownFacts.${index}`,
+      value,
+    })),
+    ...parsed.memoryUpdate.openQuestions.map((value, index) => ({
+      fieldName: `memoryUpdate.openQuestions.${index}`,
+      value,
+    })),
+    ...parsed.memoryUpdate.importantObjectsOrLocations.map((value, index) => ({
+      fieldName: `memoryUpdate.importantObjectsOrLocations.${index}`,
+      value,
+    })),
+  ]);
   const playback = normalizePlaybackFrames({
     fieldName: 'continuationSentenceFrames',
     frames: parsed.continuationSentenceFrames,
@@ -190,9 +279,8 @@ export function finalizeInteractionPayload({
     sentenceIndexMap: playback.sentenceIndexMap,
   });
   const summaryUpdate = parsed.summaryUpdate;
-  const shouldForceCompletion =
-    request.interactionCount >=
-      EPISODE_INTERACTION_LIMITS.maximumBeforeForcedCompletion;
+  const shouldForceCompletion = request.interactionCount >=
+    EPISODE_INTERACTION_LIMITS.maximumBeforeForcedCompletion;
   const isEpisodeComplete = parsed.isEpisodeComplete || shouldForceCompletion;
 
   if (
@@ -205,8 +293,8 @@ export function finalizeInteractionPayload({
     );
   }
 
-  const completionCliffhanger =
-    parsed.cliffhanger ?? parsed.memoryUpdate.unresolvedCliffhanger;
+  const completionCliffhanger = parsed.cliffhanger ??
+    parsed.memoryUpdate.unresolvedCliffhanger;
 
   if (isEpisodeComplete && !completionCliffhanger) {
     throw new Error('Completed episode requires a final cliffhanger.');
@@ -214,12 +302,15 @@ export function finalizeInteractionPayload({
 
   const nextInteraction = parsed.nextInteraction
     ? {
-        ...parsed.nextInteraction,
-        choices: uniqueById(parsed.nextInteraction.choices),
-      }
+      ...parsed.nextInteraction,
+      choices: uniqueById(parsed.nextInteraction.choices),
+    }
     : undefined;
 
-  if (!isEpisodeComplete && (!nextInteraction || nextInteraction.choices.length < 2)) {
+  if (
+    !isEpisodeComplete &&
+    (!nextInteraction || nextInteraction.choices.length < 2)
+  ) {
     throw new Error(
       'Continuing episode requires at least two unique next choices.',
     );
@@ -263,23 +354,15 @@ export function finalizeInteractionPayload({
 
   return isEpisodeComplete
     ? {
-        ...commonPayload,
-        isEpisodeComplete: true,
-        cliffhanger: completionCliffhanger,
-      }
+      ...commonPayload,
+      isEpisodeComplete: true,
+      cliffhanger: completionCliffhanger,
+    }
     : {
-        ...commonPayload,
-        isEpisodeComplete: false,
-        nextInteraction: nextInteraction!,
-      };
-}
-
-
-// containsWord checks a selected headword as a complete case-insensitive token.
-function containsWord(text: string, word: string): boolean {
-  const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  return new RegExp(`\\b${escapedWord}\\b`, 'i').test(text);
+      ...commonPayload,
+      isEpisodeComplete: false,
+      nextInteraction: nextInteraction!,
+    };
 }
 
 // containsText checks that an annotation surface exists in its referenced sentence.
@@ -376,7 +459,9 @@ function compactTextList(values: readonly string[], limit: number): string[] {
 }
 
 // uniqueById removes duplicate choice ids while preserving model order.
-function uniqueById<T extends { readonly id: string }>(values: readonly T[]): T[] {
+function uniqueById<T extends { readonly id: string }>(
+  values: readonly T[],
+): T[] {
   const seen = new Set<string>();
 
   return values.filter((value) => {
@@ -426,10 +511,10 @@ function normalizePlaybackFrames({
       frame,
       sentence: sentences[index]!,
       speakerNames,
-    }),
+    })
   );
 
-  return mergeAdjacentDialogueFrames(normalizedFrames, sentences);
+  return mergeAdjacentDialogueFrames(normalizedFrames);
 }
 
 // normalizeFrameText strips quote markers while preserving frame meaning.
@@ -463,10 +548,9 @@ function normalizeFrameText({
 function getPinnedSpeakerNames(
   request: GenerateEpisodeRequest | SubmitInteractionRequest,
 ): readonly string[] {
-  const profiles =
-    'characterProfiles' in request
-      ? request.characterProfiles
-      : request.compactSeriesMemory.characterProfiles;
+  const profiles = 'characterProfiles' in request
+    ? request.characterProfiles
+    : request.compactSeriesMemory.characterProfiles;
   const profileNames = profiles.map((profile) => profile.name);
 
   return profileNames.length > 0
@@ -503,7 +587,10 @@ function normalizeSpeakerKey(value: string): string {
     .trim()
     .toLocaleLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\b(mr|mrs|ms|miss|dr|doctor|detective|professor|captain|officer)\b/g, '')
+    .replace(
+      /\b(mr|mrs|ms|miss|dr|doctor|detective|professor|captain|officer)\b/g,
+      '',
+    )
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -511,7 +598,6 @@ function normalizeSpeakerKey(value: string): string {
 // mergeAdjacentDialogueFrames joins consecutive same-speaker dialogue into one playback unit.
 function mergeAdjacentDialogueFrames(
   frames: readonly NormalizedSentenceFrame[],
-  sentences: readonly string[],
 ): {
   // frames are the merged reader units returned to the client.
   frames: NormalizedSentenceFrame[];
@@ -534,8 +620,9 @@ function mergeAdjacentDialogueFrames(
       previousFrame.speaker === frame.speaker
     ) {
       previousFrame.text = `${previousFrame.text} ${frame.text}`.trim();
-      mergedSentences[mergedSentences.length - 1] =
-        `${mergedSentences[mergedSentences.length - 1]} ${currentSentence}`.trim();
+      mergedSentences[mergedSentences.length - 1] = `${
+        mergedSentences[mergedSentences.length - 1]
+      } ${currentSentence}`.trim();
       sentenceIndexMap[index] = mergedFrames.length - 1;
 
       return;
@@ -544,14 +631,14 @@ function mergeAdjacentDialogueFrames(
     mergedFrames.push(
       frame.kind === 'dialogue'
         ? {
-            kind: 'dialogue',
-            speaker: frame.speaker,
-            text: frame.text,
-          }
+          kind: 'dialogue',
+          speaker: frame.speaker,
+          text: frame.text,
+        }
         : {
-            kind: 'narration',
-            text: frame.text,
-          },
+          kind: 'narration',
+          text: frame.text,
+        },
     );
     mergedSentences.push(currentSentence);
     sentenceIndexMap[index] = mergedFrames.length - 1;

@@ -1,4 +1,7 @@
-import { assertEquals, assertThrows } from 'jsr:@std/assert';
+import {
+  assertEquals,
+  assertThrows,
+} from 'https://deno.land/std@0.224.0/assert/mod.ts';
 
 import type {
   GenerateEpisodeRequest,
@@ -181,6 +184,101 @@ Deno.test('finalizeEpisodePayload synchronizes story text and compact memory', (
   ]);
 });
 
+Deno.test('finalizeEpisodePayload rejects translated learner-facing story blocks', () => {
+  // translatedBlocks reproduce a utility model translating the main reader text.
+  const translatedBlocks: readonly string[] = [
+    'Мира осторожно подошла к синей двери.',
+    'Лео услышал тихий шёпот внутри библиотеки.',
+    'Нам нужно сначала послушать.',
+  ];
+
+  assertThrows(
+    () =>
+      finalizeEpisodePayload({
+        request: generateRequest,
+        payload: {
+          title: 'The First Whisper',
+          sceneText: translatedBlocks.join(' '),
+          sentences: translatedBlocks,
+          sentenceFrames: translatedBlocks.map((text) => ({
+            kind: 'narration',
+            text,
+          })),
+          storyWordIds: [],
+          annotations: [],
+          interaction: {
+            kind: 'choice',
+            prompt: 'What should Mira do?',
+            choices: [
+              { id: 'open', label: 'Open the door carefully' },
+              { id: 'wait', label: 'Wait and listen' },
+            ],
+          },
+          cliffhanger: 'The whisper called Mira by name.',
+          summaryUpdate: 'Mira and Leo found a whispering blue door.',
+          memoryUpdate: {
+            knownFacts: [],
+            openQuestions: [],
+            importantObjectsOrLocations: [],
+            lastEpisodeSummary: 'Mira and Leo found the door.',
+            unresolvedCliffhanger: 'The whisper called Mira by name.',
+            recurringStoryWordIds: [],
+          },
+        },
+      }),
+    Error,
+    'episode field sceneText must be predominantly English.',
+  );
+});
+
+Deno.test('finalizeEpisodePayload preserves multi-sentence semantic reader blocks', () => {
+  // semanticBlocks prove the legacy sentences field is not a tokenizer boundary.
+  const semanticBlocks: readonly string[] = [
+    'Mira reached the blue door. The old handle felt warm in her hand.',
+    'Leo stopped beside her. A quiet whisper came from the other side.',
+    'We should listen first.',
+  ];
+  // semanticFrames keep prose beats together while dialogue remains explicit.
+  const semanticFrames = [
+    { kind: 'narration' as const, text: semanticBlocks[0]! },
+    { kind: 'narration' as const, text: semanticBlocks[1]! },
+    { kind: 'dialogue' as const, speaker: 'Mira', text: semanticBlocks[2]! },
+  ];
+
+  const result = finalizeEpisodePayload({
+    request: generateRequest,
+    payload: {
+      title: 'The Warm Handle',
+      sceneText: semanticBlocks.join(' '),
+      sentences: semanticBlocks,
+      sentenceFrames: semanticFrames,
+      storyWordIds: [],
+      annotations: [],
+      interaction: {
+        kind: 'choice',
+        prompt: 'What should Mira do?',
+        choices: [
+          { id: 'listen', label: 'Listen at the door' },
+          { id: 'open', label: 'Open it carefully' },
+        ],
+      },
+      cliffhanger: 'The warm handle began to turn by itself.',
+      summaryUpdate: 'Mira and Leo reached a warm door with a voice behind it.',
+      memoryUpdate: {
+        knownFacts: [],
+        openQuestions: [],
+        importantObjectsOrLocations: ['blue door'],
+        lastEpisodeSummary: 'Outdated model summary.',
+        unresolvedCliffhanger: 'Outdated hook.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+
+  assertEquals(result.sentences, semanticBlocks);
+  assertEquals(result.sentenceFrames, semanticFrames);
+});
+
 Deno.test('finalizeEpisodePayload rejects an episode title prefixed with the series title', () => {
   assertThrows(
     () =>
@@ -281,7 +379,8 @@ Deno.test('finalizeEpisodePayload normalizes only dialogue speaker labels to pin
     },
     payload: {
       title: 'The Quiet Case',
-      sceneText: 'Detective Corbin raised one hand. Wait here. The hall went quiet.',
+      sceneText:
+        'Detective Corbin raised one hand. Wait here. The hall went quiet.',
       sentences: [
         'Detective Corbin raised one hand.',
         'Wait here.',
@@ -448,7 +547,10 @@ Deno.test('finalizeEpisodePayload keeps stripped sentence and frame text aligned
     },
   });
 
-  assertEquals(result.sentences[1], 'We should listen first. Then we can open it.');
+  assertEquals(
+    result.sentences[1],
+    'We should listen first. Then we can open it.',
+  );
   assertEquals(result.sentenceFrames[1]?.text, result.sentences[1]);
   assertEquals(result.sceneText, result.sentences.join(' '));
 });
@@ -515,7 +617,10 @@ Deno.test('finalizeEpisodePayload merges adjacent dialogue from the same speaker
   }
 
   assertEquals(dialogueFrame.speaker, 'Mira');
-  assertEquals(dialogueFrame.text, 'I think it is stuck. Maybe we should wait.');
+  assertEquals(
+    dialogueFrame.text,
+    'I think it is stuck. Maybe we should wait.',
+  );
 });
 
 Deno.test('finalizeEpisodePayload repairs mojibake Russian translations', () => {
@@ -676,6 +781,44 @@ Deno.test('finalizeInteractionPayload synchronizes continuation and summary', ()
   );
   assertEquals(result.isEpisodeComplete, false);
   assertEquals(result.nextInteraction?.choices.length, 2);
+});
+
+Deno.test('finalizeInteractionPayload rejects a Russian continuation', () => {
+  assertThrows(
+    () =>
+      finalizeInteractionPayload({
+        request: submitRequest,
+        payload: {
+          feedback: 'Good choice.',
+          continuationText: 'Мира медленно открыла дверь.',
+          continuationSentences: ['Мира медленно открыла дверь.'],
+          continuationSentenceFrames: [
+            { kind: 'narration', text: 'Мира медленно открыла дверь.' },
+          ],
+          continuationAnnotations: [],
+          isEpisodeComplete: false,
+          nextInteraction: {
+            kind: 'choice',
+            prompt: 'What should Mira do?',
+            choices: [
+              { id: 'enter', label: 'Enter the passage' },
+              { id: 'wait', label: 'Wait outside' },
+            ],
+          },
+          summaryUpdate: 'Mira opened the door.',
+          memoryUpdate: {
+            knownFacts: [],
+            openQuestions: [],
+            importantObjectsOrLocations: [],
+            lastEpisodeSummary: 'Mira opened the door.',
+            unresolvedCliffhanger: 'A quiet voice called from the passage.',
+            recurringStoryWordIds: [],
+          },
+        },
+      }),
+    Error,
+    'interaction field continuationText must be predominantly English.',
+  );
 });
 
 Deno.test('finalizeInteractionPayload normalizes continuation frame text', () => {
@@ -955,8 +1098,7 @@ Deno.test('finalizeInteractionPayload rejects completion before the fifth answer
           openQuestions: ['Who called Mira?'],
           importantObjectsOrLocations: ['hidden passage'],
           lastEpisodeSummary: 'Mira entered the hidden passage.',
-          unresolvedCliffhanger:
-            'A familiar voice called from the next room.',
+          unresolvedCliffhanger: 'A familiar voice called from the next room.',
           recurringStoryWordIds: [],
         },
       },
@@ -1003,7 +1145,8 @@ Deno.test('finalizeInteractionPayload accepts a coherent fifth-turn ending', () 
       continuationSentenceFrames: [
         {
           kind: 'narration',
-          text: 'Mira followed the marked path and found the missing library key.',
+          text:
+            'Mira followed the marked path and found the missing library key.',
         },
       ],
       continuationAnnotations: [],
@@ -1048,7 +1191,8 @@ Deno.test('finalizeInteractionPayload forces completion at the tenth answer', ()
       continuationSentenceFrames: [
         {
           kind: 'narration',
-          text: 'Mira stepped through the final doorway and found the library map.',
+          text:
+            'Mira stepped through the final doorway and found the library map.',
         },
       ],
       continuationAnnotations: [],

@@ -1,6 +1,4 @@
-import { generateText } from 'npm:ai';
-import { createOpenAI } from 'npm:@ai-sdk/openai';
-import { z } from 'npm:zod';
+import { z } from 'npm:zod@4.4.3';
 
 import {
   corsHeaders,
@@ -14,12 +12,12 @@ import { runIdempotentGeneration } from '../_shared/generationIdempotency.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
 import {
   createCharacterProfileId,
+  type DraftRequestFields,
   getCastSizeConstraint,
   getProvidedCharacterProfiles,
   resolveDraftFields,
-  shouldEvaluateSetupField,
-  type DraftRequestFields,
   type SetupDraftField,
+  shouldEvaluateSetupField,
 } from './draftResolution.ts';
 import {
   buildModerationReview,
@@ -28,24 +26,19 @@ import {
   getEffectiveWarningCount,
   scanModerationEntries,
 } from '../_shared/moderation.ts';
+import {
+  generateStructuredObject,
+  getAiModelId,
+  isAiGatewayConfigured,
+} from '../_shared/aiGateway.ts';
+import {
+  generateQualityAcceptedCandidate,
+  type QualityReview,
+  reviewGeneratedCandidate,
+} from '../_shared/aiQuality.ts';
 
-// openrouterApiKey is the server-only secret used by the AI boundary.
-const openrouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
-
-// openrouterModel selects the deployed model without exposing provider settings to mobile.
-const openrouterModel =
-  Deno.env.get('OPENROUTER_MODEL') ?? 'openai/gpt-4o-mini';
-
-// openrouterProvider is the OpenAI-compatible Vercel AI SDK provider for OpenRouter.
-const openrouterProvider = openrouterApiKey
-  ? createOpenAI({
-      apiKey: openrouterApiKey,
-      baseURL: 'https://openrouter.ai/api/v1',
-    })
-  : undefined;
-
-// setupDraftAttempts is the maximum retry count for structured setup generation.
-const setupDraftAttempts = 3;
+// writerModel is logged without exposing prompts or server secrets.
+const writerModel: string = getAiModelId('writer');
 
 // setupTextFields lists AI-fillable result fields in their dependency order.
 const setupTextFields = [
@@ -102,10 +95,9 @@ const setupDraftRequestSchema = z.object({
   userRole: z.string().trim().min(1).max(160).optional(),
   creativeBrief: creativeBriefSchema,
 }).superRefine((request, context) => {
-  const providedNames =
-    request.characterProfiles.length > 0
-      ? request.characterProfiles.map((profile) => profile.name)
-      : request.mainCharacters;
+  const providedNames = request.characterProfiles.length > 0
+    ? request.characterProfiles.map((profile) => profile.name)
+    : request.mainCharacters;
   const normalizedProvidedNames = providedNames.map(normalizeCharacterName);
 
   if (new Set(normalizedProvidedNames).size !== providedNames.length) {
@@ -126,12 +118,10 @@ const setupDraftRequestSchema = z.object({
     });
   }
 
-  const pinsRole =
-    request.creativeBrief.draftStrategy === 'fill-missing' &&
+  const pinsRole = request.creativeBrief.draftStrategy === 'fill-missing' &&
     request.participationMode === 'character' &&
     request.userRole !== undefined;
-  const pinsProfiles =
-    request.creativeBrief.draftStrategy === 'fill-missing' &&
+  const pinsProfiles = request.creativeBrief.draftStrategy === 'fill-missing' &&
     providedNames.length > 0;
 
   if (
@@ -142,7 +132,8 @@ const setupDraftRequestSchema = z.object({
   ) {
     context.addIssue({
       code: 'custom',
-      message: 'A preserved userRole must match a preserved character profile name.',
+      message:
+        'A preserved userRole must match a preserved character profile name.',
       path: ['userRole'],
     });
   }
@@ -170,7 +161,10 @@ const setupDraftSchema = z.object({
     });
   }
 
-  if (new Set(profileNames.map(normalizeCharacterName)).size !== profileNames.length) {
+  if (
+    new Set(profileNames.map(normalizeCharacterName)).size !==
+      profileNames.length
+  ) {
     context.addIssue({
       code: 'custom',
       message: 'Character profile names must be unique.',
@@ -224,20 +218,20 @@ const modelSetupDraftSchema = z
       draft.characterProfiles === null || draft.characterProfiles === undefined
         ? undefined
         : draft.characterProfiles.flatMap((profile, index) => {
-            if (!profile?.name) {
-              return [];
-            }
+          if (!profile?.name) {
+            return [];
+          }
 
-            const name = profile.name;
+          const name = profile.name;
 
-            return [
-              {
-                id: profile.id || createCharacterProfileId(name, index),
-                name,
-                description: profile.description ?? '',
-              },
-            ];
-          }),
+          return [
+            {
+              id: profile.id || createCharacterProfileId(name, index),
+              name,
+              description: profile.description ?? '',
+            },
+          ];
+        }),
     userRole: draft.userRole ? draft.userRole : undefined,
   }));
 
@@ -249,7 +243,7 @@ Deno.serve(async (request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  if (!openrouterProvider) {
+  if (!isAiGatewayConfigured()) {
     return safeErrorResponse('unavailable', 503);
   }
 
@@ -257,9 +251,13 @@ Deno.serve(async (request) => {
   const parsedRequest = setupDraftRequestSchema.safeParse(requestBody);
 
   if (!parsedRequest.success) {
-    logSafeError('generate-series-setup request validation failed', parsedRequest.error, {
-      model: openrouterModel,
-    });
+    logSafeError(
+      'generate-series-setup request validation failed',
+      parsedRequest.error,
+      {
+        model: writerModel,
+      },
+    );
 
     return safeErrorResponse('validation', 400);
   }
@@ -290,7 +288,9 @@ Deno.serve(async (request) => {
     );
 
     if (moderationSignals.length > 0) {
-      const currentState = await moderationStore.getState(authResult.user.userId);
+      const currentState = await moderationStore.getState(
+        authResult.user.userId,
+      );
       const review = buildModerationReview({
         previousWarningCount: getEffectiveWarningCount(currentState),
         signals: moderationSignals,
@@ -307,7 +307,9 @@ Deno.serve(async (request) => {
         review.warningsRemaining,
         review.shouldBan
           ? 'This setup request matched blocked content rules again and the account has been banned.'
-          : `This setup request matched blocked content rules. ${review.warningsRemaining} warning${review.warningsRemaining === 1 ? '' : 's'} remain before a ban.`,
+          : `This setup request matched blocked content rules. ${review.warningsRemaining} warning${
+            review.warningsRemaining === 1 ? '' : 's'
+          } remain before a ban.`,
       );
     }
 
@@ -336,7 +338,7 @@ Deno.serve(async (request) => {
     });
   } catch (error) {
     logSafeError('generate-series-setup failed', error, {
-      model: openrouterModel,
+      operation: 'generate-series-setup',
     });
 
     return safeErrorResponse('unavailable', 502);
@@ -349,7 +351,7 @@ async function readJsonBody(request: Request): Promise<unknown> {
     return await request.json();
   } catch (error) {
     logSafeError('generate-series-setup JSON parsing failed', error, {
-      model: openrouterModel,
+      model: writerModel,
     });
 
     return undefined;
@@ -357,7 +359,9 @@ async function readJsonBody(request: Request): Promise<unknown> {
 }
 
 // generateSetupDraft asks the model only when the selected strategy has useful work.
-async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraft> {
+async function generateSetupDraft(
+  request: SetupDraftRequest,
+): Promise<SetupDraft> {
   if (getFieldsToEvaluate(request).length === 0) {
     return finalizeDraft(request, {
       title: undefined,
@@ -367,41 +371,95 @@ async function generateSetupDraft(request: SetupDraftRequest): Promise<SetupDraf
     });
   }
 
-  let lastError: Error | undefined;
-  // maxAttempts bounds retries caused by malformed or contract-breaking AI output.
-  const maxAttempts = setupDraftAttempts + 1;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const result = await generateText({
-      model: openrouterProvider!(openrouterModel),
-      system: buildSystemPrompt(),
-      prompt: lastError
-        ? `${buildPrompt(request)}\n\nPrevious output failed validation: ${lastError.message}\nCorrect only the invalid generated values. Keep every creative-brief anchor unchanged.`
-        : buildPrompt(request),
-      // Temperature stays conservative for refinement and opens up only for full rebuilds.
-      temperature: getGenerationTemperature(
-        request.creativeBrief.draftStrategy,
-      ),
-      maxOutputTokens: 1200,
-    });
-
-    try {
-      // finalizeDraft is the enforcement layer; prompt compliance is never trusted.
-      return finalizeDraft(
-        request,
-        modelSetupDraftSchema.parse(parseJsonObject(result.text)),
-      );
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      logSafeError('generate-series-setup attempt failed', lastError, {
-        attempt: String(attempt),
-        model: openrouterModel,
+  return await generateQualityAcceptedCandidate({
+    label: 'series-setup',
+    generate: async (role, retryHints) => {
+      const modelDraft = await generateStructuredObject({
+        role,
+        schema: modelSetupDraftSchema,
+        schemaName: 'series_setup_draft',
+        schemaDescription:
+          'Only the series setup fields permitted by the selected draft strategy.',
+        system: buildSystemPrompt(),
+        prompt: appendRetryHints(buildPrompt(request), retryHints),
+        // Temperature stays conservative for refinement and opens up only for full rebuilds.
+        temperature: role === 'writer'
+          ? getGenerationTemperature(request.creativeBrief.draftStrategy)
+          : 0.65,
+        frequencyPenalty: 0.2,
+        maxOutputTokens: 1200,
       });
-    }
+
+      // finalizeDraft is the enforcement layer; prompt compliance is never trusted.
+      return finalizeDraft(request, modelDraft);
+    },
+    repair: async (candidate, issues) => {
+      const repairedDraft = await generateStructuredObject({
+        role: 'fallback',
+        schema: modelSetupDraftSchema,
+        schemaName: 'series_setup_repair',
+        schemaDescription:
+          'Only the series setup fields permitted by the selected draft strategy.',
+        system: buildRepairSystemPrompt(),
+        prompt: buildRepairPrompt(request, candidate, issues),
+        temperature: 0.25,
+        maxOutputTokens: 1500,
+      });
+
+      return finalizeDraft(request, repairedDraft);
+    },
+    review: (candidate) =>
+      reviewGeneratedCandidate({
+        workflow: 'series-setup',
+        criteria: [
+          'All generated title, premise, character descriptions, and learner-role text must be written in English.',
+          'The setup must follow every creative-brief anchor and must not introduce anything listed in avoid.',
+          `The setup must fit genre ${request.genre}, tone ${request.tone}, and participation mode ${request.participationMode}.`,
+          `The premise and character descriptions must be broadly understandable for a ${request.cefrLevel} learner; reject only a sustained mismatch, not isolated contextual words or names.`,
+          'Title, premise, cast, and user role must describe one coherent original story.',
+          'Character names and roles must be distinct enough to avoid confusion.',
+          'In character mode, userRole must identify one returned character exactly.',
+          'The result must follow the selected fill-missing, refine, or rebuild replacement permissions.',
+          'The result must not copy protected story worlds, names, characters, or plots.',
+        ],
+        context: {
+          genre: request.genre,
+          cefrLevel: request.cefrLevel,
+          tone: request.tone,
+          participationMode: request.participationMode,
+          draftStrategy: request.creativeBrief.draftStrategy,
+          creativeBrief: request.creativeBrief,
+          currentDraft: {
+            title: request.title,
+            premise: request.premise,
+            characterProfiles: request.characterProfiles,
+            mainCharacters: request.mainCharacters,
+            emptyCharacterSlotCount: request.emptyCharacterSlotCount,
+            userRole: request.userRole,
+          },
+          fieldsToEvaluate: getFieldsToEvaluate(request),
+        },
+        candidate,
+      }),
+  });
+}
+
+// appendRetryHints gives the writer only actionable validator feedback.
+function appendRetryHints(
+  prompt: string,
+  retryHints: readonly string[],
+): string {
+  if (retryHints.length === 0) {
+    return prompt;
   }
 
-  throw lastError ?? new Error('Series setup draft validation failed.');
+  return [
+    prompt,
+    '',
+    'Required corrections from the previous validation pass:',
+    ...retryHints.map((hint, index) => `${index + 1}. ${hint}`),
+    'Regenerate only fields permitted by the strategy and do not mention these corrections.',
+  ].join('\n');
 }
 
 // buildSystemPrompt keeps setup generation bounded and original.
@@ -416,6 +474,20 @@ function buildSystemPrompt(): string {
     'Never phrase userRole as an instruction such as "You are ..." or "You play ...".',
     'Do not copy protected worlds, names, characters, or plots.',
     'Use plain text only: no Markdown, no bullet lists, no typographic quotes.',
+  ].join('\n');
+}
+
+// buildRepairSystemPrompt constrains setup recovery to evidence-based field edits.
+function buildRepairSystemPrompt(): string {
+  return [
+    'You are a precise editor for an original English-learning series setup.',
+    'Return exactly one raw JSON object. Do not wrap it in Markdown fences.',
+    'Fix every supplied reviewer issue using its code, evidence, and instruction.',
+    'Preserve all candidate fields that are not implicated by an issue.',
+    'Never change selected constraints or protected creative-brief anchors.',
+    'Return only setup fields permitted by the supplied strategy policy.',
+    'Do not copy protected worlds, names, characters, or plots.',
+    'Use plain text only with ASCII punctuation and no Markdown.',
   ].join('\n');
 }
 
@@ -446,10 +518,9 @@ function buildPrompt(request: SetupDraftRequest): string {
     payload.fixedDraftFields = {
       title: request.title,
       premise: request.premise,
-      userRole:
-        request.participationMode === 'character'
-          ? request.userRole
-          : undefined,
+      userRole: request.participationMode === 'character'
+        ? request.userRole
+        : undefined,
       characterProfiles: currentCharacterProfiles,
       emptyCharacterSlotCount: request.emptyCharacterSlotCount,
     };
@@ -457,10 +528,9 @@ function buildPrompt(request: SetupDraftRequest): string {
     payload.currentDraft = {
       title: request.title,
       premise: request.premise,
-      userRole:
-        request.participationMode === 'character'
-          ? request.userRole
-          : undefined,
+      userRole: request.participationMode === 'character'
+        ? request.userRole
+        : undefined,
       characterProfiles: currentCharacterProfiles,
       emptyCharacterSlotCount: request.emptyCharacterSlotCount,
     };
@@ -483,6 +553,44 @@ function buildPrompt(request: SetupDraftRequest): string {
   payload.outputRules = baseOutputRules;
 
   return JSON.stringify(payload, null, 2);
+}
+
+// buildRepairPrompt sends the accepted field policy, candidate, and concrete evidence.
+function buildRepairPrompt(
+  request: SetupDraftRequest,
+  candidate: SetupDraft,
+  issues: QualityReview['issues'],
+): string {
+  return JSON.stringify(
+    {
+      task: 'repair-reviewed-series-setup',
+      draftStrategy: request.creativeBrief.draftStrategy,
+      fieldsToEvaluate: getFieldsToEvaluate(request),
+      strategyPolicy: getDraftStrategyPolicy(
+        request.creativeBrief.draftStrategy,
+      ),
+      selectedConstraints: {
+        cefrLevel: request.cefrLevel,
+        genre: request.genre,
+        tone: request.tone,
+        participationMode: request.participationMode,
+      },
+      protectedCreativeBrief: request.creativeBrief,
+      candidate,
+      reviewerIssues: issues,
+      outputRules: [
+        'Resolve every reviewer issue with the smallest possible edit.',
+        'Return every field listed in fieldsToEvaluate; copy unaffected permitted fields exactly from candidate so server preservation does not restore an older draft value.',
+        'Preserve unaffected names, roles, facts, and wording.',
+        'In character mode, userRole must exactly match one returned characterProfiles name.',
+        'In director mode, omit userRole.',
+        'Return only title, premise, characterProfiles, and userRole fields permitted by strategyPolicy.',
+        'Do not add explanations, change logs, Markdown, or fields outside the schema.',
+      ],
+    },
+    null,
+    2,
+  );
 }
 
 // finalizeDraft enforces preservation, cast size, mode, and cross-field consistency.
@@ -512,7 +620,9 @@ function finalizeDraft(
     );
   }
 
-  if (request.participationMode === 'character' && resolved.userRole === undefined) {
+  if (
+    request.participationMode === 'character' && resolved.userRole === undefined
+  ) {
     throw new Error('userRole is required in character mode.');
   }
 
@@ -564,10 +674,16 @@ function buildCastRule(
     const generatedSizeRule = preferredCastSize !== undefined
       ? `The learner selected an exact cast size. Return exactly ${preferredCastSize} complete profiles; remove or replace current profiles as needed. Visible rows beyond that selected total do not need to remain.`
       : emptyCharacterSlotCount > 0
-        ? `Return a complete cast of ${Math.max(requiredSize, 1)} to ${Math.max(requiredSize, 4)} profiles and fill every visible empty character row.`
-        : 'If replacing the cast, return one to four complete profiles.';
+      ? `Return a complete cast of ${Math.max(requiredSize, 1)} to ${
+        Math.max(requiredSize, 4)
+      } profiles and fill every visible empty character row.`
+      : 'If replacing the cast, return one to four complete profiles.';
 
-    return `Evaluate the current cast as a whole. ${preferredCastSize !== undefined || emptyCharacterSlotCount > 0 ? 'characterProfiles is required when the current complete cast does not satisfy the selected total or visible fill slots.' : 'Omit characterProfiles when no meaningful improvement is needed.'} ${generatedSizeRule}`;
+    return `Evaluate the current cast as a whole. ${
+      preferredCastSize !== undefined || emptyCharacterSlotCount > 0
+        ? 'characterProfiles is required when the current complete cast does not satisfy the selected total or visible fill slots.'
+        : 'Omit characterProfiles when no meaningful improvement is needed.'
+    } ${generatedSizeRule}`;
   }
 
   if (strategy === 'rebuild') {
@@ -580,10 +696,15 @@ function buildCastRule(
     if (pinnedCount === 0) {
       const minimumGeneratedCount = Math.max(emptyCharacterSlotCount, 1);
 
-      return `Choose an appropriate cast size from ${minimumGeneratedCount} to ${Math.max(minimumGeneratedCount, 4)} and return that many character profiles.`;
+      return `Choose an appropriate cast size from ${minimumGeneratedCount} to ${
+        Math.max(minimumGeneratedCount, 4)
+      } and return that many character profiles.`;
     }
 
-    const minimumFinalSize = Math.max(minimumVisibleSize, Math.min(pinnedCount + 1, 4));
+    const minimumFinalSize = Math.max(
+      minimumVisibleSize,
+      Math.min(pinnedCount + 1, 4),
+    );
     const maximumFinalSize = Math.max(minimumFinalSize, 4);
 
     return `Preserve all ${pinnedCount} pinned profiles. Choose a final cast size from ${minimumFinalSize} to ${maximumFinalSize}, then return only the new profiles needed to reach that size. Do not repeat pinned profiles.`;
@@ -631,20 +752,4 @@ function getGenerationTemperature(
 // normalizeCharacterName supports request-level duplicate and role checks.
 function normalizeCharacterName(name: string): string {
   return name.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
-}
-
-// parseJsonObject extracts a JSON object even when a model adds accidental prose.
-function parseJsonObject(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-
-    if (start >= 0 && end > start) {
-      return JSON.parse(text.slice(start, end + 1));
-    }
-
-    throw new Error('AI response did not contain a JSON object.');
-  }
 }

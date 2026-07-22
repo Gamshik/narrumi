@@ -1,11 +1,8 @@
-import { generateText } from 'npm:ai';
-import { createOpenAI } from 'npm:@ai-sdk/openai';
-
 import {
-  excerptTranslationPayloadSchema,
-  translateExcerptRequestSchema,
   type ExcerptTranslationPayload,
+  excerptTranslationPayloadSchema,
   type TranslateExcerptRequest,
+  translateExcerptRequestSchema,
 } from '../_shared/excerptTranslationContracts.ts';
 import { readAuthenticatedUserId } from '../_shared/auth.ts';
 import {
@@ -14,19 +11,14 @@ import {
   logSafeError,
   safeErrorResponse,
 } from '../_shared/http.ts';
+import {
+  generateStructuredObject,
+  getAiModelId,
+  isAiGatewayConfigured,
+} from '../_shared/aiGateway.ts';
 
-// openrouterApiKey is the server-only secret used by the translation boundary.
-const openrouterApiKey: string | undefined = Deno.env.get('OPENROUTER_API_KEY');
-// openrouterModel selects the deployed model without exposing it to mobile.
-const openrouterModel: string =
-  Deno.env.get('OPENROUTER_MODEL') ?? 'openai/gpt-4o-mini';
-// openrouterProvider is the OpenAI-compatible Vercel AI SDK provider for OpenRouter.
-const openrouterProvider = openrouterApiKey
-  ? createOpenAI({
-      apiKey: openrouterApiKey,
-      baseURL: 'https://openrouter.ai/api/v1',
-    })
-  : undefined;
+// utilityModel is logged without exposing prompts or server secrets.
+const utilityModel: string = getAiModelId('utility');
 
 // translationSystemPrompt keeps the model response limited to the exact selected text.
 const translationSystemPrompt: string = [
@@ -47,7 +39,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return safeErrorResponse('validation', 405);
   }
 
-  if (!openrouterProvider) {
+  if (!isAiGatewayConfigured()) {
     return safeErrorResponse('unavailable', 503);
   }
 
@@ -58,7 +50,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     logSafeError(
       'translate-excerpt request validation failed',
       parsedRequest.error,
-      { model: openrouterModel },
+      { model: utilityModel },
     );
     return safeErrorResponse('validation', 400);
   }
@@ -77,7 +69,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return jsonResponse(payload);
   } catch (error: unknown) {
     logSafeError('translate-excerpt AI call failed', error, {
-      model: openrouterModel,
+      model: utilityModel,
       userId: authResult.user.userId,
     });
     return safeErrorResponse('unavailable', 502);
@@ -88,8 +80,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
 async function translateExcerpt(
   request: TranslateExcerptRequest,
 ): Promise<ExcerptTranslationPayload> {
-  const result = await generateText({
-    model: openrouterProvider!(openrouterModel),
+  return await generateStructuredObject({
+    role: 'utility',
+    schema: excerptTranslationPayloadSchema,
+    schemaName: 'exact_excerpt_translation',
+    schemaDescription:
+      'A natural Russian translation of exactly the selected English text.',
     system: translationSystemPrompt,
     prompt: [
       'Translate only the exact selected text in this JSON:',
@@ -97,9 +93,8 @@ async function translateExcerpt(
     ].join('\n'),
     temperature: 0.1,
     maxOutputTokens: 500,
+    strictSchema: true,
   });
-
-  return excerptTranslationPayloadSchema.parse(parseJsonObject(result.text));
 }
 
 // readJsonBody returns undefined for malformed JSON so schema validation stays uniform.
@@ -109,21 +104,4 @@ async function readJsonBody(request: Request): Promise<unknown> {
   } catch {
     return undefined;
   }
-}
-
-// parseJsonObject extracts one JSON object when a provider adds harmless code fences.
-function parseJsonObject(text: string): unknown {
-  const trimmedText: string = text.trim();
-  const fencedMatch: RegExpMatchArray | null = trimmedText.match(
-    /```(?:json)?\s*([\s\S]*?)\s*```/i,
-  );
-  const candidate: string = fencedMatch?.[1]?.trim() ?? trimmedText;
-  const objectStart: number = candidate.indexOf('{');
-  const objectEnd: number = candidate.lastIndexOf('}');
-
-  if (objectStart < 0 || objectEnd <= objectStart) {
-    throw new Error('AI response did not contain a JSON object.');
-  }
-
-  return JSON.parse(candidate.slice(objectStart, objectEnd + 1));
 }
