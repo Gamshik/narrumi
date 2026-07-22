@@ -28,6 +28,7 @@ import {
   SeriesCreativeBriefEditor,
   SeriesSetupTextField,
   CollapsingTitleEdgeEffects,
+  useKeyboardAwareScroll,
   PlatformBlurTargetView,
   ScreenEdgeEffects,
   screenEdgeDepths,
@@ -742,8 +743,9 @@ function CreateSeriesModal({
   const insets = useSafeAreaInsets();
   const topInset: number = insets.top;
   const bottomInset: number = insets.bottom;
-  const scrollViewRef = useRef<ScrollView>(null);
-  const fieldOffsetsRef = useRef<Record<string, number>>({});
+  const { scrollViewRef, revealFocusedInput } = useKeyboardAwareScroll();
+  // characterSectionOffsetRef preserves the existing add-row reveal behavior separately from keyboard focus.
+  const characterSectionOffsetRef = useRef<number | null>(null);
   // modalBlurTargetRef preserves the shared edge-effect source contract inside the setup modal.
   const modalBlurTargetRef: RefObject<View | null> = useRef<View>(null);
   // modalContentInsets keeps initial and final form content clear of the shared edge material.
@@ -773,26 +775,11 @@ function CreateSeriesModal({
   const updateForm = (patch: Partial<SeriesSetupFormState>): void => {
     onChangeForm({ ...form, ...patch });
   };
-  const registerFieldOffset = (fieldId: string, offsetY: number): void => {
-    fieldOffsetsRef.current[fieldId] = offsetY;
-  };
-  const scrollToField = (fieldId: string): void => {
-    setTimeout(() => {
-      const offsetY = fieldOffsetsRef.current[fieldId];
-
-      if (offsetY !== undefined) {
-        scrollViewRef.current?.scrollTo({
-          y: Math.max(0, offsetY - 72),
-          animated: true,
-        });
-      }
-    }, 120);
-  };
   // scrollToAddedCharacter positions the newly inserted card below the modal header.
   const scrollToAddedCharacter = (characterOffsetY: number): void => {
-    const sectionOffsetY = fieldOffsetsRef.current.characterProfiles;
+    const sectionOffsetY = characterSectionOffsetRef.current;
 
-    if (sectionOffsetY === undefined) {
+    if (sectionOffsetY === null) {
       return;
     }
 
@@ -877,8 +864,7 @@ function CreateSeriesModal({
                 isDark={isDark}
                 styles={styles}
                 onChange={(creativeBrief) => updateForm({ creativeBrief })}
-                onFocus={scrollToField}
-                onLayout={registerFieldOffset}
+                onFocus={revealFocusedInput}
               />
               <BubbleButton
                 accessibilityHint="Updates the final setup using the selected AI strategy"
@@ -915,15 +901,13 @@ function CreateSeriesModal({
               <SeriesSetupTextField
                 colors={colors}
                 {...(errors.title ? { error: errors.title } : {})}
-                fieldId="title"
                 isAiSuggested={isAiGeneratedField(form, 'title')}
                 label="Title"
                 maxLength={160}
                 placeholder="Orbit Letters"
                 styles={styles}
                 value={form.title}
-                onFocus={scrollToField}
-                onLayout={registerFieldOffset}
+                onFocus={revealFocusedInput}
                 onChangeText={(title) =>
                   onChangeForm(
                     markSetupFieldUserAuthored({ ...form, title }, 'title'),
@@ -933,7 +917,6 @@ function CreateSeriesModal({
               <SeriesSetupTextField
                 colors={colors}
                 {...(errors.premise ? { error: errors.premise } : {})}
-                fieldId="premise"
                 isAiSuggested={isAiGeneratedField(form, 'premise')}
                 isMultiline
                 label="Premise"
@@ -941,8 +924,7 @@ function CreateSeriesModal({
                 placeholder="A learner receives strange English notes from a future city."
                 styles={styles}
                 value={form.premise}
-                onFocus={scrollToField}
-                onLayout={registerFieldOffset}
+                onFocus={revealFocusedInput}
                 onChangeText={(premise) =>
                   onChangeForm(
                     markSetupFieldUserAuthored(
@@ -964,13 +946,10 @@ function CreateSeriesModal({
                   : {})}
                 profiles={form.characterProfiles}
                 onAddedProfileLayout={scrollToAddedCharacter}
-                onFocus={() => scrollToField('characterProfiles')}
-                onLayout={(event) =>
-                  registerFieldOffset(
-                    'characterProfiles',
-                    event.nativeEvent.layout.y,
-                  )
-                }
+                onFocus={revealFocusedInput}
+                onLayout={(event) => {
+                  characterSectionOffsetRef.current = event.nativeEvent.layout.y;
+                }}
                 onChange={(characterProfiles) =>
                   onChangeForm(
                     markSetupFieldUserAuthored(
@@ -984,7 +963,6 @@ function CreateSeriesModal({
                 <SeriesSetupTextField
                   colors={colors}
                   {...(errors.userRole ? { error: errors.userRole } : {})}
-                  fieldId="userRole"
                   helper="Required. This role becomes read-only after the first episode."
                   isAiSuggested={isAiGeneratedField(form, 'userRole')}
                   isCompactMultiline
@@ -993,8 +971,7 @@ function CreateSeriesModal({
                   placeholder="New analyst"
                   styles={styles}
                   value={form.userRole}
-                  onFocus={scrollToField}
-                  onLayout={registerFieldOffset}
+                  onFocus={revealFocusedInput}
                   onChangeText={(userRole) =>
                     onChangeForm(
                       markSetupFieldUserAuthored(

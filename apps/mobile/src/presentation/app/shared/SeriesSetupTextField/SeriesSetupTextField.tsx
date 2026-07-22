@@ -5,6 +5,7 @@ import type { AppColors } from '@presentation/theme';
 
 import type { AppStyles } from '../../types';
 import { BubbleStatus } from '../BubbleStatus';
+import type { KeyboardFocusTargetHandler } from '../KeyboardAwareScroll';
 
 // SeriesSetupTextFieldProps defines one editable or locked final setup field.
 export type SeriesSetupTextFieldProps = {
@@ -12,8 +13,6 @@ export type SeriesSetupTextFieldProps = {
   readonly colors: AppColors;
   // error is the visible local validation result.
   readonly error?: string;
-  // fieldId identifies the field for keyboard-aware scrolling.
-  readonly fieldId: string;
   // helper explains a field-specific product rule.
   readonly helper?: string;
   // isAiSuggested distinguishes replaceable AI text from learner-owned text.
@@ -36,17 +35,14 @@ export type SeriesSetupTextFieldProps = {
   readonly value: string;
   // onChangeText publishes learner edits and lets the parent update provenance.
   readonly onChangeText: (value: string) => void;
-  // onFocus lets the parent reveal the keyboard target.
-  readonly onFocus: (fieldId: string) => void;
-  // onLayout lets the parent remember the field offset.
-  readonly onLayout: (fieldId: string, offsetY: number) => void;
+  // onFocus lets the parent reveal the exact native keyboard target.
+  readonly onFocus: KeyboardFocusTargetHandler;
 };
 
 // SeriesSetupTextField renders a shared setup input with unobtrusive AI provenance.
 export function SeriesSetupTextField({
   colors,
   error,
-  fieldId,
   helper,
   isAiSuggested = false,
   isCompactMultiline = false,
@@ -59,16 +55,12 @@ export function SeriesSetupTextField({
   value,
   onChangeText,
   onFocus,
-  onLayout,
 }: SeriesSetupTextFieldProps): ReactElement {
   // usesMultilineLayout keeps narrative fields top-aligned.
   const usesMultilineLayout: boolean = isMultiline || isCompactMultiline;
 
   return (
-    <View
-      onLayout={(event) => onLayout(fieldId, event.nativeEvent.layout.y)}
-      style={styles.formGroup}
-    >
+    <View style={styles.formGroup}>
       <View style={styles.formLabelRow}>
         <Text style={styles.sectionLabel}>{label.toUpperCase()}</Text>
         {isAiSuggested ? (
@@ -81,7 +73,7 @@ export function SeriesSetupTextField({
         maxLength={maxLength}
         multiline={usesMultilineLayout}
         onChangeText={onChangeText}
-        onFocus={() => onFocus(fieldId)}
+        onFocus={(event) => onFocus(event.nativeEvent.target)}
         placeholder={placeholder}
         placeholderTextColor={styles.placeholder.color}
         scrollEnabled={usesMultilineLayout}

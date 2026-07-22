@@ -6,6 +6,7 @@ export * from './BubbleSurface';
 export * from './BubbleToggle';
 export * from './DictionaryWordDetailsSheet';
 export * from './JellyPressable';
+export * from './KeyboardAwareScroll';
 export * from './LevelBadge';
 export * from './SorbetTabBar';
 export * from './RouteScreen';

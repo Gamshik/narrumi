@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Text, TextInput, View } from 'react-native';
 
@@ -10,12 +10,12 @@ import type { AppColors } from '@presentation/theme';
 
 import type { AppStyles } from '../../types';
 import { JellyPressable } from '../JellyPressable';
+import type { KeyboardFocusTargetHandler } from '../KeyboardAwareScroll';
 import { SeriesSetupChoiceGroup } from '../SeriesSetupChoiceGroup';
 import {
   createSeriesCreativeBriefEditorStyles,
   type SeriesCreativeBriefEditorStyles,
 } from './SeriesCreativeBriefEditor.styles';
-import { resolveCreativeBriefFieldOffset } from './creativeBriefFieldOffset';
 import { describeDraftStrategy } from './draftStrategyDescription';
 
 // CastSizeChoice is the presentation value for an optional bounded cast preference.
@@ -43,10 +43,8 @@ export type SeriesCreativeBriefEditorProps = {
   readonly styles: AppStyles;
   // onChange publishes the complete updated creative brief.
   readonly onChange: (brief: SeriesCreativeBrief) => void;
-  // onFocus lets a keyboard-aware parent reveal the focused field.
-  readonly onFocus?: (fieldId: string) => void;
-  // onLayout lets a keyboard-aware parent remember field positions.
-  readonly onLayout?: (fieldId: string, offsetY: number) => void;
+  // onFocus lets a keyboard-aware parent reveal the exact focused input.
+  readonly onFocus?: KeyboardFocusTargetHandler;
 };
 
 // draftStrategyOptions expose concrete permissions instead of abstract AI creativity levels.
@@ -81,21 +79,12 @@ export function SeriesCreativeBriefEditor({
   styles,
   onChange,
   onFocus,
-  onLayout,
 }: SeriesCreativeBriefEditorProps): ReactElement {
   // hasSavedDetails reveals persisted anchors immediately when reopening a setup.
   const hasSavedDetails: boolean = hasCreativeBriefDetails(brief);
   const [isExpanded, setIsExpanded] = useState<boolean>(
     !isEditable || hasSavedDetails,
   );
-  // sectionOffsetRef stores the editor position in the setup card coordinate space.
-  const sectionOffsetRef = useRef<number>(0);
-  // detailsOffsetRef stores the optional anchors group position inside the editor.
-  const detailsOffsetRef = useRef<number>(0);
-  // fieldOffsetsRef preserves child coordinates until every parent layout is available.
-  const fieldOffsetsRef = useRef<
-    Record<string, { readonly fieldOffsetY: number; readonly isInDetails: boolean }>
-  >({});
   // editorStyles memoizes the palette-specific component styles.
   const editorStyles: SeriesCreativeBriefEditorStyles = useMemo(
     () => createSeriesCreativeBriefEditorStyles(colors),
@@ -129,49 +118,8 @@ export function SeriesCreativeBriefEditor({
     });
   };
 
-  // publishFieldOffset converts one nested child position into the parent's scroll coordinates.
-  const publishFieldOffset = (
-    fieldId: string,
-    fieldOffsetY: number,
-    isInDetails: boolean,
-  ): void => {
-    fieldOffsetsRef.current[fieldId] = { fieldOffsetY, isInDetails };
-    onLayout?.(
-      fieldId,
-      resolveCreativeBriefFieldOffset({
-        sectionOffsetY: sectionOffsetRef.current,
-        groupOffsetY: isInDetails ? detailsOffsetRef.current : 0,
-        fieldOffsetY,
-      }),
-    );
-  };
-
-  // publishStoredOffsets refreshes child positions when a parent layout arrives later.
-  const publishStoredOffsets = (): void => {
-    Object.entries(fieldOffsetsRef.current).forEach(
-      ([fieldId, fieldLayout]): void => {
-        onLayout?.(
-          fieldId,
-          resolveCreativeBriefFieldOffset({
-            sectionOffsetY: sectionOffsetRef.current,
-            groupOffsetY: fieldLayout.isInDetails
-              ? detailsOffsetRef.current
-              : 0,
-            fieldOffsetY: fieldLayout.fieldOffsetY,
-          }),
-        );
-      },
-    );
-  };
-
   return (
-    <View
-      onLayout={(event) => {
-        sectionOffsetRef.current = event.nativeEvent.layout.y;
-        publishStoredOffsets();
-      }}
-      style={editorStyles.section}
-    >
+    <View style={editorStyles.section}>
       <View style={editorStyles.headingBlock}>
         <Text style={editorStyles.heading}>YOUR IDEA</Text>
         <Text style={editorStyles.helper}>
@@ -181,7 +129,6 @@ export function SeriesCreativeBriefEditor({
       </View>
       <BriefTextField
         editorStyles={editorStyles}
-        fieldId="creativeBrief.idea"
         isEditable={isEditable}
         isIdea
         label="What are you imagining?"
@@ -191,9 +138,6 @@ export function SeriesCreativeBriefEditor({
         value={brief.idea}
         onChangeText={(value) => updateTextField('idea', value)}
         onFocus={onFocus}
-        onLayout={(fieldId, offsetY) =>
-          publishFieldOffset(fieldId, offsetY, false)
-        }
       />
 
       <JellyPressable
@@ -211,16 +155,9 @@ export function SeriesCreativeBriefEditor({
       </JellyPressable>
 
       {isExpanded ? (
-        <View
-          onLayout={(event) => {
-            detailsOffsetRef.current = event.nativeEvent.layout.y;
-            publishStoredOffsets();
-          }}
-          style={editorStyles.details}
-        >
+        <View style={editorStyles.details}>
           <BriefTextField
             editorStyles={editorStyles}
-            fieldId="creativeBrief.worldAndSetting"
             isEditable={isEditable}
             label="World and setting"
             maxLength={400}
@@ -229,13 +166,9 @@ export function SeriesCreativeBriefEditor({
             value={brief.worldAndSetting}
             onChangeText={(value) => updateTextField('worldAndSetting', value)}
             onFocus={onFocus}
-            onLayout={(fieldId, offsetY) =>
-              publishFieldOffset(fieldId, offsetY, true)
-            }
           />
           <BriefTextField
             editorStyles={editorStyles}
-            fieldId="creativeBrief.backstory"
             isEditable={isEditable}
             isMultiline
             label="What happened before?"
@@ -245,13 +178,9 @@ export function SeriesCreativeBriefEditor({
             value={brief.backstory}
             onChangeText={(value) => updateTextField('backstory', value)}
             onFocus={onFocus}
-            onLayout={(fieldId, offsetY) =>
-              publishFieldOffset(fieldId, offsetY, true)
-            }
           />
           <BriefTextField
             editorStyles={editorStyles}
-            fieldId="creativeBrief.storyDriver"
             isEditable={isEditable}
             isMultiline
             label="Goal or central problem"
@@ -261,9 +190,6 @@ export function SeriesCreativeBriefEditor({
             value={brief.storyDriver}
             onChangeText={(value) => updateTextField('storyDriver', value)}
             onFocus={onFocus}
-            onLayout={(fieldId, offsetY) =>
-              publishFieldOffset(fieldId, offsetY, true)
-            }
           />
           <SeriesSetupChoiceGroup
             isDark={isDark}
@@ -278,7 +204,6 @@ export function SeriesCreativeBriefEditor({
           />
           <BriefTextField
             editorStyles={editorStyles}
-            fieldId="creativeBrief.mustInclude"
             isEditable={isEditable}
             label="Important to include"
             maxLength={300}
@@ -287,13 +212,9 @@ export function SeriesCreativeBriefEditor({
             value={brief.mustInclude}
             onChangeText={(value) => updateTextField('mustInclude', value)}
             onFocus={onFocus}
-            onLayout={(fieldId, offsetY) =>
-              publishFieldOffset(fieldId, offsetY, true)
-            }
           />
           <BriefTextField
             editorStyles={editorStyles}
-            fieldId="creativeBrief.avoid"
             isEditable={isEditable}
             label="Please avoid"
             maxLength={300}
@@ -302,9 +223,6 @@ export function SeriesCreativeBriefEditor({
             value={brief.avoid}
             onChangeText={(value) => updateTextField('avoid', value)}
             onFocus={onFocus}
-            onLayout={(fieldId, offsetY) =>
-              publishFieldOffset(fieldId, offsetY, true)
-            }
           />
         </View>
       ) : null}
@@ -337,8 +255,6 @@ export function SeriesCreativeBriefEditor({
 type BriefTextFieldProps = {
   // editorStyles is the palette-specific component style contract.
   readonly editorStyles: SeriesCreativeBriefEditorStyles;
-  // fieldId identifies this anchor for keyboard-aware parents.
-  readonly fieldId: string;
   // isEditable locks the input after the first episode.
   readonly isEditable: boolean;
   // isIdea gives the primary seed more writing room.
@@ -357,18 +273,13 @@ type BriefTextFieldProps = {
   readonly value: string;
   // onChangeText publishes the next exact anchor text.
   readonly onChangeText: (value: string) => void;
-  // onFocus lets the parent reveal the keyboard target.
-  readonly onFocus: ((fieldId: string) => void) | undefined;
-  // onLayout lets the parent remember the input offset.
-  readonly onLayout:
-    | ((fieldId: string, offsetY: number) => void)
-    | undefined;
+  // onFocus lets the parent reveal the exact native keyboard target.
+  readonly onFocus: KeyboardFocusTargetHandler | undefined;
 };
 
 // BriefTextField renders one bounded creative anchor without adding business rules.
 function BriefTextField({
   editorStyles,
-  fieldId,
   isEditable,
   isIdea = false,
   isMultiline = false,
@@ -379,16 +290,12 @@ function BriefTextField({
   value,
   onChangeText,
   onFocus,
-  onLayout,
 }: BriefTextFieldProps): ReactElement {
   // usesMultilineLayout keeps the main idea and narrative anchors top-aligned.
   const usesMultilineLayout: boolean = isIdea || isMultiline;
 
   return (
-    <View
-      onLayout={(event) => onLayout?.(fieldId, event.nativeEvent.layout.y)}
-      style={editorStyles.field}
-    >
+    <View style={editorStyles.field}>
       <Text style={editorStyles.label}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
@@ -396,7 +303,7 @@ function BriefTextField({
         maxLength={maxLength}
         multiline={usesMultilineLayout}
         onChangeText={onChangeText}
-        onFocus={() => onFocus?.(fieldId)}
+        onFocus={(event) => onFocus?.(event.nativeEvent.target)}
         placeholder={placeholder}
         placeholderTextColor={placeholderColor}
         scrollEnabled={usesMultilineLayout}

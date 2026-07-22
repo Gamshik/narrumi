@@ -11,6 +11,7 @@ import type { AppColors } from '@presentation/theme';
 import { BubbleButton } from '../BubbleButton';
 import { BubbleStatus } from '../BubbleStatus';
 import { JellyPressable } from '../JellyPressable';
+import type { KeyboardFocusTargetHandler } from '../KeyboardAwareScroll';
 import {
   createCharacterProfilesEditorStyles,
   type CharacterProfilesEditorStyles,
@@ -31,8 +32,8 @@ export type CharacterProfilesEditorProps = {
   readonly error?: string;
   // isEditable locks profile changes after the series setup becomes immutable.
   readonly isEditable?: boolean;
-  // onFocus lets a keyboard-aware parent reveal this editor when an input activates.
-  readonly onFocus?: () => void;
+  // onFocus lets a keyboard-aware parent reveal the exact input that activates.
+  readonly onFocus?: KeyboardFocusTargetHandler;
   // onLayout lets a keyboard-aware parent remember this editor's vertical offset.
   readonly onLayout?: (event: LayoutChangeEvent) => void;
   // onAddedProfileLayout reveals the newly rendered row inside the parent scroll view.
@@ -100,9 +101,9 @@ export function CharacterProfilesEditor({
   };
 
   // focusField gives visual focus feedback and notifies the keyboard-aware screen.
-  const focusField = (fieldId: string): void => {
+  const focusField = (fieldId: string, target: number): void => {
     setFocusedField(fieldId);
-    onFocus?.();
+    onFocus?.(target);
   };
 
   // revealPendingProfile reports the new row position after React Native completes layout.
@@ -158,7 +159,9 @@ export function CharacterProfilesEditor({
                     editable={isEditable}
                     onBlur={() => setFocusedField(null)}
                     onChangeText={(name) => updateProfile(index, { name })}
-                    onFocus={() => focusField(nameFieldId)}
+                    onFocus={(event) =>
+                      focusField(nameFieldId, event.nativeEvent.target)
+                    }
                     placeholder="Character name"
                     placeholderTextColor={colors.labelTertiary}
                     style={[
@@ -188,7 +191,9 @@ export function CharacterProfilesEditor({
                   onChangeText={(description) =>
                     updateProfile(index, { description })
                   }
-                  onFocus={() => focusField(descriptionFieldId)}
+                  onFocus={(event) =>
+                    focusField(descriptionFieldId, event.nativeEvent.target)
+                  }
                   placeholder="Role or personality (optional)"
                   placeholderTextColor={colors.labelTertiary}
                   scrollEnabled
