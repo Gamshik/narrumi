@@ -10,6 +10,8 @@ import { resolveDecisionPrompt } from './decisionPromptPolicy.ts';
 import {
   isDialogueRepeatedByNarration,
   looksLikeNarrationInDialogue,
+  type ReaderFrameDraft,
+  splitQuotedDialogueFromNarration,
 } from './dialogueFramePolicy.ts';
 import { EPISODE_INTERACTION_LIMITS } from './episodePacingPolicy.ts';
 import { assertEnglishGeneratedTextFields } from './generatedLanguage.ts';
@@ -390,8 +392,8 @@ function filterAnnotations({
   readonly annotations: EpisodePayload['annotations'];
   // selectedWordsById restricts Story Word annotations to the requested episode words.
   readonly selectedWordsById: ReadonlyMap<string, { readonly word: string }>;
-  // sentenceIndexMap remaps original AI indexes to merged playback indexes.
-  readonly sentenceIndexMap: readonly number[];
+  // sentenceIndexMap remaps each original AI index to one or more normalized playback indexes.
+  readonly sentenceIndexMap: readonly (readonly number[])[];
   // sentences are the canonical text units referenced by annotation sentenceIndex.
   readonly sentences: readonly string[];
 }): EpisodePayload['annotations'] {
@@ -404,15 +406,26 @@ function filterAnnotations({
       return [];
     }
 
-    const mappedSentenceIndex = sentenceIndexMap[annotation.sentenceIndex];
+    const mappedSentenceIndexes: readonly number[] | undefined =
+      sentenceIndexMap[annotation.sentenceIndex];
 
-    if (mappedSentenceIndex === undefined) {
+    if (!mappedSentenceIndexes) {
       return [];
     }
 
-    const sentence = sentences[mappedSentenceIndex];
+    // surfaceText is known after the boundary checks above and stays stable during remapping.
+    const surfaceText: string = annotation.surfaceText;
+    // mappedSentenceIndex selects the split block that still owns this annotation surface.
+    const mappedSentenceIndex: number | undefined = mappedSentenceIndexes.find(
+      (candidateIndex: number): boolean => {
+        const candidateSentence: string | undefined = sentences[candidateIndex];
 
-    if (!sentence || !containsText(sentence, annotation.surfaceText)) {
+        return candidateSentence !== undefined &&
+          containsText(candidateSentence, surfaceText);
+      },
+    );
+
+    if (mappedSentenceIndex === undefined) {
       return [];
     }
 
@@ -488,6 +501,14 @@ function uniqueById<T extends { readonly id: string }>(
 type NormalizedSentenceFrame =
   InteractionPayload['continuationSentenceFrames'][number];
 
+// IndexedSentenceFrame retains the source index when one mixed frame becomes several blocks.
+type IndexedSentenceFrame = {
+  // frame is one normalized narration or dialogue block.
+  readonly frame: NormalizedSentenceFrame;
+  // sourceIndex identifies the original model frame for annotation remapping.
+  readonly sourceIndex: number;
+};
+
 // normalizePlaybackFrames makes sentences the source of truth while merging repeated dialogue.
 function normalizePlaybackFrames({
   fieldName,
@@ -506,8 +527,8 @@ function normalizePlaybackFrames({
 }): {
   // frames are the merged reader units returned to the client.
   frames: NormalizedSentenceFrame[];
-  // sentenceIndexMap maps each original sentence to its merged playback index.
-  sentenceIndexMap: number[];
+  // sentenceIndexMap maps each original sentence to its normalized playback indexes.
+  sentenceIndexMap: number[][];
   // sentences are the merged playback and reader text units.
   sentences: string[];
 } {
@@ -515,15 +536,31 @@ function normalizePlaybackFrames({
     throw new Error(`${fieldName} must match the sentence count.`);
   }
 
-  const normalizedFrames = frames.map((frame, index) =>
-    normalizeFrameText({
+  const normalizedFrames: IndexedSentenceFrame[] = frames.flatMap(
+    (frame: NormalizedSentenceFrame, index: number): IndexedSentenceFrame[] => {
+      const normalizedFrame: NormalizedSentenceFrame = normalizeFrameText({
       frame,
       sentence: sentences[index]!,
       speakerNames,
-    })
+      });
+      const splitFrames: readonly ReaderFrameDraft[] =
+        normalizedFrame.kind === 'narration'
+          ? splitQuotedDialogueFromNarration(
+            normalizedFrame.text,
+            speakerNames,
+          )
+          : [normalizedFrame];
+
+      return splitFrames.map(
+        (splitFrame: ReaderFrameDraft): IndexedSentenceFrame => ({
+          frame: splitFrame,
+          sourceIndex: index,
+        }),
+      );
+    },
   );
 
-  return mergeAdjacentDialogueFrames(normalizedFrames);
+  return mergeAdjacentDialogueFrames(normalizedFrames, sentences.length);
 }
 
 // normalizeFrameText strips quote markers while preserving frame meaning.
@@ -621,20 +658,24 @@ function normalizeSpeakerKey(value: string): string {
 
 // mergeAdjacentDialogueFrames joins consecutive same-speaker dialogue into one playback unit.
 function mergeAdjacentDialogueFrames(
-  frames: readonly NormalizedSentenceFrame[],
+  frames: readonly IndexedSentenceFrame[],
+  sourceSentenceCount: number,
 ): {
   // frames are the merged reader units returned to the client.
   frames: NormalizedSentenceFrame[];
-  // sentenceIndexMap maps each original sentence to its merged playback index.
-  sentenceIndexMap: number[];
+  // sentenceIndexMap maps each original sentence to its normalized playback indexes.
+  sentenceIndexMap: number[][];
   // sentences are the merged playback and reader text units.
   sentences: string[];
 } {
   const mergedFrames: NormalizedSentenceFrame[] = [];
   const mergedSentences: string[] = [];
-  const sentenceIndexMap: number[] = [];
+  const sentenceIndexMap: number[][] = Array.from(
+    { length: sourceSentenceCount },
+    (): number[] => [],
+  );
 
-  frames.forEach((frame, index) => {
+  frames.forEach(({ frame, sourceIndex }: IndexedSentenceFrame): void => {
     const currentSentence = frame.text.trim();
     const previousFrame = mergedFrames[mergedFrames.length - 1];
 
@@ -644,7 +685,7 @@ function mergeAdjacentDialogueFrames(
       isDialogueRepeatedByNarration(previousFrame.text, currentSentence)
     ) {
       // The repeated source index still points at the narration retained for annotations.
-      sentenceIndexMap[index] = mergedFrames.length - 1;
+      sentenceIndexMap[sourceIndex]?.push(mergedFrames.length - 1);
 
       return;
     }
@@ -658,7 +699,7 @@ function mergeAdjacentDialogueFrames(
       mergedSentences[mergedSentences.length - 1] = `${
         mergedSentences[mergedSentences.length - 1]
       } ${currentSentence}`.trim();
-      sentenceIndexMap[index] = mergedFrames.length - 1;
+      sentenceIndexMap[sourceIndex]?.push(mergedFrames.length - 1);
 
       return;
     }
@@ -676,7 +717,7 @@ function mergeAdjacentDialogueFrames(
         },
     );
     mergedSentences.push(currentSentence);
-    sentenceIndexMap[index] = mergedFrames.length - 1;
+    sentenceIndexMap[sourceIndex]?.push(mergedFrames.length - 1);
   });
 
   return {

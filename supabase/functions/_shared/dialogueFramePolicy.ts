@@ -32,7 +32,7 @@ const NARRATIVE_ACTIONS: string = [
 ].join('|');
 
 // MIN_REPEATED_DIALOGUE_WORDS avoids removing natural short echoes such as "Thank you".
-const MIN_REPEATED_DIALOGUE_WORDS = 4;
+const MIN_REPEATED_DIALOGUE_WORDS: number = 4;
 
 // DialogueFrameDraft is the model contract for one actual spoken reader block.
 export type DialogueFrameDraft = {
@@ -43,6 +43,16 @@ export type DialogueFrameDraft = {
   // text contains only words spoken aloud by the character.
   readonly text: string;
 };
+
+// ReaderFrameDraft is one semantic narration or spoken block before finalization.
+export type ReaderFrameDraft =
+  | {
+    // kind identifies non-spoken story prose.
+    readonly kind: 'narration';
+    // text preserves the narration wording without frame labels.
+    readonly text: string;
+  }
+  | DialogueFrameDraft;
 
 // looksLikeNarrationInDialogue detects a speaker attribution or stage direction mislabeled as speech.
 export function looksLikeNarrationInDialogue(
@@ -97,6 +107,57 @@ export function isDialogueRepeatedByNarration(
   );
 }
 
+// splitQuotedDialogueFromNarration extracts attributed quoted speech from a mixed narration block.
+export function splitQuotedDialogueFromNarration(
+  text: string,
+  speakerNames: readonly string[],
+): readonly ReaderFrameDraft[] {
+  const openingMatch: RegExpMatchArray | null = text.match(/["“]/);
+
+  if (!openingMatch || openingMatch.index === undefined) {
+    return [{ kind: 'narration', text: stripOuterSpeechQuotes(text) }];
+  }
+
+  const openingIndex: number = openingMatch.index;
+  const narrationPrefix: string = text.slice(0, openingIndex).trim();
+  const speaker: string | undefined = findAttributedSpeaker(
+    narrationPrefix,
+    speakerNames,
+  );
+
+  if (!speaker) {
+    return [{ kind: 'narration', text: stripOuterSpeechQuotes(text) }];
+  }
+
+  const quotedRemainder: string = text.slice(openingIndex + 1);
+  const closingIndex: number = quotedRemainder.search(/["”]/);
+  const spokenText: string = stripOuterSpeechQuotes(
+    closingIndex >= 0
+      ? quotedRemainder.slice(0, closingIndex)
+      : quotedRemainder,
+  );
+  const narrationSuffix: string = closingIndex >= 0
+    ? quotedRemainder.slice(closingIndex + 1).trim()
+    : '';
+
+  if (spokenText.length === 0) {
+    return [{ kind: 'narration', text: stripOuterSpeechQuotes(text) }];
+  }
+
+  return [
+    ...(narrationPrefix.length > 0
+      ? [{ kind: 'narration' as const, text: narrationPrefix }]
+      : []),
+    { kind: 'dialogue', speaker, text: spokenText },
+    ...(narrationSuffix.length > 0
+      ? [{
+        kind: 'narration' as const,
+        text: stripOuterSpeechQuotes(narrationSuffix),
+      }]
+      : []),
+  ];
+}
+
 // escapeRegExp keeps configured character names from changing the detection expression.
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -111,4 +172,40 @@ function normalizeOverlapText(value: string): readonly string[] {
     .trim()
     .split(/\s+/)
     .filter((word: string): boolean => word.length > 0);
+}
+
+// findAttributedSpeaker requires both a pinned name and a nearby speech verb before a quote.
+function findAttributedSpeaker(
+  narrationPrefix: string,
+  speakerNames: readonly string[],
+): string | undefined {
+  return [...speakerNames]
+    .sort((left: string, right: string): number => right.length - left.length)
+    .find((speakerName: string): boolean => {
+      const escapedSpeaker: string = speakerName
+        .trim()
+        .split(/\s+/)
+        .map(escapeRegExp)
+        .join('\\s+');
+      const speakerThenVerb: RegExp = new RegExp(
+        `\\b${escapedSpeaker}\\b[\\s\\S]{0,120}\\b(?:${SPEECH_ATTRIBUTION_VERBS})\\b`,
+        'i',
+      );
+      const verbThenSpeaker: RegExp = new RegExp(
+        `\\b(?:${SPEECH_ATTRIBUTION_VERBS})\\b[\\s\\S]{0,80}\\b${escapedSpeaker}\\b`,
+        'i',
+      );
+
+      return speakerThenVerb.test(narrationPrefix) ||
+        verbThenSpeaker.test(narrationPrefix);
+    });
+}
+
+// stripOuterSpeechQuotes removes only quote markers that wrap one extracted block.
+function stripOuterSpeechQuotes(value: string): string {
+  return value
+    .trim()
+    .replace(/^["'“”]+/, '')
+    .replace(/["'“”]+$/, '')
+    .trim();
 }

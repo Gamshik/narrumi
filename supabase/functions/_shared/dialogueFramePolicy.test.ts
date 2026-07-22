@@ -3,6 +3,7 @@ import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
   isDialogueRepeatedByNarration,
   looksLikeNarrationInDialogue,
+  splitQuotedDialogueFromNarration,
 } from './dialogueFramePolicy.ts';
 
 Deno.test('dialogue policy detects speaker attribution and stage direction', (): void => {
@@ -61,5 +62,40 @@ Deno.test('dialogue policy detects a spoken block repeated from narration', (): 
   assertEquals(
     isDialogueRepeatedByNarration('Mira says thank you.', 'Thank you.'),
     false,
+  );
+});
+
+Deno.test('dialogue policy extracts full quoted speech from attributed narration', (): void => {
+  assertEquals(
+    splitQuotedDialogueFromNarration(
+      'Vlad says, stepping back from your desk. "Just do not let him rush you into anything.',
+      ['Vlad'],
+    ),
+    [
+      {
+        kind: 'narration',
+        text: 'Vlad says, stepping back from your desk.',
+      },
+      {
+        kind: 'dialogue',
+        speaker: 'Vlad',
+        text: 'Just do not let him rush you into anything.',
+      },
+    ],
+  );
+});
+
+Deno.test('dialogue policy keeps unattributed quoted text in narration', (): void => {
+  assertEquals(
+    splitQuotedDialogueFromNarration(
+      'The screen displays "Submit before midnight" in red letters.',
+      ['Vlad'],
+    ),
+    [
+      {
+        kind: 'narration',
+        text: 'The screen displays "Submit before midnight" in red letters.',
+      },
+    ],
   );
 });

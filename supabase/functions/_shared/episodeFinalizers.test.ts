@@ -969,6 +969,90 @@ Deno.test('finalizeInteractionPayload removes dialogue repeated from preceding n
   assertEquals(result.continuationAnnotations[0]?.sentenceIndex, 0);
 });
 
+Deno.test('finalizeInteractionPayload extracts quoted speech left inside narration', () => {
+  const mixedFrame =
+    'Vlad says, stepping back from your desk. "Just do not let him rush you into anything.';
+  const result = finalizeInteractionPayload({
+    request: {
+      ...submitRequest,
+      selectedStoryWords: [
+        ...submitRequest.selectedStoryWords,
+        {
+          id: 'word:anything',
+          word: 'anything',
+          partOfSpeech: 'pronoun',
+          level: 'A2',
+        },
+      ],
+      compactSeriesMemory: {
+        ...submitRequest.compactSeriesMemory,
+        mainCharacters: ['Vlad'],
+        characterProfiles: [
+          {
+            id: 'character:vlad',
+            name: 'Vlad',
+            description: 'A supportive friend who reviews important messages.',
+          },
+        ],
+      },
+    },
+    payload: {
+      feedback: 'Good choice. Your calm answer sounds natural.',
+      continuationText:
+        `Vlad nods. All right, ${mixedFrame} You close your laptop.`,
+      continuationSentences: [
+        'Vlad nods.',
+        'All right,',
+        mixedFrame,
+        'You close your laptop.',
+      ],
+      continuationSentenceFrames: [
+        { kind: 'narration', text: 'Vlad nods.' },
+        { kind: 'dialogue', speaker: 'Vlad', text: 'All right,' },
+        { kind: 'narration', text: mixedFrame },
+        { kind: 'narration', text: 'You close your laptop.' },
+      ],
+      continuationAnnotations: [
+        {
+          wordId: 'word:anything',
+          surfaceText: 'anything',
+          translation: 'что-либо',
+          sentenceIndex: 2,
+        },
+      ],
+      isEpisodeComplete: false,
+      nextInteraction: {
+        kind: 'choice',
+        prompt: 'What do you do next?',
+        choices: [
+          { id: 'prepare', label: 'Prepare notes for tomorrow' },
+          { id: 'rest', label: 'Close the laptop and rest' },
+        ],
+      },
+      summaryUpdate: 'Vlad encouraged the learner to stay calm tomorrow.',
+      memoryUpdate: {
+        knownFacts: ['Vlad warned the learner not to be rushed.'],
+        openQuestions: ['What will happen tomorrow?'],
+        importantObjectsOrLocations: ['laptop'],
+        lastEpisodeSummary: 'Vlad encouraged the learner to stay calm.',
+        unresolvedCliffhanger: 'Tomorrow will test the learner.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+
+  assertEquals(result.continuationSentenceFrames[2], {
+    kind: 'narration',
+    text: 'Vlad says, stepping back from your desk.',
+  });
+  assertEquals(result.continuationSentenceFrames[3], {
+    kind: 'dialogue',
+    speaker: 'Vlad',
+    text: 'Just do not let him rush you into anything.',
+  });
+  assertEquals(result.continuationAnnotations[0]?.sentenceIndex, 3);
+});
+
 Deno.test('finalizeInteractionPayload compacts verbose AI memory arrays', () => {
   const result = finalizeInteractionPayload({
     request: submitRequest,

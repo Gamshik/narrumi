@@ -58,7 +58,10 @@ actions, and stage directions. A deterministic frame policy downgrades output su
 `Vlad says, leaning against the desk` to narration, so attribution cannot appear as if the
 character spoke it. The same policy removes a dialogue block of at least four words when it
 duplicates the normalized tail of the immediately preceding narration block, preserving the
-narration and its annotation mapping. These corrections never fail the user request.
+narration and its annotation mapping. If a narration block contains a pinned-speaker
+attribution followed by quoted speech, the policy splits the attribution into narration and
+the complete quoted wording into dialogue, then remaps Story Word annotations by surface
+text. These corrections never fail the user request.
 
 The highlighted interaction prompt is a decision cue, not repeated story prose. Decision
 and review prompts require one concise question or a very short cue when the choices are
