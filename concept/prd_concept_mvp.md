@@ -165,6 +165,7 @@ The product should feel like creating and watching a personal English series, no
 
 #### FEATURE H: Audio Assistant
 - **Karaoke Sync Effect:** The episode is played one semantic reader block at a time. Related narration sentences stay in one meaningful paragraph or action beat, while dialogue turns remain separate. The active block is highlighted on screen while others are slightly dimmed. Legacy fields named `sentences` carry these blocks for client compatibility.
+- Dialogue turns contain only text spoken once. Wording already present at the end of the preceding narration block, including reported speech, must not be repeated as a separate character bubble.
 - A central Play/Pause audio controller controls the playback state.
 - Audio should use native device TTS for the MVP.
 

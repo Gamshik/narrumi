@@ -56,7 +56,9 @@ finalizer check; Cyrillic is allowed only in validated translation values.
 Dialogue frames contain spoken words only. Prompts explicitly separate speech from tags,
 actions, and stage directions. A deterministic frame policy downgrades output such as
 `Vlad says, leaning against the desk` to narration, so attribution cannot appear as if the
-character spoke it and this correction never fails the user request.
+character spoke it. The same policy removes a dialogue block of at least four words when it
+duplicates the normalized tail of the immediately preceding narration block, preserving the
+narration and its annotation mapping. These corrections never fail the user request.
 
 The highlighted interaction prompt is a decision cue, not repeated story prose. Decision
 and review prompts require one concise question or a very short cue when the choices are

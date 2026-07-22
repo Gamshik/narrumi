@@ -894,6 +894,81 @@ Deno.test('finalizeInteractionPayload normalizes continuation frame text', () =>
   assertEquals(result.continuationSentences.length, 2);
 });
 
+Deno.test('finalizeInteractionPayload removes dialogue repeated from preceding narration', () => {
+  const narration =
+    'You turn the phone toward Vlad. Vlad reads the screen, smiles, and says that you should be proud of your confidence because it shows true strength.';
+  const repeatedDialogue =
+    'You should be proud of your confidence because it shows true strength.';
+  const result = finalizeInteractionPayload({
+    request: {
+      ...submitRequest,
+      selectedStoryWords: [
+        ...submitRequest.selectedStoryWords,
+        {
+          id: 'word:strength',
+          word: 'strength',
+          partOfSpeech: 'noun',
+          level: 'B1',
+        },
+      ],
+      compactSeriesMemory: {
+        ...submitRequest.compactSeriesMemory,
+        mainCharacters: ['Vlad'],
+        characterProfiles: [
+          {
+            id: 'character:vlad',
+            name: 'Vlad',
+            description: 'A supportive friend who reviews important messages.',
+          },
+        ],
+      },
+    },
+    payload: {
+      feedback: 'Good choice. Your wording is clear and natural.',
+      continuationText: `${narration} ${repeatedDialogue}`,
+      continuationSentences: [narration, repeatedDialogue],
+      continuationSentenceFrames: [
+        { kind: 'narration', text: narration },
+        { kind: 'dialogue', speaker: 'Vlad', text: repeatedDialogue },
+      ],
+      continuationAnnotations: [
+        {
+          wordId: 'word:strength',
+          surfaceText: 'strength',
+          translation: 'сила',
+          sentenceIndex: 1,
+        },
+      ],
+      isEpisodeComplete: false,
+      nextInteraction: {
+        kind: 'choice',
+        prompt: 'What do you do next?',
+        choices: [
+          { id: 'send', label: 'Send the message now' },
+          { id: 'edit', label: 'Edit the message once more' },
+        ],
+      },
+      summaryUpdate: 'Vlad encouraged the learner after reviewing the message.',
+      memoryUpdate: {
+        knownFacts: ['Vlad reviewed the message.'],
+        openQuestions: ['Will the learner send the message?'],
+        importantObjectsOrLocations: ['phone message'],
+        lastEpisodeSummary:
+          'Vlad encouraged the learner after reviewing the message.',
+        unresolvedCliffhanger: 'The message is ready to send.',
+        recurringStoryWordIds: [],
+      },
+    },
+  });
+
+  assertEquals(result.continuationSentences, [narration]);
+  assertEquals(result.continuationSentenceFrames, [
+    { kind: 'narration', text: narration },
+  ]);
+  assertEquals(result.continuationText, narration);
+  assertEquals(result.continuationAnnotations[0]?.sentenceIndex, 0);
+});
+
 Deno.test('finalizeInteractionPayload compacts verbose AI memory arrays', () => {
   const result = finalizeInteractionPayload({
     request: submitRequest,

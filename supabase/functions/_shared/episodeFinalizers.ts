@@ -7,7 +7,10 @@ import {
   type SubmitInteractionRequest,
 } from './episodeContracts.ts';
 import { resolveDecisionPrompt } from './decisionPromptPolicy.ts';
-import { looksLikeNarrationInDialogue } from './dialogueFramePolicy.ts';
+import {
+  isDialogueRepeatedByNarration,
+  looksLikeNarrationInDialogue,
+} from './dialogueFramePolicy.ts';
 import { EPISODE_INTERACTION_LIMITS } from './episodePacingPolicy.ts';
 import { assertEnglishGeneratedTextFields } from './generatedLanguage.ts';
 
@@ -634,6 +637,17 @@ function mergeAdjacentDialogueFrames(
   frames.forEach((frame, index) => {
     const currentSentence = frame.text.trim();
     const previousFrame = mergedFrames[mergedFrames.length - 1];
+
+    if (
+      frame.kind === 'dialogue' &&
+      previousFrame?.kind === 'narration' &&
+      isDialogueRepeatedByNarration(previousFrame.text, currentSentence)
+    ) {
+      // The repeated source index still points at the narration retained for annotations.
+      sentenceIndexMap[index] = mergedFrames.length - 1;
+
+      return;
+    }
 
     if (
       frame.kind === 'dialogue' &&

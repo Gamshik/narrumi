@@ -31,6 +31,9 @@ const NARRATIVE_ACTIONS: string = [
   'walk(?:s|ed|ing)?',
 ].join('|');
 
+// MIN_REPEATED_DIALOGUE_WORDS avoids removing natural short echoes such as "Thank you".
+const MIN_REPEATED_DIALOGUE_WORDS = 4;
+
 // DialogueFrameDraft is the model contract for one actual spoken reader block.
 export type DialogueFrameDraft = {
   // kind distinguishes spoken text from narration in the reader.
@@ -70,7 +73,42 @@ export function looksLikeNarrationInDialogue(
   return speakerPrefix.test(text.trim()) || attributionSuffix.test(text.trim());
 }
 
+// isDialogueRepeatedByNarration detects a dialogue block copied from the preceding prose tail.
+export function isDialogueRepeatedByNarration(
+  narration: string,
+  dialogue: string,
+): boolean {
+  const narrationWords: readonly string[] = normalizeOverlapText(narration);
+  const dialogueWords: readonly string[] = normalizeOverlapText(dialogue);
+
+  if (
+    dialogueWords.length < MIN_REPEATED_DIALOGUE_WORDS ||
+    dialogueWords.length > narrationWords.length
+  ) {
+    return false;
+  }
+
+  const narrationTail: readonly string[] = narrationWords.slice(
+    -dialogueWords.length,
+  );
+
+  return dialogueWords.every(
+    (word: string, index: number): boolean => word === narrationTail[index],
+  );
+}
+
 // escapeRegExp keeps configured character names from changing the detection expression.
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// normalizeOverlapText compares adjacent reader blocks without punctuation or casing noise.
+function normalizeOverlapText(value: string): readonly string[] {
+  return value
+    .toLocaleLowerCase()
+    .replace(/[’']/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter((word: string): boolean => word.length > 0);
 }
