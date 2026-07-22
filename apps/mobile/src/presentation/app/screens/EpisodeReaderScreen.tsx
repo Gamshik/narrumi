@@ -76,6 +76,9 @@ const SPEAKER_THEME_ORDER: readonly SpeakerThemeName[] = [
 // CONTINUATION_MINIMUM_LATENCY_MS keeps the inline shimmer visible during fast responses.
 const CONTINUATION_MINIMUM_LATENCY_MS = 1500;
 
+// GENERATED_CONTENT_TOP_GAP keeps the first new story beat below the compact Reader edge.
+const GENERATED_CONTENT_TOP_GAP: number = 16;
+
 // readerHeaderCollapseOffset matches Home's deliberate upward-scroll threshold.
 const readerHeaderCollapseOffset: number = 38;
 // readerHeaderExpandOffset matches Home's hysteresis against tiny scroll reversals.
@@ -150,6 +153,14 @@ export function EpisodeReaderScreen({
   const episodeHeadingHeightsRef: RefObject<Map<string, number>> = useRef<
     Map<string, number>
   >(new Map<string, number>());
+  // readerStoryTopsRef stores each story container origin inside its episode block.
+  const readerStoryTopsRef: RefObject<Map<string, number>> = useRef<
+    Map<string, number>
+  >(new Map<string, number>());
+  // pendingGeneratedSentenceScrollRef identifies the first new sentence to reveal once laid out.
+  const pendingGeneratedSentenceScrollRef: RefObject<
+    GeneratedSentenceScrollTarget | undefined
+  > = useRef<GeneratedSentenceScrollTarget | undefined>(undefined);
   // readerContentInsets reserves only the compact Reader fades to maximize the visible text workspace.
   const readerContentInsets: ViewStyle = {
     paddingTop: insets.top + screenEdgeDepths.readerTop + 2,
@@ -324,11 +335,16 @@ export function EpisodeReaderScreen({
     resumedInteractionKeysRef.current.add(operationKey);
     setInteractionErrorMessage(undefined);
     setIsSubmittingInteraction(true);
-    requestScrollToEnd();
 
     // resumePendingContinuation rejoins the original request or retries its durable local draft.
     const resumePendingContinuation = async (): Promise<void> => {
       const startedAt: number = Date.now();
+      // previousSentenceCount marks where the resumed AI continuation will begin.
+      const previousSentenceCount: number =
+        episodes.find(
+          (episode: Episode): boolean =>
+            episode.id === pendingContinuation.episodeId,
+        )?.sentences.length ?? 0;
 
       try {
         const result = await localAppServices.submitEpisodeInteraction.execute({
@@ -347,6 +363,10 @@ export function EpisodeReaderScreen({
           return;
         }
 
+        requestScrollToGeneratedContent(
+          result.episode,
+          previousSentenceCount,
+        );
         setEpisodes((currentEpisodes: readonly Episode[]): readonly Episode[] =>
           currentEpisodes.map((episode: Episode): Episode =>
             episode.id === pendingContinuation.episodeId
@@ -355,7 +375,6 @@ export function EpisodeReaderScreen({
           ),
         );
         setInteractionErrorMessage(undefined);
-        requestScrollToEnd();
       } catch (error) {
         await handleInteractionError(error, 'resumePendingContinuation');
       } finally {
@@ -399,7 +418,6 @@ export function EpisodeReaderScreen({
         submittedText,
       }),
     );
-    requestScrollToEnd();
 
     try {
       const result = await localAppServices.submitEpisodeInteraction.execute({
@@ -413,6 +431,10 @@ export function EpisodeReaderScreen({
         return;
       }
 
+      requestScrollToGeneratedContent(
+        result.episode,
+        targetEpisode.sentences.length,
+      );
       setEpisodes((currentEpisodes: readonly Episode[]): readonly Episode[] =>
         currentEpisodes.map(
           (episode: Episode, episodeIndex: number): Episode =>
@@ -420,7 +442,6 @@ export function EpisodeReaderScreen({
         ),
       );
       setInteractionErrorMessage(undefined);
-      requestScrollToEnd();
     } catch (error) {
       await handleInteractionError(error, 'submitChoice');
     } finally {
@@ -532,6 +553,61 @@ export function EpisodeReaderScreen({
       episodeIdValue,
       event.nativeEvent.layout.height,
     );
+  };
+
+  // handleReaderStoryLayout records the story origin needed to resolve sentence coordinates.
+  const handleReaderStoryLayout = (
+    episodeIdValue: string,
+    event: LayoutChangeEvent,
+  ): void => {
+    readerStoryTopsRef.current.set(
+      episodeIdValue,
+      event.nativeEvent.layout.y,
+    );
+  };
+
+  // handleSentenceLayout reveals only the first sentence appended by the latest AI response.
+  const handleSentenceLayout = (
+    episodeIdValue: string,
+    sentenceIndex: number,
+    event: LayoutChangeEvent,
+  ): void => {
+    const target: GeneratedSentenceScrollTarget | undefined =
+      pendingGeneratedSentenceScrollRef.current;
+
+    if (
+      !target ||
+      target.episodeId !== episodeIdValue ||
+      target.sentenceIndex !== sentenceIndex
+    ) {
+      return;
+    }
+
+    const episodeTop: number | undefined =
+      episodeBlockTopsRef.current.get(episodeIdValue);
+    const storyTop: number | undefined =
+      readerStoryTopsRef.current.get(episodeIdValue);
+
+    if (episodeTop === undefined || storyTop === undefined) {
+      return;
+    }
+
+    // targetOffset places generated prose below the persistent top edge instead of at the list end.
+    const targetOffset: number = Math.max(
+      0,
+      episodeTop +
+        storyTop +
+        event.nativeEvent.layout.y -
+        (insets.top + screenEdgeDepths.readerTop + GENERATED_CONTENT_TOP_GAP),
+    );
+    pendingGeneratedSentenceScrollRef.current = undefined;
+
+    requestAnimationFrame((): void => {
+      scrollViewRef.current?.scrollTo({
+        animated: true,
+        y: targetOffset,
+      });
+    });
   };
 
   if (errorMessage) {
@@ -647,7 +723,12 @@ export function EpisodeReaderScreen({
                 </View>
               ) : null}
 
-              <View style={styles.readerStory}>
+              <View
+                style={styles.readerStory}
+                onLayout={(event: LayoutChangeEvent): void =>
+                  handleReaderStoryLayout(episode.id, event)
+                }
+              >
                 {episode.sentences.map((_sentence, sentenceIndex) => {
                   const sentenceEndIndex = sentenceIndex + 1;
                   const interactionsAtBoundary = episode.interactions.filter(
@@ -671,7 +752,12 @@ export function EpisodeReaderScreen({
                     );
 
                   return (
-                    <View key={`${episode.id}:${sentenceIndex}`}>
+                    <View
+                      key={`${episode.id}:${sentenceIndex}`}
+                      onLayout={(event: LayoutChangeEvent): void =>
+                        handleSentenceLayout(episode.id, sentenceIndex, event)
+                      }
+                    >
                       <EpisodeSentence
                         annotations={episode.annotations}
                         isActive={false}
@@ -794,13 +880,30 @@ export function EpisodeReaderScreen({
     </View>
   );
 
-  // requestScrollToEnd schedules scroll after React Native applies the new row.
-  function requestScrollToEnd(): void {
-    requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    });
+  // requestScrollToGeneratedContent arms one layout-driven scroll when new prose exists.
+  function requestScrollToGeneratedContent(
+    updatedEpisode: Episode,
+    previousSentenceCount: number,
+  ): void {
+    if (updatedEpisode.sentences.length <= previousSentenceCount) {
+      pendingGeneratedSentenceScrollRef.current = undefined;
+      return;
+    }
+
+    pendingGeneratedSentenceScrollRef.current = {
+      episodeId: updatedEpisode.id,
+      sentenceIndex: previousSentenceCount,
+    };
   }
 }
+
+// GeneratedSentenceScrollTarget points to the first sentence introduced by one continuation.
+type GeneratedSentenceScrollTarget = {
+  // episodeId scopes the target inside full-series reading mode.
+  readonly episodeId: string;
+  // sentenceIndex is the first index absent from the pre-request episode snapshot.
+  readonly sentenceIndex: number;
+};
 
 // ReaderSentenceFrame stores the display-safe frame after speaker inheritance.
 type ReaderSentenceFrame = EpisodeSentenceFrame;

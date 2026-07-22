@@ -23,6 +23,14 @@ test('renders the continuation prelude after a saved choice', (): void => {
   assert.doesNotMatch(readerSource, /InlineGenerationShimmer/);
 });
 
+test('reveals the first generated sentence without jumping to the reader end', (): void => {
+  assert.match(readerSource, /requestScrollToGeneratedContent/);
+  assert.match(readerSource, /handleSentenceLayout\(episode\.id, sentenceIndex, event\)/);
+  assert.match(readerSource, /sentenceIndex:\s*previousSentenceCount/);
+  assert.match(readerSource, /screenEdgeDepths\.readerTop \+ GENERATED_CONTENT_TOP_GAP/);
+  assert.doesNotMatch(readerSource, /scrollToEnd/);
+});
+
 test('keeps the atmospheric motion accessible and optional', (): void => {
   assert.match(componentSource, /useReducedMotionPreference/);
   assert.match(componentSource, /if \(reduceMotion\)/);
