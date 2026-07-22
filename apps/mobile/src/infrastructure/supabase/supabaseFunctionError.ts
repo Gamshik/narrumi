@@ -73,6 +73,8 @@ type SupabaseFunctionErrorContext = {
 type JsonResponseLike = {
   // json reads the structured Edge Function error body.
   readonly json: () => Promise<unknown>;
+  // status preserves gateway failures whose response body is not JSON.
+  readonly status?: number;
 };
 
 // readSupabaseFunctionErrorInfo extracts user-facing Edge Function errors from non-2xx responses.
@@ -91,7 +93,7 @@ export async function readSupabaseFunctionErrorInfo(
   const message = errorBody?.message;
 
   if (typeof message !== 'string' || message.length === 0) {
-    return undefined;
+    return readGatewayErrorInfo(context.status);
   }
 
   const warningsRemaining = errorBody?.warningsRemaining;
@@ -112,6 +114,27 @@ export async function readSupabaseFunctionErrorInfo(
       ? { attemptsRemaining }
       : {}),
   };
+}
+
+// readGatewayErrorInfo keeps Supabase timeout responses useful when no JSON envelope exists.
+function readGatewayErrorInfo(
+  status: number | undefined,
+): SupabaseFunctionErrorInfo | undefined {
+  if (status === 504 || status === 546) {
+    return {
+      kind: 'unavailable',
+      message: 'Episode generation timed out. Please try again.',
+    };
+  }
+
+  if (typeof status === 'number' && status >= 500) {
+    return {
+      kind: 'unavailable',
+      message: 'The AI service is not available right now.',
+    };
+  }
+
+  return undefined;
 }
 
 // readSupabaseFunctionErrorMessage keeps the old string-based call shape for simple callers.

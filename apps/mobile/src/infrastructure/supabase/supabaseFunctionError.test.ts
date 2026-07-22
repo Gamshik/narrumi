@@ -33,4 +33,20 @@ describe('readSupabaseFunctionErrorInfo', () => {
 
     assert.equal(result, undefined);
   });
+
+  it('reports a gateway timeout when Supabase returns a non-JSON body', async () => {
+    const result = await readSupabaseFunctionErrorInfo({
+      context: {
+        status: 504,
+        json: async (): Promise<unknown> => {
+          throw new Error('The gateway body is not JSON.');
+        },
+      },
+    });
+
+    assert.deepEqual(result, {
+      kind: 'unavailable',
+      message: 'Episode generation timed out. Please try again.',
+    });
+  });
 });
