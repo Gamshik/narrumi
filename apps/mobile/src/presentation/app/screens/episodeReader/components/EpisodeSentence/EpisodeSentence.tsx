@@ -21,6 +21,8 @@ type EpisodeSentenceProps = {
   readonly isActive: boolean;
   // isDimmed reduces emphasis only inside the episode currently being narrated.
   readonly isDimmed: boolean;
+  // isLearnerDialogue renders the persisted learner character on the outgoing side.
+  readonly isLearnerDialogue: boolean;
   // isSelectionOwner keeps native selection handles on this sentence only.
   readonly isSelectionOwner: boolean;
   // sentenceFrame is the explicit narration/dialogue layout for this playback unit.
@@ -66,6 +68,7 @@ export function EpisodeSentence({
   annotations,
   isActive,
   isDimmed,
+  isLearnerDialogue,
   isSelectionOwner,
   sentenceFrame,
   sentenceIndex,
@@ -80,7 +83,9 @@ export function EpisodeSentence({
 
   // speakerColor styles the avatar, label, border, and translucent bubble fill.
   const speakerColor: string =
-    sentenceFrame.kind === 'dialogue'
+    sentenceFrame.kind === 'dialogue' && isLearnerDialogue
+      ? themeColors.systemGreen
+      : sentenceFrame.kind === 'dialogue'
       ? getSpeakerColor(speakerThemeName, themeColors)
       : themeColors.systemPurple;
   const bubbleBackgroundOpacity: string = isDark ? '14' : '0a';
@@ -103,7 +108,12 @@ export function EpisodeSentence({
       ]}
     >
       {sentenceFrame.kind === 'dialogue' ? (
-        <View style={styles.readerDialogueRow}>
+        <View
+          style={[
+            styles.readerDialogueRow,
+            isLearnerDialogue && styles.readerLearnerDialogueRow,
+          ]}
+        >
           <View
             style={[styles.readerDialogueAvatar, { backgroundColor: speakerColor }]}
           >
@@ -112,15 +122,27 @@ export function EpisodeSentence({
             </Text>
           </View>
 
-          <View style={styles.readerDialogueContent}>
+          <View
+            style={[
+              styles.readerDialogueContent,
+              isLearnerDialogue && styles.readerLearnerDialogueContent,
+            ]}
+          >
             <Text
-              style={[styles.readerDialogueSpeakerName, { color: speakerColor }]}
+              style={[
+                styles.readerDialogueSpeakerName,
+                isLearnerDialogue && styles.readerLearnerDialogueSpeakerName,
+                { color: speakerColor },
+              ]}
             >
-              {sentenceFrame.speaker}
+              {isLearnerDialogue
+                ? `YOU · ${sentenceFrame.speaker}`
+                : sentenceFrame.speaker}
             </Text>
             <View
               style={[
                 styles.readerDialogueBubbleFrame,
+                isLearnerDialogue && styles.readerLearnerDialogueBubbleFrame,
                 {
                   backgroundColor: `${speakerColor}${bubbleBackgroundOpacity}`,
                   borderColor: isActive

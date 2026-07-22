@@ -50,6 +50,10 @@ import {
 } from '../_shared/aiQuality.ts';
 import { resolveOptionalAiEnrichment } from '../_shared/optionalAiEnrichment.ts';
 import {
+  buildOpeningParticipationReviewCriteria,
+  buildOpeningParticipationRules,
+} from '../_shared/participationPolicy.ts';
+import {
   omitStoryWordExamplesFromModeration,
   STORY_WORD_USAGE_RULES,
 } from '../_shared/storyWordPolicy.ts';
@@ -455,6 +459,7 @@ async function generateEpisodeCreativeCandidate(
           'The interaction prompt must be a concise decision cue and must not repeat, quote, or paraphrase the final scene sentences.',
           'Choices must be meaningfully different, story-specific, and must not be knowledge quizzes.',
           `Participation behavior must remain ${payload.participationMode} mode.`,
+          ...buildOpeningParticipationReviewCriteria(payload),
           'The story must be original and must satisfy the supplied safety and copyright constraints.',
         ],
         context: {
@@ -983,27 +988,6 @@ function buildTranslationSystemPrompt(): string {
   ].join('\n');
 }
 
-// buildParticipationRules keeps learner agency consistent with the saved series setup.
-function buildParticipationRules(
-  payload: Pick<GenerateEpisodeRequest, 'participationMode' | 'userRole'>,
-): readonly string[] {
-  if (payload.participationMode === 'character') {
-    return [
-      `The learner is inside the story as: ${payload.userRole}.`,
-      'Interaction prompts must address what the learner says or does in that role.',
-      'Choices must be in-character actions or speech for the learner role.',
-      'Do not ask the learner to decide unrelated characters actions like an outside author.',
-    ];
-  }
-
-  return [
-    'The learner is outside the story as a story director.',
-    'Interaction prompts must ask how events should unfold or what a character should do next.',
-    'Choices may direct scene events, character decisions, or story consequences.',
-    'Do not address the learner as a physical character inside the story.',
-  ];
-}
-
 // buildMemorySystemPrompt keeps compact memory generation separate from story prose.
 function buildMemorySystemPrompt(): string {
   return [
@@ -1031,7 +1015,7 @@ function buildEpisodeCorePrompt(
         tone: payload.tone,
         premise: payload.premise,
         participationMode: payload.participationMode,
-        participationRules: buildParticipationRules(payload),
+        participationRules: buildOpeningParticipationRules(payload),
         mainCharacters: payload.mainCharacters,
         characterProfiles: payload.characterProfiles,
         userRole: payload.userRole,
@@ -1062,7 +1046,7 @@ function buildEpisodeCorePrompt(
         'summaryUpdate must summarize the story state after this opening scene. Keep it concise (under 500 characters).',
         'Do not write meta text such as "Added interaction point" or "The episode introduces".',
         'Do not use asterisks, markdown emphasis, curly quotes, curly apostrophes, or ellipsis characters.',
-        ...buildParticipationRules(payload),
+        ...buildOpeningParticipationRules(payload),
       ],
     },
     null,
@@ -1080,7 +1064,7 @@ function buildEpisodeInteractionPrompt(
       task: 'generate-first-decision-for-frozen-opening',
       cefr: payload.cefrLevel,
       participationMode: payload.participationMode,
-      participationRules: buildParticipationRules(payload),
+      participationRules: buildOpeningParticipationRules(payload),
       frozenStory: coreDraft,
       outputRules: [
         'Return { "prompt": string, "choices": [{ "label": string, "isSpeech"?: boolean, "outcomeHint"?: string }] }.',
@@ -1115,7 +1099,7 @@ function buildEpisodeFallbackPrompt(
         tone: payload.tone,
         premise: payload.premise,
         participationMode: payload.participationMode,
-        participationRules: buildParticipationRules(payload),
+        participationRules: buildOpeningParticipationRules(payload),
         mainCharacters: payload.mainCharacters,
         characterProfiles: payload.characterProfiles,
         userRole: payload.userRole,
@@ -1137,7 +1121,7 @@ function buildEpisodeFallbackPrompt(
         'Keep the title under 60 characters, recap under 300, summary under 500, prompt under 250, and labels under 100.',
         'Never copy or decorate seriesTitle as the episode title.',
         'Do not return frames, annotations, translations, memory, Markdown, or meta commentary.',
-        ...buildParticipationRules(payload),
+        ...buildOpeningParticipationRules(payload),
       ],
     },
     null,
@@ -1161,7 +1145,7 @@ function buildEpisodeRepairPrompt(
         tone: payload.tone,
         premise: payload.premise,
         participationMode: payload.participationMode,
-        participationRules: buildParticipationRules(payload),
+        participationRules: buildOpeningParticipationRules(payload),
         mainCharacters: payload.mainCharacters,
         characterProfiles: payload.characterProfiles,
         userRole: payload.userRole,
@@ -1266,7 +1250,7 @@ function buildMemoryPrompt(
       cliffhanger: coreDraft.cliffhanger,
       selectedStoryWordIds: payload.selectedStoryWords.map((word) => word.id),
       participationMode: payload.participationMode,
-      participationRules: buildParticipationRules(payload),
+      participationRules: buildOpeningParticipationRules(payload),
       boundedContext: {
         compactSeriesMemory: payload.compactSeriesMemory,
         lastEpisodeSummary: payload.lastEpisodeSummary,

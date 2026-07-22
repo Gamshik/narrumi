@@ -47,6 +47,11 @@ import {
 } from '../_shared/aiQuality.ts';
 import { resolveOptionalAiEnrichment } from '../_shared/optionalAiEnrichment.ts';
 import {
+  buildContinuationParticipationReviewCriteria,
+  buildContinuationParticipationRules,
+  type ParticipationContext,
+} from '../_shared/participationPolicy.ts';
+import {
   omitStoryWordExamplesFromModeration,
   STORY_WORD_USAGE_RULES,
 } from '../_shared/storyWordPolicy.ts';
@@ -460,6 +465,9 @@ async function generateInteractionCreativeCandidate(
           'When unused selected Story Words remain, the continuation should normally introduce one or two naturally; after coverage, previously encountered Story Words may recur when they fit the scene.',
           'Use insufficient_development only when an incomplete continuation is a thin single beat: it should normally include the direct consequence of the learner answer plus a connected action, discovery, or dialogue before the next decision. A clear completed closing beat may be shorter.',
           `Participation behavior must remain ${payload.participationMode} mode.`,
+          ...buildContinuationParticipationReviewCriteria(
+            interactionParticipationContext(payload),
+          ),
           'A next prompt and its choices must align with the new continuation; the prompt must be a concise decision cue that does not repeat, quote, or paraphrase the continuation ending, and choices must be meaningfully different.',
           `Do not reject a candidate only because it completes or continues on a particular turn from ${EPISODE_INTERACTION_LIMITS.minimumBeforeCompletion} through ${EPISODE_INTERACTION_LIMITS.maximumBeforeCompletion - 1}; the server enforces hard completion bounds deterministically.`,
           'Episode completion must close the local arc and preserve a clear hook for the next episode.',
@@ -1072,28 +1080,19 @@ function buildInteractionTranslationSystemPrompt(): string {
   ].join('\n');
 }
 
-// buildParticipationRules keeps every continuation aligned with the saved series mode.
-function buildParticipationRules(
+// interactionParticipationContext exposes only the identity required by shared prompt policy.
+function interactionParticipationContext(
   payload: Pick<
     SubmitInteractionRequest,
     'participationMode' | 'compactSeriesMemory'
   >,
-): readonly string[] {
-  if (payload.participationMode === 'character') {
-    return [
-      `The learner is inside the story as: ${payload.compactSeriesMemory.userRole}.`,
-      'Interpret the learner answer as that character speech, action, plan, or question.',
-      'Next choices must be in-character actions or speech for the learner role.',
-      'Do not ask the learner to decide unrelated characters actions like an outside author.',
-    ];
-  }
-
-  return [
-    'The learner is outside the story as a story director.',
-    'Interpret the learner answer as direction for how events should unfold.',
-    'Next choices may direct scene events, character decisions, or story consequences.',
-    'Do not address the learner as a physical character inside the story.',
-  ];
+): ParticipationContext {
+  return {
+    participationMode: payload.participationMode,
+    ...(payload.compactSeriesMemory.userRole
+      ? { userRole: payload.compactSeriesMemory.userRole }
+      : {}),
+  };
 }
 
 // buildInteractionCorePrompt sends bounded context for the story consequence only.
@@ -1109,7 +1108,9 @@ function buildInteractionCorePrompt(
         genre: payload.genre,
         tone: payload.tone,
         participationMode: payload.participationMode,
-        participationRules: buildParticipationRules(payload),
+        participationRules: buildContinuationParticipationRules(
+          interactionParticipationContext(payload),
+        ),
         interactionPrompt: payload.interactionPrompt,
         selectedChoiceLabel: payload.selectedChoiceLabel,
         userReply: payload.userReply,
@@ -1155,7 +1156,9 @@ function buildInteractionCorePrompt(
         'Do not complete before interactionCount reaches 5.',
         'If interactionCount is 10 or higher, isEpisodeComplete must be true.',
         'Do not return a choice, prompt, memory update, frames, or feedback.',
-        ...buildParticipationRules(payload),
+        ...buildContinuationParticipationRules(
+          interactionParticipationContext(payload),
+        ),
       ],
     },
     null,
@@ -1175,7 +1178,9 @@ function buildNextChoicePrompt(
       genre: payload.genre,
       tone: payload.tone,
       participationMode: payload.participationMode,
-      participationRules: buildParticipationRules(payload),
+      participationRules: buildContinuationParticipationRules(
+        interactionParticipationContext(payload),
+      ),
       frozenStory: {
         continuationText: coreDraft.continuationText,
         summaryUpdate: coreDraft.summaryUpdate,
@@ -1220,7 +1225,9 @@ function buildInteractionFallbackPrompt(
         genre: payload.genre,
         tone: payload.tone,
         participationMode: payload.participationMode,
-        participationRules: buildParticipationRules(payload),
+        participationRules: buildContinuationParticipationRules(
+          interactionParticipationContext(payload),
+        ),
         interactionPrompt: payload.interactionPrompt,
         selectedChoiceLabel: payload.selectedChoiceLabel,
         userReply: payload.userReply,
@@ -1273,7 +1280,9 @@ function buildInteractionFallbackPrompt(
         'Do not complete before interactionCount reaches 5.',
         'If interactionCount is 10 or higher, isEpisodeComplete must be true.',
         'Do not return memoryUpdate.',
-        ...buildParticipationRules(payload),
+        ...buildContinuationParticipationRules(
+          interactionParticipationContext(payload),
+        ),
       ],
     },
     null,
@@ -1295,7 +1304,9 @@ function buildInteractionRepairPrompt(
         genre: payload.genre,
         tone: payload.tone,
         participationMode: payload.participationMode,
-        participationRules: buildParticipationRules(payload),
+        participationRules: buildContinuationParticipationRules(
+          interactionParticipationContext(payload),
+        ),
         interactionPrompt: payload.interactionPrompt,
         selectedChoiceLabel: payload.selectedChoiceLabel,
         userReply: payload.userReply,

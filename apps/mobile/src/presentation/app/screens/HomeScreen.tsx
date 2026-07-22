@@ -963,12 +963,12 @@ function CreateSeriesModal({
                 <SeriesSetupTextField
                   colors={colors}
                   {...(errors.userRole ? { error: errors.userRole } : {})}
-                  helper="Required. This role becomes read-only after the first episode."
+                  helper="Required. Use one character name from the cast above."
                   isAiSuggested={isAiGeneratedField(form, 'userRole')}
                   isCompactMultiline
-                  label="Your Role"
+                  label="Your Character"
                   maxLength={160}
-                  placeholder="New analyst"
+                  placeholder="Maya"
                   styles={styles}
                   value={form.userRole}
                   onFocus={revealFocusedInput}

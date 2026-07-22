@@ -27,6 +27,7 @@ import type {
   Episode,
   EpisodeSentenceFrame,
   EpisodeInteraction,
+  Series,
   TranslationAnnotation,
 } from '@domain/index';
 
@@ -62,6 +63,7 @@ import { shouldRenderSettledEpisodeAnswer } from './episodeReader/episodeInterac
 import { findPendingEpisodeContinuation } from './episodeReader/episodeReaderContinuationResume';
 import type { PendingEpisodeContinuation } from './episodeReader/episodeReaderContinuationResume';
 import { submitInteractionWithSilentRetry } from './episodeReader/interactionRequestPolicy';
+import { isLearnerDialogueSpeaker } from './episodeReader/learnerDialoguePresentation';
 import type { SpeakerThemeName } from './episodeReader/components/EpisodeSentence/EpisodeSentence';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
@@ -124,6 +126,8 @@ export function EpisodeReaderScreen({
   );
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const [episodes, setEpisodes] = useState<readonly Episode[]>([]);
+  // seriesContext provides deterministic participation and learner-speaker ownership.
+  const [seriesContext, setSeriesContext] = useState<Series>();
   const [activeEpisodeIndex, setActiveEpisodeIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [interactionErrorMessage, setInteractionErrorMessage] =
@@ -257,6 +261,7 @@ export function EpisodeReaderScreen({
         });
 
         setEpisodes([result.episode]);
+        setSeriesContext(result.series);
         setActiveEpisodeIndex(0);
         setErrorMessage(undefined);
 
@@ -270,6 +275,7 @@ export function EpisodeReaderScreen({
 
         if (details.episodes.length > 0) {
           setEpisodes(details.episodes);
+          setSeriesContext(details.series);
           setActiveEpisodeIndex(0);
           setErrorMessage(undefined);
 
@@ -774,6 +780,13 @@ export function EpisodeReaderScreen({
                           normalizeSpeakerName(sentenceFrame.speaker),
                         )
                       : undefined;
+                  // isLearnerDialogue selects the outgoing side from persisted series identity.
+                  const isLearnerDialogue: boolean =
+                    sentenceFrame.kind === 'dialogue' &&
+                    isLearnerDialogueSpeaker(
+                      seriesContext,
+                      sentenceFrame.speaker,
+                    );
                   // sentenceSelectionOwnerKey keeps native selection scoped to this story unit.
                   const sentenceSelectionOwnerKey: string =
                     createSelectionOwnerKey(
@@ -792,6 +805,7 @@ export function EpisodeReaderScreen({
                         annotations={episode.annotations}
                         isActive={false}
                         isDimmed={false}
+                        isLearnerDialogue={isLearnerDialogue}
                         isSelectionOwner={
                           excerptTranslation.isSelectionOwner(
                             sentenceSelectionOwnerKey,

@@ -44,6 +44,13 @@ interaction 5, permits a logical Writer-selected ending on interactions 5-9, and
 completion on interaction 10. A standalone reviewer `pacing_error` is discarded.
 Deterministic schemas and finalizers always remain mandatory.
 
+Character mode is an explicit point-of-view and agency contract, not merely a choice-label
+hint. Writer and Decision prompts address the learner role as `you`, never author a new
+voluntary action or line for that role, and never repeat a submitted answer inside the
+continuation. The GPT-5.4 Mini Reviewer classifies third-person learner narration, invented
+learner agency, and repeated learner speech as `participation_mismatch`; the existing repair
+or fallback stage must resolve that evidence before the candidate can reach framing.
+
 Writer, Decision, Reviewer, and Fallback use low reasoning. Validator and Utility use
 minimal reasoning because current GPT-5 endpoints reject requests that explicitly disable it.
 Current Gemini 3.5/3.6 models do not receive deprecated temperature or frequency-penalty

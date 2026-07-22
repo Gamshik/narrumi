@@ -9,6 +9,7 @@ import {
   createDefaultSeriesCreativeBrief,
   createDefaultSeriesSetupDraftMeta,
   createProfilesFromCharacterNames,
+  findCharacterProfileByName,
   LearningGenre,
   Series,
   type SeriesCharacterProfile,
@@ -76,7 +77,15 @@ export function createCreateSeries(
         input.characterProfiles ?? createProfilesFromCharacterNames(mainCharacters),
       );
       const canonicalCharacterNames = characterProfileNames(characterProfiles);
-      const userRole = input.userRole?.trim();
+      // requestedUserRole is the learner input before canonical profile resolution.
+      const requestedUserRole: string | undefined = input.userRole?.trim();
+      // userRoleProfile resolves the stable dialogue identity without fuzzy matching.
+      const userRoleProfile: SeriesCharacterProfile | undefined = requestedUserRole
+        ? findCharacterProfileByName(characterProfiles, requestedUserRole)
+        : undefined;
+      // userRole stores the exact profile spelling used by generated speaker frames.
+      const userRole: string | undefined =
+        userRoleProfile?.name ?? requestedUserRole;
       const participationMode = input.participationMode;
       // creativeBrief is normalized before moderation so legacy callers send safe defaults.
       const creativeBrief =
@@ -84,6 +93,14 @@ export function createCreateSeries(
 
       if (participationMode === 'character' && !userRole) {
         throw new Error('Your role is required for character mode.');
+      }
+
+      if (
+        participationMode === 'character' &&
+        requestedUserRole &&
+        !userRoleProfile
+      ) {
+        throw new Error('Your role must match one main character name.');
       }
 
       if (characterProfiles.length === 0) {

@@ -9,6 +9,7 @@ import {
   createDefaultSeriesCreativeBrief,
   createDefaultSeriesSetupDraftMeta,
   createProfilesFromCharacterNames,
+  findCharacterProfileByName,
   LearningGenre,
   Series,
   type SeriesCharacterProfile,
@@ -164,7 +165,14 @@ function normalizeSetupInput(input: UpdateSeriesSetupInput): RequiredSetup {
     input.characterProfiles ?? createProfilesFromCharacterNames(mainCharacters),
   );
   const canonicalCharacterNames = characterProfileNames(characterProfiles);
-  const userRole = input.userRole?.trim();
+  // requestedUserRole is the editable value before canonical profile resolution.
+  const requestedUserRole: string | undefined = input.userRole?.trim();
+  // userRoleProfile resolves the stable dialogue identity without AI inference.
+  const userRoleProfile: SeriesCharacterProfile | undefined = requestedUserRole
+    ? findCharacterProfileByName(characterProfiles, requestedUserRole)
+    : undefined;
+  // userRole stores the exact profile spelling used by generated speaker frames.
+  const userRole: string | undefined = userRoleProfile?.name ?? requestedUserRole;
 
   if (characterProfiles.length === 0) {
     throw new Error('Main characters are required.');
@@ -172,6 +180,14 @@ function normalizeSetupInput(input: UpdateSeriesSetupInput): RequiredSetup {
 
   if (input.participationMode === 'character' && !userRole) {
     throw new Error('Your role is required for character mode.');
+  }
+
+  if (
+    input.participationMode === 'character' &&
+    requestedUserRole &&
+    !userRoleProfile
+  ) {
+    throw new Error('Your role must match one main character name.');
   }
 
   return {

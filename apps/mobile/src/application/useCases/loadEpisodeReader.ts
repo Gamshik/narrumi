@@ -1,5 +1,5 @@
 import type { LocalSeriesStore } from '@application/ports';
-import type { Episode } from '@domain/index';
+import type { Episode, Series } from '@domain/index';
 
 // LoadEpisodeReaderInput identifies one episode without exposing its storage id to routing.
 export type LoadEpisodeReaderInput = {
@@ -13,6 +13,8 @@ export type LoadEpisodeReaderInput = {
 export type LoadEpisodeReaderResult = {
   // episode is a validated locally persisted generated episode.
   readonly episode: Episode;
+  // series carries the participation mode and canonical learner identity for presentation.
+  readonly series: Series;
 };
 
 // LoadEpisodeReader opens one locally persisted generated episode.
@@ -27,13 +29,19 @@ export type LoadEpisodeReader = {
 export function createLoadEpisodeReader(store: LocalSeriesStore): LoadEpisodeReader {
   return {
     execute: async (input) => {
+      const series = await store.getSeries(input.seriesId);
+
+      if (!series) {
+        throw new Error('Series was not found');
+      }
+
       const episodes = await store.listEpisodes(input.seriesId);
       const episode = episodes.find(
         (candidate) => candidate.orderIndex === input.orderIndex,
       );
 
       if (episode) {
-        return { episode };
+        return { episode, series };
       }
 
       throw new Error('Episode was not found');

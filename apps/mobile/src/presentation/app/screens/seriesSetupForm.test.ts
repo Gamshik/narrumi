@@ -114,6 +114,33 @@ describe('series setup co-creation state', (): void => {
     assert.equal(errors.creativeBrief, undefined);
   });
 
+  it('requires Character mode to select one canonical cast name', (): void => {
+    // form contains complete setup text but an ambiguous learner role description.
+    const form = {
+      ...createEmptySeriesSetupForm(),
+      title: 'Night Signal',
+      premise: 'Mira hears a message from a closed runway.',
+      participationMode: 'character' as const,
+      characterProfiles: [
+        {
+          id: 'character:mira',
+          name: 'Mira',
+          description: 'A careful airport trainee.',
+        },
+      ],
+      userRole: 'Airport trainee',
+    };
+
+    assert.equal(
+      validateSeriesSetupForm(form).userRole,
+      'Use one of the character names above.',
+    );
+    assert.equal(
+      validateSeriesSetupForm({ ...form, userRole: 'mira' }).userRole,
+      undefined,
+    );
+  });
+
   it('round-trips incomplete form values through a local setup draft', (): void => {
     const form = {
       ...createEmptySeriesSetupForm(),

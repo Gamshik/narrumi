@@ -80,7 +80,33 @@ const seriesSetupSchema = z.object({
       path: ['userRole'],
     });
   }
+
+  if (payload.participationMode === 'character' && payload.userRole?.trim()) {
+    // profileNames are the only trusted dialogue identities accepted for learner ownership.
+    const profileNames: readonly string[] =
+      payload.characterProfiles?.map((profile): string => profile.name) ??
+      payload.mainCharacters;
+    // normalizedRole prevents casing or harmless spacing from breaking identity checks.
+    const normalizedRole: string = normalizeCharacterName(payload.userRole);
+    // hasMatchingProfile proves the learner role maps to one deterministic speaker.
+    const hasMatchingProfile: boolean = profileNames.some(
+      (name: string): boolean => normalizeCharacterName(name) === normalizedRole,
+    );
+
+    if (!hasMatchingProfile) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Character mode userRole must match one character profile name.',
+        path: ['userRole'],
+      });
+    }
+  }
 });
+
+// normalizeCharacterName keeps the Edge validation identity check deterministic.
+function normalizeCharacterName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
 
 // SeriesSetupRequest is the safe request shape sent by the mobile create-series use case.
 type SeriesSetupRequest = z.infer<typeof seriesSetupSchema>;

@@ -137,6 +137,35 @@ describe('createSeries', () => {
     assert.equal(savedMemory.length, 0);
   });
 
+  it('requires the Character-mode role to match a canonical speaker name', async () => {
+    // savedSeries confirms an ambiguous role never reaches local persistence.
+    const savedSeries: Series[] = [];
+    // savedMemory confirms the invalid identity cannot enter compact AI context.
+    const savedMemory: SeriesMemory[] = [];
+    const createSeries = createCreateSeries(
+      createMemoryStore(savedSeries, savedMemory),
+      { now: () => new Date('2026-06-10T10:00:00.000Z') },
+    );
+
+    await assert.rejects(
+      () =>
+        createSeries.execute({
+          title: 'The Door',
+          genre: 'short-fiction',
+          cefrLevel: 'B1',
+          tone: 'Calm detective',
+          premise: 'Mira finds a quiet blue door.',
+          participationMode: 'character',
+          mainCharacters: ['Mira'],
+          userRole: 'New analyst',
+        }),
+      /must match one main character name/,
+    );
+
+    assert.equal(savedSeries.length, 0);
+    assert.equal(savedMemory.length, 0);
+  });
+
   it('requires complete text setup before local persistence', async () => {
     // savedSeries confirms required-field validation stops before persistence.
     const savedSeries: Series[] = [];

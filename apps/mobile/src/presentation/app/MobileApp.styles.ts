@@ -877,6 +877,9 @@ function createAppStylesImpl(colors: AppColors) {
       alignItems: 'flex-start',
       gap: 8,
     },
+    readerLearnerDialogueRow: {
+      flexDirection: 'row-reverse',
+    },
     readerDialogueAvatar: {
       width: 28,
       height: 28,
@@ -894,11 +897,19 @@ function createAppStylesImpl(colors: AppColors) {
       maxWidth: '86%',
       gap: 2,
     },
+    readerLearnerDialogueContent: {
+      alignItems: 'flex-end',
+    },
     readerDialogueSpeakerName: {
       fontSize: 9,
       fontWeight: '700',
       marginLeft: 1,
       textTransform: 'uppercase',
+    },
+    readerLearnerDialogueSpeakerName: {
+      marginLeft: 0,
+      marginRight: 1,
+      textAlign: 'right',
     },
     readerDialogueBubbleFrame: {
       alignSelf: 'flex-start',
@@ -907,6 +918,11 @@ function createAppStylesImpl(colors: AppColors) {
       borderTopLeftRadius: 4,
       paddingHorizontal: 10,
       paddingVertical: 6,
+    },
+    readerLearnerDialogueBubbleFrame: {
+      alignSelf: 'flex-end',
+      borderTopLeftRadius: 12,
+      borderTopRightRadius: 4,
     },
     readerNarrativeSentenceFrame: {
       marginLeft: 36,

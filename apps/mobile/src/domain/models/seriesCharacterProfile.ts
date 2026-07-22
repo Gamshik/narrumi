@@ -51,6 +51,20 @@ export function characterProfileNames(
   return profiles.map((profile) => profile.name);
 }
 
+// findCharacterProfileByName resolves one canonical speaker without fuzzy AI inference.
+export function findCharacterProfileByName(
+  profiles: readonly SeriesCharacterProfile[],
+  name: string,
+): SeriesCharacterProfile | undefined {
+  // requestedName is the case-insensitive identity key persisted for Character mode.
+  const requestedName: string = normalizeCharacterName(name);
+
+  return profiles.find(
+    (profile: SeriesCharacterProfile): boolean =>
+      normalizeCharacterName(profile.name) === requestedName,
+  );
+}
+
 // createCharacterProfileId produces deterministic ids from display names.
 export function createCharacterProfileId(name: string, index: number): string {
   const slug = name
@@ -86,3 +100,7 @@ function extractLikelyCharacterName(value: string): string {
   return trimmed;
 }
 
+// normalizeCharacterName keeps deterministic identity matching resilient to harmless spacing.
+function normalizeCharacterName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}

@@ -1,6 +1,7 @@
 import {
   createDefaultSeriesCreativeBrief,
   createDefaultSeriesSetupDraftMeta,
+  findCharacterProfileByName,
   normalizeCharacterProfiles,
   seriesSetupTextFields,
   type CefrLevel,
@@ -223,6 +224,14 @@ export function validateSeriesSetupForm(
 
   if (form.participationMode === 'character' && !form.userRole.trim()) {
     errors.userRole = 'Choose your character role.';
+  } else if (
+    form.participationMode === 'character' &&
+    !findCharacterProfileByName(
+      normalizeCharacterProfiles(form.characterProfiles),
+      form.userRole,
+    )
+  ) {
+    errors.userRole = 'Use one of the character names above.';
   }
 
   return errors;

@@ -104,7 +104,7 @@ describe('updateSeriesSetup', () => {
       premise: 'Mira follows a map across a quiet station.',
       participationMode: 'character',
       mainCharacters: ['Mira', 'Leo'],
-      userRole: 'Mira',
+      userRole: 'mira',
       creativeBrief: {
         idea: 'A mysterious map found in a library book.',
         worldAndSetting: 'A quiet railway station',
