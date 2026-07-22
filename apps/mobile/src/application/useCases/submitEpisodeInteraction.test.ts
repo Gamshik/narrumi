@@ -126,6 +126,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'word:careful',
     word: 'careful',
+    translation: 'осторожный',
     partOfSpeech: 'adjective',
     level: 'A2',
     examples: ['Be careful.'],
@@ -187,6 +188,9 @@ describe('submitEpisodeInteraction', () => {
         assert.equal(request.previousDecisions.length, 0);
         assert.deepEqual(request.selectedStoryWords.map((word) => word.id), [
           'word:careful',
+        ]);
+        assert.deepEqual(request.selectedStoryWords[0]?.usageExamples, [
+          'Be careful.',
         ]);
         assert.deepEqual(request.encounteredStoryWordIds, ['word:careful']);
 

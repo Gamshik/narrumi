@@ -1,4 +1,5 @@
 import {
+  buildAiStoryWord,
   buildCompactSeriesMemoryPayload,
   SAFETY_AND_COPYRIGHT_CONSTRAINTS,
 } from '@application/ai/episodeAiPayload';
@@ -172,12 +173,7 @@ export function createSubmitEpisodeInteraction(
           maxLevel: series.cefrLevel,
           vocabulary,
           wordIds: episode.storyWordIds,
-        }).map((word) => ({
-          id: word.id,
-          word: word.word,
-          partOfSpeech: word.partOfSpeech,
-          level: word.level,
-        })),
+        }).map(buildAiStoryWord),
         encounteredStoryWordIds: unique(
           episode.annotations.flatMap((annotation) =>
             annotation.wordId ? [annotation.wordId] : [],

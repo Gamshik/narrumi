@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  buildAiStoryWord,
   parseEpisodeAiPayload,
   parseInteractionAiPayload,
 } from './episodeAiPayload';
@@ -17,6 +18,41 @@ const validMemoryUpdate = {
 };
 
 describe('episode AI payload validation', () => {
+  it('keeps Oxford part of speech and examples for an ambiguous headword', () => {
+    const nounEntry = buildAiStoryWord({
+      id: 'word:access:noun',
+      word: 'access',
+      translation: 'доступ',
+      partOfSpeech: 'noun',
+      level: 'B1',
+      examples: [
+        '  High-speed   internet access has become a necessity.  ',
+        'You need a password to get access to the system.',
+        'A third example should stay out of the prompt.',
+      ],
+      phonetics: {},
+    });
+    const verbEntry = buildAiStoryWord({
+      id: 'word:access:verb',
+      word: 'access',
+      translation: 'получать доступ',
+      partOfSpeech: 'verb',
+      level: 'B1',
+      examples: ['Most people use their phones to access the internet.'],
+      phonetics: {},
+    });
+
+    assert.equal(nounEntry.partOfSpeech, 'noun');
+    assert.deepEqual(nounEntry.usageExamples, [
+      'High-speed internet access has become a necessity.',
+      'You need a password to get access to the system.',
+    ]);
+    assert.equal(verbEntry.partOfSpeech, 'verb');
+    assert.deepEqual(verbEntry.usageExamples, [
+      'Most people use their phones to access the internet.',
+    ]);
+  });
+
   it('accepts a structured generated episode payload', () => {
     const payload = parseEpisodeAiPayload({
       title: 'The Blue Door',

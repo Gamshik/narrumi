@@ -1,4 +1,5 @@
 import {
+  buildAiStoryWord,
   buildCompactSeriesMemoryPayload,
   SAFETY_AND_COPYRIGHT_CONSTRAINTS,
   type EpisodeAiPayload,
@@ -128,12 +129,7 @@ export function createGenerateEpisode(
       mainCharacters: series.mainCharacters,
       characterProfiles: series.characterProfiles,
       ...(series.userRole ? { userRole: series.userRole } : {}),
-      selectedStoryWords: words.map((word) => ({
-        id: word.id,
-        word: word.word,
-        partOfSpeech: word.partOfSpeech,
-        level: word.level,
-      })),
+      selectedStoryWords: words.map(buildAiStoryWord),
       compactSeriesMemory,
       ...(memory.lastEpisodeSummary
         ? { lastEpisodeSummary: memory.lastEpisodeSummary }

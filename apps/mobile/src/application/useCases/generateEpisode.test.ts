@@ -98,6 +98,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'word:curious',
     word: 'curious',
+    translation: 'любопытный',
     partOfSpeech: 'adjective',
     level: 'B1',
     examples: ['Mira felt curious.'],
@@ -132,6 +133,15 @@ describe('generateEpisode', () => {
         assert.equal(request.participationMode, 'director');
         assert.equal(request.compactSeriesMemory.genre, 'travel-leisure');
         assert.equal(request.compactSeriesMemory.participationMode, 'director');
+        assert.deepEqual(request.selectedStoryWords, [
+          {
+            id: 'word:curious',
+            word: 'curious',
+            partOfSpeech: 'adjective',
+            level: 'B1',
+            usageExamples: ['Mira felt curious.'],
+          },
+        ]);
 
         return {
           title: 'The Midnight Gate',

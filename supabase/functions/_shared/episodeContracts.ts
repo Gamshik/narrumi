@@ -1,4 +1,4 @@
-import { z } from 'npm:zod';
+import { z } from 'npm:zod@4.4.3';
 
 // readableTextSchema normalizes AI text for mobile reader and TTS surfaces.
 const readableTextSchema = z.string().trim().min(1).transform(normalizeReadableText);
@@ -59,6 +59,10 @@ const storyWordSchema = z.object({
   word: z.string().trim().min(1),
   partOfSpeech: z.string().trim().min(1),
   level: z.enum(cefrLevels),
+  usageExamples: z
+    .array(z.string().trim().min(1).max(240))
+    .max(2)
+    .optional(),
 });
 
 // characterProfileSchema pins dialogue labels while carrying role context for generation.

@@ -23,11 +23,38 @@ export const SAFETY_AND_COPYRIGHT_CONSTRAINTS: readonly string[] = [
   'Use selected Story Words naturally instead of listing or drilling them.',
 ] as const;
 
-// AiStoryWord is the bounded vocabulary context sent to the Edge Function.
+// STORY_WORD_USAGE_EXAMPLE_LIMIT keeps dictionary sense context small in every AI request.
+const STORY_WORD_USAGE_EXAMPLE_LIMIT = 2;
+
+// STORY_WORD_USAGE_EXAMPLE_CHARACTER_LIMIT bounds individual Oxford examples at the trust boundary.
+const STORY_WORD_USAGE_EXAMPLE_CHARACTER_LIMIT = 240;
+
+// AiStoryWord is the bounded dictionary entry context sent to the Edge Function.
 export type AiStoryWord = Pick<
   VocabularyItem,
   'id' | 'word' | 'partOfSpeech' | 'level'
->;
+> & {
+  // usageExamples disambiguate the selected part of speech and dictionary sense.
+  readonly usageExamples: readonly string[];
+};
+
+// buildAiStoryWord preserves the exact Oxford entry while limiting prompt context.
+export function buildAiStoryWord(word: VocabularyItem): AiStoryWord {
+  // usageExamples contain only short, non-empty Oxford examples for the selected id.
+  const usageExamples: readonly string[] = word.examples
+    .map((example) => example.replace(/\s+/g, ' ').trim())
+    .filter((example) => example.length > 0)
+    .slice(0, STORY_WORD_USAGE_EXAMPLE_LIMIT)
+    .map((example) => example.slice(0, STORY_WORD_USAGE_EXAMPLE_CHARACTER_LIMIT));
+
+  return {
+    id: word.id,
+    word: word.word,
+    partOfSpeech: word.partOfSpeech,
+    level: word.level,
+    usageExamples,
+  };
+}
 
 // CompactSeriesMemoryPayload is the only series continuity shape sent to AI.
 export type CompactSeriesMemoryPayload = Pick<
