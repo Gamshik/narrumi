@@ -161,6 +161,10 @@ export function EpisodeReaderScreen({
   const pendingGeneratedSentenceScrollRef: RefObject<
     GeneratedSentenceScrollTarget | undefined
   > = useRef<GeneratedSentenceScrollTarget | undefined>(undefined);
+  // pendingContinuationScrollRef arms one scroll after a restored loading state is laid out.
+  const pendingContinuationScrollRef: RefObject<string | undefined> = useRef<
+    string | undefined
+  >(undefined);
   // readerContentInsets reserves only the compact Reader fades to maximize the visible text workspace.
   const readerContentInsets: ViewStyle = {
     paddingTop: insets.top + screenEdgeDepths.readerTop + 2,
@@ -333,6 +337,7 @@ export function EpisodeReaderScreen({
     }
 
     resumedInteractionKeysRef.current.add(operationKey);
+    pendingContinuationScrollRef.current = operationKey;
     setInteractionErrorMessage(undefined);
     setIsSubmittingInteraction(true);
 
@@ -379,6 +384,10 @@ export function EpisodeReaderScreen({
         await handleInteractionError(error, 'resumePendingContinuation');
       } finally {
         if (componentMountedRef.current) {
+          if (pendingContinuationScrollRef.current === operationKey) {
+            pendingContinuationScrollRef.current = undefined;
+          }
+
           setIsSubmittingInteraction(false);
         }
       }
@@ -610,6 +619,21 @@ export function EpisodeReaderScreen({
     });
   };
 
+  // handlePendingContinuationLayout reveals a restored loading state once its height exists.
+  const handlePendingContinuationLayout = (
+    operationKey: string,
+  ): void => {
+    if (pendingContinuationScrollRef.current !== operationKey) {
+      return;
+    }
+
+    pendingContinuationScrollRef.current = undefined;
+
+    requestAnimationFrame((): void => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    });
+  };
+
   if (errorMessage) {
     return (
       <View style={[styles.screenContent, readerStateInsets]}>
@@ -799,6 +823,11 @@ export function EpisodeReaderScreen({
                           isSubmitting={isSubmittingInteraction}
                           key={interaction.id}
                           styles={styles}
+                          onGeneratingLayout={(): void =>
+                            handlePendingContinuationLayout(
+                              `${episode.id}:${interaction.id}`,
+                            )
+                          }
                           onSelectChoice={(choiceId) => {
                             excerptTranslation.clear();
                             void submitChoice(
@@ -1031,6 +1060,7 @@ function EpisodeInteractionBlock({
   interaction,
   isReadOnly,
   isSubmitting,
+  onGeneratingLayout,
   onSelectChoice,
   styles,
 }: {
@@ -1044,6 +1074,8 @@ function EpisodeInteractionBlock({
   readonly isReadOnly: boolean;
   // isSubmitting disables duplicate network requests.
   readonly isSubmitting: boolean;
+  // onGeneratingLayout reveals a restored pending continuation after layout.
+  readonly onGeneratingLayout: () => void;
   // onSelectChoice submits the selected controlled outcome.
   readonly onSelectChoice: (choiceId: string) => void;
   // styles is the current theme StyleSheet contract.
@@ -1069,6 +1101,7 @@ function EpisodeInteractionBlock({
           excerptTranslation={excerptTranslation}
           interaction={interaction}
           isGenerating={false}
+          onGeneratingLayout={onGeneratingLayout}
           savedChoiceLabel={savedChoice?.label}
           styles={styles}
         />
@@ -1083,6 +1116,7 @@ function EpisodeInteractionBlock({
           excerptTranslation={excerptTranslation}
           interaction={interaction}
           isGenerating={isSubmitting}
+          onGeneratingLayout={onGeneratingLayout}
           savedChoiceLabel={savedChoice?.label}
           styles={styles}
         />
@@ -1186,6 +1220,7 @@ function SavedEpisodeAnswer({
   excerptTranslation,
   interaction,
   isGenerating,
+  onGeneratingLayout,
   savedChoiceLabel,
   styles,
 }: {
@@ -1195,6 +1230,8 @@ function SavedEpisodeAnswer({
   readonly interaction: EpisodeInteraction;
   // isGenerating shows the inline next-scene prelude below the saved answer.
   readonly isGenerating: boolean;
+  // onGeneratingLayout reports when the restored prelude can be scrolled into view.
+  readonly onGeneratingLayout: () => void;
   // savedChoiceLabel resolves the selected choice id for display.
   readonly savedChoiceLabel: string | undefined;
   // styles is the current theme StyleSheet contract.
@@ -1270,7 +1307,11 @@ function SavedEpisodeAnswer({
           />
         </View>
       )}
-      {isGenerating ? <StoryContinuationPrelude /> : null}
+      {isGenerating ? (
+        <View onLayout={onGeneratingLayout}>
+          <StoryContinuationPrelude />
+        </View>
+      ) : null}
       {feedbackText ? (
         <View style={styles.readerFeedback}>
           <Text style={styles.sectionLabel}>FEEDBACK</Text>

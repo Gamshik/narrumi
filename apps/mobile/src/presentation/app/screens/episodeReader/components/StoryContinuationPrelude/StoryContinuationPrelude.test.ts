@@ -15,7 +15,10 @@ const readerSource: string = readFileSync(
 );
 
 test('renders the continuation prelude after a saved choice', (): void => {
-  assert.match(readerSource, /isGenerating \? <StoryContinuationPrelude \/>/);
+  assert.match(
+    readerSource,
+    /isGenerating \? \([\s\S]*?<StoryContinuationPrelude \/>/,
+  );
   assert.match(readerSource, /applyOptimisticChoice/);
   assert.match(readerSource, /shouldRenderSettledEpisodeAnswer/);
   assert.match(readerSource, /findPendingEpisodeContinuation\(episodes\)/);
@@ -28,7 +31,22 @@ test('reveals the first generated sentence without jumping to the reader end', (
   assert.match(readerSource, /handleSentenceLayout\(episode\.id, sentenceIndex, event\)/);
   assert.match(readerSource, /sentenceIndex:\s*previousSentenceCount/);
   assert.match(readerSource, /screenEdgeDepths\.readerTop \+ GENERATED_CONTENT_TOP_GAP/);
-  assert.doesNotMatch(readerSource, /scrollToEnd/);
+
+  // generatedScrollSource isolates the completed-response behavior from restored loading-state scrolling.
+  const generatedScrollSource: string = readerSource.slice(
+    readerSource.indexOf('// requestScrollToGeneratedContent'),
+  );
+  assert.doesNotMatch(generatedScrollSource, /scrollToEnd/);
+});
+
+test('reveals a restored pending continuation after its loading state is laid out', (): void => {
+  assert.match(
+    readerSource,
+    /pendingContinuationScrollRef\.current = operationKey/,
+  );
+  assert.match(readerSource, /handlePendingContinuationLayout/);
+  assert.match(readerSource, /onLayout=\{onGeneratingLayout\}/);
+  assert.match(readerSource, /scrollToEnd\(\{ animated: true \}\)/);
 });
 
 test('keeps the atmospheric motion accessible and optional', (): void => {
