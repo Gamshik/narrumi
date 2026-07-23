@@ -9,6 +9,7 @@ import { createGenerationRequestId } from '@application/ai/generationRequest';
 import type {
   Clock,
   EpisodeGenerationGateway,
+  GenerationRequestStore,
   LocalSeriesStore,
   NetworkStatus,
   VocabularyCatalog,
@@ -57,22 +58,15 @@ export function createGenerateEpisode(
   networkStatus: NetworkStatus,
   gateway: EpisodeGenerationGateway,
   clock: Clock,
+  requestStore: GenerationRequestStore,
 ): GenerateEpisode {
   return {
-    execute: async (input) => {
-      const generationRequestId = createGenerationRequestId(
-        `episode:${input.seriesId}`,
-        clock.now(),
-      );
-
-      return executeEpisodeGeneration(input, generationRequestId);
-    },
+    execute: async (input) => executeEpisodeGeneration(input),
   };
 
   // executeEpisodeGeneration performs one admitted AI request and local-first write.
   async function executeEpisodeGeneration(
     { episodeWordSet, genre, seriesId }: GenerateEpisodeInput,
-    generationRequestId: string,
   ): Promise<GenerateEpisodeResult> {
     const connectivity = await networkStatus.getCurrentState();
 
@@ -116,6 +110,21 @@ export function createGenerateEpisode(
       ...buildCompactSeriesMemoryPayload(memory),
       genre: generationGenre,
     };
+    // operationKey keeps one durable client attempt for the exact episode slot.
+    const operationKey: string = `episode:${seriesId}:${orderIndex}`;
+    // storedRequestId survives response loss, app restarts, and changed visible inputs.
+    const storedRequestId: string | undefined = await requestStore.get(
+      operationKey,
+    );
+    // generationRequestId identifies the original logical attempt on every recovery call.
+    const generationRequestId: string =
+      storedRequestId ??
+      createGenerationRequestId(`episode:${seriesId}:${orderIndex}`, clock.now());
+
+    if (!storedRequestId) {
+      await requestStore.save(operationKey, generationRequestId);
+    }
+
     const payload = await gateway.generateEpisode({
       generationRequestId,
       seriesId,
@@ -158,6 +167,8 @@ export function createGenerateEpisode(
       id: `episode-words:${episodeId}`,
       episodeId,
       seriesId,
+      // A recovered cached response may predate a visible Story Words edit.
+      wordIds: payload.storyWordIds,
       updatedAt: timestamp,
       sync: createDirtySync(timestamp, `episode-words:${episodeId}`),
     });
@@ -174,6 +185,7 @@ export function createGenerateEpisode(
         ),
       ),
     );
+    await requestStore.remove(operationKey, generationRequestId);
 
     return { episode };
   }

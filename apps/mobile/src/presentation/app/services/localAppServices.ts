@@ -155,6 +155,7 @@ const generateEpisode = createGenerateEpisode(
   networkStatus,
   supabaseServices.episodeGenerationGateway,
   systemClock,
+  generationRequestStore,
 );
 const submitEpisodeInteraction = createSubmitEpisodeInteraction(
   localSeriesStore,

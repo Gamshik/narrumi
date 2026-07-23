@@ -120,3 +120,11 @@ export function logSafeError(
 export function logSafeInfo(label: string, context: Record<string, string>): void {
   console.info(label, context);
 }
+
+// logSafeWarning records expected policy blocks without logging learner text or model context.
+export function logSafeWarning(
+  label: string,
+  context: Record<string, string>,
+): void {
+  console.warn(label, context);
+}

@@ -152,16 +152,18 @@ export function finalizeEpisodePayload({
     summaryUpdate,
     memoryUpdate: {
       ...parsed.memoryUpdate,
-      knownFacts: compactTextList(
+      knownFacts: mergeCompactTextList(
         parsed.memoryUpdate.knownFacts,
+        request.compactSeriesMemory.knownFacts,
         MEMORY_LIMITS.knownFacts,
       ),
       openQuestions: compactTextList(
         parsed.memoryUpdate.openQuestions,
         MEMORY_LIMITS.openQuestions,
       ),
-      importantObjectsOrLocations: compactTextList(
+      importantObjectsOrLocations: mergeCompactTextList(
         parsed.memoryUpdate.importantObjectsOrLocations,
+        request.compactSeriesMemory.importantObjectsOrLocations,
         MEMORY_LIMITS.importantObjectsOrLocations,
       ),
       lastEpisodeSummary: summaryUpdate,
@@ -337,16 +339,18 @@ export function finalizeInteractionPayload({
     summaryUpdate,
     memoryUpdate: {
       ...parsed.memoryUpdate,
-      knownFacts: compactTextList(
+      knownFacts: mergeCompactTextList(
         parsed.memoryUpdate.knownFacts,
+        request.compactSeriesMemory.knownFacts,
         MEMORY_LIMITS.knownFacts,
       ),
       openQuestions: compactTextList(
         parsed.memoryUpdate.openQuestions,
         MEMORY_LIMITS.openQuestions,
       ),
-      importantObjectsOrLocations: compactTextList(
+      importantObjectsOrLocations: mergeCompactTextList(
         parsed.memoryUpdate.importantObjectsOrLocations,
+        request.compactSeriesMemory.importantObjectsOrLocations,
         MEMORY_LIMITS.importantObjectsOrLocations,
       ),
       lastEpisodeSummary: summaryUpdate,
@@ -480,6 +484,38 @@ function compactTextList(values: readonly string[], limit: number): string[] {
   return uniqueText(values).slice(0, limit);
 }
 
+// mergeCompactTextList fills omitted stable memory from the prior state without reviving open questions.
+function mergeCompactTextList(
+  preferredValues: readonly string[],
+  retainedValues: readonly string[],
+  limit: number,
+): string[] {
+  // values keeps fresh model priorities first and uses prior continuity only for remaining capacity.
+  const values: readonly string[] = [...preferredValues, ...retainedValues];
+  const seenKeys: Set<string> = new Set<string>();
+
+  return values.filter((value: string): boolean => {
+    const key: string = normalizeMemoryTextKey(value);
+
+    if (seenKeys.has(key)) {
+      return false;
+    }
+
+    seenKeys.add(key);
+
+    return true;
+  }).slice(0, limit);
+}
+
+// normalizeMemoryTextKey deduplicates equivalent memory wording across casing and punctuation noise.
+function normalizeMemoryTextKey(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
 // uniqueById removes duplicate choice ids while preserving model order.
 function uniqueById<T extends { readonly id: string }>(
   values: readonly T[],
@@ -539,9 +575,9 @@ function normalizePlaybackFrames({
   const normalizedFrames: IndexedSentenceFrame[] = frames.flatMap(
     (frame: NormalizedSentenceFrame, index: number): IndexedSentenceFrame[] => {
       const normalizedFrame: NormalizedSentenceFrame = normalizeFrameText({
-      frame,
-      sentence: sentences[index]!,
-      speakerNames,
+        frame,
+        sentence: sentences[index]!,
+        speakerNames,
       });
       const splitFrames: readonly ReaderFrameDraft[] =
         normalizedFrame.kind === 'narration'

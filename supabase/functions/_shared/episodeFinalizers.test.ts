@@ -70,7 +70,7 @@ const generateRequest: GenerateEpisodeRequest = {
       },
     ],
     userRole: "Mira's friend",
-    knownFacts: [],
+    knownFacts: ['Leo works as a library assistant.'],
     openQuestions: ['What is behind the door?'],
     importantObjectsOrLocations: ['city library', 'blue door'],
     recurringStoryWordIds: ['word:door'],
@@ -109,7 +109,7 @@ const submitRequest: SubmitInteractionRequest = {
     mainCharacters: generateRequest.mainCharacters,
     characterProfiles: generateRequest.characterProfiles,
     userRole: generateRequest.userRole,
-    knownFacts: [],
+    knownFacts: ['Leo works as a library assistant.'],
     openQuestions: ['What is behind the door?'],
     importantObjectsOrLocations: ['city library', 'blue door'],
     recurringStoryWordIds: ['word:curious'],
@@ -178,6 +178,14 @@ Deno.test('finalizeEpisodePayload synchronizes story text and compact memory', (
     result.summaryUpdate,
   );
   assertEquals(result.memoryUpdate.unresolvedCliffhanger, result.cliffhanger);
+  assertEquals(result.memoryUpdate.knownFacts, [
+    'Mira found the blue door.',
+    'Leo works as a library assistant.',
+  ]);
+  assertEquals(result.memoryUpdate.importantObjectsOrLocations, [
+    'blue door',
+    'city library',
+  ]);
   assertEquals(result.memoryUpdate.recurringStoryWordIds, [
     'word:door',
     'word:curious',
@@ -792,6 +800,15 @@ Deno.test('finalizeInteractionPayload synchronizes continuation and summary', ()
     'What should Mira do inside the passage?',
   );
   assertEquals(result.nextInteraction?.choices.length, 2);
+  assertEquals(result.memoryUpdate.knownFacts, [
+    'The door hides a blue passage.',
+    'Leo works as a library assistant.',
+  ]);
+  assertEquals(result.memoryUpdate.importantObjectsOrLocations, [
+    'blue passage',
+    'city library',
+    'blue door',
+  ]);
 });
 
 Deno.test('finalizeInteractionPayload rejects a Russian continuation', () => {

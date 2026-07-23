@@ -8,6 +8,8 @@ import {
 
 export {
   generateQualityAcceptedCandidate,
+  hasOnlyChoiceQualityIssues,
+  hasOnlyDialogueQualityIssues,
   type QualityIssueCode,
   type QualityReview,
   qualityReviewSchema,
@@ -35,6 +37,9 @@ const allowedIssueCodesByWorkflow: Readonly<
     'choice_similarity',
     'story_word_misuse',
     'language_error',
+    'dialogue_format',
+    'character_identity',
+    'narrative_coherence',
     'memory_conflict',
     'safety_or_copyright',
   ],
@@ -48,6 +53,9 @@ const allowedIssueCodesByWorkflow: Readonly<
     'choice_similarity',
     'story_word_misuse',
     'language_error',
+    'dialogue_format',
+    'character_identity',
+    'narrative_coherence',
     'insufficient_development',
     'memory_conflict',
     'safety_or_copyright',

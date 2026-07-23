@@ -26,7 +26,7 @@ export class SupabaseInteractionGateway implements InteractionGateway {
   async submitInteraction(
     request: SubmitInteractionRequest,
   ): Promise<InteractionAiPayload> {
-    const { data, error } = await this.client.functions.invoke<unknown>(
+    const { data, error, response } = await this.client.functions.invoke<unknown>(
       'submit-interaction',
       {
         body: request,
@@ -35,7 +35,7 @@ export class SupabaseInteractionGateway implements InteractionGateway {
 
     if (error) {
       throw (
-        (await toSupabaseFunctionError(error)) ??
+        (await toSupabaseFunctionError(error, response)) ??
         new SupabaseFunctionError({
           kind: 'unavailable',
           message: 'Story interaction service is unavailable.',

@@ -21,7 +21,7 @@ export class SupabaseSeriesSetupModerationGateway
 
   // validateSeriesSetup checks user setup fields before local-first persistence.
   async validateSeriesSetup(request: ValidateSeriesSetupRequest): Promise<void> {
-    const { error } = await this.client.functions.invoke<unknown>(
+    const { error, response } = await this.client.functions.invoke<unknown>(
       'validate-series-setup',
       {
         body: request,
@@ -30,7 +30,7 @@ export class SupabaseSeriesSetupModerationGateway
 
     if (error) {
       throw (
-        (await toSupabaseFunctionError(error)) ??
+        (await toSupabaseFunctionError(error, response)) ??
         new Error('Series setup validation service is unavailable.')
       );
     }

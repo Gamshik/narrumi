@@ -5,6 +5,7 @@ import {
   generationStateResponse,
   jsonResponse,
   logSafeError,
+  logSafeWarning,
   moderationResponse,
   safeErrorResponse,
 } from '../_shared/http.ts';
@@ -296,19 +297,34 @@ Deno.serve(async (request) => {
         signals: moderationSignals,
       });
 
-      await moderationStore.recordWarning(
+      const warningResult = await moderationStore.recordWarning(
         authResult.user.userId,
         'generate-series-setup',
+        parsedRequest.data.generationRequestId,
         review,
       );
+      // categories exposes policy buckets in logs without retaining matched text.
+      const categories: string = [
+        ...new Set(moderationSignals.map((signal) => signal.category)),
+      ].join(',');
+      // sources identifies which setup fields caused the block.
+      const sources: string = [
+        ...new Set(moderationSignals.map((signal) => signal.sourceLabel)),
+      ].join(',');
+
+      logSafeWarning('generate-series-setup moderation blocked', {
+        categories,
+        sources,
+        warningCount: String(warningResult.warningCount),
+      });
 
       return moderationResponse(
-        review.shouldBan ? 'banned' : 'warning',
-        review.warningsRemaining,
-        review.shouldBan
+        warningResult.isBanned ? 'banned' : 'warning',
+        warningResult.warningsRemaining,
+        warningResult.isBanned
           ? 'This setup request matched blocked content rules again and the account has been banned.'
-          : `This setup request matched blocked content rules. ${review.warningsRemaining} warning${
-            review.warningsRemaining === 1 ? '' : 's'
+          : `This setup request matched blocked content rules. ${warningResult.warningsRemaining} warning${
+            warningResult.warningsRemaining === 1 ? '' : 's'
           } remain before a ban.`,
       );
     }

@@ -25,7 +25,7 @@ export class SupabaseExcerptTranslationGateway
   async translateExcerpt(
     request: TranslateExcerptRequest,
   ): Promise<ExcerptTranslationPayload> {
-    const { data, error } = await this.client.functions.invoke<unknown>(
+    const { data, error, response } = await this.client.functions.invoke<unknown>(
       'translate-excerpt',
       {
         body: request,
@@ -34,7 +34,7 @@ export class SupabaseExcerptTranslationGateway
 
     if (error) {
       throw (
-        (await toSupabaseFunctionError(error)) ??
+        (await toSupabaseFunctionError(error, response)) ??
         new Error('Selected-text translation service is unavailable.')
       );
     }

@@ -36,9 +36,15 @@ Gemini story writer -> GPT-5.4 Nano decision builder from frozen story text
 ```
 
 The repair model receives the original candidate plus reviewer issue codes, evidence,
-and instructions, and must preserve unaffected fields. The recovery candidate must pass
+and instructions, and must preserve unaffected fields. If every issue is `choice_mismatch`
+or `choice_similarity`, the server freezes the story object and asks Fallback for only a
+replacement decision, so recovery cannot rewrite accepted prose. If the only issue is
+`dialogue_format`, Fallback receives only the scene or continuation prose and can change
+quotation marks without returning choices or other accepted state. The recovery candidate must pass
 the same review contract; continuity, scenario, CEFR, repetition, participation, choice,
-safety, copyright, and protected setup findings all remain blocking. Episode timing is
+safety, copyright, direct-speech formatting, canonical character identity, narrative
+coherence, and protected setup findings all remain blocking. A deterministic pre-review
+also rejects high-confidence pinned-speaker utterances that lack quotation marks. Episode timing is
 deterministic instead of reviewer-preference-driven: the server prevents completion before
 interaction 5, permits a logical Writer-selected ending on interactions 5-9, and forces
 completion on interaction 10. A standalone reviewer `pacing_error` is discarded.
@@ -69,6 +75,27 @@ narration and its annotation mapping. If a narration block contains a pinned-spe
 attribution followed by quoted speech, the policy splits the attribution into narration and
 the complete quoted wording into dialogue, then remaps Story Word annotations by surface
 text. These corrections never fail the user request.
+
+Creative story context never contains persisted tutor feedback. Previous decisions are
+reduced to their prompt and learner answer before they reach Writer, Decision, Reviewer,
+repair, or memory prompts, preventing language-coaching text from leaking into the plot.
+Compact-memory output is treated as the complete next state: stable character identity and
+relationship facts are carried forward, newly named supporting characters are recorded as
+facts, and deterministic finalization fills unused fact and recurring-anchor capacity from
+the previous memory without reviving resolved open questions.
+
+Moderation strikes are attributed only to new learner-authored text. Episode generation
+replays validated setup and AI-authored memory, so it cannot create a strike. Interaction
+continuation scans only a free-form `userReply`; generated story context and a selected
+controlled choice are excluded. Warning writes use the stable generation or interaction
+identity, so transport retries and reader restoration cannot increment the same warning.
+Expected policy blocks write safe category/source diagnostics without logging story text.
+
+Episode generation also keeps one durable mobile request id per
+`{seriesId}:{orderIndex}` until the complete episode is saved locally. If the server
+completed generation but its HTTP response was lost, retrying that same logical attempt
+returns the cached validated episode even if the visible Story Words changed after the
+failure. A different request id cannot overwrite an already completed slot.
 
 The highlighted interaction prompt is a decision cue, not repeated story prose. Decision
 and review prompts require one concise question or a very short cue when the choices are

@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import type {
   EpisodeGenerationGateway,
+  GenerationRequestStore,
   LocalSeriesStore,
   NetworkStatus,
 } from '@application/ports';
@@ -203,6 +204,7 @@ describe('generateEpisode', () => {
       networkStatus,
       gateway,
       { now: () => new Date(timestamp) },
+      createMemoryGenerationRequestStore(),
     );
 
     const input = {
@@ -238,6 +240,7 @@ describe('generateEpisode', () => {
       { getCurrentState: async () => ({ isOnline: true }) },
       gateway,
       { now: () => new Date(timestamp) },
+      createMemoryGenerationRequestStore(),
     );
 
     await assert.rejects(
@@ -250,7 +253,72 @@ describe('generateEpisode', () => {
     );
     assert.equal(gatewayCallCount, 0);
   });
+
+  it('keeps one request id when a lost response is retried with changed inputs', async () => {
+    // requestIds proves the logical attempt survives a visible input change.
+    const requestIds: string[] = [];
+    // gateway simulates a response that never reaches local persistence.
+    const gateway: EpisodeGenerationGateway = {
+      generateEpisode: async (request): Promise<never> => {
+        requestIds.push(request.generationRequestId);
+        throw new Error('Simulated lost response');
+      },
+    };
+    const requestStore: GenerationRequestStore =
+      createMemoryGenerationRequestStore();
+    const useCase = createGenerateEpisode(
+      createStore([], []),
+      {
+        getById: async (id: string) => vocabulary.find((word) => word.id === id),
+        list: async () => vocabulary,
+      },
+      { getCurrentState: async () => ({ isOnline: true }) },
+      gateway,
+      { now: () => new Date(timestamp) },
+      requestStore,
+    );
+
+    await assert.rejects(
+      () =>
+        useCase.execute({
+          episodeWordSet,
+          seriesId: series.id,
+        }),
+      /Simulated lost response/,
+    );
+    await assert.rejects(
+      () =>
+        useCase.execute({
+          episodeWordSet,
+          genre: 'travel-leisure',
+          seriesId: series.id,
+        }),
+      /Simulated lost response/,
+    );
+
+    assert.equal(requestIds.length, 2);
+    assert.equal(requestIds[1], requestIds[0]);
+  });
 });
+
+// createMemoryGenerationRequestStore models durable episode retry identity in tests.
+function createMemoryGenerationRequestStore(): GenerationRequestStore {
+  // requests maps each episode slot to its unfinished logical request id.
+  const requests: Map<string, string> = new Map<string, string>();
+
+  return {
+    get: async (operationKey: string): Promise<string | undefined> =>
+      requests.get(operationKey),
+    save: async (operationKey: string, requestId: string): Promise<void> => {
+      requests.set(operationKey, requestId);
+    },
+    remove: async (operationKey: string, requestId: string): Promise<void> => {
+      if (requests.get(operationKey) === requestId) {
+        requests.delete(operationKey);
+      }
+    },
+  };
+}
 
 // createStore builds the local series boundary for episode generation tests.
 function createStore(

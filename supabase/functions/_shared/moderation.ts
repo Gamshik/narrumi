@@ -51,6 +51,16 @@ export type ModerationSoftBlockResult = {
   readonly activeRestrictionId?: string;
 };
 
+// ModerationWarningResult is the persisted outcome of one idempotent warning request.
+export type ModerationWarningResult = {
+  // warningCount is the effective stored strike count after the request.
+  readonly warningCount: number;
+  // warningsRemaining is derived from stored state, including duplicate requests.
+  readonly warningsRemaining: number;
+  // isBanned reports whether the stored state has reached an active ban.
+  readonly isBanned: boolean;
+};
+
 // ModerationStateRow mirrors the server-side warning counter table.
 type ModerationStateRow = {
   // user_id is the Supabase Auth user id.
@@ -101,12 +111,13 @@ export type ModerationStore = {
   readonly getState: (
     userId: string,
   ) => Promise<ModerationStateRow | undefined>;
-  // recordWarning increments the warning state and creates a ban on the third strike.
+  // recordWarning increments once per request key and creates a ban on the third strike.
   readonly recordWarning: (
     userId: string,
     sourceFunction: string,
+    requestKey: string,
     review: ModerationReview,
-  ) => Promise<ModerationStateRow>;
+  ) => Promise<ModerationWarningResult>;
   // recordSoftBlock increments an hourly validation counter and escalates after its threshold.
   readonly recordSoftBlock: (
     sourceFunction: string,
@@ -145,6 +156,7 @@ export function createModerationStore(authorization: string): ModerationStore {
     recordWarning: async (
       userId: string,
       sourceFunction: string,
+      requestKey: string,
       review: ModerationReview,
     ) => {
       const existingState = await getState(userId);
@@ -152,12 +164,13 @@ export function createModerationStore(authorization: string): ModerationStore {
       const warningCount = Math.min(effectivePreviousCount + 1, WARNING_LIMIT);
       const now = new Date().toISOString();
       const { data: storedState, error: stateError } = await client
-        .rpc('record_user_moderation_warning', {
-          source_function: sourceFunction,
-          warning_reason: review.reason,
-          warning_categories: review.signals.map((signal) => signal.category),
-          warning_excerpt: summarizeSignals(review.signals),
-          ban_criteria: {
+        .rpc('record_user_moderation_warning_once', {
+          p_source_function: sourceFunction,
+          p_request_key: requestKey,
+          p_warning_reason: review.reason,
+          p_warning_categories: review.signals.map((signal) => signal.category),
+          p_warning_excerpt: summarizeSignals(review.signals),
+          p_ban_criteria: {
             warningCount,
             categories: review.signals.map((signal) => signal.category),
             evidence: review.signals,
@@ -168,7 +181,7 @@ export function createModerationStore(authorization: string): ModerationStore {
         throw new Error(`Moderation state update failed: ${stateError.message}`);
       }
 
-      return normalizeModerationStateRow(storedState[0], userId) ?? {
+      const normalizedState = normalizeModerationStateRow(storedState[0], userId) ?? {
         user_id: userId,
         warning_count: warningCount,
         last_warning_reason: review.reason,
@@ -178,6 +191,17 @@ export function createModerationStore(authorization: string): ModerationStore {
         banned_at: warningCount >= WARNING_LIMIT ? now : null,
         active_restriction_id: null,
         updated_at: now,
+      };
+
+      return {
+        warningCount: normalizedState.warning_count,
+        warningsRemaining: Math.max(
+          WARNING_LIMIT - normalizedState.warning_count,
+          0,
+        ),
+        isBanned:
+          normalizedState.banned_at !== null ||
+          normalizedState.active_restriction_id !== null,
       };
     },
     recordSoftBlock: async (

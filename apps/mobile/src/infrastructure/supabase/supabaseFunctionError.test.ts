@@ -49,4 +49,55 @@ describe('readSupabaseFunctionErrorInfo', () => {
       message: 'Episode generation timed out. Please try again.',
     });
   });
+
+  it('uses the invoke response when an error wrapper loses its context', async () => {
+    const result = await readSupabaseFunctionErrorInfo(
+      new Error('Edge Function returned a non-2xx status code'),
+      {
+        status: 429,
+        json: async (): Promise<unknown> => ({
+          error: {
+            kind: 'moderation_warning',
+            message: 'This request matched blocked content rules.',
+            warningsRemaining: 1,
+          },
+        }),
+      },
+    );
+
+    assert.deepEqual(result, {
+      kind: 'moderation_warning',
+      message:
+        'This request matched blocked content rules. Warnings remaining: 1.',
+      warningsRemaining: 1,
+    });
+  });
+
+  it('reads a cloned React Native response before the original body', async () => {
+    let originalJsonCalls = 0;
+    const result = await readSupabaseFunctionErrorInfo({
+      context: {
+        json: async (): Promise<unknown> => {
+          originalJsonCalls += 1;
+          throw new Error('The original response body is locked.');
+        },
+        clone: () => ({
+          json: async (): Promise<unknown> => ({
+            error: {
+              kind: 'moderation_banned',
+              message: 'This account is blocked.',
+              warningsRemaining: 0,
+            },
+          }),
+        }),
+      },
+    });
+
+    assert.deepEqual(result, {
+      kind: 'moderation_banned',
+      message: 'This account is blocked.',
+      warningsRemaining: 0,
+    });
+    assert.equal(originalJsonCalls, 0);
+  });
 });

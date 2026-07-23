@@ -73,6 +73,10 @@ type SupabaseFunctionErrorContext = {
 type JsonResponseLike = {
   // json reads the structured Edge Function error body.
   readonly json: () => Promise<unknown>;
+  // clone preserves the original response body when the runtime supports it.
+  readonly clone?: () => JsonResponseLike;
+  // text is a fallback for React Native response implementations with fragile json parsing.
+  readonly text?: () => Promise<string>;
   // status preserves gateway failures whose response body is not JSON.
   readonly status?: number;
 };
@@ -80,8 +84,12 @@ type JsonResponseLike = {
 // readSupabaseFunctionErrorInfo extracts user-facing Edge Function errors from non-2xx responses.
 export async function readSupabaseFunctionErrorInfo(
   error: unknown,
+  fallbackResponse?: unknown,
 ): Promise<SupabaseFunctionErrorInfo | undefined> {
-  const context = (error as SupabaseFunctionErrorContext).context;
+  const errorContext: unknown = (error as SupabaseFunctionErrorContext).context;
+  const context: unknown = isJsonResponseLike(errorContext)
+    ? errorContext
+    : fallbackResponse;
 
   if (!isJsonResponseLike(context)) {
     return undefined;
@@ -149,8 +157,9 @@ export async function readSupabaseFunctionErrorMessage(
 // toSupabaseFunctionError converts parsed response bodies into typed errors.
 export async function toSupabaseFunctionError(
   error: unknown,
+  fallbackResponse?: unknown,
 ): Promise<SupabaseFunctionError | undefined> {
-  const info = await readSupabaseFunctionErrorInfo(error);
+  const info = await readSupabaseFunctionErrorInfo(error, fallbackResponse);
 
   return info ? new SupabaseFunctionError(info) : undefined;
 }
@@ -159,8 +168,30 @@ export async function toSupabaseFunctionError(
 async function readJsonBody(
   response: JsonResponseLike,
 ): Promise<SupabaseFunctionErrorBody | undefined> {
+  if (response.clone) {
+    try {
+      // clonedResponse keeps the SDK-owned body readable for any later diagnostics.
+      const clonedResponse: JsonResponseLike = response.clone();
+
+      return (await clonedResponse.json()) as SupabaseFunctionErrorBody;
+    } catch {
+      // Some React Native fetch implementations expose clone but cannot use it.
+    }
+  }
+
   try {
     return (await response.json()) as SupabaseFunctionErrorBody;
+  } catch {
+    if (!response.text) {
+      return undefined;
+    }
+  }
+
+  try {
+    // textBody supports fetch implementations whose JSON convenience method fails.
+    const textBody: string = await response.text();
+
+    return JSON.parse(textBody) as SupabaseFunctionErrorBody;
   } catch {
     return undefined;
   }

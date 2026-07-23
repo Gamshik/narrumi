@@ -13,6 +13,9 @@ const qualityIssueCodeSchema = z.enum([
   'choice_similarity',
   'story_word_misuse',
   'language_error',
+  'dialogue_format',
+  'character_identity',
+  'narrative_coherence',
   'insufficient_development',
   'pacing_error',
   'memory_conflict',
@@ -55,6 +58,35 @@ export const qualityReviewSchema = z
 
 // QualityReview is the validated semantic verdict for one creative candidate.
 export type QualityReview = z.infer<typeof qualityReviewSchema>;
+
+// choiceQualityIssueCodes identifies failures that can be repaired without rewriting story prose.
+const choiceQualityIssueCodes: ReadonlySet<QualityIssueCode> = new Set([
+  'choice_mismatch',
+  'choice_similarity',
+]);
+
+// dialogueQualityIssueCodes identifies formatting-only prose failures.
+const dialogueQualityIssueCodes: ReadonlySet<QualityIssueCode> = new Set([
+  'dialogue_format',
+]);
+
+// hasOnlyChoiceQualityIssues protects an accepted story draft during decision recovery.
+export function hasOnlyChoiceQualityIssues(
+  issues: QualityReview['issues'],
+): boolean {
+  return issues.length > 0 && issues.every((issue) =>
+    choiceQualityIssueCodes.has(issue.code)
+  );
+}
+
+// hasOnlyDialogueQualityIssues selects a narrow quote-repair contract for accepted story facts.
+export function hasOnlyDialogueQualityIssues(
+  issues: QualityReview['issues'],
+): boolean {
+  return issues.length > 0 && issues.every((issue) =>
+    dialogueQualityIssueCodes.has(issue.code)
+  );
+}
 
 // QualityGatedGenerationInput defines one writer attempt and one bounded recovery path.
 export type QualityGatedGenerationInput<TCandidate> = {

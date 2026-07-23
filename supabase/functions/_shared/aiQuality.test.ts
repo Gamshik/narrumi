@@ -5,6 +5,8 @@ import {
 
 import {
   generateQualityAcceptedCandidate,
+  hasOnlyChoiceQualityIssues,
+  hasOnlyDialogueQualityIssues,
   type QualityReview,
   qualityReviewSchema,
 } from './aiQualityGate.ts';
@@ -54,6 +56,87 @@ Deno.test('episode review preserves relevant concrete diagnoses', (): void => {
 
   assertEquals(result.accepted, false);
   assertEquals(result.issues[0]?.code, 'choice_mismatch');
+});
+
+Deno.test('choice-only recovery excludes every story-level issue', (): void => {
+  // choiceIssues represent defects that can be repaired without rewriting story prose.
+  const choiceIssues: QualityReview['issues'] = [
+    {
+      code: 'choice_mismatch',
+      evidence: 'A choice requires a key that is absent from the scene.',
+      retryInstruction: 'Use only actions supported by the scene.',
+    },
+    {
+      code: 'choice_similarity',
+      evidence: 'Both choices ask the same question.',
+      retryInstruction: 'Offer two meaningfully different actions.',
+    },
+  ];
+
+  assertEquals(hasOnlyChoiceQualityIssues(choiceIssues), true);
+  assertEquals(
+    hasOnlyChoiceQualityIssues([
+      ...choiceIssues,
+      {
+        code: 'continuity_break',
+        evidence: 'The story contradicts the previous episode.',
+        retryInstruction: 'Restore the established story fact.',
+      },
+    ]),
+    false,
+  );
+  assertEquals(hasOnlyChoiceQualityIssues([]), false);
+});
+
+Deno.test('dialogue-only recovery excludes mixed prose failures', (): void => {
+  // dialogueIssue is the only issue allowed to use the quote-only repair schema.
+  const dialogueIssue: QualityReview['issues'][number] = {
+    code: 'dialogue_format',
+    evidence: 'Vlad speaks without ASCII quotation marks.',
+    retryInstruction: 'Add quotation marks around the literal utterance.',
+  };
+
+  assertEquals(hasOnlyDialogueQualityIssues([dialogueIssue]), true);
+  assertEquals(
+    hasOnlyDialogueQualityIssues([
+      dialogueIssue,
+      {
+        code: 'narrative_coherence',
+        evidence: 'The same utterance is disconnected from the scene.',
+        retryInstruction: 'Remove the disconnected fragment.',
+      },
+    ]),
+    false,
+  );
+  assertEquals(hasOnlyDialogueQualityIssues([]), false);
+});
+
+Deno.test('episode review preserves story integrity diagnoses', (): void => {
+  const result = normalizeQualityReview('episode-opening', {
+    accepted: false,
+    issues: [
+      {
+        code: 'dialogue_format',
+        evidence: 'Vlad is followed by an unquoted literal utterance.',
+        retryInstruction: 'Put the spoken wording inside ASCII double quotes.',
+      },
+      {
+        code: 'character_identity',
+        evidence: 'Mira is presented as a newly introduced receptionist.',
+        retryInstruction: 'Give the new receptionist a distinct name.',
+      },
+      {
+        code: 'narrative_coherence',
+        evidence: 'Explain these is unrelated to the surrounding scene.',
+        retryInstruction: 'Remove the disconnected instruction fragment.',
+      },
+    ],
+  });
+
+  assertEquals(
+    result.issues.map((issue) => issue.code),
+    ['dialogue_format', 'character_identity', 'narrative_coherence'],
+  );
 });
 
 Deno.test('interaction review ignores subjective pacing diagnoses', (): void => {

@@ -186,6 +186,8 @@ describe('submitEpisodeInteraction', () => {
         assert.equal(request.compactSeriesMemory.participationMode, 'director');
         assert.equal(request.interactionCount, 1);
         assert.equal(request.previousDecisions.length, 0);
+        assert.equal(request.selectedChoiceLabel, 'Open the door carefully');
+        assert.equal(request.userReply, undefined);
         assert.deepEqual(request.selectedStoryWords.map((word) => word.id), [
           'word:careful',
         ]);

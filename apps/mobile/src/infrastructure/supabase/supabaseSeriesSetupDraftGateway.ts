@@ -46,7 +46,7 @@ export class SupabaseSeriesSetupDraftGateway implements SeriesSetupDraftGateway 
   async generateSeriesSetupDraft(
     request: GenerateSeriesSetupDraftRequest,
   ): Promise<SeriesSetupDraft> {
-    const { data, error } = await this.client.functions.invoke<unknown>(
+    const { data, error, response } = await this.client.functions.invoke<unknown>(
       'generate-series-setup',
       {
         body: request,
@@ -55,7 +55,7 @@ export class SupabaseSeriesSetupDraftGateway implements SeriesSetupDraftGateway 
 
     if (error) {
       throw (
-        (await toSupabaseFunctionError(error)) ??
+        (await toSupabaseFunctionError(error, response)) ??
         new Error('Series setup generator is unavailable.')
       );
     }

@@ -181,7 +181,9 @@ export function createSubmitEpisodeInteraction(
         ),
         ...(choiceId ? { selectedChoiceId: choiceId } : {}),
         ...(selectedChoice ? { selectedChoiceLabel: selectedChoice.label } : {}),
-        userReply: submittedText,
+        // Controlled labels are AI-authored context. Only free-form text crosses
+        // the moderation boundary as a learner-authored userReply.
+        ...(!choiceId ? { userReply: submittedText } : {}),
         safetyAndCopyrightConstraints: SAFETY_AND_COPYRIGHT_CONSTRAINTS,
       });
       const sentenceEndIndex =

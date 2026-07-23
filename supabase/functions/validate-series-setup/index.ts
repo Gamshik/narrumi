@@ -5,6 +5,7 @@ import {
   corsHeaders,
   jsonResponse,
   logSafeError,
+  logSafeWarning,
   moderationResponse,
   safeErrorResponse,
   softModerationResponse,
@@ -170,6 +171,21 @@ Deno.serve(async (request: Request): Promise<Response> => {
       review,
       SERIES_SETUP_SOFT_BLOCK_LIMIT,
     );
+    // categories exposes policy buckets in logs without retaining matched text.
+    const categories: string = [
+      ...new Set(moderationSignals.map((signal) => signal.category)),
+    ].join(',');
+    // sources identifies which setup fields caused the block.
+    const sources: string = [
+      ...new Set(moderationSignals.map((signal) => signal.sourceLabel)),
+    ].join(',');
+
+    logSafeWarning('validate-series-setup moderation blocked', {
+      attemptCount: String(result.attemptCount),
+      categories,
+      sources,
+      warningCount: String(result.warningCount ?? 0),
+    });
 
     if (!result.didRecordWarning) {
       return softModerationResponse(

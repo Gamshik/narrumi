@@ -23,7 +23,7 @@ export class SupabaseEpisodeGenerationGateway implements EpisodeGenerationGatewa
   async generateEpisode(
     request: GenerateEpisodeRequest,
   ): Promise<EpisodeAiPayload> {
-    const { data, error } = await this.client.functions.invoke<unknown>(
+    const { data, error, response } = await this.client.functions.invoke<unknown>(
       'generate-episode',
       {
         body: request,
@@ -32,7 +32,7 @@ export class SupabaseEpisodeGenerationGateway implements EpisodeGenerationGatewa
 
     if (error) {
       throw (
-        (await toSupabaseFunctionError(error)) ??
+        (await toSupabaseFunctionError(error, response)) ??
         new Error('Episode generation service is unavailable.')
       );
     }
