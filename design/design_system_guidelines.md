@@ -233,7 +233,7 @@ Rules:
 ### Create / Edit Series Setup
 
 - Keep setup on one scrollable screen with progressive disclosure; do not split it into a wizard.
-- Keep Level, Genre, Tone, Participation Mode, and the optional `Your idea` field visible. Place optional story anchors behind one clear "Add details" disclosure.
+- Keep Participation Mode and the optional `Your idea` field visible. Place optional story anchors behind one clear "Add details" disclosure. Do not show CEFR, Genre, or Tone in series setup.
 - Keep expanded anchors visually lighter than the generated setup draft. Existing character profiles remain editable in the same flow.
 - Present `Fill gaps`, `Refine draft`, and `Rebuild` as one compact answer to "How should AI work?", with `Fill gaps` selected by default. Explain the selected permission in one short line.
 - When `Fill gaps` is paired with a numeric cast size below the completed character count, replace the generic helper with a direct explanation that existing characters are kept and that `Refine` or `Rebuild` is required to reduce them. For `Refine`, describe a numeric cast selection as exact.
@@ -249,6 +249,13 @@ Rules:
 - The continue/resume module should be concise and elevated, not oversized.
 - Episode history cards must share one consistent height system unless content length genuinely requires expansion.
 - Action buttons must never overlap title or summary text. Vertical rhythm wins over squeezing more chrome into the card.
+
+### Episode Preparation
+
+- Show CEFR and Genre as explicit controls before Story Words and generation. Do not show a separate Tone control.
+- The first episode displays the preferred CEFR from Settings and the first genre option. Later episodes display the preceding episode's selections.
+- Changing CEFR must not replace, remove, or hide Story Words already selected by the learner. The new level applies to prose difficulty and future automatic suggestions.
+- Keep the expanded genre list wrapped inside the shared bubble surface and preserve readable tap targets at narrow widths.
 
 ### Reader / Interactive Episode
 

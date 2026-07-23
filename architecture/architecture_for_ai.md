@@ -71,9 +71,6 @@ A user-created story container:
 - id;
 - owner id when authenticated;
 - title;
-- genre;
-- CEFR level;
-- tone or mood;
 - premise;
 - participation mode;
 - main characters or user role;
@@ -85,6 +82,7 @@ A user-created story container:
 Domain rules:
 
 - A series is the continuity root for episodes.
+- Persistence adapters retain legacy series `genre`, `cefrLevel`, and `tone` values for old local rows, existing Supabase NOT NULL columns, and older clients, but new generation must not read them as active settings.
 - New episodes continue the same series instead of starting unrelated texts.
 - Series memory is compact and bounded; do not model full unbounded chat history as required AI context.
 - Series settings must support safe original stories, not direct copies of copyrighted worlds.
@@ -94,13 +92,13 @@ Domain rules:
 - In `character` mode, `userRole` is the canonical `SeriesCharacterProfile.name` owned by the learner. This stable identity lets deterministic presentation code classify dialogue ownership; UI code must not ask an AI model to infer whether a speaker is the learner.
 - Character-mode reader prose uses second person for the learner role. The Story Writer may establish circumstances, perceptions, consequences, and other characters' behavior, but it must not invent the learner role's direct speech, voluntary actions, decisions, plans, thoughts, or emotions.
 - Participation mode can be changed only before the first generated episode. After the first episode exists, it is read-only for that series.
-- Series setup is a single progressive-disclosure screen, not a wizard. CEFR level, genre, tone, and participation mode are explicit selected constraints.
+- Series setup is a single progressive-disclosure screen, not a wizard. Participation mode is the explicit selected constraint; CEFR level and genre belong to episode preparation, and Tone is not a separate field.
 - `CreativeBrief` contains optional `idea` (shown as `Your idea`), `worldAndSetting`, `backstory`, `storyDriver`, `preferredCastSize` (`1`-`4` or AI choice), `mustInclude`, and `avoid`, plus `draftStrategy` as `fill-missing`, `refine`, or `rebuild`. `fill-missing` is the safe default. Existing character profiles remain editable setup fields.
 - Setup provenance records whether each generated-capable field is `user` or `ai`. A manual edit to an AI field changes that field to `user` provenance.
 - Series setup text fields are required before saving a ready series: title, premise, main characters, and `userRole` for `character`. An incomplete form may be persisted locally as a draft.
-- The AI setup action is online-only before the first episode and obeys `draftStrategy`. The mobile request normalizes completed character profiles separately from `emptyCharacterSlotCount`, so visible blank rows remain explicit generation work. `fill-missing` preserves populated final fields exactly and, when cast size is AI-chosen, may append distinct profiles until the model-selected final cast is complete. It never removes completed profiles, so a smaller numeric preference resolves to the existing count and UI must explain the conflict. `refine` sends the current draft for evaluation and lets the model omit any strong field, except that a numeric `preferredCastSize` is exact and requires resizing the cast, while a visible blank slot without an exact smaller target makes a complete cast response mandatory. `rebuild` also treats numeric cast size as exact, excludes current final fields from model context, and resolves every required field from protected anchors or, when anchors are empty, from selected constraints.
+- The AI setup action is online-only before the first episode and obeys `draftStrategy`. The mobile request normalizes completed character profiles separately from `emptyCharacterSlotCount`, so visible blank rows remain explicit generation work. `fill-missing` preserves populated final fields exactly and, when cast size is AI-chosen, may append distinct profiles until the model-selected final cast is complete. It never removes completed profiles, so a smaller numeric preference resolves to the existing count and UI must explain the conflict. `refine` sends the current draft for evaluation and lets the model omit any strong field, except that a numeric `preferredCastSize` is exact and requires resizing the cast, while a visible blank slot without an exact smaller target makes a complete cast response mandatory. `rebuild` also treats numeric cast size as exact, excludes current final fields from model context, and resolves every required field from protected anchors or, when anchors are empty, from participation mode.
 - A transient setup-generation transport failure is retried once with the same durable `generationRequestId`. The retry must stay inside the original loading state and rely on server idempotency, so one learner tap cannot duplicate model work and does not require a second manual tap.
-- Every strategy must preserve creative anchors and must not generate or change CEFR level, genre, tone, or participation mode. Character mode still requires a resolved `userRole` matching one character profile.
+- Every strategy must preserve creative anchors and must not generate or change participation mode. Character mode still requires a resolved `userRole` matching one character profile.
 - The response includes `changedFields`, computed by the Edge Function from the resolved draft rather than trusted from model output. The client uses it for provenance and keeps one in-memory pre-generation snapshot for Undo.
 - Creative brief and setup provenance are local-first series data and participate in remote sync. Backward-compatible reads map missing or legacy strategy data to `fill-missing` and treat already-persisted setup text without provenance as `user`.
 - The setup form and draft are offline-capable; the AI setup action is online-only and exposes an explicit offline state.
@@ -112,6 +110,8 @@ A generated learning unit linked to a series:
 
 - episode id;
 - series id;
+- selected CEFR level;
+- selected genre;
 - optional "previously" recap;
 - main scene or dialogue;
 - semantic reader-block list stored under the legacy sentence field;
@@ -128,7 +128,9 @@ A generated learning unit linked to a series:
 Domain rules:
 
 - Episode length is adaptive. It must be concise enough for a comfortable learning session and substantial enough to develop the scene, use Story Words naturally across the episode arc, and support meaningful interaction. Do not enforce a fixed word-count range.
-- The episode must respect the series CEFR level.
+- The first episode defaults to the preferred CEFR from Settings and the first approved genre (`daily-life`). Later episodes default to the previous episode's CEFR and genre, and both remain editable until generation begins.
+- The episode must respect its own selected CEFR level and genre for the opening and every continuation.
+- A CEFR change during episode preparation must not normalize the current Story Words set. Resolve every existing selected Oxford id into AI context regardless of its individual CEFR level; use the episode CEFR only for prose difficulty and newly proposed automatic replacements.
 - The episode must use selected Story Words naturally across the full episode arc. The initial generated scene may use only part of the selected set, and later same-episode continuations should introduce remaining words naturally and may reuse encountered words when they fit. Each AI-facing Story Word preserves the selected Oxford id, headword, CEFR level, part of speech, and at most two bounded examples from that exact entry so same-spelling senses are not conflated.
 - An episode normally contains 5-10 meaningful learner interactions and must not end after only a few routine decisions.
 - Every AI continuation must consider the remaining interaction budget so the same episode can close inside the 5-10 interaction window.
@@ -185,8 +187,6 @@ Rules:
 Compact continuity state:
 
 - premise;
-- genre;
-- tone;
 - participation mode;
 - main characters;
 - user role;
@@ -320,7 +320,7 @@ Responsibilities:
 - Authenticate requests when user state is needed.
 - Validate request payloads.
 - Enforce copyright and safety constraints.
-- Build bounded model context from selected constraints, creative brief, eligible setup fields, provenance, safety constraints, and output schema for setup generation; or from compact series memory, recent summary, selected Story Words, user level, genre, tone, and output schema for episode generation.
+- Build bounded model context from participation mode, creative brief, eligible setup fields, provenance, safety constraints, and output schema for setup generation; or from compact series memory, recent summary, selected Story Words, episode-level CEFR and genre, and output schema for episode generation.
 - Never send unbounded full series history.
 - Call OpenRouter using server-side secrets only.
 - Use Vercel AI SDK structured JSON output.
@@ -416,7 +416,7 @@ Records that must sync when implemented:
 
 ```text
 User opens one progressive-disclosure setup screen
-  -> select CEFR level, genre, tone, participation mode
+  -> select participation mode
   -> optionally enter Your idea, story anchors, and editable character profiles
   -> choose fill-missing, refine, or rebuild draft strategy
   -> save form changes locally as a draft
@@ -436,6 +436,7 @@ User opens one progressive-disclosure setup screen
 ```text
 Open series
   -> load local episodes, memory, word sets, signals
+  -> select episode CEFR and genre; use Settings CEFR plus daily-life for the first episode, otherwise remember the previous episode
   -> build lightweight Story Words suggestions
   -> user edits Episode Words
   -> if many difficult words: warn about difficulty
@@ -552,7 +553,7 @@ Do not implement:
 - direct client calls to OpenRouter or any LLM provider;
 - remote loading of Oxford 5000 at runtime;
 - direct copying of copyrighted story worlds or characters.
-- per-next-episode direction input; co-creation in this iteration applies only to initial series setup.
+- free-text per-next-episode direction input; episode-level CEFR and approved genre selection are the only episode direction controls.
 
 ## Implementation Checklist For AI Tasks
 

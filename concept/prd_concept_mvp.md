@@ -21,9 +21,9 @@ The product should feel like creating and watching a personal English series, no
 ---
 
 ### 3. Target User Flow
-1. **Series Creation:** User creates a series in a single co-creation setup screen: selects genre, CEFR level, tone, and participation mode, optionally describes their idea and story anchors, then writes the remaining setup manually or asks AI to build from that input.
+1. **Series Creation:** User creates a series in a single co-creation setup screen: selects participation mode, optionally describes their idea and story anchors, then writes the remaining setup manually or asks AI to build from that input.
 2. **Continue Series:** User opens an existing series or creates a new one.
-3. **Story Words:** Before generating an episode, the app proposes a small word set from the bundled vocabulary.
+3. **Episode Setup:** Before generating an episode, the user selects its CEFR level and genre, then the app proposes a small word set from the bundled vocabulary.
 4. **Word Choice:** User accepts the proposed words or makes light edits: add, remove, skip, or keep words.
 5. **Episode Generation:** The app generates a short episode that continues the series, uses selected Story Words naturally across the episode arc, respects the user's level, and ends with a narrative hook.
 6. **Read & Listen:** User reads the episode, listens block by block using semantic paragraphs and separate dialogue turns, can tap prepared Story Words for the word, transcription, context-aware translation, and part of speech, and can select visible story or interaction copy for an exact Russian translation without leaving the episode. A dialogue turn contains only words explicitly written as direct speech in the generated source; reported speech, attribution, and character actions remain narration even if an AI framing step labels them as dialogue.
@@ -40,9 +40,6 @@ The product should feel like creating and watching a personal English series, no
 - A user can create multiple personal series.
 - Each series has:
   - title;
-  - genre;
-  - CEFR level;
-  - tone or mood;
   - premise;
   - participation mode;
   - main characters or user role;
@@ -58,12 +55,12 @@ The product should feel like creating and watching a personal English series, no
 - In Character mode, interaction prompts and choices must address what the user's character says, does, asks, or plans.
 - Character-mode story prose must address the learner character in the second person (`you` / `your`). The AI may establish circumstances, sensory information, consequences, and other characters' behavior, but must not invent the learner character's direct speech, voluntary actions, decisions, plans, thoughts, or emotions.
 - A learner's submitted spoken choice or reply is rendered once as a right-aligned outgoing bubble. The continuation starts with its consequence and must not repeat or paraphrase that answer as AI-authored dialogue. Physical actions remain second-person narrative beats rather than speech bubbles.
-- Series setup is one screen with progressive disclosure, not a multi-step wizard. CEFR level, genre, tone, and participation mode remain explicit selected constraints.
+- Series setup is one screen with progressive disclosure, not a multi-step wizard. Participation mode remains an explicit selected constraint; CEFR level and genre belong to episode setup, and Tone is not a separate product field.
 - The always-visible optional `Your idea` field accepts a rough scene, image, character, conflict, or premise. An expandable optional section provides the anchors `worldAndSetting`, `backstory`, `storyDriver`, `preferredCastSize` (`1`-`4` or AI choice), `mustInclude`, and `avoid`. Existing character profiles remain directly editable.
-- The user selects how AI may work with the final setup draft: `fill-missing` (default), `refine`, or `rebuild`. Every strategy preserves `Your idea`, optional story anchors, CEFR level, genre, tone, and participation mode.
+- The user selects how AI may work with the final setup draft: `fill-missing` (default), `refine`, or `rebuild`. Every strategy preserves `Your idea`, optional story anchors, and participation mode.
 - Series setup text fields are required before a series can be saved as ready: title, premise, main characters, and user role for Character mode. The incomplete setup form may still be saved locally as a draft.
 - The online-only AI setup action follows the selected strategy. `fill-missing` may fill only absent required fields and missing requested cast slots. A visible blank character row is a requested cast slot and must be filled rather than discarded unless an exact smaller cast is applied by a replacement-capable strategy. With `preferredCastSize` left to AI choice, `fill-missing` preserves completed profiles while AI selects an appropriate final cast and supplies additions. A numeric `preferredCastSize` is exact for `refine` and `rebuild`, so either strategy may remove profiles to reach it; in Character mode, refinement should retain the learner's role character when compatible and otherwise return a matching replacement role. `fill-missing` never removes completed profiles, so a numeric size below the current completed count is shown as a visible conflict instead of being silently applied. `refine` otherwise fills gaps and may replace an existing final field only when the model judges that replacement materially improves coherence, originality, or alignment; it must not edit merely to demonstrate a change. `rebuild` ignores every current final setup field and creates title, premise, characters, and Character-mode role from scratch.
-- `rebuild` follows `Your idea` and optional anchors when supplied. When all creative anchors are empty, it deliberately creates an original setup from the selected genre, tone, CEFR level, and participation mode. Its action label is contextual: `Rebuild from my idea`, `Rebuild draft`, or `Create something for me`.
+- `rebuild` follows `Your idea` and optional anchors when supplied. When all creative anchors are empty, it deliberately creates an original setup that fits the selected participation mode. Its action label is contextual: `Rebuild from my idea`, `Rebuild draft`, or `Create something for me`.
 - A rebuild that would discard visible final fields requires confirmation. A successful AI update keeps one in-memory pre-generation snapshot for `Undo AI changes`; manual edits clear that snapshot.
 - AI suggestions remain editable before save. Provenance records fields actually changed by AI, while editing an AI-generated field changes that field to user-authored.
 - Character mode requires a user role before the first episode is generated. Any strategy may create a missing bounded role as part of a coherent character cast.
@@ -76,6 +73,10 @@ The product should feel like creating and watching a personal English series, no
 
 #### FEATURE B: Episode Generation
 - Each episode is a short learning unit.
+- CEFR level and genre are selected for every new episode. The first episode defaults to the preferred CEFR level from Settings and the first approved genre (`daily-life`). Every later episode defaults to the previous episode's selections while remaining editable before generation.
+- Genre includes daily life, comedy, romance, drama, work and IT, travel, cozy mystery, detective, adventure, thriller, fantasy, science fiction, and short fiction. Genre carries the episode's narrative feel; Tone is not a separate setting.
+- The selected CEFR level and genre are persisted on the episode and must be reused for every interaction continuation inside that episode.
+- Changing an episode's CEFR level must preserve the learner's current Story Words exactly. Explicitly selected words remain part of generation even when their individual Oxford level is higher than the episode CEFR; the level continues to guide prose difficulty and future automatic suggestions.
 - The generated episode must include:
   - optional short "previously" recap when useful for continuity;
   - main scene or dialogue;
@@ -126,8 +127,6 @@ The product should feel like creating and watching a personal English series, no
 - The app must preserve continuity without sending full unbounded history to the AI model.
 - Each series should maintain a compact memory such as:
   - premise;
-  - genre;
-  - tone;
   - participation mode;
   - main characters;
   - user role;
@@ -195,7 +194,7 @@ The product should feel like creating and watching a personal English series, no
 ### 5. AI Quality Control
 To keep episodes useful, safe, and level-appropriate, the product concept uses a controlled generation process:
 
-1. **Story Writer & Decision Builder:** The Story Writer creates the series setup and story prose using bounded series memory, selected Story Words, genre, user level, participation mode, and required episode structure. For episode openings and incomplete continuations, a cheaper structure-focused Decision Builder generates the next prompt and choices only after the story prose is frozen so they cannot pull the scene into a different scenario.
+1. **Story Writer & Decision Builder:** The Story Writer creates the series setup from creative anchors and participation mode, then creates episode prose using bounded series memory, selected Story Words, the episode's genre and CEFR level, participation mode, and required episode structure. For episode openings and incomplete continuations, a cheaper structure-focused Decision Builder generates the next prompt and choices only after the story prose is frozen so they cannot pull the scene into a different scenario.
 2. **Language, Continuity & Safety Validator:** Independently reviews each creative candidate for CEFR fit, concrete grammar and sentence-construction errors, part-of-speech-aware Story Word usage, continuity, learner-action and scenario alignment, repetition, participation mode, Character-mode second-person point of view and learner agency, logical closure, meaningful continuation development, choice diversity, safety, copyright constraints, and output shape before the user sees it. It does not choose a preferred completion turn inside the valid 5-9 window.
 3. **Independent Learner Feedback:** Learner correction is generated separately from story continuation so the creative writer cannot conflate language evaluation with narrative consequences or invent an error for a valid predefined choice.
 4. **Bounded Recovery:** A complete writer candidate rejected by the reviewer may be edited once by a stronger model using the original candidate plus concrete issue codes, evidence, and repair instructions. The editor must preserve unaffected fields. When every reported issue concerns only choice alignment or diversity, the accepted story prose is immutable and the editor returns only a replacement decision. When the only issue is direct-speech formatting, the editor receives a prose-only contract and may repair quotation marks without regenerating choices, summaries, completion state, or other story fields. If the writer pipeline fails structurally and there is no complete candidate to repair, one complete fallback candidate is allowed instead. Every repaired or fallback candidate passes the same reviewer again, and every unresolved semantic issue remains blocking. Unreviewed or structurally invalid output is never returned or persisted, and the full pipeline is not repeated inside one request.
@@ -214,4 +213,4 @@ Structured schema validation, deterministic safety and pacing rules, and final r
 - *Do NOT implement:* Image, comic, or video generation for episodes.
 - *Do NOT implement:* Unvalidated arbitrary user vocabulary import.
 - *Do NOT implement:* Direct copying of copyrighted story worlds or characters.
-- *Do NOT implement in this iteration:* A per-next-episode direction field; co-creation scope is limited to initial series setup.
+- *Do NOT implement in this iteration:* A free-text per-next-episode direction field; episode-level CEFR and the approved genre list are the only episode direction controls.
