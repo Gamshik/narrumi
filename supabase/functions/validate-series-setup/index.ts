@@ -57,7 +57,6 @@ const defaultSeriesCreativeBrief = {
 // seriesSetupSchema validates user-filled setup fields before local series creation.
 const seriesSetupSchema = z.object({
   title: z.string().trim().min(1).max(160),
-  tone: z.string().trim().min(1).max(120),
   premise: z.string().trim().min(1).max(1000),
   participationMode: z.enum(['director', 'character']),
   mainCharacters: z.array(z.string().trim().min(1).max(160)).min(1).max(8),
@@ -216,7 +215,6 @@ function collectSeriesSetupModerationEntries(
 ): ModerationEntry[] {
   const entries: ModerationEntry[] = [
     { sourceLabel: 'title', text: payload.title },
-    { sourceLabel: 'tone', text: payload.tone },
   ];
 
   if (payload.premise?.trim()) {

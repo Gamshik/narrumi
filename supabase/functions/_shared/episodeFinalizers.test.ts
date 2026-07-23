@@ -20,7 +20,6 @@ const generateRequest: GenerateEpisodeRequest = {
   orderIndex: 1,
   cefrLevel: 'B1',
   genre: 'short-fiction',
-  tone: 'mysterious but friendly',
   premise: 'Mira and Leo find a hidden door in a city library.',
   participationMode: 'character',
   mainCharacters: ['Mira', 'Leo'],
@@ -53,8 +52,6 @@ const generateRequest: GenerateEpisodeRequest = {
   ],
   compactSeriesMemory: {
     premise: 'Mira and Leo find a hidden door in a city library.',
-    genre: 'short-fiction',
-    tone: 'mysterious but friendly',
     participationMode: 'character',
     mainCharacters: ['Mira', 'Leo'],
     characterProfiles: [
@@ -99,12 +96,9 @@ const submitRequest: SubmitInteractionRequest = {
   seriesTitle: generateRequest.seriesTitle,
   cefrLevel: 'B1',
   genre: 'short-fiction',
-  tone: 'mysterious but friendly',
   participationMode: 'character',
   compactSeriesMemory: {
     premise: generateRequest.premise,
-    genre: generateRequest.genre,
-    tone: generateRequest.tone,
     participationMode: generateRequest.participationMode,
     mainCharacters: generateRequest.mainCharacters,
     characterProfiles: generateRequest.characterProfiles,

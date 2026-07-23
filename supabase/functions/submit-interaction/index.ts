@@ -530,7 +530,6 @@ async function reviewInteractionCreativeCandidate(
       seriesTitle: payload.seriesTitle,
       cefrLevel: payload.cefrLevel,
       genre: payload.genre,
-      tone: payload.tone,
       participationMode: payload.participationMode,
       interactionCount: payload.interactionCount,
       interactionPrompt: payload.interactionPrompt,
@@ -1300,7 +1299,6 @@ function buildInteractionCorePrompt(
         seriesTitle: payload.seriesTitle,
         cefr: payload.cefrLevel,
         genre: payload.genre,
-        tone: payload.tone,
         participationMode: payload.participationMode,
         participationRules: buildContinuationParticipationRules(
           interactionParticipationContext(payload),
@@ -1374,7 +1372,6 @@ function buildNextChoicePrompt(
       task: 'generate-next-decision-for-frozen-continuation',
       cefr: payload.cefrLevel,
       genre: payload.genre,
-      tone: payload.tone,
       participationMode: payload.participationMode,
       participationRules: buildContinuationParticipationRules(
         interactionParticipationContext(payload),
@@ -1421,7 +1418,6 @@ function buildInteractionFallbackPrompt(
         seriesTitle: payload.seriesTitle,
         cefr: payload.cefrLevel,
         genre: payload.genre,
-        tone: payload.tone,
         participationMode: payload.participationMode,
         participationRules: buildContinuationParticipationRules(
           interactionParticipationContext(payload),
@@ -1504,7 +1500,6 @@ function buildInteractionRepairPrompt(
       protectedRequirements: {
         cefr: payload.cefrLevel,
         genre: payload.genre,
-        tone: payload.tone,
         participationMode: payload.participationMode,
         participationRules: buildContinuationParticipationRules(
           interactionParticipationContext(payload),

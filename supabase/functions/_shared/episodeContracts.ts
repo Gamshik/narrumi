@@ -32,8 +32,17 @@ const cefrLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 // learningGenres is the Edge-side copy of approved MVP story genres.
 const learningGenres = [
   'daily-life',
+  'comedy',
+  'romance',
+  'drama',
   'work-it',
   'travel-leisure',
+  'cozy-mystery',
+  'detective',
+  'adventure',
+  'thriller',
+  'fantasy',
+  'science-fiction',
   'short-fiction',
 ] as const;
 
@@ -84,8 +93,6 @@ const annotationSchema = z.object({
 // compactSeriesMemorySchema prevents unbounded history from entering prompts.
 const compactSeriesMemorySchema = z.object({
   premise: z.string().trim().min(1),
-  genre: z.string().trim().min(1),
-  tone: z.string().trim().min(1),
   participationMode: z.enum(seriesParticipationModes).default('director'),
   mainCharacters: z.array(z.string().trim().min(1)),
   characterProfiles: z.array(characterProfileSchema).max(8).default([]),
@@ -221,7 +228,6 @@ export const generateEpisodeRequestSchema = z.object({
   orderIndex: z.number().int().positive(),
   cefrLevel: z.enum(cefrLevels),
   genre: z.enum(learningGenres),
-  tone: z.string().trim().min(1).max(120),
   premise: z.string().trim().min(1).max(1000),
   participationMode: z.enum(seriesParticipationModes),
   mainCharacters: z.array(z.string().trim().min(1)).max(8),
@@ -257,7 +263,6 @@ export const submitInteractionRequestSchema = z.object({
   seriesTitle: z.string().trim().min(1).max(160),
   cefrLevel: z.enum(cefrLevels),
   genre: z.enum(learningGenres),
-  tone: z.string().trim().min(1).max(120),
   participationMode: z.enum(seriesParticipationModes),
   compactSeriesMemory: compactSeriesMemorySchema,
   episodeSummary: z.string().trim().min(1).max(600),

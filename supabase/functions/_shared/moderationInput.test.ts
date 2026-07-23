@@ -17,12 +17,9 @@ function createRequest(
     seriesTitle: 'The Safe Journey',
     cefrLevel: 'B1',
     genre: 'short-fiction',
-    tone: 'mysterious',
     participationMode: 'director',
     compactSeriesMemory: {
       premise: 'A detective finds a knife near an old theater.',
-      genre: 'short-fiction',
-      tone: 'mysterious',
       mainCharacters: ['Mira', 'Leon'],
       characterProfiles: [],
       participationMode: 'director',

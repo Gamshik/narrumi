@@ -85,9 +85,6 @@ const setupDraftFieldSchema = z.enum([
 const setupDraftRequestSchema = z.object({
   generationRequestId: z.string().trim().min(1).max(240),
   title: z.string().trim().min(1).max(160).optional(),
-  genre: z.enum(['daily-life', 'work-it', 'travel-leisure', 'short-fiction']),
-  cefrLevel: z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']),
-  tone: z.string().trim().min(1).max(120),
   participationMode: z.enum(['director', 'character']),
   premise: z.string().trim().min(1).max(1000).optional(),
   mainCharacters: z.array(z.string().trim().min(1).max(160)).max(8),
@@ -430,8 +427,7 @@ async function generateSetupDraft(
         criteria: [
           'All generated title, premise, character descriptions, and learner-role text must be written in English.',
           'The setup must follow every creative-brief anchor and must not introduce anything listed in avoid.',
-          `The setup must fit genre ${request.genre}, tone ${request.tone}, and participation mode ${request.participationMode}.`,
-          `The premise and character descriptions must be broadly understandable for a ${request.cefrLevel} learner; reject only a sustained mismatch, not isolated contextual words or names.`,
+          `The setup must fit participation mode ${request.participationMode} and every protected creative anchor.`,
           'Title, premise, cast, and user role must describe one coherent original story.',
           'Character names and roles must be distinct enough to avoid confusion.',
           'In character mode, userRole must identify one returned character exactly.',
@@ -439,9 +435,6 @@ async function generateSetupDraft(
           'The result must not copy protected story worlds, names, characters, or plots.',
         ],
         context: {
-          genre: request.genre,
-          cefrLevel: request.cefrLevel,
-          tone: request.tone,
           participationMode: request.participationMode,
           draftStrategy: request.creativeBrief.draftStrategy,
           creativeBrief: request.creativeBrief,
@@ -484,7 +477,7 @@ function buildSystemPrompt(): string {
     'You are a collaborative writing assistant for original TV series setups used by English learners.',
     'Extend the learner imagination; never replace or contradict creative-brief anchors.',
     'Output valid JSON containing only setup fields selected by the strategy: { title?, premise?, characterProfiles?, userRole? }.',
-    'Do not generate or change selected list fields: cefrLevel, genre, tone, or participationMode.',
+    'Do not generate or change the selected participationMode.',
     'All generated fields must describe one coherent story grounded in the creative brief.',
     'In character mode, userRole must exactly equal one characterProfiles[].name.',
     'Never phrase userRole as an instruction such as "You are ..." or "You play ...".',
@@ -521,9 +514,6 @@ function buildPrompt(request: SetupDraftRequest): string {
     generationOrder: setupTextFields,
     fieldsToEvaluate,
     selectedConstraints: {
-      cefrLevel: request.cefrLevel,
-      genre: request.genre,
-      tone: request.tone,
       participationMode: request.participationMode,
     },
     protectedCreativeBrief,
@@ -556,13 +546,12 @@ function buildPrompt(request: SetupDraftRequest): string {
     'Return only fields permitted by strategyPolicy. Omitted refine fields are preserved by the server.',
     'Treat idea, worldAndSetting, backstory, storyDriver, and mustInclude as factual human-authored anchors.',
     'Treat protectedCreativeBrief.avoid as excluded content; do not include any listed theme or element.',
-    'premise: two to four sentences in one paragraph that set up a concrete situation and hook for the first episode, match the genre and tone, and leave the story open to continue. In character mode, leave a clear place for the learner to act. Keep it under 900 characters.',
+    'premise: two to four sentences in one paragraph that set up a concrete situation and hook for the first episode while leaving the story open to continue. In character mode, leave a clear place for the learner to act. Keep it under 900 characters.',
     'characterProfiles: an array of distinct objects with id, name, and description. A generated name must be a name only, without a title or role. A generated description is one concise sentence about role, personality, or story function.',
     'For character mode, userRole is required and must exactly match one characterProfiles[].name: the character the learner plays. Never phrase it as a second-person sentence such as "You are ...". Keep it under 80 characters.',
     'When refining a Character-mode cast, keep the current userRole character whenever compatible with the protected brief and selected cast size. If that character cannot remain, return a replacement userRole that exactly matches the new cast.',
     'For director mode, omit userRole.',
-    'title: two to five words, evocative and memorable, reflecting the premise and tone, with no surrounding quotation marks. Keep it under 150 characters.',
-    'Match every generated field to the selected CEFR level and tone: use simpler words and shorter sentences for lower levels (A1, A2) and richer language only for higher levels.',
+    'title: two to five words, evocative and memorable, reflecting the premise, with no surrounding quotation marks. Keep it under 150 characters.',
     buildCastRule(request, currentCharacterProfiles.length),
   ];
 
@@ -586,9 +575,6 @@ function buildRepairPrompt(
         request.creativeBrief.draftStrategy,
       ),
       selectedConstraints: {
-        cefrLevel: request.cefrLevel,
-        genre: request.genre,
-        tone: request.tone,
         participationMode: request.participationMode,
       },
       protectedCreativeBrief: request.creativeBrief,
@@ -747,7 +733,7 @@ function getDraftStrategyPolicy(
     return 'Review the current draft as a whole. Fill every missing required field. An explicit preferredCastSize is an exact learner constraint and requires resizing the cast. Otherwise, return a replacement for an existing field only when doing so meaningfully improves coherence, originality, or alignment with the protected creative brief. Leave strong fields omitted and unchanged. Never edit merely to demonstrate a change.';
   }
 
-  return 'Build every final draft field from scratch. Ignore the previous final draft completely. Follow protected creative-brief anchors when supplied; when they are empty, invent an original setup from the selected constraints.';
+  return 'Build every final draft field from scratch. Ignore the previous final draft completely. Follow protected creative-brief anchors when supplied; when they are empty, invent an original setup that fits the selected participation mode.';
 }
 
 // getGenerationTemperature keeps selective editing stable and full rebuilding inventive.
