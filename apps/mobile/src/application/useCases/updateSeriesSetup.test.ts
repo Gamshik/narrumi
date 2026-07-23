@@ -98,9 +98,6 @@ describe('updateSeriesSetup', () => {
     const result = await useCase.execute({
       seriesId: series.id,
       title: 'Library Map',
-      genre: 'travel-leisure',
-      cefrLevel: 'A2',
-      tone: 'Light adventure',
       premise: 'Mira follows a map across a quiet station.',
       participationMode: 'character',
       mainCharacters: ['Mira', 'Leo'],
@@ -119,6 +116,9 @@ describe('updateSeriesSetup', () => {
     });
 
     assert.equal(result.series.title, 'Library Map');
+    assert.equal(result.series.genre, series.genre);
+    assert.equal(result.series.cefrLevel, series.cefrLevel);
+    assert.equal(result.series.tone, series.tone);
     assert.equal(result.series.participationMode, 'character');
     assert.equal(result.series.userRole, 'Mira');
     assert.equal(result.series.creativeBrief.preferredCastSize, 2);
@@ -141,9 +141,6 @@ describe('updateSeriesSetup', () => {
         useCase.execute({
           seriesId: series.id,
           title: 'Library Map',
-          genre: 'travel-leisure',
-          cefrLevel: 'A2',
-          tone: 'Light adventure',
           premise: 'Mira follows a map across a quiet station.',
           participationMode: 'director',
           mainCharacters: ['Mira'],
@@ -202,6 +199,8 @@ function createEpisode(): Episode {
     id: 'episode:test',
     seriesId: series.id,
     orderIndex: 1,
+    cefrLevel: 'B1',
+    genre: 'short-fiction',
     sceneText: 'Mira found a door.',
     sentences: ['Mira found a door.'],
     sentenceFrames: [{ kind: 'narration', text: 'Mira found a door.' }],

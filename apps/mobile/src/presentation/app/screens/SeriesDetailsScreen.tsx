@@ -21,7 +21,6 @@ import {
   BubbleButton,
   BubbleStatus,
   BubbleSurface,
-  CefrLevelSelector,
   SeriesSetupChoiceGroup,
   CharacterProfilesEditor,
   SeriesCreativeBriefEditor,
@@ -38,7 +37,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   characterProfileNames,
-  learningGenres,
   normalizeCharacterProfiles,
   seriesParticipationModes,
   type Episode,
@@ -59,13 +57,11 @@ import {
   createLocalSeriesSetupDraft,
   createSeriesSetupForm,
   createSeriesSetupFormFromDraft,
-  genreLabels,
   getSeriesSetupGenerationActionLabel,
   isAiGeneratedField,
   markSetupFieldUserAuthored,
   participationModeLabels,
   shouldConfirmSeriesSetupGeneration,
-  storyToneOptions,
   validateSeriesSetupForm,
   type SeriesSetupFormErrors,
   type SeriesSetupFormState,
@@ -265,9 +261,6 @@ export function SeriesDetailsScreen({
       await localAppServices.updateSeriesSetup.execute({
         seriesId: state.series.id,
         title: setupForm.title,
-        genre: setupForm.genre,
-        cefrLevel: setupForm.cefrLevel,
-        tone: setupForm.tone,
         premise: setupForm.premise,
         participationMode: setupForm.participationMode,
         mainCharacters: characterProfileNames(setupForm.characterProfiles),
@@ -505,7 +498,7 @@ export function SeriesDetailsScreen({
             style={styles.seriesDetailsHeader}
           >
             <Text style={styles.readerBadge}>
-              {genreLabels[state.series.genre]} - {state.series.cefrLevel}
+              PERSONAL SERIES
             </Text>
             <Text
               adjustsFontSizeToFit
@@ -787,34 +780,6 @@ function SeriesSetupModal({
             keyboardShouldPersistTaps="always"
           >
           <View style={styles.setupSectionCard}>
-            <CefrLevelSelector
-              isDark={isDark}
-              isDisabled={!canEdit}
-              selectedLevel={form.cefrLevel}
-              styles={styles}
-              onSelect={(cefrLevel) => updateForm({ cefrLevel })}
-            />
-            <SeriesSetupChoiceGroup
-              isDark={isDark}
-              isDisabled={!canEdit}
-              isWrapped
-              label="Genre"
-              options={learningGenres}
-              selected={form.genre}
-              styles={styles}
-              labels={genreLabels}
-              onSelect={(genre) => updateForm({ genre })}
-            />
-            <SeriesSetupChoiceGroup
-              isDark={isDark}
-              isDisabled={!canEdit}
-              isWrapped
-              label="Tone"
-              options={storyToneOptions}
-              selected={form.tone}
-              styles={styles}
-              onSelect={(tone) => updateForm({ tone })}
-            />
             <SeriesSetupChoiceGroup
               isDark={isDark}
               isDisabled={!canEdit}
@@ -1106,8 +1071,8 @@ function EpisodeHistoryRow({
           style={styles.sectionLabel}
         >
           {episode.isComplete
-            ? `${episode.interactions.length} DECISIONS - COMPLETE`
-            : `${episode.interactions.length} DECISIONS - IN PROGRESS`}
+            ? `${episode.cefrLevel} · ${episode.genre.toUpperCase()} · ${episode.interactions.length} DECISIONS · COMPLETE`
+            : `${episode.cefrLevel} · ${episode.genre.toUpperCase()} · ${episode.interactions.length} DECISIONS · IN PROGRESS`}
         </Text>
       </JellyPressable>
       <View style={styles.episodeCardActions}>

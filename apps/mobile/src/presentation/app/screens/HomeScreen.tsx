@@ -22,7 +22,6 @@ import {
   BubbleSurface,
   BubbleButton,
   BubbleStatus,
-  CefrLevelSelector,
   SeriesSetupChoiceGroup,
   CharacterProfilesEditor,
   SeriesCreativeBriefEditor,
@@ -41,7 +40,6 @@ import {
 
 import {
   characterProfileNames,
-  learningGenres,
   newSeriesSetupDraftId,
   normalizeCharacterProfiles,
   seriesParticipationModes,
@@ -67,13 +65,11 @@ import {
   createLocalSeriesSetupDraft,
   createEmptySeriesSetupForm,
   createSeriesSetupFormFromDraft,
-  genreLabels,
   getSeriesSetupGenerationActionLabel,
   isAiGeneratedField,
   markSetupFieldUserAuthored,
   participationModeLabels,
   shouldConfirmSeriesSetupGeneration,
-  storyToneOptions,
   validateSeriesSetupForm,
   type SeriesSetupFormErrors,
   type SeriesSetupFormState,
@@ -246,9 +242,6 @@ export function HomeScreen({
 
       await localAppServices.createSeries.execute({
         title: form.title,
-        genre: form.genre,
-        cefrLevel: form.cefrLevel,
-        tone: form.tone,
         premise: form.premise,
         participationMode: form.participationMode,
         mainCharacters: characterProfileNames(form.characterProfiles),
@@ -671,7 +664,7 @@ function SeriesList({
         {series.map((item) => (
           <SwipeableSeriesCard
             colors={colors}
-            genreLabel={genreLabels[item.genre]}
+            modeLabel={participationModeLabels[item.participationMode]}
             hasOpenSwipe={hasOpenSwipe}
             isDeleting={false}
             isOpen={item.id === openSwipeSeriesId}
@@ -807,31 +800,6 @@ function CreateSeriesModal({
             keyboardShouldPersistTaps="always"
           >
             <View style={styles.setupSectionCard}>
-              <CefrLevelSelector
-                isDark={isDark}
-                selectedLevel={form.cefrLevel}
-                styles={styles}
-                onSelect={(cefrLevel) => updateForm({ cefrLevel })}
-              />
-              <SeriesSetupChoiceGroup
-                isDark={isDark}
-                isWrapped
-                label="Genre"
-                options={learningGenres}
-                selected={form.genre}
-                styles={styles}
-                labels={genreLabels}
-                onSelect={(genre) => updateForm({ genre })}
-              />
-              <SeriesSetupChoiceGroup
-                isDark={isDark}
-                isWrapped
-                label="Tone"
-                options={storyToneOptions}
-                selected={form.tone}
-                styles={styles}
-                onSelect={(tone) => updateForm({ tone })}
-              />
               <SeriesSetupChoiceGroup
                 isDark={isDark}
                 label="Mode"

@@ -1,5 +1,6 @@
 import type { Clock } from '@application/ports';
 import {
+  defaultLearningGenre,
   DEFAULT_STORY_WORD_GOAL,
   type LearningPreferences,
 } from '@domain/index';
@@ -44,7 +45,7 @@ export function createHydrateBootstrapSession(
       const timestamp = clock.now().toISOString();
       const preferences: LearningPreferences = {
         preferredCefrLevel: 'B1',
-        preferredGenre: 'short-fiction',
+        preferredGenre: defaultLearningGenre,
         storyWordGoal: DEFAULT_STORY_WORD_GOAL,
         updatedAt: timestamp,
         sync: {

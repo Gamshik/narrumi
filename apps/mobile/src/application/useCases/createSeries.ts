@@ -4,13 +4,14 @@ import type {
   SeriesSetupModerationGateway,
 } from '@application/ports';
 import {
-  CefrLevel,
+  type CefrLevel,
   characterProfileNames,
   createDefaultSeriesCreativeBrief,
   createDefaultSeriesSetupDraftMeta,
   createProfilesFromCharacterNames,
+  defaultLearningGenre,
   findCharacterProfileByName,
-  LearningGenre,
+  type LearningPreferences,
   Series,
   type SeriesCharacterProfile,
   type SeriesCreativeBrief,
@@ -25,12 +26,6 @@ import {
 export type CreateSeriesInput = {
   // title is the user-facing name of the personal series.
   readonly title: string;
-  // genre is the approved broad story category used by future generation.
-  readonly genre: LearningGenre;
-  // cefrLevel controls future story grammar and vocabulary complexity.
-  readonly cefrLevel: CefrLevel;
-  // tone stores the intended mood of the story.
-  readonly tone: string;
   // premise stores the bounded starting idea for the series.
   readonly premise: string;
   // participationMode decides whether answers direct events or roleplay the learner.
@@ -68,7 +63,6 @@ export function createCreateSeries(
   return {
     execute: async (input) => {
       const title = requireText(input.title, 'Series title');
-      const tone = requireText(input.tone, 'Series tone');
       const premise = requireText(input.premise, 'Series premise');
       const mainCharacters = input.mainCharacters
         .map((character) => character.trim())
@@ -109,7 +103,6 @@ export function createCreateSeries(
 
       await seriesSetupModerationGateway?.validateSeriesSetup({
         title,
-        tone,
         premise,
         participationMode,
         mainCharacters: canonicalCharacterNames,
@@ -121,12 +114,20 @@ export function createCreateSeries(
       const timestamp = clock.now().toISOString();
       const seriesId = `series:${Date.parse(timestamp)}`;
       const sync = createDirtySync(timestamp, seriesId);
+      // preferences supplies the legacy series CEFR required by older schemas.
+      const preferences: LearningPreferences | undefined =
+        await store.getPreferences();
+      // legacyCefrLevel keeps old NOT NULL series columns valid without controlling new episodes.
+      const legacyCefrLevel: CefrLevel =
+        preferences?.preferredCefrLevel ?? 'B1';
+      // legacyTone keeps old persisted contracts readable while tone is no longer user-facing.
+      const legacyTone: string = 'Episode genre';
       const memory: SeriesMemory = {
         id: seriesId,
         seriesId,
         premise,
-        genre: input.genre,
-        tone,
+        genre: defaultLearningGenre,
+        tone: legacyTone,
         participationMode,
         mainCharacters: canonicalCharacterNames,
         characterProfiles,
@@ -143,9 +144,9 @@ export function createCreateSeries(
       const series: Series = {
         id: seriesId,
         title,
-        genre: input.genre,
-        cefrLevel: input.cefrLevel,
-        tone,
+        genre: defaultLearningGenre,
+        cefrLevel: legacyCefrLevel,
+        tone: legacyTone,
         premise,
         participationMode,
         mainCharacters: canonicalCharacterNames,

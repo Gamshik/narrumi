@@ -14,6 +14,8 @@ const episode: Episode = {
   id: 'episode:series:test:1',
   seriesId: 'series:test',
   orderIndex: 1,
+  cefrLevel: 'B1',
+  genre: 'daily-life',
   sceneText: 'Mira found a quiet door.',
   sentences: ['Mira found a quiet door.'],
   sentenceFrames: [{ kind: 'narration', text: 'Mira found a quiet door.' }],
@@ -60,7 +62,9 @@ describe('episodeGenerationTracker', () => {
       },
     );
     const input = {
+      cefrLevel: 'B1',
       episodeWordSet,
+      genre: 'daily-life',
       seriesId: 'series:test',
     } as const;
 

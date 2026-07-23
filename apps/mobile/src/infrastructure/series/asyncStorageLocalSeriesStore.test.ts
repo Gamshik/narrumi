@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import {
   parseLocalSeriesRecord,
   parseLocalSeriesSetupDraft,
+  parseLocalEpisodeRecord,
 } from './asyncStorageLocalSeriesStore';
 
 // timestamp is a valid deterministic version for the legacy local record.
@@ -24,6 +25,9 @@ describe('AsyncStorageLocalSeriesStore compatibility', () => {
 
     assert.equal(parsed.participationMode, 'director');
     assert.equal(parsed.userRole, '');
+    assert.equal('genre' in parsed, false);
+    assert.equal('cefrLevel' in parsed, false);
+    assert.equal('tone' in parsed, false);
     assert.deepEqual(parsed.creativeBrief, {
       idea: '',
       worldAndSetting: '',
@@ -116,5 +120,57 @@ describe('AsyncStorageLocalSeriesStore compatibility', () => {
 
     assert.equal(parsed.creativeBrief.draftStrategy, 'fill-missing');
     assert.equal('aiFreedom' in parsed.creativeBrief, false);
+  });
+
+  it('inherits settings for an episode saved before episode-level choices', () => {
+    const legacySeries = parseLocalSeriesRecord({
+      id: 'series:legacy',
+      title: 'The Door',
+      genre: 'detective',
+      cefrLevel: 'A2',
+      tone: 'Legacy tone',
+      premise: 'Mira finds a hidden door.',
+      participationMode: 'director',
+      mainCharacters: ['Mira'],
+      memory: {
+        id: 'series:legacy',
+        seriesId: 'series:legacy',
+        premise: 'Mira finds a hidden door.',
+        genre: 'detective',
+        tone: 'Legacy tone',
+        participationMode: 'director',
+        mainCharacters: ['Mira'],
+        knownFacts: [],
+        openQuestions: [],
+        importantObjectsOrLocations: [],
+        recurringStoryWordIds: [],
+        updatedAt: timestamp,
+        sync: { isDirty: false, pendingOperationId: 'memory:legacy' },
+      },
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      sync: { isDirty: false, pendingOperationId: 'series:legacy' },
+    });
+    const parsed = parseLocalEpisodeRecord(
+      {
+        id: 'episode:legacy',
+        seriesId: legacySeries.id,
+        orderIndex: 1,
+        sceneText: 'Mira opened the door.',
+        sentences: ['Mira opened the door.'],
+        storyWordIds: [],
+        annotations: [],
+        interactions: [],
+        isComplete: true,
+        summaryUpdate: 'Mira opened the door.',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        sync: { isDirty: false, pendingOperationId: 'episode:legacy' },
+      },
+      legacySeries,
+    );
+
+    assert.equal(parsed.cefrLevel, 'A2');
+    assert.equal(parsed.genre, 'detective');
   });
 });

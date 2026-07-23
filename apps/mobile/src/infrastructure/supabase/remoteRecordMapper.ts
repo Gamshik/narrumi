@@ -8,6 +8,7 @@ import {
   cefrLevels,
   createDefaultSeriesCreativeBrief,
   createProfilesFromCharacterNames,
+  defaultLearningGenre,
   interactionKinds,
   learningGenres,
   learningSignalKinds,
@@ -175,6 +176,8 @@ const episodeRowSchema = ownedColumnsSchema.extend({
   id: z.string().min(1),
   series_id: z.string().min(1),
   order_index: z.number().int().positive(),
+  cefr_level: z.enum(cefrLevels).nullish(),
+  genre: z.enum(learningGenres).nullish(),
   previously_recap: z.string().nullable(),
   title: z.string().nullable(),
   scene_text: z.string().min(1),
@@ -272,6 +275,8 @@ export function serializeSyncRecord(
           series_id: record.value.seriesId,
           user_id: ownerId,
           order_index: record.value.orderIndex,
+          cefr_level: record.value.cefrLevel,
+          genre: record.value.genre,
           previously_recap: record.value.previouslyRecap ?? null,
           title: record.value.title ?? null,
           scene_text: record.value.sceneText,
@@ -348,7 +353,10 @@ export function parseUpsertedRecord(
         value: parseSeriesMemory(ownerId, value),
       };
     case 'episode':
-      return { kind: 'episode', value: parseEpisode(ownerId, value) };
+      return {
+        kind: 'episode',
+        value: parseEpisode(ownerId, value, source.value),
+      };
     case 'wordSet':
       return { kind: 'wordSet', value: parseWordSet(ownerId, value) };
     case 'learningSignal':
@@ -385,6 +393,7 @@ export function parseRemoteSnapshot(
 
     return mapSeries(ownerId, row, memory);
   });
+  const seriesById = new Map(series.map((item) => [item.id, item]));
   const preferenceRows = z.array(preferencesRowSchema).parse(rows.preferences);
   const preferences = preferenceRows[0]
     ? mapPreferences(ownerId, preferenceRows[0])
@@ -396,7 +405,7 @@ export function parseRemoteSnapshot(
     episodes: z
       .array(episodeRowSchema)
       .parse(rows.episodes)
-      .map((row) => mapEpisode(ownerId, row)),
+      .map((row) => mapEpisode(ownerId, row, seriesById.get(row.series_id))),
     wordSets: z
       .array(wordSetRowSchema)
       .parse(rows.wordSets)
@@ -534,14 +543,22 @@ function mapCharacterProfiles(
 }
 
 // parseEpisode validates one remote generated learning unit.
-function parseEpisode(ownerId: string, value: unknown): Episode {
-  return mapEpisode(ownerId, episodeRowSchema.parse(value));
+function parseEpisode(
+  ownerId: string,
+  value: unknown,
+  fallback: EpisodeSettingsFallback,
+): Episode {
+  return mapEpisode(ownerId, episodeRowSchema.parse(value), fallback);
 }
+
+// EpisodeSettingsFallback supplies values for rows written before episode-level settings.
+type EpisodeSettingsFallback = Pick<Series, 'cefrLevel' | 'genre'>;
 
 // mapEpisode converts one validated episode row to the domain contract.
 function mapEpisode(
   ownerId: string,
   row: z.infer<typeof episodeRowSchema>,
+  fallback?: EpisodeSettingsFallback,
 ): Episode {
   assertOwner(ownerId, row.user_id);
   const sentenceFrames =
@@ -555,6 +572,8 @@ function mapEpisode(
     id: row.id,
     seriesId: row.series_id,
     orderIndex: row.order_index,
+    cefrLevel: row.cefr_level ?? fallback?.cefrLevel ?? 'B1',
+    genre: row.genre ?? fallback?.genre ?? defaultLearningGenre,
     ...(row.previously_recap
       ? { previouslyRecap: row.previously_recap }
       : {}),

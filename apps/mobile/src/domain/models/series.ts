@@ -15,11 +15,11 @@ export type Series = {
   readonly ownerId?: string;
   // title is the user's visible name for the personal series.
   readonly title: string;
-  // genre is the approved broad genre used by generation and suggestions.
+  // genre is retained as a legacy fallback for episodes created by older clients.
   readonly genre: LearningGenre;
-  // cefrLevel controls grammar and vocabulary difficulty.
+  // cefrLevel is retained as a legacy fallback for episodes without their own level.
   readonly cefrLevel: CefrLevel;
-  // tone stores the selected story mood.
+  // tone is retained only for backward-compatible local and remote records.
   readonly tone: string;
   // premise stores the original story setup in bounded form.
   readonly premise: string;

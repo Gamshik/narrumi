@@ -4,13 +4,11 @@ import type {
   SeriesSetupModerationGateway,
 } from '@application/ports';
 import {
-  CefrLevel,
   characterProfileNames,
   createDefaultSeriesCreativeBrief,
   createDefaultSeriesSetupDraftMeta,
   createProfilesFromCharacterNames,
   findCharacterProfileByName,
-  LearningGenre,
   Series,
   type SeriesCharacterProfile,
   type SeriesCreativeBrief,
@@ -27,12 +25,6 @@ export type UpdateSeriesSetupInput = {
   readonly seriesId: string;
   // title is the required visible series name.
   readonly title: string;
-  // genre is the selected broad story category.
-  readonly genre: LearningGenre;
-  // cefrLevel controls grammar and vocabulary complexity.
-  readonly cefrLevel: CefrLevel;
-  // tone stores the selected story mood.
-  readonly tone: string;
   // premise stores the bounded starting idea for the series.
   readonly premise: string;
   // participationMode decides whether answers direct events or roleplay the learner.
@@ -94,7 +86,6 @@ export function createUpdateSeriesSetup(
 
       await seriesSetupModerationGateway?.validateSeriesSetup({
         title: normalized.title,
-        tone: normalized.tone,
         premise: normalized.premise,
         participationMode: normalized.participationMode,
         mainCharacters: normalized.mainCharacters,
@@ -110,8 +101,6 @@ export function createUpdateSeriesSetup(
       const updatedMemory: SeriesMemory = {
         ...memoryWithoutRole,
         premise: normalized.premise,
-        genre: normalized.genre,
-        tone: normalized.tone,
         participationMode: normalized.participationMode,
         mainCharacters: normalized.mainCharacters,
         characterProfiles: normalized.characterProfiles ?? [],
@@ -127,9 +116,6 @@ export function createUpdateSeriesSetup(
       const updatedSeries: Series = {
         ...seriesWithoutRole,
         title: normalized.title,
-        genre: normalized.genre,
-        cefrLevel: normalized.cefrLevel,
-        tone: normalized.tone,
         premise: normalized.premise,
         participationMode: normalized.participationMode,
         mainCharacters: normalized.mainCharacters,
@@ -156,7 +142,6 @@ export function createUpdateSeriesSetup(
 // normalizeSetupInput enforces complete setup text before persistence.
 function normalizeSetupInput(input: UpdateSeriesSetupInput): RequiredSetup {
   const title = requireText(input.title, 'Series title');
-  const tone = requireText(input.tone, 'Series tone');
   const premise = requireText(input.premise, 'Series premise');
   const mainCharacters = input.mainCharacters
     .map((character) => character.trim())
@@ -192,9 +177,6 @@ function normalizeSetupInput(input: UpdateSeriesSetupInput): RequiredSetup {
 
   return {
     title,
-    genre: input.genre,
-    cefrLevel: input.cefrLevel,
-    tone,
     premise,
     participationMode: input.participationMode,
     mainCharacters: canonicalCharacterNames,

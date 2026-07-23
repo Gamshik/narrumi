@@ -11,7 +11,6 @@ import type {
   VocabularyCatalog,
 } from '@application/ports';
 import type {
-  CefrLevel,
   Episode,
   LearningSignal,
   SyncMetadata,
@@ -19,7 +18,6 @@ import type {
 } from '@domain/index';
 
 import { applyMemoryUpdate } from './generateEpisode';
-import { isStoryWordCandidate } from './storyWordSelection';
 
 // PREVIOUS_DECISION_CONTEXT_LIMIT keeps one episode request bounded for Edge Functions.
 const PREVIOUS_DECISION_CONTEXT_LIMIT = 10;
@@ -146,9 +144,8 @@ export function createSubmitEpisodeInteraction(
         interactionId: activeInteraction.id,
         seriesId: episode.seriesId,
         seriesTitle: series.title,
-        cefrLevel: series.cefrLevel,
-        genre: series.genre,
-        tone: series.tone,
+        cefrLevel: episode.cefrLevel,
+        genre: episode.genre,
         participationMode: series.participationMode,
         compactSeriesMemory: buildCompactSeriesMemoryPayload(memory),
         episodeSummary: episode.summaryUpdate,
@@ -170,7 +167,6 @@ export function createSubmitEpisodeInteraction(
               : {}),
           })),
         selectedStoryWords: resolveStoryWords({
-          maxLevel: series.cefrLevel,
           vocabulary,
           wordIds: episode.storyWordIds,
         }).map(buildAiStoryWord),
@@ -306,12 +302,9 @@ function createDirtySync(timestamp: string, recordId: string): SyncMetadata {
 
 // resolveStoryWords maps selected ids to suitable bundled vocabulary items for AI context.
 function resolveStoryWords({
-  maxLevel,
   vocabulary,
   wordIds,
 }: {
-  // maxLevel keeps stale saved word ids from exceeding the active series CEFR level.
-  readonly maxLevel: CefrLevel;
   // vocabulary is the bundled Oxford catalog.
   readonly vocabulary: readonly VocabularyItem[];
   // wordIds are the planned Story Words for this episode.
@@ -322,7 +315,8 @@ function resolveStoryWords({
   return wordIds.flatMap((wordId) => {
     const word = wordsById.get(wordId);
 
-    return word && isStoryWordCandidate(word, maxLevel) ? [word] : [];
+    // Episode continuations must retain every explicit Story Word selected at setup time.
+    return word ? [word] : [];
   });
 }
 

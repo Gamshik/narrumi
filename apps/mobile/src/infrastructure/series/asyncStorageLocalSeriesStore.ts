@@ -11,6 +11,7 @@ import {
   createDefaultSeriesCreativeBrief,
   createDefaultSeriesSetupDraftMeta,
   createProfilesFromCharacterNames,
+  defaultLearningGenre,
   type Episode,
   interactionKinds,
   type LearningGenre,
@@ -395,9 +396,23 @@ export class AsyncStorageLocalSeriesStore implements LocalSeriesStore {
 
   // readEpisodeMap validates mutable local episode records before use cases read them.
   private async readEpisodeMap(): Promise<Record<string, Episode>> {
-    const rawValue = await AsyncStorage.getItem(STORAGE_KEYS.episodes);
+    const [rawValue, seriesRecords] = await Promise.all([
+      AsyncStorage.getItem(STORAGE_KEYS.episodes),
+      this.readSeriesMap(),
+    ]);
 
-    return rawValue ? parseRecordMap(JSON.parse(rawValue), parseEpisode) : {};
+    return rawValue
+      ? parseRecordMap(JSON.parse(rawValue), (value) => {
+          const seriesId = isRecord(value)
+            ? readOptionalString(value, 'seriesId')
+            : undefined;
+
+          return parseLocalEpisodeRecord(
+            value,
+            seriesId ? seriesRecords[seriesId] : undefined,
+          );
+        })
+      : {};
   }
 
   // readSeriesMemoryMap validates mutable compact memory records before use.
@@ -560,25 +575,12 @@ export function parseLocalSeriesSetupDraft(
     throw new Error('Local series setup draft must be an object');
   }
 
-  const genre = readString(value, 'genre');
-  const cefrLevel = readString(value, 'cefrLevel');
   const seriesId = readOptionalString(value, 'seriesId');
-
-  if (!isLearningGenre(genre)) {
-    throw new Error('Series setup draft genre is unsupported');
-  }
-
-  if (!cefrLevels.includes(cefrLevel as LocalSeriesSetupDraft['cefrLevel'])) {
-    throw new Error('Series setup draft CEFR level is unsupported');
-  }
 
   return {
     draftId: readString(value, 'draftId'),
     ...(seriesId ? { seriesId } : {}),
     title: readText(value, 'title'),
-    genre,
-    cefrLevel: cefrLevel as LocalSeriesSetupDraft['cefrLevel'],
-    tone: readText(value, 'tone'),
     premise: readText(value, 'premise'),
     participationMode: readParticipationMode(value),
     characterProfiles: readDraftCharacterProfiles(value),
@@ -752,7 +754,10 @@ function parseCharacterProfile(value: unknown): SeriesCharacterProfile {
 }
 
 // parseEpisode validates one generated learning unit before rendering or sync.
-function parseEpisode(value: unknown): Episode {
+export function parseLocalEpisodeRecord(
+  value: unknown,
+  legacySeries?: Series,
+): Episode {
   if (!isRecord(value)) {
     throw new Error('Episode must be an object');
   }
@@ -766,16 +771,32 @@ function parseEpisode(value: unknown): Episode {
       ? sentences.map(createNarrationFrame)
       : readArray(value, 'sentenceFrames').map(parseEpisodeSentenceFrame);
   const interactions = parseEpisodeInteractions(value, sentences.length);
+  const storedCefrLevel = readOptionalString(value, 'cefrLevel');
+  const storedGenre = readOptionalString(value, 'genre');
+  // cefrLevel falls back to the owning series only for records created before episode settings.
+  const cefrLevel = storedCefrLevel ?? legacySeries?.cefrLevel ?? 'B1';
+  // genre falls back to the owning series only for records created before episode settings.
+  const genre = storedGenre ?? legacySeries?.genre ?? defaultLearningGenre;
   const isComplete =
     readOptionalBoolean(value, 'isComplete') ??
     interactions.every((interaction) => interaction.feedback !== undefined);
 
   validateEpisodeSentenceFrames(sentences, sentenceFrames);
 
+  if (!cefrLevels.includes(cefrLevel as Episode['cefrLevel'])) {
+    throw new Error('Episode CEFR level is unsupported');
+  }
+
+  if (!isLearningGenre(genre)) {
+    throw new Error('Episode genre is unsupported');
+  }
+
   return {
     id: readString(value, 'id'),
     seriesId: readString(value, 'seriesId'),
     orderIndex: readNumber(value, 'orderIndex'),
+    cefrLevel: cefrLevel as Episode['cefrLevel'],
+    genre,
     ...(previouslyRecap ? { previouslyRecap } : {}),
     ...(title ? { title } : {}),
     sceneText: readString(value, 'sceneText'),

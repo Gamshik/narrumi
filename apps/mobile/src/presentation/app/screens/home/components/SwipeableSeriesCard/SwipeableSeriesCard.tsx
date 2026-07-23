@@ -34,8 +34,8 @@ import {
 export type SwipeableSeriesCardProps = {
   // colors provides semantic light or dark Sorbet tokens.
   readonly colors: AppColors;
-  // genreLabel is the compact product-facing label for the series genre.
-  readonly genreLabel: string;
+  // modeLabel is the compact product-facing label for learner participation.
+  readonly modeLabel: string;
   // hasOpenSwipe reports whether any row in the list currently owns the action lane.
   readonly hasOpenSwipe: boolean;
   // isDeleting disables repeated destructive actions while persistence is running.
@@ -64,7 +64,7 @@ const seriesSwipeSpringOptions: Record<string, unknown> = {
 // SwipeableSeriesCard renders one opaque row above a native, edge-aligned delete action.
 export function SwipeableSeriesCard({
   colors,
-  genreLabel,
+  modeLabel,
   hasOpenSwipe,
   isDeleting,
   isOpen,
@@ -158,7 +158,7 @@ export function SwipeableSeriesCard({
             { name: 'delete', label: 'Delete series' },
           ]}
           accessibilityHint="Opens the series. Swipe left for delete options."
-          accessibilityLabel={`${series.title}, ${genreLabel}, level ${series.cefrLevel}`}
+          accessibilityLabel={`${series.title}, ${modeLabel} series`}
           accessibilityRole="button"
           disabled={isDeleting}
           onAccessibilityAction={handleAccessibilityAction}
@@ -194,12 +194,12 @@ export function SwipeableSeriesCard({
                   numberOfLines={1}
                   style={[styles.meta, { color: colors.labelSecondary }]}
                 >
-                  {genreLabel} · {series.tone}
+                  {modeLabel} · Personal series
                 </Text>
               </View>
               <BubblePill colors={colors} style={styles.badge} tone="primary">
                 <Text style={[styles.badgeText, { color: colors.systemBlue }]}>
-                  {series.cefrLevel}
+                  SERIES
                 </Text>
               </BubblePill>
             </View>

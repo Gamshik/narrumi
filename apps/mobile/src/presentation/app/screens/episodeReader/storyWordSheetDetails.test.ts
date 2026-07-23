@@ -24,6 +24,7 @@ const vocabularyItem: VocabularyItem = {
     uk: '/ɪlekˈtrɒnɪk/',
     us: '/ɪlekˈtrɑːnɪk/',
   },
+  translation: 'электронный',
   word: 'electronic',
 };
 

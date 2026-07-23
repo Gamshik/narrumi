@@ -60,8 +60,6 @@ export function buildAiStoryWord(word: VocabularyItem): AiStoryWord {
 export type CompactSeriesMemoryPayload = Pick<
   SeriesMemory,
   | 'premise'
-  | 'genre'
-  | 'tone'
   | 'participationMode'
   | 'mainCharacters'
   | 'characterProfiles'
@@ -89,8 +87,6 @@ export type GenerateEpisodeRequest = {
   readonly cefrLevel: CefrLevel;
   // genre is the broad original story category.
   readonly genre: LearningGenre;
-  // tone controls the story mood without expanding product scope.
-  readonly tone: string;
   // premise is the bounded series setup.
   readonly premise: string;
   // participationMode determines whether learner input directs events or roleplays.
@@ -160,8 +156,6 @@ export type SubmitInteractionRequest = {
   readonly cefrLevel: CefrLevel;
   // genre is passed for bounded story continuity.
   readonly genre: LearningGenre;
-  // tone keeps the feedback story-friendly.
-  readonly tone: string;
   // participationMode keeps continuation prompts aligned with the series setup.
   readonly participationMode: SeriesMemory['participationMode'];
   // compactSeriesMemory is the bounded memory context, not full history.
@@ -345,8 +339,6 @@ export function buildCompactSeriesMemoryPayload(
 ): CompactSeriesMemoryPayload {
   return {
     premise: memory.premise,
-    genre: memory.genre,
-    tone: memory.tone,
     participationMode: memory.participationMode,
     mainCharacters: memory.mainCharacters,
     characterProfiles: memory.characterProfiles,

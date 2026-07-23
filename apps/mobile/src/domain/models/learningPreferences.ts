@@ -11,11 +11,11 @@ export const MIN_STORY_WORD_GOAL = 0;
 // MAX_STORY_WORD_GOAL is the upper product bound before difficulty warnings apply.
 export const MAX_STORY_WORD_GOAL = 12;
 
-// LearningPreferences stores local defaults for series and episode generation.
+// LearningPreferences stores local defaults for episode preparation and vocabulary.
 export type LearningPreferences = {
   // preferredCefrLevel is the manually selected grammar and vocabulary target.
   readonly preferredCefrLevel: CefrLevel;
-  // preferredGenre is the default genre offered during series creation.
+  // preferredGenre is retained for sync compatibility; new episodes use their own history.
   readonly preferredGenre: LearningGenre;
   // storyWordGoal controls automatic Word Picker suggestions without hard-blocking the user.
   readonly storyWordGoal: number;

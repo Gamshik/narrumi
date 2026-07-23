@@ -9,9 +9,6 @@ describe('buildSeriesSetupDraftRequest', (): void => {
     const request = buildSeriesSetupDraftRequest({
       ...createEmptySeriesSetupForm(),
       title: '',
-      genre: 'short-fiction',
-      cefrLevel: 'B1',
-      tone: 'Warm',
       premise: '',
       participationMode: 'director',
       characterProfiles: [
@@ -29,9 +26,6 @@ describe('buildSeriesSetupDraftRequest', (): void => {
     const request = buildSeriesSetupDraftRequest({
       ...createEmptySeriesSetupForm(),
       title: '  Orbit Letters  ',
-      genre: 'short-fiction',
-      cefrLevel: 'B1',
-      tone: 'Warm',
       premise: 'A signal arrives.',
       participationMode: 'director',
       characterProfiles: [

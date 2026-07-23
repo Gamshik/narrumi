@@ -10,9 +10,9 @@ export type SeriesMemory = {
   readonly seriesId: string;
   // premise keeps the original story promise available for future episodes.
   readonly premise: string;
-  // genre preserves the broad story category used by generation.
+  // genre is retained only for backward-compatible stored memory records.
   readonly genre: string;
-  // tone stores the selected mood or narrative feel.
+  // tone is retained only for backward-compatible stored memory records.
   readonly tone: string;
   // participationMode keeps episode prompts consistent after the series begins.
   readonly participationMode: SeriesParticipationMode;

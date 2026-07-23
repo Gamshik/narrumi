@@ -19,9 +19,6 @@ export function buildSeriesSetupDraftRequest(
   ).length;
 
   return {
-    genre: form.genre,
-    cefrLevel: form.cefrLevel,
-    tone: form.tone,
     participationMode: form.participationMode,
     ...(form.title.trim() ? { title: form.title } : {}),
     ...(form.premise.trim() ? { premise: form.premise } : {}),

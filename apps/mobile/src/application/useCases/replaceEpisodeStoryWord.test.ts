@@ -23,6 +23,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'deal:noun',
     word: 'deal',
+    translation: 'сделка',
     partOfSpeech: 'noun',
     level: 'A2',
     examples: ['The deal was fair.'],
@@ -31,6 +32,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'deal:verb',
     word: 'deal',
+    translation: 'иметь дело',
     partOfSpeech: 'verb',
     level: 'A2',
     examples: ['They deal with it.'],
@@ -39,6 +41,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'signal',
     word: 'signal',
+    translation: 'сигнал',
     partOfSpeech: 'noun',
     level: 'A2',
     examples: ['The signal was clear.'],
@@ -47,6 +50,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'market',
     word: 'market',
+    translation: 'рынок',
     partOfSpeech: 'noun',
     level: 'A1',
     examples: ['The market was busy.'],
@@ -83,6 +87,7 @@ describe('replaceEpisodeStoryWord', () => {
 
     const result = await useCase.execute({
       episodeWordSet: currentWordSet,
+      maxLevel: 'B1',
       wordId: 'signal',
     });
 
@@ -111,6 +116,7 @@ describe('replaceEpisodeStoryWord', () => {
       {
         id: 'market',
         word: 'market',
+        translation: 'рынок',
         partOfSpeech: 'noun',
         level: 'A1',
         examples: ['The market was busy.'],
@@ -119,6 +125,7 @@ describe('replaceEpisodeStoryWord', () => {
       {
         id: 'signal',
         word: 'signal',
+        translation: 'сигнал',
         partOfSpeech: 'noun',
         level: 'A2',
         examples: ['The signal was clear.'],
@@ -127,6 +134,7 @@ describe('replaceEpisodeStoryWord', () => {
       {
         id: 'melody',
         word: 'melody',
+        translation: 'мелодия',
         partOfSpeech: 'noun',
         level: 'B1',
         examples: ['The melody changed.'],
@@ -135,6 +143,7 @@ describe('replaceEpisodeStoryWord', () => {
       {
         id: 'orchard',
         word: 'orchard',
+        translation: 'фруктовый сад',
         partOfSpeech: 'noun',
         level: 'B1',
         examples: ['The orchard was quiet.'],
@@ -156,6 +165,7 @@ describe('replaceEpisodeStoryWord', () => {
 
     const result = await useCase.execute({
       episodeWordSet: currentWordSet,
+      maxLevel: 'B1',
       wordId: 'signal',
     });
 

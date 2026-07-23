@@ -1,12 +1,13 @@
 import type { Clock, LocalSeriesStore } from '@application/ports';
 import {
+  defaultLearningGenre,
   DEFAULT_STORY_WORD_GOAL,
   type LearningPreferences,
 } from '@domain/index';
 
 // LoadLearningPreferencesResult returns the persisted or default local settings.
 export type LoadLearningPreferencesResult = {
-  // preferences are the local series defaults used by Word Picker and episodes.
+  // preferences contain the first-episode CEFR default and Story Words settings.
   readonly preferences: LearningPreferences;
 };
 
@@ -32,7 +33,7 @@ export function createLoadLearningPreferences(
       const timestamp = clock.now().toISOString();
       const preferences: LearningPreferences = {
         preferredCefrLevel: 'B1',
-        preferredGenre: 'short-fiction',
+        preferredGenre: defaultLearningGenre,
         storyWordGoal: DEFAULT_STORY_WORD_GOAL,
         updatedAt: timestamp,
         sync: {

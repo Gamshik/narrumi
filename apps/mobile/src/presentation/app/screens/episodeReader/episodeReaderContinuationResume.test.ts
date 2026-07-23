@@ -57,6 +57,8 @@ function createEpisode(
     id: 'episode:resume',
     seriesId: 'series:resume',
     orderIndex: 1,
+    cefrLevel: 'B1',
+    genre: 'daily-life',
     title: 'The Hidden Door',
     sceneText: 'Mira found a blue door.',
     sentences: ['Mira found a blue door.'],

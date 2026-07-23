@@ -1,6 +1,7 @@
 import type { Clock, LocalSeriesStore } from '@application/ports';
 import {
   clampStoryWordGoal,
+  defaultLearningGenre,
   DEFAULT_STORY_WORD_GOAL,
   type CefrLevel,
   type LearningPreferences,
@@ -9,9 +10,9 @@ import {
 
 // UpdateLearningPreferencesInput contains focused local settings changes.
 export type UpdateLearningPreferencesInput = {
-  // preferredCefrLevel updates the default grammar target for new series.
+  // preferredCefrLevel updates the default target for a series' first episode.
   readonly preferredCefrLevel?: CefrLevel;
-  // preferredGenre updates the default broad genre for series creation.
+  // preferredGenre remains writable for backward-compatible preference sync.
   readonly preferredGenre?: LearningGenre;
   // storyWordGoal updates automatic Story Word suggestion count.
   readonly storyWordGoal?: number;
@@ -38,7 +39,7 @@ export function createUpdateLearningPreferences(
         preferredCefrLevel:
           input.preferredCefrLevel ?? existing?.preferredCefrLevel ?? 'B1',
         preferredGenre:
-          input.preferredGenre ?? existing?.preferredGenre ?? 'short-fiction',
+          input.preferredGenre ?? existing?.preferredGenre ?? defaultLearningGenre,
         storyWordGoal: clampStoryWordGoal(
           input.storyWordGoal ?? existing?.storyWordGoal ?? DEFAULT_STORY_WORD_GOAL,
         ),

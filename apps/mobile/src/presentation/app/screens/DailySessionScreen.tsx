@@ -18,6 +18,7 @@ import {
   JellyPressable,
   PlatformBlurTargetView,
   screenEdgeDepths,
+  CefrLevelSelector,
   SeriesSetupChoiceGroup,
   useReducedMotionPreference,
 } from '../shared';
@@ -25,6 +26,7 @@ import { useAppTheme } from '../theme';
 
 import {
   learningGenres,
+  type CefrLevel,
   type LearningGenre,
   type LearningPreferences,
   type Series,
@@ -37,17 +39,13 @@ import type { AppStyles } from '../types';
 import { useEpisodeGeneration } from '../generation';
 import { DictionaryPickerPanel } from './dailySession/components/DictionaryPickerPanel';
 import { StoryWordsPanel } from './dailySession/components/StoryWordsPanel';
+import {
+  episodeGenreLabels,
+  resolveEpisodeSetupDefaults,
+} from './dailySession/episodeSetupOptions';
 import { DailySessionEdgeEffects } from './DailySessionEdgeEffects';
 import { EpisodeReaderScreen } from './EpisodeReaderScreen';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
-
-// genreLabels maps domain genre values to user-facing labels from the PRD.
-const genreLabels: Record<LearningGenre, string> = {
-  'daily-life': 'Daily Life',
-  'work-it': 'Work & IT',
-  'travel-leisure': 'Travel',
-  'short-fiction': 'Short Fiction',
-};
 
 // setupHeaderCollapseOffset matches Home's deliberate upward-scroll threshold.
 const setupHeaderCollapseOffset: number = 38;
@@ -133,6 +131,7 @@ export function DailySessionScreen({
   const [selectionState, setSelectionState] =
     useState<EpisodeWordSelectionState>();
   const [series, setSeries] = useState<Series>();
+  const [selectedCefrLevel, setSelectedCefrLevel] = useState<CefrLevel>();
   const [selectedGenre, setSelectedGenre] = useState<LearningGenre>();
   const [errorMessage, setErrorMessage] = useState<string>();
   const [pickerWordId, setPickerWordId] = useState<string>();
@@ -191,19 +190,27 @@ export function DailySessionScreen({
     setErrorMessage(undefined);
 
     try {
-      const result = await localAppServices.startEpisodeWordSelection.execute();
       const seriesDetails = seriesId
         ? await localAppServices.loadSeriesDetails.execute({ seriesId })
         : undefined;
       const loadedSeries = seriesDetails?.series;
+      const latestEpisode = seriesDetails?.episodes.at(-1);
       const incompleteEpisode = seriesDetails?.episodes
         .filter((episode) => !episode.isComplete)
         .at(-1);
+      const result = await localAppServices.startEpisodeWordSelection.execute(
+        latestEpisode ? { maxLevel: latestEpisode.cefrLevel } : undefined,
+      );
+      const defaults = resolveEpisodeSetupDefaults(
+        latestEpisode,
+        result.preferences.preferredCefrLevel,
+      );
 
       if (isActive) {
         setSeries(loadedSeries);
         setSelectionState(result);
-        setSelectedGenre(loadedSeries?.genre ?? result.preferences.preferredGenre);
+        setSelectedCefrLevel(defaults.cefrLevel);
+        setSelectedGenre(defaults.genre);
         setGeneratedEpisodeOrderIndex(incompleteEpisode?.orderIndex);
         setStage((currentStage) =>
           currentStage === 'reader' || incompleteEpisode
@@ -296,7 +303,7 @@ export function DailySessionScreen({
     void localAppServices.browseVocabulary
       .execute({
         excludedWordIds: selectionState.episodeWordSet.wordIds,
-        maxLevel: selectionState.preferences.preferredCefrLevel,
+        maxLevel: selectedCefrLevel ?? selectionState.preferences.preferredCefrLevel,
         ...(dictionarySearch.trim() ? { search: dictionarySearch } : {}),
       })
       .then((words) => {
@@ -318,10 +325,10 @@ export function DailySessionScreen({
     return () => {
       isActive = false;
     };
-  }, [dictionarySearch, pickerWordId, selectionState]);
+  }, [dictionarySearch, pickerWordId, selectedCefrLevel, selectionState]);
 
   const replaceWord = async (wordId: string): Promise<void> => {
-    if (!selectionState || replacingWordId || isShuffling) {
+    if (!selectionState || !selectedCefrLevel || replacingWordId || isShuffling) {
       return;
     }
 
@@ -331,6 +338,7 @@ export function DailySessionScreen({
     try {
       const result = await localAppServices.replaceEpisodeStoryWord.execute({
         episodeWordSet: selectionState.episodeWordSet,
+        maxLevel: selectedCefrLevel,
         wordId,
       });
 
@@ -347,7 +355,7 @@ export function DailySessionScreen({
   };
 
   const shuffleWords = async (): Promise<void> => {
-    if (!selectionState) {
+    if (!selectionState || !selectedCefrLevel) {
       return;
     }
 
@@ -357,6 +365,7 @@ export function DailySessionScreen({
     try {
       const result = await localAppServices.shuffleEpisodeStoryWords.execute({
         episodeWordSet: selectionState.episodeWordSet,
+        maxLevel: selectedCefrLevel,
         preferences: selectionState.preferences,
       });
 
@@ -373,7 +382,7 @@ export function DailySessionScreen({
   };
 
   const chooseWord = async (replacementWordId: string): Promise<boolean> => {
-    if (!selectionState || !pickerWordId) {
+    if (!selectionState || !selectedCefrLevel || !pickerWordId) {
       return false;
     }
 
@@ -383,7 +392,7 @@ export function DailySessionScreen({
     try {
       const result = await localAppServices.chooseEpisodeStoryWord.execute({
         episodeWordSet: selectionState.episodeWordSet,
-        maxLevel: selectionState.preferences.preferredCefrLevel,
+        maxLevel: selectedCefrLevel,
         replacementWordId,
         wordId: pickerWordId,
       });
@@ -421,7 +430,7 @@ export function DailySessionScreen({
       return;
     }
 
-    if (!selectionState) {
+    if (!selectionState || !selectedCefrLevel || !selectedGenre) {
       setErrorMessage('Story Words must be loaded before generation.');
 
       return;
@@ -433,8 +442,9 @@ export function DailySessionScreen({
 
     setErrorMessage(undefined);
     void requestEpisodeGeneration({
+      cefrLevel: selectedCefrLevel,
       episodeWordSet: selectionState.episodeWordSet,
-      ...(selectedGenre ? { genre: selectedGenre } : {}),
+      genre: selectedGenre,
       seriesId,
     }).catch((): void => undefined);
   };
@@ -511,6 +521,14 @@ export function DailySessionScreen({
         </View>
       ) : (
         <>
+          <EpisodeSettingsSelection
+            isDark={isDark}
+            selectedCefrLevel={selectedCefrLevel}
+            selectedGenre={selectedGenre}
+            styles={styles}
+            onSelectCefrLevel={setSelectedCefrLevel}
+            onSelectGenre={setSelectedGenre}
+          />
           {pickerWordId ? (
             <DictionaryPickerPanel
               colors={colors}
@@ -545,12 +563,6 @@ export function DailySessionScreen({
               }}
             />
           )}
-          <GenreSelection
-            isDark={isDark}
-            selectedGenre={selectedGenre}
-            styles={styles}
-            onSelectGenre={setSelectedGenre}
-          />
           <EpisodeGenerationButton
             isGenerating={isGenerating}
             isOnline={isOnline}
@@ -578,29 +590,43 @@ export function DailySessionScreen({
   );
 }
 
-// GenreSelection renders the approved MVP genre choices before generation.
-function GenreSelection({
+// EpisodeSettingsSelection renders the per-episode CEFR and genre controls.
+function EpisodeSettingsSelection({
   isDark,
+  selectedCefrLevel,
   selectedGenre,
   styles,
+  onSelectCefrLevel,
   onSelectGenre,
 }: {
   // isDark selects the same restrained setup material used by series creation.
   readonly isDark: boolean;
+  // selectedCefrLevel is the language target remembered from settings or episode history.
+  readonly selectedCefrLevel: CefrLevel | undefined;
   // selectedGenre is the locally selected story genre when present.
   readonly selectedGenre: LearningGenre | undefined;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
+  // onSelectCefrLevel updates only the episode target and preserves explicit Story Words.
+  readonly onSelectCefrLevel: (cefrLevel: CefrLevel) => void;
   // onSelectGenre stores the selected genre in screen state.
   readonly onSelectGenre: (genre: LearningGenre) => void;
 }): ReactElement {
   return (
     <View style={styles.settingsCard}>
+      {selectedCefrLevel ? (
+        <CefrLevelSelector
+          isDark={isDark}
+          selectedLevel={selectedCefrLevel}
+          styles={styles}
+          onSelect={onSelectCefrLevel}
+        />
+      ) : null}
       <SeriesSetupChoiceGroup
         isDark={isDark}
         isWrapped
         label="Genre"
-        labels={genreLabels}
+        labels={episodeGenreLabels}
         options={learningGenres}
         selected={selectedGenre}
         styles={styles}
@@ -636,7 +662,10 @@ function EpisodeGenerationButton({
           ? 'Creates the next episode from the selected Story Words and genre'
           : 'Episode generation becomes available when the device is online'
       }
-      accessibilityState={{ busy: isGenerating, disabled: isDisabled }}
+      accessibilityState={{
+        busy: isGenerating,
+        disabled: isDisabled,
+      }}
       disabled={isDisabled}
       onPress={onGenerateEpisode}
       style={({ pressed }) => [

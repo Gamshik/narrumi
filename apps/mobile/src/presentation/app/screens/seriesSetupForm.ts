@@ -4,8 +4,6 @@ import {
   findCharacterProfileByName,
   normalizeCharacterProfiles,
   seriesSetupTextFields,
-  type CefrLevel,
-  type LearningGenre,
   type LocalSeriesSetupDraft,
   type Series,
   type SeriesCharacterProfile,
@@ -19,12 +17,6 @@ import {
 export type SeriesSetupFormState = {
   // title is the required visible series name.
   readonly title: string;
-  // genre is the approved broad story category.
-  readonly genre: LearningGenre;
-  // cefrLevel controls future language complexity.
-  readonly cefrLevel: CefrLevel;
-  // tone is the selected story mood.
-  readonly tone: string;
   // premise is the required bounded generated or learner-authored setup.
   readonly premise: string;
   // participationMode controls whether the learner directs or joins the story.
@@ -43,23 +35,6 @@ export type SeriesSetupFormState = {
 export type SeriesSetupFormErrors = Partial<
   Record<keyof SeriesSetupFormState | 'mainCharacters', string>
 >;
-
-// storyToneOptions limits tone to safe generation presets shared by create and edit.
-export const storyToneOptions = [
-  'Warm and curious',
-  'Calm detective',
-  'Light adventure',
-  'Everyday realistic',
-  'Cinematic mystery',
-] as const;
-
-// genreLabels maps domain genre values to compact setup labels.
-export const genreLabels: Record<LearningGenre, string> = {
-  'daily-life': 'Daily Life',
-  'short-fiction': 'Short Fiction',
-  'travel-leisure': 'Travel',
-  'work-it': 'Work & IT',
-};
 
 // participationModeLabels keeps setup mode controls concise on mobile.
 export const participationModeLabels: Record<SeriesParticipationMode, string> = {
@@ -104,9 +79,6 @@ export function shouldConfirmSeriesSetupGeneration(
 export function createEmptySeriesSetupForm(): SeriesSetupFormState {
   return {
     title: '',
-    genre: 'short-fiction',
-    cefrLevel: 'B1',
-    tone: storyToneOptions[0],
     premise: '',
     participationMode: 'director',
     characterProfiles: [],
@@ -120,9 +92,6 @@ export function createEmptySeriesSetupForm(): SeriesSetupFormState {
 export function createSeriesSetupForm(series: Series): SeriesSetupFormState {
   return {
     title: series.title,
-    genre: series.genre,
-    cefrLevel: series.cefrLevel,
-    tone: series.tone,
     premise: series.premise,
     participationMode: series.participationMode,
     characterProfiles: series.characterProfiles,
@@ -138,9 +107,6 @@ export function createSeriesSetupFormFromDraft(
 ): SeriesSetupFormState {
   return {
     title: draft.title,
-    genre: draft.genre,
-    cefrLevel: draft.cefrLevel,
-    tone: draft.tone,
     premise: draft.premise,
     participationMode: draft.participationMode,
     characterProfiles: draft.characterProfiles,

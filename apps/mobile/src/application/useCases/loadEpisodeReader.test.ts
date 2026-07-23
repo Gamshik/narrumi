@@ -73,6 +73,8 @@ const episode: Episode = {
   id: 'episode:series:test:generation:episode%3Aseries:test:123:1',
   seriesId: 'series:test',
   orderIndex: 2,
+  cefrLevel: 'B1',
+  genre: 'short-fiction',
   sceneText: 'Mira opened the second door.',
   sentences: ['Mira opened the second door.'],
   sentenceFrames: [

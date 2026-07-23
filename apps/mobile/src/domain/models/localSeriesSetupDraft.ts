@@ -1,5 +1,3 @@
-import type { CefrLevel } from './cefrLevel';
-import type { LearningGenre } from './learningGenre';
 import type { SeriesCharacterProfile } from './seriesCharacter';
 import type { SeriesCreativeBrief } from './seriesCreativeBrief';
 import type { SeriesParticipationMode } from './seriesParticipationMode';
@@ -16,12 +14,6 @@ export type LocalSeriesSetupDraft = {
   readonly seriesId?: string;
   // title keeps incomplete user input and may be empty.
   readonly title: string;
-  // genre stores the current list-selected story category.
-  readonly genre: LearningGenre;
-  // cefrLevel stores the current list-selected language level.
-  readonly cefrLevel: CefrLevel;
-  // tone keeps incomplete user input and may be empty.
-  readonly tone: string;
   // premise keeps incomplete user or AI setup text and may be empty.
   readonly premise: string;
   // participationMode stores the current producer or character choice.

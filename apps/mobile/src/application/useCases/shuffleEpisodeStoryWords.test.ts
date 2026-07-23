@@ -35,6 +35,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'market',
     word: 'market',
+    translation: 'рынок',
     partOfSpeech: 'noun',
     level: 'A1',
     examples: ['The market was busy.'],
@@ -43,6 +44,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'signal',
     word: 'signal',
+    translation: 'сигнал',
     partOfSpeech: 'noun',
     level: 'A2',
     examples: ['The signal was clear.'],
@@ -51,6 +53,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'river',
     word: 'river',
+    translation: 'река',
     partOfSpeech: 'noun',
     level: 'A1',
     examples: ['The river was cold.'],
@@ -59,6 +62,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'orchard',
     word: 'orchard',
+    translation: 'фруктовый сад',
     partOfSpeech: 'noun',
     level: 'B1',
     examples: ['The orchard was quiet.'],
@@ -67,6 +71,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'brave',
     word: 'brave',
+    translation: 'смелый',
     partOfSpeech: 'adjective',
     level: 'B1',
     examples: ['A brave choice changed the story.'],
@@ -75,6 +80,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'climb',
     word: 'climb',
+    translation: 'взбираться',
     partOfSpeech: 'verb',
     level: 'A1',
     examples: ['They climb the hill.'],
@@ -111,6 +117,7 @@ describe('shuffleEpisodeStoryWords', () => {
 
     const result = await useCase.execute({
       episodeWordSet: currentWordSet,
+      maxLevel: 'B1',
       preferences,
     });
 

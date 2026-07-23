@@ -25,14 +25,15 @@ import type {
   WordSet,
 } from "@domain/index";
 
-import { isStoryWordCandidate } from "./storyWordSelection";
 
 // GenerateEpisodeInput contains the locally selected series and Story Words set.
 export type GenerateEpisodeInput = {
   // seriesId identifies the local story that receives the generated episode.
   readonly seriesId: string;
-  // genre overrides the saved series genre for this explicit episode generation.
-  readonly genre?: LearningGenre;
+  // cefrLevel is the explicit language target selected for this episode.
+  readonly cefrLevel: CefrLevel;
+  // genre is the explicit story direction selected for this episode.
+  readonly genre: LearningGenre;
   // episodeWordSet is the editable current Story Words selection.
   readonly episodeWordSet: WordSet;
 };
@@ -66,7 +67,7 @@ export function createGenerateEpisode(
 
   // executeEpisodeGeneration performs one admitted AI request and local-first write.
   async function executeEpisodeGeneration(
-    { episodeWordSet, genre, seriesId }: GenerateEpisodeInput,
+    { cefrLevel, episodeWordSet, genre, seriesId }: GenerateEpisodeInput,
   ): Promise<GenerateEpisodeResult> {
     const connectivity = await networkStatus.getCurrentState();
 
@@ -100,16 +101,11 @@ export function createGenerateEpisode(
     }
 
     const words = resolveStoryWords({
-      maxLevel: series.cefrLevel,
       vocabulary,
       wordIds: episodeWordSet.wordIds,
     });
     const orderIndex = (latestEpisode?.orderIndex ?? 0) + 1;
-    const generationGenre = genre ?? series.genre;
-    const compactSeriesMemory = {
-      ...buildCompactSeriesMemoryPayload(memory),
-      genre: generationGenre,
-    };
+    const compactSeriesMemory = buildCompactSeriesMemoryPayload(memory);
     // operationKey keeps one durable client attempt for the exact episode slot.
     const operationKey: string = `episode:${seriesId}:${orderIndex}`;
     // storedRequestId survives response loss, app restarts, and changed visible inputs.
@@ -130,9 +126,8 @@ export function createGenerateEpisode(
       seriesId,
       seriesTitle: series.title,
       orderIndex,
-      cefrLevel: series.cefrLevel,
-      genre: generationGenre,
-      tone: series.tone,
+      cefrLevel,
+      genre,
       premise: series.premise,
       participationMode: series.participationMode,
       mainCharacters: series.mainCharacters,
@@ -149,6 +144,8 @@ export function createGenerateEpisode(
     const episodeId = `episode:${seriesId}:${orderIndex}`;
     const episode = buildEpisode({
       episodeId,
+      cefrLevel,
+      genre,
       orderIndex,
       payload,
       seriesId,
@@ -194,6 +191,8 @@ export function createGenerateEpisode(
 // buildEpisode maps validated AI JSON to the local Episode domain record.
 function buildEpisode({
   episodeId,
+  cefrLevel,
+  genre,
   orderIndex,
   payload,
   seriesId,
@@ -201,6 +200,10 @@ function buildEpisode({
 }: {
   // episodeId is the local-first identifier created before sync.
   readonly episodeId: string;
+  // cefrLevel is the language target selected for this episode.
+  readonly cefrLevel: CefrLevel;
+  // genre is the story direction selected for this episode.
+  readonly genre: LearningGenre;
   // orderIndex stores deterministic reading order.
   readonly orderIndex: number;
   // payload is already validated structured AI output.
@@ -214,6 +217,8 @@ function buildEpisode({
     id: episodeId,
     seriesId,
     orderIndex,
+    cefrLevel,
+    genre,
     ...(payload.previouslyRecap
       ? { previouslyRecap: payload.previouslyRecap }
       : {}),
@@ -316,12 +321,9 @@ function createWordSignal({
 
 // resolveStoryWords maps selected ids to bundled vocabulary items.
 function resolveStoryWords({
-  maxLevel,
   vocabulary,
   wordIds,
 }: {
-  // maxLevel keeps stale saved word ids from exceeding the active series CEFR level.
-  readonly maxLevel: CefrLevel;
   // vocabulary is the bundled Oxford catalog.
   readonly vocabulary: readonly VocabularyItem[];
   // wordIds are the editable Story Words selected for this episode.
@@ -332,7 +334,8 @@ function resolveStoryWords({
   return wordIds.flatMap((wordId) => {
     const word = wordsById.get(wordId);
 
-    return word && isStoryWordCandidate(word, maxLevel) ? [word] : [];
+    // Explicit selections stay authoritative even when their word level exceeds the episode CEFR.
+    return word ? [word] : [];
   });
 }
 

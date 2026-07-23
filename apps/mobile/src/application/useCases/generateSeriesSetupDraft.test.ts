@@ -31,21 +31,21 @@ const creativeBrief = {
 };
 
 describe('generateSeriesSetupDraft', () => {
-  it('passes selected fields as constraints and returns a complete draft', async () => {
+  it('passes series anchors and participation mode without episode settings', async () => {
     // networkStatus keeps the server-backed setup generation path available.
     const networkStatus: NetworkStatus = {
       getCurrentState: async () => ({ isOnline: true }),
     };
     // gatewayCallCount proves rapid identical requests share one in-flight Promise.
     let gatewayCallCount = 0;
-    // gateway asserts that list-selected fields are passed without generation.
+    // gateway asserts that series-only fields are passed without episode settings.
     const gateway: SeriesSetupDraftGateway = {
       generateSeriesSetupDraft: async (request) => {
         gatewayCallCount += 1;
         assert.match(request.generationRequestId, /^generation:/);
-        assert.equal(request.cefrLevel, 'B1');
-        assert.equal(request.genre, 'short-fiction');
-        assert.equal(request.tone, 'Calm detective');
+        assert.equal('cefrLevel' in request, false);
+        assert.equal('genre' in request, false);
+        assert.equal('tone' in request, false);
         assert.equal(request.participationMode, 'director');
         assert.equal(request.title, 'Blue Door');
         assert.equal(request.creativeBrief.idea, creativeBrief.idea);
@@ -66,9 +66,6 @@ describe('generateSeriesSetupDraft', () => {
 
     const input = {
       title: 'Blue Door',
-      cefrLevel: 'B1',
-      genre: 'short-fiction',
-      tone: 'Calm detective',
       participationMode: 'director',
       mainCharacters: [],
       creativeBrief,
@@ -120,9 +117,6 @@ describe('generateSeriesSetupDraft', () => {
       requestStore,
     );
     const input = {
-      cefrLevel: 'B1',
-      genre: 'short-fiction',
-      tone: 'Calm detective',
       participationMode: 'director',
       mainCharacters: [],
       creativeBrief,
@@ -161,9 +155,6 @@ describe('generateSeriesSetupDraft', () => {
     await assert.rejects(
       () =>
         useCase.execute({
-          cefrLevel: 'B1',
-          genre: 'short-fiction',
-          tone: 'Calm detective',
           participationMode: 'director',
           mainCharacters: [],
           creativeBrief,
@@ -191,9 +182,6 @@ describe('generateSeriesSetupDraft', () => {
     await assert.rejects(
       () =>
         useCase.execute({
-          cefrLevel: 'B1',
-          genre: 'short-fiction',
-          tone: 'Calm detective',
           participationMode: 'director',
           mainCharacters: [],
           creativeBrief,

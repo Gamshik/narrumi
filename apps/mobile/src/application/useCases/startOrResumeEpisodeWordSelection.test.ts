@@ -35,6 +35,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: '0',
     word: 'a',
+    translation: 'неопределённый артикль',
     partOfSpeech: 'indefinite article',
     level: 'A1',
     examples: ['a door'],
@@ -43,6 +44,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: '1',
     word: 'abandon',
+    translation: 'отказаться',
     partOfSpeech: 'verb',
     level: 'B2',
     examples: ['They abandon the plan.'],
@@ -51,6 +53,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: '2',
     word: 'ability',
+    translation: 'способность',
     partOfSpeech: 'noun',
     level: 'A2',
     examples: ['She has the ability to listen.'],
@@ -59,6 +62,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: '3',
     word: 'careful',
+    translation: 'осторожный',
     partOfSpeech: 'adjective',
     level: 'A2',
     examples: ['Be careful near the door.'],
@@ -67,6 +71,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: '4',
     word: 'mystery',
+    translation: 'тайна',
     partOfSpeech: 'noun',
     level: 'B1',
     examples: ['The old map was a mystery.'],
@@ -75,11 +80,11 @@ const vocabulary: readonly VocabularyItem[] = [
 ];
 
 describe('startOrResumeEpisodeWordSelection', () => {
-  it('returns a valid last-used episode Story Words set without reshuffling it', async () => {
+  it('preserves last-used Story Words above a newly selected CEFR level', async () => {
     const currentWordSet: WordSet = {
       id: 'episode:current-story-words',
       kind: 'episode',
-      wordIds: ['2', '3'],
+      wordIds: ['1', '4'],
       createdAt: timestamp,
       updatedAt: timestamp,
       sync: {
@@ -112,7 +117,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       now: () => new Date(timestamp),
     });
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({ maxLevel: 'A2' });
 
     assert.deepEqual(result.episodeWordSet.wordIds, currentWordSet.wordIds);
     assert.deepEqual(savedWordSets, []);
@@ -177,6 +182,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       {
         id: 'deal:noun',
         word: 'deal',
+        translation: 'сделка',
         partOfSpeech: 'noun',
         level: 'A2',
         examples: ['The deal was fair.'],
@@ -185,6 +191,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       {
         id: 'deal:verb',
         word: 'deal',
+        translation: 'иметь дело',
         partOfSpeech: 'verb',
         level: 'A2',
         examples: ['They deal with it.'],
@@ -193,6 +200,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       {
         id: 'signal',
         word: 'signal',
+        translation: 'сигнал',
         partOfSpeech: 'noun',
         level: 'A2',
         examples: ['The signal was clear.'],
@@ -238,6 +246,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       {
         id: 'army',
         word: 'army',
+        translation: 'армия',
         partOfSpeech: 'noun',
         level: 'A2',
         examples: ['The army waited.'],
@@ -246,6 +255,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       {
         id: 'aged',
         word: 'aged',
+        translation: 'старый',
         partOfSpeech: 'adjective',
         level: 'B1',
         examples: ['The aged map tore.'],
@@ -254,6 +264,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       {
         id: 'anywhere',
         word: 'anywhere',
+        translation: 'где угодно',
         partOfSpeech: 'adverb',
         level: 'A2',
         examples: ['They could go anywhere.'],
@@ -262,6 +273,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       {
         id: 'climb',
         word: 'climb',
+        translation: 'взбираться',
         partOfSpeech: 'verb',
         level: 'A1',
         examples: ['They climb the hill.'],
@@ -270,6 +282,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       {
         id: 'market',
         word: 'market',
+        translation: 'рынок',
         partOfSpeech: 'noun',
         level: 'A1',
         examples: ['The market was busy.'],

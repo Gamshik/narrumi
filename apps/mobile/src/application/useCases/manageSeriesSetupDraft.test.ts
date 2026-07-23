@@ -17,9 +17,6 @@ import {
 const draft: LocalSeriesSetupDraft = {
   draftId: newSeriesSetupDraftId,
   title: '',
-  genre: 'short-fiction',
-  cefrLevel: 'A2',
-  tone: '',
   premise: '',
   participationMode: 'character',
   characterProfiles: [],

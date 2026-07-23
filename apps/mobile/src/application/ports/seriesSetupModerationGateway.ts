@@ -8,8 +8,6 @@ import type {
 export type ValidateSeriesSetupRequest = {
   // title is the learner-written visible series name.
   readonly title: string;
-  // tone is the selected story mood sent for policy validation.
-  readonly tone: string;
   // premise is the optional learner-written story setup.
   readonly premise?: string;
   // participationMode is persisted setup context and validated as a bounded option.

@@ -78,6 +78,8 @@ const episode: Episode = {
   id: 'episode:test',
   seriesId: series.id,
   orderIndex: 1,
+  cefrLevel: 'A2',
+  genre: 'cozy-mystery',
   title: 'The Hidden Door',
   sceneText: 'Mira found a blue door.',
   sentences: ['Mira found a blue door.'],
@@ -128,7 +130,7 @@ const vocabulary: readonly VocabularyItem[] = [
     word: 'careful',
     translation: 'осторожный',
     partOfSpeech: 'adjective',
-    level: 'A2',
+    level: 'B1',
     examples: ['Be careful.'],
     phonetics: {},
   },
@@ -182,6 +184,8 @@ describe('submitEpisodeInteraction', () => {
     const gateway: InteractionGateway = {
       submitInteraction: async (request) => {
         assert.equal(request.seriesTitle, 'The Blue Door');
+        assert.equal(request.cefrLevel, 'A2');
+        assert.equal(request.genre, 'cozy-mystery');
         assert.equal(request.participationMode, 'director');
         assert.equal(request.compactSeriesMemory.participationMode, 'director');
         assert.equal(request.interactionCount, 1);

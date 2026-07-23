@@ -108,7 +108,7 @@ const vocabulary: readonly VocabularyItem[] = [
 ];
 
 describe('generateEpisode', () => {
-  it('sends the user-written series title and selected genre to the AI boundary', async () => {
+  it('keeps explicit Story Words above the selected episode CEFR', async () => {
     // savedEpisodes captures local persistence after the AI payload is validated.
     const savedEpisodes: Episode[] = [];
     // store implements only deterministic in-memory behavior needed by this use case.
@@ -130,9 +130,11 @@ describe('generateEpisode', () => {
         gatewayCallCount += 1;
         assert.match(request.generationRequestId, /^generation:/);
         assert.equal(request.seriesTitle, 'Garden After Midnight');
+        assert.equal(request.cefrLevel, 'A2');
         assert.equal(request.genre, 'travel-leisure');
         assert.equal(request.participationMode, 'director');
-        assert.equal(request.compactSeriesMemory.genre, 'travel-leisure');
+        assert.equal('genre' in request.compactSeriesMemory, false);
+        assert.equal('tone' in request.compactSeriesMemory, false);
         assert.equal(request.compactSeriesMemory.participationMode, 'director');
         assert.deepEqual(request.selectedStoryWords, [
           {
@@ -208,6 +210,7 @@ describe('generateEpisode', () => {
     );
 
     const input = {
+      cefrLevel: 'A2',
       episodeWordSet,
       genre: 'travel-leisure',
       seriesId: series.id,
@@ -216,6 +219,8 @@ describe('generateEpisode', () => {
 
     assert.equal(result.episode.title, 'The Midnight Gate');
     assert.equal(result.episode.id, 'episode:series:test:1');
+    assert.equal(result.episode.cefrLevel, 'A2');
+    assert.equal(result.episode.genre, 'travel-leisure');
     assert.equal(gatewayCallCount, 1);
     assert.equal(savedEpisodes.length, 1);
   });
@@ -246,7 +251,9 @@ describe('generateEpisode', () => {
     await assert.rejects(
       () =>
         useCase.execute({
+          cefrLevel: 'B1',
           episodeWordSet,
+          genre: 'short-fiction',
           seriesId: series.id,
         }),
       /Finish the current episode/,
@@ -281,7 +288,9 @@ describe('generateEpisode', () => {
     await assert.rejects(
       () =>
         useCase.execute({
+          cefrLevel: 'B1',
           episodeWordSet,
+          genre: 'short-fiction',
           seriesId: series.id,
         }),
       /Simulated lost response/,
@@ -289,6 +298,7 @@ describe('generateEpisode', () => {
     await assert.rejects(
       () =>
         useCase.execute({
+          cefrLevel: 'A2',
           episodeWordSet,
           genre: 'travel-leisure',
           seriesId: series.id,
@@ -362,6 +372,8 @@ function createEpisode(isComplete: boolean): Episode {
     id: 'episode:series:test:1',
     seriesId: series.id,
     orderIndex: 1,
+    cefrLevel: 'B1',
+    genre: 'short-fiction',
     sceneText: 'Mira found a silver gate.',
     sentences: ['Mira found a silver gate.'],
     sentenceFrames: [

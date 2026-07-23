@@ -11,6 +11,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'deal:noun',
     word: 'deal',
+    translation: 'сделка',
     partOfSpeech: 'noun',
     level: 'A2',
     examples: ['It was a fair deal.'],
@@ -19,6 +20,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'deal:verb',
     word: 'deal',
+    translation: 'иметь дело',
     partOfSpeech: 'verb',
     level: 'A2',
     examples: ['They deal with the problem.'],
@@ -27,6 +29,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'drift',
     word: 'drift',
+    translation: 'дрейфовать',
     partOfSpeech: 'verb',
     level: 'A2',
     examples: ['The boat began to drift.'],
@@ -35,6 +38,7 @@ const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'intricate',
     word: 'intricate',
+    translation: 'сложный',
     partOfSpeech: 'adjective',
     level: 'C1',
     examples: ['The clock has an intricate mechanism.'],

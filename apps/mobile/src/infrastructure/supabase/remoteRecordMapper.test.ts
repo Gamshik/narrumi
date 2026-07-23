@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { Series, SeriesMemory } from '@domain/index';
+import type { Episode, Series, SeriesMemory } from '@domain/index';
 
 import { parseRemoteSnapshot, serializeSyncRecord } from './remoteRecordMapper';
 
@@ -58,6 +58,26 @@ const series: Series = {
   createdAt: timestamp,
   updatedAt: timestamp,
   sync: { isDirty: true, pendingOperationId: 'series:write' },
+};
+
+// episode proves generation settings are serialized on the generated unit itself.
+const episode: Episode = {
+  id: 'episode:test',
+  seriesId: series.id,
+  orderIndex: 1,
+  cefrLevel: 'B2',
+  genre: 'science-fiction',
+  sceneText: 'Mira heard a signal.',
+  sentences: ['Mira heard a signal.'],
+  sentenceFrames: [{ kind: 'narration', text: 'Mira heard a signal.' }],
+  storyWordIds: [],
+  annotations: [],
+  interactions: [],
+  isComplete: true,
+  summaryUpdate: 'Mira heard a signal.',
+  createdAt: timestamp,
+  updatedAt: timestamp,
+  sync: { isDirty: true, pendingOperationId: 'episode:write' },
 };
 
 describe('remoteRecordMapper series creative setup', () => {
@@ -124,6 +144,30 @@ describe('remoteRecordMapper series creative setup', () => {
       'fill-missing',
     );
   });
+
+  it('serializes episode-level CEFR and genre settings', () => {
+    const write = serializeSyncRecord(ownerId, {
+      kind: 'episode',
+      value: episode,
+    });
+
+    assert.equal(write.row.cefr_level, 'B2');
+    assert.equal(write.row.genre, 'science-fiction');
+  });
+
+  it('inherits series settings for remote episodes written by older clients', () => {
+    const snapshot = parseRemoteSnapshot(ownerId, {
+      series: [createLegacySeriesRow()],
+      seriesMemories: [createMemoryRow()],
+      episodes: [createLegacyEpisodeRow()],
+      wordSets: [],
+      learningSignals: [],
+      preferences: [],
+    });
+
+    assert.equal(snapshot.episodes[0]?.cefrLevel, series.cefrLevel);
+    assert.equal(snapshot.episodes[0]?.genre, series.genre);
+  });
 });
 
 // createLegacySeriesRow omits the new JSON columns to exercise compatibility defaults.
@@ -169,6 +213,30 @@ function createMemoryRow(): Record<string, unknown> {
     recurring_story_word_ids: [],
     client_updated_at: timestamp,
     last_operation_id: 'memory:remote',
+    server_updated_at: timestamp,
+  };
+}
+
+// createLegacyEpisodeRow omits the episode-level settings introduced by the migration.
+function createLegacyEpisodeRow(): Record<string, unknown> {
+  return {
+    id: episode.id,
+    series_id: episode.seriesId,
+    user_id: ownerId,
+    order_index: episode.orderIndex,
+    previously_recap: null,
+    title: null,
+    scene_text: episode.sceneText,
+    sentences: episode.sentences,
+    story_word_ids: [],
+    annotations: [],
+    interactions: [],
+    is_complete: true,
+    cliffhanger: null,
+    summary_update: episode.summaryUpdate,
+    created_at: timestamp,
+    client_updated_at: timestamp,
+    last_operation_id: 'episode:remote',
     server_updated_at: timestamp,
   };
 }

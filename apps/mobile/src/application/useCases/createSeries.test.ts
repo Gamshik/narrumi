@@ -32,9 +32,6 @@ describe('createSeries', () => {
 
     const result = await createSeries.execute({
       title: 'The Last Flight',
-      genre: 'short-fiction',
-      cefrLevel: 'B1',
-      tone: 'Quiet mystery',
       premise: 'A new airport worker receives an impossible message.',
       participationMode: 'director',
       mainCharacters: ['Mira', 'Jon'],
@@ -54,6 +51,8 @@ describe('createSeries', () => {
     });
 
     assert.equal(result.series.creativeBrief.draftStrategy, 'refine');
+    assert.equal(result.series.genre, 'daily-life');
+    assert.equal(result.series.cefrLevel, 'B1');
     assert.equal(result.series.creativeBrief.preferredCastSize, 2);
     assert.deepEqual(result.series.setupDraftMeta.aiGeneratedFields, [
       'title',
@@ -95,9 +94,6 @@ describe('createSeries', () => {
       () =>
         createSeries.execute({
           title: 'Bomb, garry potter',
-          genre: 'short-fiction',
-          cefrLevel: 'A2',
-          tone: 'Light adventure',
           premise: 'Mira finds a strange school map.',
           participationMode: 'director',
           mainCharacters: ['Mira'],
@@ -123,9 +119,6 @@ describe('createSeries', () => {
       () =>
         createSeries.execute({
           title: 'The Door',
-          genre: 'short-fiction',
-          cefrLevel: 'B1',
-          tone: 'Calm detective',
           premise: 'Mira finds a quiet blue door.',
           participationMode: 'character',
           mainCharacters: ['Mira'],
@@ -151,9 +144,6 @@ describe('createSeries', () => {
       () =>
         createSeries.execute({
           title: 'The Door',
-          genre: 'short-fiction',
-          cefrLevel: 'B1',
-          tone: 'Calm detective',
           premise: 'Mira finds a quiet blue door.',
           participationMode: 'character',
           mainCharacters: ['Mira'],
@@ -180,9 +170,6 @@ describe('createSeries', () => {
       () =>
         createSeries.execute({
           title: 'The Door',
-          genre: 'short-fiction',
-          cefrLevel: 'B1',
-          tone: 'Calm detective',
           premise: '',
           participationMode: 'director',
           mainCharacters: [],

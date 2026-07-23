@@ -1,6 +1,6 @@
 import type { Clock, LocalSeriesStore, VocabularyCatalog } from '@application/ports';
-import type { LearningPreferences, VocabularyItem, WordSet } from '@domain/index';
-import { DEFAULT_STORY_WORD_GOAL } from '@domain/index';
+import type { CefrLevel, LearningPreferences, VocabularyItem, WordSet } from '@domain/index';
+import { defaultLearningGenre, DEFAULT_STORY_WORD_GOAL } from '@domain/index';
 
 import { selectStoryWordIds } from './storyWordSelection';
 
@@ -19,10 +19,18 @@ export type StartOrResumeEpisodeWordSelectionResult = {
   readonly words: readonly VocabularyItem[];
 };
 
+// StartOrResumeEpisodeWordSelectionInput applies the level selected for this episode.
+export type StartOrResumeEpisodeWordSelectionInput = {
+  // maxLevel overrides the settings default for a later episode.
+  readonly maxLevel?: CefrLevel;
+};
+
 // StartOrResumeEpisodeWordSelection prepares the unified Story Words -> Episode flow.
 export type StartOrResumeEpisodeWordSelection = {
   // execute loads or creates local word sets without remote generation.
-  readonly execute: () => Promise<StartOrResumeEpisodeWordSelectionResult>;
+  readonly execute: (
+    input?: StartOrResumeEpisodeWordSelectionInput,
+  ) => Promise<StartOrResumeEpisodeWordSelectionResult>;
 };
 
 // createStartOrResumeEpisodeWordSelection injects local storage and vocabulary ports.
@@ -32,11 +40,13 @@ export function createStartOrResumeEpisodeWordSelection(
   clock: Clock,
 ): StartOrResumeEpisodeWordSelection {
   return {
-    execute: async () => {
+    execute: async (input = {}) => {
       const now = clock.now();
       const timestamp = now.toISOString();
       const dateKey = toDateKey(now);
       const preferences = await ensurePreferences(store, clock);
+      // maxLevel uses settings for the first episode and explicit history thereafter.
+      const maxLevel: CefrLevel = input.maxLevel ?? preferences.preferredCefrLevel;
       const vocabulary = await catalog.list();
       const todayWordSet = await ensureTodayWordSet({
         dateKey,
@@ -46,6 +56,7 @@ export function createStartOrResumeEpisodeWordSelection(
         vocabulary,
       });
       const episodeWordSet = await ensureEpisodeWordSet({
+        maxLevel,
         preferences,
         store,
         timestamp,
@@ -116,12 +127,15 @@ async function ensureTodayWordSet({
 
 // ensureEpisodeWordSet normalizes the editable current set to the configured size.
 async function ensureEpisodeWordSet({
+  maxLevel,
   preferences,
   store,
   timestamp,
   todayWordSet,
   vocabulary,
 }: {
+  // maxLevel is the CEFR ceiling selected for the episode being prepared.
+  readonly maxLevel: CefrLevel;
   // preferences defines the expected Story Words count and level ceiling.
   readonly preferences: LearningPreferences;
   // store reads and writes the current editable episode set.
@@ -137,14 +151,17 @@ async function ensureEpisodeWordSet({
     (wordSet) => wordSet.id === CURRENT_EPISODE_WORD_SET_ID,
   );
 
-  if (existing && canReuseEpisodeWordSet({ preferences, vocabulary, wordSet: existing })) {
+  if (
+    existing &&
+    canReuseEpisodeWordSet({ preferences, vocabulary, wordSet: existing })
+  ) {
     return existing;
   }
 
   const sourceWordIds = existing?.wordIds ?? todayWordSet.wordIds;
   const wordIds = selectStoryWordIds({
     goal: preferences.storyWordGoal,
-    maxLevel: preferences.preferredCefrLevel,
+    maxLevel,
     seed: existing?.updatedAt ?? timestamp,
     sourceWordIds,
     vocabulary,
@@ -184,7 +201,8 @@ function canReuseEpisodeWordSet({
 }): boolean {
   const normalizedWordIds = selectStoryWordIds({
     goal: preferences.storyWordGoal,
-    maxLevel: preferences.preferredCefrLevel,
+    // C2 validates the saved set without dropping a deliberate word after CEFR changes.
+    maxLevel: 'C2',
     seed: wordSet.updatedAt,
     sourceWordIds: wordSet.wordIds,
     vocabulary,
@@ -218,7 +236,7 @@ async function ensurePreferences(
   const timestamp = clock.now().toISOString();
   const preferences: LearningPreferences = {
     preferredCefrLevel: 'B1',
-    preferredGenre: 'short-fiction',
+    preferredGenre: defaultLearningGenre,
     storyWordGoal: DEFAULT_STORY_WORD_GOAL,
     updatedAt: timestamp,
     sync: {

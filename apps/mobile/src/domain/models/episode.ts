@@ -1,4 +1,6 @@
 import type { EpisodeInteraction } from './episodeInteraction';
+import type { CefrLevel } from './cefrLevel';
+import type { LearningGenre } from './learningGenre';
 import type { SyncMetadata } from './syncMetadata';
 
 // EpisodeSentenceFrame stores the explicit reader layout contract for one playback sentence.
@@ -40,6 +42,10 @@ export type Episode = {
   readonly seriesId: string;
   // orderIndex stores deterministic reading order inside the series.
   readonly orderIndex: number;
+  // cefrLevel is the language target selected specifically for this episode.
+  readonly cefrLevel: CefrLevel;
+  // genre is the story direction selected specifically for this episode.
+  readonly genre: LearningGenre;
   // previouslyRecap optionally summarizes prior context for continuity.
   readonly previouslyRecap?: string;
   // title is an optional story-facing episode label.
