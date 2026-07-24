@@ -477,8 +477,10 @@ export function DailySessionScreen({
         blurTargetRef={blurTargetRef}
         style={styles.flexOne}
       >
+        {/* The parent must forward handled picker taps while dictionary search owns the keyboard. */}
         <Animated.ScrollView
           contentContainerStyle={[styles.screenContent, setupContentInsets]}
+          keyboardShouldPersistTaps="handled"
           onScroll={handleSetupScroll}
           scrollEventThrottle={16}
         >
