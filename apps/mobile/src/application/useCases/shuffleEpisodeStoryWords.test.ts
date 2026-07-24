@@ -64,7 +64,7 @@ const vocabulary: readonly VocabularyItem[] = [
     word: 'orchard',
     translation: 'фруктовый сад',
     partOfSpeech: 'noun',
-    level: 'B1',
+    level: 'C1',
     examples: ['The orchard was quiet.'],
     phonetics: {},
   },
@@ -89,7 +89,7 @@ const vocabulary: readonly VocabularyItem[] = [
 ];
 
 describe('shuffleEpisodeStoryWords', () => {
-  it('saves a full new set without current visible words', async () => {
+  it('saves a CEFR-independent set without current visible words', async () => {
     const savedWordSets: WordSet[] = [];
     const currentWordSet: WordSet = {
       id: 'episode:current-story-words',
@@ -117,7 +117,6 @@ describe('shuffleEpisodeStoryWords', () => {
 
     const result = await useCase.execute({
       episodeWordSet: currentWordSet,
-      maxLevel: 'B1',
       preferences,
     });
 

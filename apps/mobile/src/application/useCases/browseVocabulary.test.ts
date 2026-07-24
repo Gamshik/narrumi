@@ -46,7 +46,7 @@ const vocabulary: readonly VocabularyItem[] = [
   },
 ];
 
-test('Story Words browsing hides selected headwords and invalid level choices', async (): Promise<void> => {
+test('Story Words browsing hides selected headwords without filtering Oxford levels', async (): Promise<void> => {
   // catalog provides the local read operations used by replacement browsing.
   const catalog: VocabularyCatalog = {
     getById: async (id: string): Promise<VocabularyItem | undefined> =>
@@ -57,11 +57,10 @@ test('Story Words browsing hides selected headwords and invalid level choices', 
 
   const results = await browseVocabulary.execute({
     excludedWordIds: ['deal:noun'],
-    maxLevel: 'A2',
   });
 
   assert.deepEqual(
     results.map((word) => word.id),
-    ['drift'],
+    ['drift', 'intricate'],
   );
 });

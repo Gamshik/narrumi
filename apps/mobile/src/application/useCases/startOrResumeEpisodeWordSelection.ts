@@ -1,5 +1,5 @@
 import type { Clock, LocalSeriesStore, VocabularyCatalog } from '@application/ports';
-import type { CefrLevel, LearningPreferences, VocabularyItem, WordSet } from '@domain/index';
+import type { LearningPreferences, VocabularyItem, WordSet } from '@domain/index';
 import { defaultLearningGenre, DEFAULT_STORY_WORD_GOAL } from '@domain/index';
 
 import { selectStoryWordIds } from './storyWordSelection';
@@ -19,18 +19,10 @@ export type StartOrResumeEpisodeWordSelectionResult = {
   readonly words: readonly VocabularyItem[];
 };
 
-// StartOrResumeEpisodeWordSelectionInput applies the level selected for this episode.
-export type StartOrResumeEpisodeWordSelectionInput = {
-  // maxLevel overrides the settings default for a later episode.
-  readonly maxLevel?: CefrLevel;
-};
-
 // StartOrResumeEpisodeWordSelection prepares the unified Story Words -> Episode flow.
 export type StartOrResumeEpisodeWordSelection = {
   // execute loads or creates local word sets without remote generation.
-  readonly execute: (
-    input?: StartOrResumeEpisodeWordSelectionInput,
-  ) => Promise<StartOrResumeEpisodeWordSelectionResult>;
+  readonly execute: () => Promise<StartOrResumeEpisodeWordSelectionResult>;
 };
 
 // createStartOrResumeEpisodeWordSelection injects local storage and vocabulary ports.
@@ -40,13 +32,11 @@ export function createStartOrResumeEpisodeWordSelection(
   clock: Clock,
 ): StartOrResumeEpisodeWordSelection {
   return {
-    execute: async (input = {}) => {
+    execute: async () => {
       const now = clock.now();
       const timestamp = now.toISOString();
       const dateKey = toDateKey(now);
       const preferences = await ensurePreferences(store, clock);
-      // maxLevel uses settings for the first episode and explicit history thereafter.
-      const maxLevel: CefrLevel = input.maxLevel ?? preferences.preferredCefrLevel;
       const vocabulary = await catalog.list();
       const todayWordSet = await ensureTodayWordSet({
         dateKey,
@@ -56,7 +46,6 @@ export function createStartOrResumeEpisodeWordSelection(
         vocabulary,
       });
       const episodeWordSet = await ensureEpisodeWordSet({
-        maxLevel,
         preferences,
         store,
         timestamp,
@@ -107,7 +96,6 @@ async function ensureTodayWordSet({
     dateKey,
     wordIds: selectStoryWordIds({
       goal: preferences.storyWordGoal,
-      maxLevel: preferences.preferredCefrLevel,
       seed: dateKey,
       sourceWordIds: [],
       vocabulary,
@@ -127,16 +115,13 @@ async function ensureTodayWordSet({
 
 // ensureEpisodeWordSet normalizes the editable current set to the configured size.
 async function ensureEpisodeWordSet({
-  maxLevel,
   preferences,
   store,
   timestamp,
   todayWordSet,
   vocabulary,
 }: {
-  // maxLevel is the CEFR ceiling selected for the episode being prepared.
-  readonly maxLevel: CefrLevel;
-  // preferences defines the expected Story Words count and level ceiling.
+  // preferences defines the expected Story Words count.
   readonly preferences: LearningPreferences;
   // store reads and writes the current editable episode set.
   readonly store: LocalSeriesStore;
@@ -161,7 +146,6 @@ async function ensureEpisodeWordSet({
   const sourceWordIds = existing?.wordIds ?? todayWordSet.wordIds;
   const wordIds = selectStoryWordIds({
     goal: preferences.storyWordGoal,
-    maxLevel,
     seed: existing?.updatedAt ?? timestamp,
     sourceWordIds,
     vocabulary,
@@ -201,8 +185,6 @@ function canReuseEpisodeWordSet({
 }): boolean {
   const normalizedWordIds = selectStoryWordIds({
     goal: preferences.storyWordGoal,
-    // C2 validates the saved set without dropping a deliberate word after CEFR changes.
-    maxLevel: 'C2',
     seed: wordSet.updatedAt,
     sourceWordIds: wordSet.wordIds,
     vocabulary,

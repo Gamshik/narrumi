@@ -135,7 +135,7 @@ No scheduled review backlog:
 
 - The MVP must not create user-facing SRS due queues.
 - The MVP must not punish missed days with accumulated review debt.
-- Previously selected and encountered words may return naturally in future episodes when they fit the story, level, and selected word set.
+- Previously selected and encountered words may return naturally in future episodes when they fit the story and selected word set; Story Word selection itself is not filtered by CEFR.
 
 ### 4. Implementation Constraints
 When writing code for this project, you MUST strictly adhere to these rules:

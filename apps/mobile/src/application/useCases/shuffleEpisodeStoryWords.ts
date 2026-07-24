@@ -1,5 +1,5 @@
 import type { Clock, LocalSeriesStore, VocabularyCatalog } from '@application/ports';
-import type { CefrLevel, LearningPreferences, VocabularyItem, WordSet } from '@domain/index';
+import type { LearningPreferences, VocabularyItem, WordSet } from '@domain/index';
 
 import { selectStoryWordIds } from './storyWordSelection';
 
@@ -7,10 +7,8 @@ import { selectStoryWordIds } from './storyWordSelection';
 export type ShuffleEpisodeStoryWordsInput = {
   // episodeWordSet is the editable Story Words set being fully replaced.
   readonly episodeWordSet: WordSet;
-  // preferences provide the target count and CEFR ceiling for new words.
+  // preferences provide the target count for the shuffled set.
   readonly preferences: LearningPreferences;
-  // maxLevel is the CEFR ceiling selected for the episode being prepared.
-  readonly maxLevel: CefrLevel;
 };
 
 // ShuffleEpisodeStoryWordsResult returns the saved set and resolved words.
@@ -37,13 +35,12 @@ export function createShuffleEpisodeStoryWords(
   random: () => number = Math.random,
 ): ShuffleEpisodeStoryWords {
   return {
-    execute: async ({ episodeWordSet, maxLevel, preferences }) => {
+    execute: async ({ episodeWordSet, preferences }) => {
       const timestamp = clock.now().toISOString();
       const vocabulary = await catalog.list();
       const wordIds = selectStoryWordIds({
         excludeWordIds: episodeWordSet.wordIds,
         goal: preferences.storyWordGoal,
-        maxLevel,
         random,
         seed: timestamp,
         sourceWordIds: [],

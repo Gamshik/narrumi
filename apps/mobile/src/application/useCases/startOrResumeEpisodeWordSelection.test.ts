@@ -80,7 +80,7 @@ const vocabulary: readonly VocabularyItem[] = [
 ];
 
 describe('startOrResumeEpisodeWordSelection', () => {
-  it('preserves last-used Story Words above a newly selected CEFR level', async () => {
+  it('preserves last-used Story Words across Oxford CEFR levels', async () => {
     const currentWordSet: WordSet = {
       id: 'episode:current-story-words',
       kind: 'episode',
@@ -117,7 +117,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
       now: () => new Date(timestamp),
     });
 
-    const result = await useCase.execute({ maxLevel: 'A2' });
+    const result = await useCase.execute();
 
     assert.deepEqual(result.episodeWordSet.wordIds, currentWordSet.wordIds);
     assert.deepEqual(savedWordSets, []);
@@ -152,7 +152,7 @@ describe('startOrResumeEpisodeWordSelection', () => {
 
     assert.equal(result.episodeWordSet.wordIds.length, 2);
     assert.equal(result.episodeWordSet.wordIds.includes('0'), false);
-    assert.equal(result.episodeWordSet.wordIds.includes('1'), false);
+    assert.equal(result.episodeWordSet.wordIds.includes('1'), true);
     assert.deepEqual(savedWordSets.at(-1)?.wordIds, result.episodeWordSet.wordIds);
   });
 
@@ -173,7 +173,6 @@ describe('startOrResumeEpisodeWordSelection', () => {
     const result = await useCase.execute();
 
     assert.equal(result.todayWordSet.wordIds.includes('0'), false);
-    assert.equal(result.todayWordSet.wordIds.includes('1'), false);
     assert.notDeepEqual(result.todayWordSet.wordIds, ['2', '3']);
   });
 
@@ -292,7 +291,6 @@ describe('startOrResumeEpisodeWordSelection', () => {
 
     const selectedIds = selectStoryWordIds({
       goal: 3,
-      maxLevel: 'B1',
       seed: '2026-06-07',
       sourceWordIds: ['army', 'aged'],
       vocabulary: sameInitialVocabulary,

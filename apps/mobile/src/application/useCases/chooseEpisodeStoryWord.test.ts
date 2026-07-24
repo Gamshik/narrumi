@@ -48,18 +48,18 @@ const vocabulary: readonly VocabularyItem[] = [
     phonetics: {},
   },
   {
-    id: 'market',
-    word: 'market',
-    translation: 'рынок',
-    partOfSpeech: 'noun',
-    level: 'A1',
-    examples: ['The market was busy.'],
+    id: 'intricate',
+    word: 'intricate',
+    translation: 'сложный',
+    partOfSpeech: 'adjective',
+    level: 'C1',
+    examples: ['The clock has an intricate mechanism.'],
     phonetics: {},
   },
 ];
 
 describe('chooseEpisodeStoryWord', () => {
-  it('saves the dictionary word selected for one slot', async () => {
+  it('saves a dictionary word from any Oxford CEFR level', async () => {
     const savedWordSets: WordSet[] = [];
     const currentWordSet = createWordSet(['deal:noun', 'signal']);
     const useCase = createChooseEpisodeStoryWord(
@@ -72,13 +72,12 @@ describe('chooseEpisodeStoryWord', () => {
 
     const result = await useCase.execute({
       episodeWordSet: currentWordSet,
-      maxLevel: 'B1',
-      replacementWordId: 'market',
+      replacementWordId: 'intricate',
       wordId: 'signal',
     });
 
-    assert.deepEqual(result.episodeWordSet.wordIds, ['deal:noun', 'market']);
-    assert.deepEqual(savedWordSets.at(-1)?.wordIds, ['deal:noun', 'market']);
+    assert.deepEqual(result.episodeWordSet.wordIds, ['deal:noun', 'intricate']);
+    assert.deepEqual(savedWordSets.at(-1)?.wordIds, ['deal:noun', 'intricate']);
   });
 
   it('rejects a dictionary pick that duplicates an existing visible word', async () => {
@@ -94,7 +93,6 @@ describe('chooseEpisodeStoryWord', () => {
       () =>
         useCase.execute({
           episodeWordSet: createWordSet(['deal:noun', 'signal']),
-          maxLevel: 'B1',
           replacementWordId: 'deal:verb',
           wordId: 'signal',
         }),

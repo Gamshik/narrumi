@@ -1,5 +1,5 @@
 import type { Clock, LocalSeriesStore, VocabularyCatalog } from '@application/ports';
-import type { CefrLevel, VocabularyItem, WordSet } from '@domain/index';
+import type { VocabularyItem, WordSet } from '@domain/index';
 
 import { isStoryWordCandidate, normalizeStoryWordText } from './storyWordSelection';
 
@@ -7,8 +7,6 @@ import { isStoryWordCandidate, normalizeStoryWordText } from './storyWordSelecti
 export type ChooseEpisodeStoryWordInput = {
   // episodeWordSet is the current local Story Words set.
   readonly episodeWordSet: WordSet;
-  // maxLevel prevents manual picks above the learner's configured CEFR ceiling.
-  readonly maxLevel: CefrLevel;
   // replacementWordId is the dictionary word selected by the user.
   readonly replacementWordId: string;
   // wordId is the current slot being replaced.
@@ -38,12 +36,12 @@ export function createChooseEpisodeStoryWord(
   clock: Clock,
 ): ChooseEpisodeStoryWord {
   return {
-    execute: async ({ episodeWordSet, maxLevel, replacementWordId, wordId }) => {
+    execute: async ({ episodeWordSet, replacementWordId, wordId }) => {
       const vocabulary = await catalog.list();
       const wordsById = new Map(vocabulary.map((word) => [word.id, word]));
       const replacement = wordsById.get(replacementWordId);
 
-      if (!replacement || !isStoryWordCandidate(replacement, maxLevel)) {
+      if (!replacement || !isStoryWordCandidate(replacement)) {
         throw new Error('Selected dictionary word is not available for Story Words.');
       }
 

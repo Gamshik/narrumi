@@ -2,7 +2,7 @@ import type {
   VocabularyCatalog,
   VocabularyQuery,
 } from '@application/ports/vocabularyCatalog';
-import type { CefrLevel, VocabularyItem } from '@domain/index';
+import type { VocabularyItem } from '@domain/index';
 
 import {
   isStoryWordCandidate,
@@ -13,8 +13,6 @@ import {
 export type BrowseVocabularyInput = VocabularyQuery & {
   // excludedWordIds removes the current Story Words and duplicate headwords.
   readonly excludedWordIds?: readonly string[];
-  // maxLevel limits picker results to valid Story Word candidates for the learner.
-  readonly maxLevel?: CefrLevel;
 };
 
 // BrowseVocabulary exposes the dictionary list use case to presentation code.
@@ -31,7 +29,7 @@ export function createBrowseVocabulary(
 ): BrowseVocabulary {
   return {
     execute: async (input = {}): Promise<readonly VocabularyItem[]> => {
-      const { excludedWordIds = [], maxLevel, ...query } = input;
+      const { excludedWordIds = [], ...query } = input;
       const [words, excludedWords] = await Promise.all([
         catalog.list(query),
         Promise.all(excludedWordIds.map((wordId) => catalog.getById(wordId))),
@@ -48,7 +46,7 @@ export function createBrowseVocabulary(
           return false;
         }
 
-        return maxLevel ? isStoryWordCandidate(word, maxLevel) : true;
+        return isStoryWordCandidate(word);
       });
     },
   };

@@ -138,7 +138,7 @@ export function DailySessionScreen({
   const [dictionarySearch, setDictionarySearch] = useState('');
   const [dictionaryWords, setDictionaryWords] = useState<readonly VocabularyItem[]>([]);
   const [isDictionaryLoading, setIsDictionaryLoading] = useState(false);
-  // replacingWordId keeps per-word progress local instead of dimming the full Story Words grid.
+  // replacingWordId keeps per-word shuffle progress local instead of dimming the full Story Words grid.
   const [replacingWordId, setReplacingWordId] = useState<string>();
   const [isChoosing, setIsChoosing] = useState(false);
   const [isShuffling, setIsShuffling] = useState(false);
@@ -198,9 +198,7 @@ export function DailySessionScreen({
       const incompleteEpisode = seriesDetails?.episodes
         .filter((episode) => !episode.isComplete)
         .at(-1);
-      const result = await localAppServices.startEpisodeWordSelection.execute(
-        latestEpisode ? { maxLevel: latestEpisode.cefrLevel } : undefined,
-      );
+      const result = await localAppServices.startEpisodeWordSelection.execute();
       const defaults = resolveEpisodeSetupDefaults(
         latestEpisode,
         result.preferences.preferredCefrLevel,
@@ -303,7 +301,6 @@ export function DailySessionScreen({
     void localAppServices.browseVocabulary
       .execute({
         excludedWordIds: selectionState.episodeWordSet.wordIds,
-        maxLevel: selectedCefrLevel ?? selectionState.preferences.preferredCefrLevel,
         ...(dictionarySearch.trim() ? { search: dictionarySearch } : {}),
       })
       .then((words) => {
@@ -325,10 +322,10 @@ export function DailySessionScreen({
     return () => {
       isActive = false;
     };
-  }, [dictionarySearch, pickerWordId, selectedCefrLevel, selectionState]);
+  }, [dictionarySearch, pickerWordId, selectionState]);
 
   const replaceWord = async (wordId: string): Promise<void> => {
-    if (!selectionState || !selectedCefrLevel || replacingWordId || isShuffling) {
+    if (!selectionState || replacingWordId || isShuffling) {
       return;
     }
 
@@ -338,7 +335,6 @@ export function DailySessionScreen({
     try {
       const result = await localAppServices.replaceEpisodeStoryWord.execute({
         episodeWordSet: selectionState.episodeWordSet,
-        maxLevel: selectedCefrLevel,
         wordId,
       });
 
@@ -355,7 +351,7 @@ export function DailySessionScreen({
   };
 
   const shuffleWords = async (): Promise<void> => {
-    if (!selectionState || !selectedCefrLevel) {
+    if (!selectionState) {
       return;
     }
 
@@ -365,7 +361,6 @@ export function DailySessionScreen({
     try {
       const result = await localAppServices.shuffleEpisodeStoryWords.execute({
         episodeWordSet: selectionState.episodeWordSet,
-        maxLevel: selectedCefrLevel,
         preferences: selectionState.preferences,
       });
 
@@ -382,7 +377,7 @@ export function DailySessionScreen({
   };
 
   const chooseWord = async (replacementWordId: string): Promise<boolean> => {
-    if (!selectionState || !selectedCefrLevel || !pickerWordId) {
+    if (!selectionState || !pickerWordId) {
       return false;
     }
 
@@ -392,7 +387,6 @@ export function DailySessionScreen({
     try {
       const result = await localAppServices.chooseEpisodeStoryWord.execute({
         episodeWordSet: selectionState.episodeWordSet,
-        maxLevel: selectedCefrLevel,
         replacementWordId,
         wordId: pickerWordId,
       });

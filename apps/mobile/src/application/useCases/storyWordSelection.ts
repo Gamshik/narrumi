@@ -1,4 +1,4 @@
-import { cefrLevels, type CefrLevel, type VocabularyItem } from '@domain/index';
+import type { VocabularyItem } from '@domain/index';
 
 // SelectStoryWordIdsInput contains deterministic inputs for building a Story Words set.
 export type SelectStoryWordIdsInput = {
@@ -6,8 +6,6 @@ export type SelectStoryWordIdsInput = {
   readonly excludeWordIds?: readonly string[];
   // goal is the configured number of Story Words to propose.
   readonly goal: number;
-  // maxLevel keeps selected words within the learner's current CEFR level.
-  readonly maxLevel: CefrLevel;
   // random enables true user-triggered shuffles instead of deterministic daily order.
   readonly random?: () => number;
   // seed randomizes candidates while keeping the same local session reproducible.
@@ -22,7 +20,6 @@ export type SelectStoryWordIdsInput = {
 export function selectStoryWordIds({
   excludeWordIds = [],
   goal,
-  maxLevel,
   random,
   seed,
   sourceWordIds,
@@ -48,7 +45,7 @@ export function selectStoryWordIds({
 
     if (
       word &&
-      isStoryWordCandidate(word, maxLevel) &&
+      isStoryWordCandidate(word) &&
       !excludedWordKeys.has(wordKey) &&
       !selectedWordKeys.has(wordKey)
     ) {
@@ -60,7 +57,6 @@ export function selectStoryWordIds({
   const selectedSet = new Set<string>(selected);
   // shuffleInput omits optional random unless it is present for exact optional typing.
   const shuffleInput: Parameters<typeof shuffleStoryWordCandidates>[0] = {
-    maxLevel,
     seed,
     vocabulary,
     ...(random ? { random } : {}),
@@ -87,15 +83,10 @@ export function selectStoryWordIds({
 // isStoryWordCandidate excludes words that do not work as episode vocabulary targets.
 export function isStoryWordCandidate(
   word: VocabularyItem,
-  maxLevel: CefrLevel,
 ): boolean {
   const partOfSpeech = word.partOfSpeech.toLocaleLowerCase();
 
   if (word.word.length <= 1 || /[\/()]/.test(word.word)) {
-    return false;
-  }
-
-  if (getCefrRank(word.level) > getCefrRank(maxLevel)) {
     return false;
   }
 
@@ -152,13 +143,10 @@ function appendStoryWord({
 
 // shuffleStoryWordCandidates gives variety without making the daily set change on every render.
 function shuffleStoryWordCandidates({
-  maxLevel,
   random,
   seed,
   vocabulary,
 }: {
-  // maxLevel keeps candidates aligned with the selected learner level.
-  readonly maxLevel: CefrLevel;
   // random switches explicit user actions to a true runtime shuffle.
   readonly random?: () => number;
   // seed controls deterministic pseudo-random ordering.
@@ -166,7 +154,8 @@ function shuffleStoryWordCandidates({
   // vocabulary is the full bundled Oxford catalog.
   readonly vocabulary: readonly VocabularyItem[];
 }): readonly VocabularyItem[] {
-  const candidates = vocabulary.filter((word) => isStoryWordCandidate(word, maxLevel));
+  // candidates intentionally span all CEFR levels because word choice is learner-controlled.
+  const candidates = vocabulary.filter((word) => isStoryWordCandidate(word));
 
   if (random) {
     return shuffleWithRandom(candidates, random);
@@ -203,11 +192,6 @@ function shuffleWithRandom(
   }
 
   return shuffled;
-}
-
-// getCefrRank turns CEFR labels into sortable difficulty ranks.
-function getCefrRank(level: CefrLevel): number {
-  return cefrLevels.indexOf(level);
 }
 
 // hashString is a small deterministic hash for local pseudo-random ordering.

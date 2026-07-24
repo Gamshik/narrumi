@@ -254,7 +254,7 @@ Rules:
 
 - Show CEFR and Genre as explicit controls before Story Words and generation. Do not show a separate Tone control.
 - The first episode displays the preferred CEFR from Settings and the first genre option. Later episodes display the preceding episode's selections.
-- Changing CEFR must not replace, remove, or hide Story Words already selected by the learner. The new level applies to prose difficulty and future automatic suggestions.
+- Changing CEFR must not replace, remove, hide, or filter Story Words. CEFR applies to episode prose difficulty only; Dictionary choices and shuffle suggestions remain available across every Oxford level.
 - Keep the expanded genre list wrapped inside the shared bubble surface and preserve readable tap targets at narrow widths.
 
 ### Reader / Interactive Episode

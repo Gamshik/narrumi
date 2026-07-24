@@ -23,7 +23,7 @@ The product should feel like creating and watching a personal English series, no
 ### 3. Target User Flow
 1. **Series Creation:** User creates a series in a single co-creation setup screen: selects participation mode, optionally describes their idea and story anchors, then writes the remaining setup manually or asks AI to build from that input.
 2. **Continue Series:** User opens an existing series or creates a new one.
-3. **Episode Setup:** Before generating an episode, the user selects its CEFR level and genre, then the app proposes a small word set from the bundled vocabulary.
+3. **Episode Setup:** Before generating an episode, the user selects its CEFR level and genre, then the app proposes a small word set from the bundled vocabulary independently of CEFR.
 4. **Word Choice:** User accepts the proposed words or makes light edits: add, remove, skip, or keep words.
 5. **Episode Generation:** The app generates a short episode that continues the series, uses selected Story Words naturally across the episode arc, respects the user's level, and ends with a narrative hook.
 6. **Read & Listen:** User reads the episode, listens block by block using semantic paragraphs and separate dialogue turns, can tap prepared Story Words for the word, transcription, context-aware translation, and part of speech, and can select visible story or interaction copy for an exact Russian translation without leaving the episode. A dialogue turn contains only words explicitly written as direct speech in the generated source; reported speech, attribution, and character actions remain narration even if an AI framing step labels them as dialogue.
@@ -76,7 +76,7 @@ The product should feel like creating and watching a personal English series, no
 - CEFR level and genre are selected for every new episode. The first episode defaults to the preferred CEFR level from Settings and the first approved genre (`daily-life`). Every later episode defaults to the previous episode's selections while remaining editable before generation.
 - Genre includes daily life, comedy, romance, drama, work and IT, travel, cozy mystery, detective, adventure, thriller, fantasy, science fiction, and short fiction. Genre carries the episode's narrative feel; Tone is not a separate setting.
 - The selected CEFR level and genre are persisted on the episode and must be reused for every interaction continuation inside that episode.
-- Changing an episode's CEFR level must preserve the learner's current Story Words exactly. Explicitly selected words remain part of generation even when their individual Oxford level is higher than the episode CEFR; the level continues to guide prose difficulty and future automatic suggestions.
+- Changing an episode's CEFR level must preserve the learner's current Story Words exactly. Story Word suggestions, shuffles, and Dictionary choices span every Oxford level; episode CEFR guides prose difficulty only.
 - The generated episode must include:
   - optional short "previously" recap when useful for continuity;
   - main scene or dialogue;
@@ -103,7 +103,7 @@ The product should feel like creating and watching a personal English series, no
 - Story Word cards and Dictionary replacement results show a concise bundled Russian translation alongside the English word.
 - Story Words selection is not a flashcard learning session. It is a lightweight step for choosing words that should appear in the next episode.
 - Word suggestions may come from:
-  - recommended words for the user's level;
+  - CEFR-independent suggestions from the bundled vocabulary;
   - genre-relevant words;
   - words from the bundled dictionary;
   - words previously selected for the same series.

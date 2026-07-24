@@ -1,5 +1,5 @@
 import type { Clock, LocalSeriesStore, VocabularyCatalog } from '@application/ports';
-import type { CefrLevel, VocabularyItem, WordSet } from '@domain/index';
+import type { VocabularyItem, WordSet } from '@domain/index';
 
 import { isStoryWordCandidate, normalizeStoryWordText } from './storyWordSelection';
 
@@ -9,8 +9,6 @@ export type ReplaceEpisodeStoryWordInput = {
   readonly episodeWordSet: WordSet;
   // wordId is replaced only in the episode set, not in Today's Words.
   readonly wordId: string;
-  // maxLevel is the CEFR ceiling selected for the episode being prepared.
-  readonly maxLevel: CefrLevel;
 };
 
 // ReplaceEpisodeStoryWordResult returns the saved set and visible words.
@@ -37,11 +35,10 @@ export function createReplaceEpisodeStoryWord(
   random: () => number = Math.random,
 ): ReplaceEpisodeStoryWord {
   return {
-    execute: async ({ episodeWordSet, maxLevel, wordId }) => {
+    execute: async ({ episodeWordSet, wordId }) => {
       const vocabulary = await catalog.list();
       const replacementId = findReplacementWordId({
         currentWordIds: episodeWordSet.wordIds,
-        maxLevel,
         random,
         vocabulary,
         wordId,
@@ -79,15 +76,12 @@ export function createReplaceEpisodeStoryWord(
 // findReplacementWordId chooses a random catalog word outside the visible set.
 function findReplacementWordId({
   currentWordIds,
-  maxLevel,
   random,
   vocabulary,
   wordId,
 }: {
   // currentWordIds are already selected for the current episode.
   readonly currentWordIds: readonly string[];
-  // maxLevel is the active episode-level CEFR ceiling.
-  readonly maxLevel: CefrLevel;
   // random selects one candidate without depending on bundled JSON order.
   readonly random: () => number;
   // vocabulary provides bundled replacement candidates.
@@ -106,7 +100,7 @@ function findReplacementWordId({
     (word) =>
       !currentWordIds.includes(word.id) &&
       !blockedWordKeys.has(normalizeStoryWordText(word.word)) &&
-      isStoryWordCandidate(word, maxLevel),
+      isStoryWordCandidate(word),
   );
   const replacementIndex = Math.min(
     Math.max(Math.floor(random() * candidates.length), 0),

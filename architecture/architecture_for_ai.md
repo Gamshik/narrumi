@@ -130,7 +130,7 @@ Domain rules:
 - Episode length is adaptive. It must be concise enough for a comfortable learning session and substantial enough to develop the scene, use Story Words naturally across the episode arc, and support meaningful interaction. Do not enforce a fixed word-count range.
 - The first episode defaults to the preferred CEFR from Settings and the first approved genre (`daily-life`). Later episodes default to the previous episode's CEFR and genre, and both remain editable until generation begins.
 - The episode must respect its own selected CEFR level and genre for the opening and every continuation.
-- A CEFR change during episode preparation must not normalize the current Story Words set. Resolve every existing selected Oxford id into AI context regardless of its individual CEFR level; use the episode CEFR only for prose difficulty and newly proposed automatic replacements.
+- Episode CEFR controls prose difficulty only and must never filter or normalize Story Words. Initial suggestions, manual Dictionary choices, per-word shuffles, and full-set shuffles may use valid Story Word candidates from every Oxford level. Resolve every selected Oxford id into AI context regardless of its individual CEFR level.
 - The episode must use selected Story Words naturally across the full episode arc. The initial generated scene may use only part of the selected set, and later same-episode continuations should introduce remaining words naturally and may reuse encountered words when they fit. Each AI-facing Story Word preserves the selected Oxford id, headword, CEFR level, part of speech, and at most two bounded examples from that exact entry so same-spelling senses are not conflated.
 - An episode normally contains 5-10 meaningful learner interactions and must not end after only a few routine decisions.
 - Every AI continuation must consider the remaining interaction budget so the same episode can close inside the 5-10 interaction window.
@@ -157,6 +157,7 @@ Domain rules:
 
 - Story Words selection is not a flashcard session or a full vocabulary management module.
 - Story Words are chosen for the next episode, not scheduled into a review debt queue.
+- Story Word eligibility is independent of episode CEFR; the learner may choose from the full valid local catalog or use CEFR-independent shuffle suggestions.
 - The app should not hard-block the number of selected words.
 - If the user selects many new words, warn about difficulty.
 - "Know it" lowers future suggestion priority but does not create permanent mastery.

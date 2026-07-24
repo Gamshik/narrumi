@@ -18,7 +18,7 @@ import { createReplaceEpisodeStoryWord } from './replaceEpisodeStoryWord';
 // timestamp is the deterministic local write time used by replacement tests.
 const timestamp = '2026-06-07T10:00:00.000Z';
 
-// vocabulary contains adjacent duplicate headwords to catch order-based replacement.
+// vocabulary contains duplicate headwords and a high-level replacement candidate.
 const vocabulary: readonly VocabularyItem[] = [
   {
     id: 'deal:noun',
@@ -52,14 +52,14 @@ const vocabulary: readonly VocabularyItem[] = [
     word: 'market',
     translation: 'рынок',
     partOfSpeech: 'noun',
-    level: 'A1',
+    level: 'C1',
     examples: ['The market was busy.'],
     phonetics: {},
   },
 ];
 
 describe('replaceEpisodeStoryWord', () => {
-  it('replaces from a random pool without duplicate visible words', async () => {
+  it('replaces from every Oxford level without duplicate visible words', async () => {
     const savedWordSets: WordSet[] = [];
     const currentWordSet: WordSet = {
       id: 'episode:current-story-words',
@@ -87,7 +87,6 @@ describe('replaceEpisodeStoryWord', () => {
 
     const result = await useCase.execute({
       episodeWordSet: currentWordSet,
-      maxLevel: 'B1',
       wordId: 'signal',
     });
 
@@ -165,7 +164,6 @@ describe('replaceEpisodeStoryWord', () => {
 
     const result = await useCase.execute({
       episodeWordSet: currentWordSet,
-      maxLevel: 'B1',
       wordId: 'signal',
     });
 
