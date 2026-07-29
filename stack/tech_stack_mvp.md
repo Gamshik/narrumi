@@ -120,16 +120,16 @@ Core records must be modeled explicitly:
 
 - **Series:** User-created story container with title, premise, participation mode, characters or user role, optional creative brief, per-field setup provenance, compact memory, and sync metadata. Legacy genre, CEFR, and tone columns remain readable and writable only for compatibility with older clients. The creative brief contains optional `idea` (shown as `Your idea`), `worldAndSetting`, `backstory`, `storyDriver`, `preferredCastSize` (`1`-`4` or AI choice), `mustInclude`, `avoid`, and `draftStrategy` (`fill-missing`, `refine`, or `rebuild`).
 - **Episode:** Generated learning unit linked to a series with its selected CEFR level and genre, accumulated story text, semantic reader blocks stored under legacy sentence fields, several ordered interaction turns, learner replies, feedback, an AI-controlled completion state, cliffhanger, Story Words, and summary update. Old episode rows without settings inherit the owning series values when read.
-- **Word Set:** A selected group of words for a day, series, or episode.
+- **Word Set:** A selected group of words for a day, series, or episode. `LearningPreferences.storyWordGoal` determines the fixed number of editable Episode Word slots prepared for the next episode.
 - **Learning Signal:** A non-punitive vocabulary event such as selected, encountered, translated, used, corrected, resurfaced, or stable.
 - **Series Memory:** Compact continuity state used for future generation instead of unbounded chat history.
 
 Story Words decisions:
 
-- Use in episode = include the word in the next episode set.
-- Know it = reduce future suggestion priority without creating permanent mastery.
-- Later = skip the word for now without a negative learning state.
-- Remove = remove from the current episode set.
+- Start or resume exactly the configured Story Word goal as editable episode slots.
+- Replace one slot from the bundled Dictionary or with a CEFR-independent random candidate.
+- Shuffle the complete set without turning the selection step into a review session.
+- Persist the resulting Episode Words locally before generation.
 
 No scheduled review backlog:
 

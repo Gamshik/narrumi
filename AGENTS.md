@@ -15,8 +15,8 @@ Read the relevant artifacts before implementation:
 | `stack/tech_stack_mvp.md` | Canonical technical architecture and constraints: React Native with Expo Managed Workflow, TypeScript, Supabase, Edge Functions, OpenRouter, Vercel AI SDK, RLS, local series/episode storage, Story Words selection, series memory, and `expo-speech`. |
 | `architecture/architecture_for_ai.md` | Canonical implementation architecture contract for AI agents: Clean Architecture boundaries, dependency direction, domain model, use cases, ports, offline-first sync, Edge Function responsibilities, error policy, and trust boundaries. |
 | `architecture/architecture_for_developer.html` | Supporting architecture reference for developers: visual explanation of layers, flows, ports, offline behavior, AI boundary, and non-negotiable rules. It clarifies `architecture_for_ai.md` but must not override it. |
-| `design/design_system.html` | Canonical visual and interaction reference: colors, typography, themes, controls, states, story reader, genre selection, audio controls, inline translation, grammar sheet, quiz feedback, and navigation. Reproduce the design in React Native; do not copy browser-only implementation details blindly. Some screen examples may still reflect the previous card-first concept; when product behavior conflicts, follow the PRD and stack documents first. |
 | `design/design_system_guidelines.md` | Mandatory Sorbet soft-pop design rules for UI work when there is no exact layout or screen-level specification. It defines the shared background, dimensional bubble surfaces, palette, typography, and motion contract. Read before any free-form layout or visual decision. |
+| `design/bubble/*` | Current screen-level Bubble/Sorbet image references. Use them together with the guidelines and the live React Native components; product behavior still comes from the PRD. |
 | `words/oxford-5000.json` | Bundled local vocabulary source for offline word lists, lightweight Story Words suggestions, and non-LLM dictionary lookups. Treat as read-only seed data shipped with the app. |
 | `.codex/gsd-core/` | Optional GSD workflow reference for Codex. Read and use it only when the user explicitly requests GSD or invokes a GSD skill or command. It is process documentation, not app runtime code. |
 | `.agents/gsd-core/` | Optional GSD workflow reference for Antigravity. Read and use it only when the user explicitly requests GSD or invokes a GSD skill or command. It mirrors `.codex/gsd-core/` for Antigravity. |
@@ -89,7 +89,7 @@ These rules are mandatory for 100% of code changes. Do not consider a task compl
 
 - Use `architecture/architecture_for_ai.md` for implementation boundaries, dependency direction, domain model, ports, trust boundaries, sync behavior, and error policy.
 - Use `stack/tech_stack_mvp.md` for approved technologies, runtime constraints, storage choices, and server boundaries.
-- Use `design/design_system.html`, `design/design_system_guidelines.md`, and screen-specific files under `design/*` for visual and interaction decisions.
+- Use `design/design_system_guidelines.md`, the Bubble/Sorbet images under `design/bubble/*`, and the live theme/shared components for visual and interaction decisions.
 - Keep `AGENTS.md` as navigation and operating rules. Do not duplicate detailed product, architecture, stack, or design specifications here unless the rule affects how agents should work across all tasks.
 - Note: `architecture/architecture_for_ai.md` and `architecture/architecture_for_developer.html` may still contain older card/review examples until explicitly updated. When those examples conflict with the current AI-series PRD or stack document, stop and ask for clarification instead of implementing the older behavior.
 

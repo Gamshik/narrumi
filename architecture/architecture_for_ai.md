@@ -12,7 +12,7 @@ Follow the project artifacts in this priority order:
 2. `stack/tech_stack_mvp.md` - canonical technology choices and runtime constraints.
 3. `architecture/architecture_for_ai.md` - canonical implementation boundaries and dependency rules.
 4. `architecture/architecture_for_developer.html` - supporting visual architecture reference.
-5. `design/design_system.html` and `design/design_system_guidelines.md` - visual and interaction rules.
+5. `design/design_system_guidelines.md` and `design/bubble/*` - visual and interaction rules.
 6. `concept/concept.html` - supporting product explanation.
 7. `words/oxford-5000.json` - bundled read-only vocabulary seed.
 
@@ -149,7 +149,7 @@ Vocabulary source:
 
 Word-set concepts:
 
-- Today's Words;
+- Today's Words, used internally as the stable daily suggestion source;
 - Episode Words;
 - Series Words.
 
@@ -158,10 +158,9 @@ Domain rules:
 - Story Words selection is not a flashcard session or a full vocabulary management module.
 - Story Words are chosen for the next episode, not scheduled into a review debt queue.
 - Story Word eligibility is independent of episode CEFR; the learner may choose from the full valid local catalog or use CEFR-independent shuffle suggestions.
-- The app should not hard-block the number of selected words.
-- If the user selects many new words, warn about difficulty.
-- "Know it" lowers future suggestion priority but does not create permanent mastery.
-- "Later" skips without a negative learning state.
+- `LearningPreferences.storyWordGoal` defines how many Story Words are proposed for an episode.
+- The episode setup presents that many editable slots. The learner may replace one slot from the bundled Dictionary, replace it randomly, or shuffle the complete set.
+- Changing episode CEFR must preserve the selected slots exactly and must not filter replacement candidates by Oxford level.
 
 ### Learning Signals
 
@@ -221,8 +220,9 @@ Required MVP use cases:
 - List local series.
 - Open a series and load its episodes, memory, word sets, and learning signals.
 - Build lightweight Story Words suggestions from vocabulary, series context, prior signals, and level.
-- Apply Story Words actions: use in episode, know it, later, remove.
-- Assemble Episode Words for the next episode.
+- Start or resume the episode's fixed-size Story Words selection from the persisted Story Word goal.
+- Replace one Story Word from the bundled Dictionary or random candidate pool, or shuffle the complete episode set.
+- Assemble and persist Episode Words for the next episode without creating a review queue.
 - Generate an episode through an Edge Function when online.
 - Assign a stable generation request id. A root presentation context owns the episode-generation Promise and observable state above route lifetimes; setup generation keeps its own single-flight action.
 - Validate and persist generated episode locally first.
@@ -289,7 +289,7 @@ Recommended presentation state categories:
 - screen state: loading, ready, empty, offline, error;
 - setup state: collapsed or expanded anchors, local draft status, per-field `user` or `ai` provenance, and setup generation status;
 - series state: selected series, selected episode, memory summary preview;
-- Story Words state: suggested words, selected words, warning about difficulty;
+- Story Words state: configured goal, selected slots, per-slot replacement state, full-set shuffle state;
 - episode reader state: selected word hint, exact selected excerpt and owner, excerpt source/translation result, selected sentence, current sentence index, restored continuation loading target, and first generated semantic-block target;
 - interaction state: choice selected, reply draft, feedback visible;
 - sync state: local only, syncing, synced, failed.
@@ -438,9 +438,9 @@ User opens one progressive-disclosure setup screen
 Open series
   -> load local episodes, memory, word sets, signals
   -> select episode CEFR and genre; use Settings CEFR plus daily-life for the first episode, otherwise remember the previous episode
-  -> build lightweight Story Words suggestions
-  -> user edits Episode Words
-  -> if many difficult words: warn about difficulty
+  -> read the Story Word goal from Settings
+  -> start or resume that many editable Episode Word slots
+  -> user keeps, replaces, or shuffles the slots
   -> if online: call EpisodeGenerationGateway
   -> Edge Function writes/validates structured episode payload
   -> client validates response shape
@@ -471,11 +471,11 @@ Episode reaches interaction point
 
 ```text
 Load vocabulary index
-  -> combine level words, genre words, and simple series words
-  -> rank suggestions
-  -> user actions: use, know it, later, remove
-  -> update Episode Words and learning signals locally
-  -> warn when difficulty is high
+  -> read the persisted Story Word goal
+  -> start or resume that many Episode Word slots from the daily suggestion source
+  -> user may replace one slot from Dictionary or random candidates
+  -> user may shuffle the complete set
+  -> persist Episode Words locally before generation
 ```
 
 ### Audio Flow

@@ -107,19 +107,16 @@ The product should feel like creating and watching a personal English series, no
   - genre-relevant words;
   - words from the bundled dictionary;
   - words previously selected for the same series.
-- User actions for suggested words:
-  - **Use in episode:** include the word in the next episode;
-  - **Know it:** reduce future suggestion priority without marking permanent mastery;
-  - **Later:** skip the word for now without a negative learning state;
-  - **Remove:** remove the word from the current episode set.
-- The app should not hard-block the number of selected words. If the user selects many new words, it should warn that the episode may become harder.
+- The Story Word goal in Settings determines how many editable word slots are proposed for each episode.
+- Episode setup starts or resumes exactly that many slots. The user can replace one slot from the bundled Dictionary, replace it with a random valid candidate, or shuffle the complete set.
+- Changing the Story Word goal affects the next prepared episode set. It does not create due work, review debt, or a required daily session.
 
 #### FEATURE D: Simple Word Sets
 - The MVP should support only simple word-set concepts:
-  - **Today’s Words:** words selected by the user during the current day;
+  - **Today’s Words:** the internal stable daily suggestion source used to seed a new episode set;
   - **Episode Words:** words selected for a specific episode;
   - **Series Words:** words that have appeared in a specific series.
-- The default behavior should be helpful and lightweight: the app may choose a reasonable set automatically, while the user can edit it before generation.
+- The default behavior is helpful and lightweight: the app fills the configured number of slots automatically, while the user can replace or shuffle them before generation.
 - There must be no scheduled review backlog or required repetition queue.
 - If the user misses several days, the app must not show accumulated review debt. Previously selected and encountered words may return naturally in future episodes when they fit the story, level, and selected word set.
 
