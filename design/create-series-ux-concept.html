@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive horizontal card-flow concept for creating a Context-English series.">
+  <title>Create Series — card carousel concept</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --grape: #6b35ff;
+      --grape-deep: #4e20d2;
+      --purple: #a86bff;
+      --pink: #ff4d97;
+      --sky: #31b8ff;
+      --mint: #087f69;
+      --ink: #211536;
+      --ink-soft: #665a78;
+      --ink-faint: #948aa2;
+      --surface: rgba(255, 255, 255, .82);
+      --line: rgba(107, 53, 255, .13);
+      --shadow-soft: 0 18px 46px rgba(36, 26, 56, .13);
+      --shadow-clay: 0 16px 34px rgba(113, 60, 255, .28), inset 0 1px 0 rgba(255, 255, 255, .55);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Nunito", sans-serif;
+      background:
+        radial-gradient(circle at 7% 17%, rgba(255, 77, 151, .16), transparent 21rem),
+        radial-gradient(circle at 90% 24%, rgba(49, 184, 255, .18), transparent 25rem),
+        linear-gradient(145deg, #fdf8ff 0%, #f1ecff 53%, #eaf9ff 100%);
+    }
+
+    button, textarea, input { font: inherit; }
+    button { color: inherit; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2, h3 { font-family: "Baloo 2", sans-serif; }
+
+    .ambient {
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: .57;
+      box-shadow: inset -15px -19px 30px rgba(65, 31, 117, .13), inset 8px 8px 15px rgba(255, 255, 255, .75), 0 20px 45px rgba(107, 53, 255, .12);
+    }
+    .ambient.one { width: 112px; height: 112px; top: 6vh; left: 3vw; background: linear-gradient(145deg, #ffc3dc, #ff7fb4); }
+    .ambient.two { width: 72px; height: 72px; right: 4vw; top: 58vh; background: linear-gradient(145deg, #cbb2ff, #8f5aff); }
+    .ambient.three { width: 92px; height: 92px; left: 36vw; bottom: 4vh; background: linear-gradient(145deg, #d7f7ff, #6fd2ff); }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      width: min(1240px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 52px 0 68px;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 26px;
+      margin-bottom: 34px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: var(--grape);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: linear-gradient(135deg, var(--pink), var(--purple)); box-shadow: 0 0 0 5px rgba(255, 77, 151, .1); }
+
+    h1 { max-width: 720px; margin-bottom: 8px; font-size: clamp(38px, 5vw, 64px); line-height: .98; letter-spacing: -.035em; }
+    .intro { max-width: 650px; margin-bottom: 0; color: var(--ink-soft); font-size: 17px; line-height: 1.55; }
+
+    .principle {
+      flex: 0 0 auto;
+      padding: 13px 17px;
+      border: 1px solid rgba(255, 255, 255, .88);
+      border-radius: 999px;
+      color: var(--ink-soft);
+      background: rgba(255, 255, 255, .54);
+      box-shadow: 0 10px 25px rgba(36, 26, 56, .08);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .layout { display: grid; grid-template-columns: minmax(300px, .8fr) minmax(430px, 1.2fr); gap: 34px; align-items: start; }
+    .notes { display: grid; gap: 16px; position: sticky; top: 24px; }
+
+    .note-card {
+      padding: 22px;
+      border: 1px solid rgba(255, 255, 255, .9);
+      border-radius: 26px;
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(18px);
+    }
+    .note-card.primary { padding: 26px; background: linear-gradient(150deg, rgba(255, 255, 255, .95), rgba(244, 236, 255, .86)); }
+    .section-kicker { margin-bottom: 4px; color: var(--grape); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .note-card h2 { margin-bottom: 8px; font-size: 25px; line-height: 1.05; }
+    .note-card p { margin-bottom: 0; color: var(--ink-soft); line-height: 1.5; }
+
+    .change-list { display: grid; gap: 14px; margin-top: 19px; }
+    .change { display: grid; grid-template-columns: 30px 1fr; gap: 11px; align-items: start; }
+    .change-number { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 10px; color: var(--grape-deep); background: rgba(107, 53, 255, .1); font-size: 12px; font-weight: 800; }
+    .change strong { display: block; margin-bottom: 2px; font-size: 14px; }
+    .change span { color: var(--ink-soft); font-size: 13px; line-height: 1.4; }
+
+    .flow-map { display: flex; align-items: center; gap: 5px; margin-top: 17px; }
+    .flow-map span { display: grid; min-width: 37px; height: 37px; flex: 1; place-items: center; border-radius: 12px; color: var(--grape-deep); background: rgba(107, 53, 255, .08); font-size: 11px; font-weight: 800; }
+    .flow-map i { color: var(--ink-faint); font-style: normal; font-size: 11px; }
+
+    .prototype-label { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0 6px 12px; color: var(--ink-soft); font-size: 13px; font-weight: 800; }
+    .live-dot { display: inline-flex; align-items: center; gap: 7px; }
+    .live-dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #12a981; box-shadow: 0 0 0 5px rgba(18, 169, 129, .11); }
+
+    .phone {
+      position: relative;
+      width: min(100%, 590px);
+      min-height: 760px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .92);
+      border-radius: 44px;
+      background: linear-gradient(160deg, #fdf8ff 0%, #f1ecff 55%, #eaf9ff 100%);
+      box-shadow: 0 38px 85px rgba(61, 34, 99, .22), inset 0 0 0 7px rgba(255, 255, 255, .36);
+    }
+    .phone::before, .phone::after { content: ""; position: absolute; border-radius: 50%; opacity: .29; pointer-events: none; }
+    .phone::before { width: 150px; height: 150px; right: -55px; top: 110px; background: linear-gradient(145deg, var(--sky), #d7f6ff); }
+    .phone::after { width: 110px; height: 110px; left: -47px; top: 455px; background: linear-gradient(145deg, #ffc2dc, var(--pink)); }
+
+    .phone-header {
+      position: relative;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: 42px 1fr 42px;
+      align-items: center;
+      padding: 19px 23px 10px;
+    }
+    .icon-button { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid rgba(255, 255, 255, .9); border-radius: 50%; background: var(--surface); box-shadow: 0 8px 18px rgba(36, 26, 56, .1); cursor: pointer; }
+    .icon-button span { font-size: 25px; line-height: 1; transform: translateY(-1px); }
+    .phone-title { text-align: center; }
+    .phone-title b { display: block; font-family: "Baloo 2", sans-serif; font-size: 21px; line-height: 1.05; }
+    .phone-title span { color: var(--ink-soft); font-size: 11px; font-weight: 800; }
+
+    .progress {
+      position: relative;
+      z-index: 4;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 7px;
+      padding: 4px 25px 13px;
+    }
+    .progress-step { height: 5px; padding: 0; overflow: hidden; border: 0; border-radius: 999px; background: rgba(107, 53, 255, .12); cursor: default; }
+    .progress-step::after { content: ""; display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--purple), var(--grape)); transition: width .28s ease; }
+    .progress-step.done, .progress-step.active { cursor: pointer; }
+    .progress-step.done::after, .progress-step.active::after { width: 100%; }
+    .progress-step.active { box-shadow: 0 0 0 3px rgba(107, 53, 255, .08); }
+
+    .memory {
+      position: relative;
+      z-index: 4;
+      display: none;
+      margin: 0 21px 12px;
+      padding: 11px 12px;
+      border: 1px solid rgba(255, 255, 255, .9);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .67);
+      box-shadow: 0 9px 22px rgba(36, 26, 56, .08);
+      backdrop-filter: blur(14px);
+    }
+    .memory.visible { display: block; animation: reveal .2s ease-out; }
+    .memory-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+    .memory-title { color: var(--ink-soft); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .memory-step { color: var(--ink-faint); font-size: 10px; font-weight: 800; }
+    .memory-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+    .memory-chips::-webkit-scrollbar { display: none; }
+    .memory-chip { flex: 0 0 auto; max-width: 205px; padding: 6px 9px; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft); background: rgba(255, 255, 255, .72); font-size: 10px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+    .memory-chip b { color: var(--grape-deep); }
+
+    .carousel {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      overflow: hidden;
+      touch-action: pan-y;
+    }
+    .track { display: flex; width: 500%; transform: translateX(calc(var(--step, 0) * -20%)); transition: transform .42s cubic-bezier(.22, .82, .25, 1); }
+    .slide { width: 20%; padding: 4px 21px 32px; }
+
+    .step-card {
+      display: flex;
+      min-height: 540px;
+      flex-direction: column;
+      padding: 23px;
+      border: 1px solid rgba(255, 255, 255, .96);
+      border-radius: 30px;
+      background: rgba(255, 255, 255, .84);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(18px);
+    }
+    .step-card h2 { margin-bottom: 5px; font-size: 29px; line-height: 1.04; }
+    .helper { margin-bottom: 19px; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
+    .step-content { min-height: 0; flex: 1; overflow-y: auto; padding: 2px 2px 8px; scrollbar-width: thin; scrollbar-color: rgba(107, 53, 255, .18) transparent; }
+    .step-actions { display: grid; grid-template-columns: 1fr 1.45fr; gap: 9px; padding-top: 15px; border-top: 1px solid rgba(107, 53, 255, .1); }
+    .step-actions.single { grid-template-columns: 1fr; }
+
+    .choice-stack { display: grid; gap: 11px; }
+    .choice-card { position: relative; display: grid; grid-template-columns: 44px 1fr 24px; gap: 12px; align-items: center; width: 100%; padding: 16px; border: 1px solid var(--line); border-radius: 21px; text-align: left; background: rgba(247, 244, 253, .8); cursor: pointer; transition: .18s ease; }
+    .choice-card:hover { transform: translateY(-1px); border-color: rgba(107, 53, 255, .27); }
+    .choice-card.active { border-color: rgba(107, 53, 255, .38); background: linear-gradient(145deg, rgba(240, 232, 255, .95), rgba(237, 249, 255, .9)); box-shadow: 0 10px 22px rgba(107, 53, 255, .1); }
+    .choice-icon { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 15px; color: var(--grape-deep); background: rgba(107, 53, 255, .1); font-family: "Baloo 2", sans-serif; font-size: 21px; font-weight: 800; }
+    .choice-card strong { display: block; margin-bottom: 2px; font-size: 14px; }
+    .choice-card small { display: block; color: var(--ink-soft); font-size: 11px; line-height: 1.4; }
+    .radio { width: 19px; height: 19px; border: 2px solid rgba(107, 53, 255, .22); border-radius: 50%; background: #fff; }
+    .choice-card.active .radio { border: 5px solid var(--grape); }
+
+    .label { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    textarea, input { width: 100%; border: 1px solid rgba(107, 53, 255, .12); outline: 0; color: var(--ink); background: rgba(247, 244, 253, .9); transition: .18s ease; }
+    textarea:focus, input:focus { border-color: rgba(107, 53, 255, .45); background: #fff; box-shadow: 0 0 0 4px rgba(107, 53, 255, .09); }
+    textarea { min-height: 150px; resize: vertical; padding: 15px 16px; border-radius: 19px; line-height: 1.45; }
+    input { height: 47px; padding: 0 14px; border-radius: 15px; }
+    ::placeholder { color: var(--ink-faint); }
+
+    .spark-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .spark { border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; color: var(--ink-soft); background: rgba(255, 255, 255, .66); font-size: 11px; font-weight: 800; cursor: pointer; }
+
+    .optional-note { display: flex; gap: 9px; align-items: flex-start; margin-top: 15px; padding: 11px 12px; border-radius: 16px; color: var(--ink-soft); background: rgba(49, 184, 255, .08); font-size: 11px; line-height: 1.4; }
+    .optional-note b { color: var(--grape-deep); }
+
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
+    .field-grid label.full { grid-column: 1 / -1; }
+    .field-label { display: block; margin: 0 0 6px 2px; color: var(--ink-soft); font-size: 11px; font-weight: 800; }
+
+    .back-button, .next-button, .skip-button, .create-button { min-height: 50px; border-radius: 18px; font-size: 13px; font-weight: 800; cursor: pointer; transition: transform .15s ease; }
+    .back-button { border: 1px solid var(--line); color: var(--grape-deep); background: rgba(107, 53, 255, .06); }
+    .next-button, .create-button { border: 1px solid rgba(255, 255, 255, .4); color: #fff; background: linear-gradient(135deg, var(--purple), var(--grape) 60%, #4e2bd6); box-shadow: var(--shadow-clay); }
+    .skip-button { width: 100%; margin-top: 9px; border: 0; color: var(--ink-soft); background: transparent; }
+    .back-button:active, .next-button:active, .create-button:active { transform: scale(.98); }
+
+    .review {
+      display: grid;
+      gap: 10px;
+    }
+    .review-block { padding: 14px; border-radius: 18px; background: linear-gradient(145deg, rgba(238, 233, 250, .78), rgba(235, 248, 255, .7)); }
+    .review-block-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 5px; }
+    .review-block b { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+    .review-block p { margin-bottom: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.4; }
+    .edit-link { border: 0; padding: 2px; color: var(--grape-deep); background: transparent; font-size: 10px; font-weight: 800; cursor: pointer; }
+    .cast { display: flex; flex-wrap: wrap; gap: 6px; }
+    .cast span { padding: 6px 8px; border-radius: 999px; color: var(--ink-soft); background: rgba(255,255,255,.82); font-size: 10px; font-weight: 800; }
+    .ai-badge { padding: 5px 8px; border-radius: 999px; color: var(--grape-deep); background: rgba(107, 53, 255, .1); font-size: 9px; font-weight: 800; letter-spacing: .07em; }
+
+    .toast { position: absolute; right: 28px; bottom: 25px; left: 28px; z-index: 10; padding: 13px 15px; border-radius: 16px; color: #fff; background: rgba(33, 21, 54, .94); box-shadow: 0 12px 34px rgba(33, 21, 54, .23); text-align: center; font-size: 12px; font-weight: 800; opacity: 0; transform: translateY(10px); pointer-events: none; transition: .25s ease; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @keyframes reveal { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+
+    @media (max-width: 900px) {
+      .page-header { align-items: flex-start; flex-direction: column; }
+      .layout { grid-template-columns: 1fr; }
+      .notes { position: static; grid-template-columns: 1fr 1fr; }
+      .note-card.primary { grid-column: 1 / -1; }
+    }
+    @media (max-width: 620px) {
+      .page { width: min(100% - 20px, 570px); padding-top: 28px; }
+      .principle { border-radius: 22px; }
+      .notes { grid-template-columns: 1fr; }
+      .note-card.primary { grid-column: auto; }
+      .phone { border-radius: 34px; }
+      .slide { padding-inline: 14px; }
+      .memory { margin-inline: 14px; }
+      .step-card { padding: 19px; }
+      .ambient { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient one"></div>
+  <div class="ambient two"></div>
+  <div class="ambient three"></div>
+
+  <main class="page">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">UX concept · Create Series</p>
+        <h1>One story, five small cards.</h1>
+        <p class="intro">A horizontal flow gives each decision room to breathe. Previous answers remain visible in a compact memory ribbon, so moving forward never means losing context.</p>
+      </div>
+      <div class="principle">Reversible steps · persistent context · local-first draft</div>
+    </header>
+
+    <div class="layout">
+      <aside class="notes" aria-label="Design rationale">
+        <section class="note-card primary">
+          <p class="section-kicker">Recommended flow</p>
+          <h2>Reduce the decision surface</h2>
+          <p>Each card asks one kind of question. Continue and Back make the journey predictable, while completed progress remains directly editable.</p>
+          <div class="flow-map" aria-label="Five card flow">
+            <span>Role</span><i>›</i><span>Spark</span><i>›</i><span>Details</span><i>›</i><span>AI</span><i>›</i><span>Review</span>
+          </div>
+          <div class="change-list">
+            <div class="change"><span class="change-number">01</span><div><strong>One decision category per card</strong><span>No wall of empty inputs on first open.</span></div></div>
+            <div class="change"><span class="change-number">02</span><div><strong>Context travels with the learner</strong><span>The “Story so far” ribbon summarizes earlier choices.</span></div></div>
+            <div class="change"><span class="change-number">03</span><div><strong>Editing stays cheap</strong><span>Back, progress segments, summary chips, and Review links reopen earlier cards.</span></div></div>
+          </div>
+        </section>
+
+        <section class="note-card">
+          <p class="section-kicker">Memory pattern</p>
+          <h2>Brief, not repetitive</h2>
+          <p>Only prior decisions appear above the active card. Long answers are shortened to one line, and every summary chip doubles as an Edit shortcut.</p>
+        </section>
+
+        <section class="note-card">
+          <p class="section-kicker">Escape hatches</p>
+          <h2>No forced creativity</h2>
+          <p>The learner may leave the story spark blank, skip optional details, save locally, or let AI build a complete starting point.</p>
+        </section>
+      </aside>
+
+      <section aria-label="Interactive Create Series prototype">
+        <div class="prototype-label"><span class="live-dot">Interactive prototype</span><span>Move forward, then edit an earlier answer</span></div>
+        <div class="phone">
+          <header class="phone-header">
+            <button class="icon-button" type="button" aria-label="Close prototype"><span aria-hidden="true">‹</span></button>
+            <div class="phone-title"><b>Create a series</b><span>Saved on this device</span></div>
+            <div aria-hidden="true"></div>
+          </header>
+
+          <nav class="progress" aria-label="Series creation progress">
+            <button class="progress-step active" type="button" data-step="0" aria-label="Step 1: Your role"></button>
+            <button class="progress-step" type="button" data-step="1" aria-label="Step 2: Story spark"></button>
+            <button class="progress-step" type="button" data-step="2" aria-label="Step 3: Story details"></button>
+            <button class="progress-step" type="button" data-step="3" aria-label="Step 4: AI help"></button>
+            <button class="progress-step" type="button" data-step="4" aria-label="Step 5: Review"></button>
+          </nav>
+
+          <section class="memory" id="memory" aria-label="Story so far">
+            <div class="memory-top"><span class="memory-title">Story so far</span><span class="memory-step" id="memoryStep">Step 2 of 5</span></div>
+            <div class="memory-chips" id="memoryChips"></div>
+          </section>
+
+          <div class="carousel" id="carousel">
+            <div class="track" id="track" style="--step:0">
+              <article class="slide" data-slide="0">
+                <div class="step-card">
+                  <div class="step-content">
+                    <p class="section-kicker">Card 1 of 5</p>
+                    <h2>How will you take part?</h2>
+                    <p class="helper">This changes how choices and dialogue work throughout the series.</p>
+                    <div class="choice-stack" role="group" aria-label="Participation mode">
+                      <button class="choice-card active" type="button" data-mode="Producer">
+                        <span class="choice-icon">P</span><span><strong>Producer</strong><small>Guide the story from outside and choose what happens next.</small></span><span class="radio"></span>
+                      </button>
+                      <button class="choice-card" type="button" data-mode="Character">
+                        <span class="choice-icon">C</span><span><strong>Character</strong><small>Join the cast and speak or act inside the story.</small></span><span class="radio"></span>
+                      </button>
+                    </div>
+                    <div class="optional-note"><b>Good to know</b><span>You can change this until the first episode is created.</span></div>
+                  </div>
+                  <div class="step-actions single"><button class="next-button" type="button" data-next>Continue</button></div>
+                </div>
+              </article>
+
+              <article class="slide" data-slide="1">
+                <div class="step-card">
+                  <div class="step-content">
+                    <p class="section-kicker">Card 2 of 5</p>
+                    <h2>Give the story a spark</h2>
+                    <p class="helper">One unfinished thought is enough. Leave it blank if you want a surprise.</p>
+                    <label class="label" for="idea">Your idea <span style="color:var(--ink-faint);font-weight:700">· optional</span></label>
+                    <textarea id="idea" maxlength="1000" placeholder="A night-shift worker receives messages from a pilot who vanished ten years ago."></textarea>
+                    <div class="spark-row" aria-label="Idea starters">
+                      <button class="spark" type="button" data-spark="Someone finds a key that opens doors into forgotten memories.">A strange discovery</button>
+                      <button class="spark" type="button" data-spark="Two rivals must work together before the last train leaves an unfamiliar city.">An unlikely pair</button>
+                      <button class="spark" type="button" data-spark="A quiet message arrives from ten years in the future with one impossible warning.">A future warning</button>
+                    </div>
+                  </div>
+                  <div class="step-actions"><button class="back-button" type="button" data-back>Back</button><button class="next-button" type="button" data-next>Continue</button></div>
+                </div>
+              </article>
+
+              <article class="slide" data-slide="2">
+                <div class="step-card">
+                  <div class="step-content">
+                    <p class="section-kicker">Card 3 of 5 · optional</p>
+                    <h2>Add a few guardrails</h2>
+                    <p class="helper">Use only what matters. AI can decide everything left blank.</p>
+                    <div class="field-grid">
+                      <label class="full"><span class="field-label">World and setting</span><input id="setting" type="text" placeholder="A small airport in northern Europe"></label>
+                      <label class="full"><span class="field-label">Central problem</span><input id="problem" type="text" placeholder="What must be solved or changed?"></label>
+                      <label><span class="field-label">Include</span><input id="include" type="text" placeholder="A damaged radio"></label>
+                      <label><span class="field-label">Avoid</span><input id="avoid" type="text" placeholder="No horror"></label>
+                    </div>
+                    <div class="optional-note"><b>Protected</b><span>AI will treat anything written here as a fixed story anchor.</span></div>
+                    <button class="skip-button" type="button" data-next>Skip these details</button>
+                  </div>
+                  <div class="step-actions"><button class="back-button" type="button" data-back>Back</button><button class="next-button" type="button" data-next>Continue</button></div>
+                </div>
+              </article>
+
+              <article class="slide" data-slide="3">
+                <div class="step-card">
+                  <div class="step-content">
+                    <p class="section-kicker">Card 4 of 5</p>
+                    <h2>How should AI help?</h2>
+                    <p class="helper">Choose how much permission AI has when it creates the editable draft.</p>
+                    <div class="choice-stack" role="group" aria-label="AI draft strategy">
+                      <button class="choice-card active" type="button" data-strategy="Fill gaps">
+                        <span class="choice-icon">＋</span><span><strong>Fill gaps</strong><small>Keep every word you wrote and complete only what is missing.</small></span><span class="radio"></span>
+                      </button>
+                      <button class="choice-card" type="button" data-strategy="Refine draft">
+                        <span class="choice-icon">✦</span><span><strong>Refine draft</strong><small>Fill gaps and improve existing text when it helps.</small></span><span class="radio"></span>
+                      </button>
+                      <button class="choice-card" type="button" data-strategy="Rebuild">
+                        <span class="choice-icon">↻</span><span><strong>Rebuild</strong><small>Create a fresh draft while preserving your story anchors.</small></span><span class="radio"></span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="step-actions"><button class="back-button" type="button" data-back>Back</button><button class="next-button" type="button" data-next>Build draft</button></div>
+                </div>
+              </article>
+
+              <article class="slide" data-slide="4">
+                <div class="step-card">
+                  <div class="step-content">
+                    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+                      <div><p class="section-kicker">Card 5 of 5</p><h2>Your series draft</h2></div><span class="ai-badge">AI DRAFT</span>
+                    </div>
+                    <p class="helper">Review the short version. Every earlier decision is still one tap away.</p>
+                    <div class="review">
+                      <div class="review-block"><div class="review-block-top"><b>Title</b><button class="edit-link" type="button" data-goto="1">Edit spark</button></div><p id="reviewTitle">The Last Arrival</p></div>
+                      <div class="review-block"><div class="review-block-top"><b>Premise</b><button class="edit-link" type="button" data-goto="2">Edit details</button></div><p id="reviewPremise">On the night shift at a nearly empty airport, Mara receives radio messages from a pilot who vanished a decade ago.</p></div>
+                      <div class="review-block"><div class="review-block-top"><b>Cast</b><button class="edit-link" type="button" data-goto="0">Edit role</button></div><div class="cast"><span>Mara · ground agent</span><span>Elias · missing pilot</span><span id="roleCast">You · producer</span></div></div>
+                      <div class="review-block"><div class="review-block-top"><b>AI approach</b><button class="edit-link" type="button" data-goto="3">Edit</button></div><p id="reviewStrategy">Fill gaps · your writing stays unchanged</p></div>
+                    </div>
+                  </div>
+                  <div class="step-actions"><button class="back-button" type="button" data-back>Back</button><button class="create-button" id="createButton" type="button">Create series</button></div>
+                </div>
+              </article>
+            </div>
+          </div>
+          <div class="toast" id="toast" role="status">Series created — ready for Story Words</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const state = {
+      step: 0,
+      furthest: 0,
+      mode: 'Producer',
+      strategy: 'Fill gaps'
+    };
+
+    const track = document.getElementById('track');
+    const memory = document.getElementById('memory');
+    const memoryChips = document.getElementById('memoryChips');
+    const progressSteps = [...document.querySelectorAll('.progress-step')];
+    const slides = [...document.querySelectorAll('.slide')];
+
+    const shortText = (value, fallback, limit = 37) => {
+      const text = value.trim() || fallback;
+      return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+    };
+
+    const detailsSummary = () => {
+      const values = ['setting', 'problem', 'include', 'avoid']
+        .map((id) => document.getElementById(id).value.trim())
+        .filter(Boolean);
+      return values.length ? `${values.length} story anchor${values.length === 1 ? '' : 's'}` : 'AI decides details';
+    };
+
+    const summaryItems = () => [
+      { step: 0, label: 'Role', value: state.mode },
+      { step: 1, label: 'Spark', value: shortText(document.getElementById('idea').value, 'Surprise me') },
+      { step: 2, label: 'Details', value: detailsSummary() },
+      { step: 3, label: 'AI', value: state.strategy }
+    ];
+
+    const updateReview = () => {
+      const idea = document.getElementById('idea').value.trim();
+      const setting = document.getElementById('setting').value.trim();
+      const problem = document.getElementById('problem').value.trim();
+      document.getElementById('roleCast').textContent = state.mode === 'Character' ? 'You · story character' : 'You · producer';
+      document.getElementById('reviewStrategy').textContent = state.strategy === 'Fill gaps'
+        ? 'Fill gaps · your writing stays unchanged'
+        : state.strategy === 'Refine draft'
+          ? 'Refine draft · AI may improve existing text'
+          : 'Rebuild · anchors still guide the new draft';
+      document.getElementById('reviewPremise').textContent = idea || problem || setting
+        ? `${idea || 'An unexpected mystery begins' }${setting ? ` Set in ${setting.toLowerCase()}.` : '.'}`
+        : 'On the night shift at a nearly empty airport, Mara receives radio messages from a pilot who vanished a decade ago.';
+    };
+
+    const renderMemory = () => {
+      memory.classList.toggle('visible', state.step > 0);
+      document.getElementById('memoryStep').textContent = `Card ${state.step + 1} of 5`;
+      const priorItems = summaryItems().slice(0, state.step);
+      memoryChips.innerHTML = priorItems.map((item) =>
+        `<button class="memory-chip" type="button" data-goto="${item.step}" title="Edit ${item.label}"><b>${item.label}</b> · ${item.value}</button>`
+      ).join('');
+      memoryChips.querySelectorAll('[data-goto]').forEach((button) => {
+        button.addEventListener('click', () => goTo(Number(button.dataset.goto)));
+      });
+    };
+
+    const goTo = (nextStep) => {
+      if (nextStep < 0 || nextStep > 4 || nextStep > state.furthest) return;
+      state.step = nextStep;
+      track.style.setProperty('--step', String(nextStep));
+      progressSteps.forEach((button, index) => {
+        button.classList.toggle('active', index === nextStep);
+        button.classList.toggle('done', index < nextStep || index < state.furthest);
+        button.setAttribute('aria-current', index === nextStep ? 'step' : 'false');
+      });
+      slides.forEach((slide, index) => {
+        slide.setAttribute('aria-hidden', String(index !== nextStep));
+        if (index === nextStep) slide.querySelector('.step-card').scrollTop = 0;
+      });
+      updateReview();
+      renderMemory();
+    };
+
+    const advance = () => {
+      state.furthest = Math.max(state.furthest, Math.min(4, state.step + 1));
+      goTo(Math.min(4, state.step + 1));
+    };
+
+    document.querySelectorAll('[data-next]').forEach((button) => button.addEventListener('click', advance));
+    document.querySelectorAll('[data-back]').forEach((button) => button.addEventListener('click', () => goTo(state.step - 1)));
+    document.querySelectorAll('[data-goto]').forEach((button) => button.addEventListener('click', () => goTo(Number(button.dataset.goto))));
+    progressSteps.forEach((button) => button.addEventListener('click', () => goTo(Number(button.dataset.step))));
+
+    document.querySelectorAll('[data-mode]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-mode]').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        state.mode = button.dataset.mode;
+        renderMemory();
+      });
+    });
+
+    document.querySelectorAll('[data-strategy]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-strategy]').forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        state.strategy = button.dataset.strategy;
+        renderMemory();
+      });
+    });
+
+    document.querySelectorAll('.spark').forEach((button) => {
+      button.addEventListener('click', () => {
+        const idea = document.getElementById('idea');
+        idea.value = button.dataset.spark;
+        idea.focus();
+        renderMemory();
+      });
+    });
+
+    ['idea', 'setting', 'problem', 'include', 'avoid'].forEach((id) => {
+      document.getElementById(id).addEventListener('input', renderMemory);
+    });
+
+    let touchStartX = 0;
+    document.getElementById('carousel').addEventListener('touchstart', (event) => { touchStartX = event.changedTouches[0].clientX; }, { passive: true });
+    document.getElementById('carousel').addEventListener('touchend', (event) => {
+      const distance = event.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(distance) < 55) return;
+      if (distance > 0) goTo(state.step - 1);
+      if (distance < 0 && state.step < state.furthest) goTo(state.step + 1);
+    }, { passive: true });
+
+    const showToast = (message) => {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2200);
+    };
+    document.getElementById('createButton').addEventListener('click', () => showToast('Series created — ready for Story Words'));
+
+    goTo(0);
+  </script>
+</body>
+</html>
