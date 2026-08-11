@@ -4,6 +4,12 @@
 // SeriesDraftStrategy identifies how current final setup fields may be used.
 export type SeriesDraftStrategy = 'fill-missing' | 'refine' | 'rebuild';
 
+// SetupGenerationTarget identifies the single card the learner asked AI to complete.
+export type SetupGenerationTarget = 'premise' | 'characterProfiles' | 'title';
+
+// SeriesCastSize is the supported recurring-cast range for setup generation.
+export type SeriesCastSize = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
 // SetupDraftField identifies one AI-produced final setup value.
 export type SetupDraftField =
   | 'title'
@@ -25,6 +31,8 @@ export interface CharacterProfile {
 export interface DraftRequestFields {
   // strategy decides whether current final fields are fixed, optional foundations, or ignored.
   readonly strategy: SeriesDraftStrategy;
+  // generationTarget isolates card-level generation from unrelated completed fields.
+  readonly generationTarget?: SetupGenerationTarget;
   // participationMode decides whether a learner role may exist.
   readonly participationMode: 'director' | 'character';
   // title is the current visible draft title when one exists.
@@ -38,7 +46,7 @@ export interface DraftRequestFields {
   // userRole is the current learner character in character mode.
   readonly userRole?: string;
   // preferredCastSize is the requested final cast size when explicitly selected.
-  readonly preferredCastSize?: 1 | 2 | 3 | 4;
+  readonly preferredCastSize?: SeriesCastSize;
   // emptyCharacterSlotCount keeps blank visible editor rows as required AI additions.
   readonly emptyCharacterSlotCount?: number;
 }
@@ -152,11 +160,19 @@ export function shouldEvaluateSetupField(
   const providedProfiles = getProvidedCharacterProfiles(request);
   const emptyCharacterSlotCount = request.emptyCharacterSlotCount ?? 0;
 
+  if (
+    request.generationTarget !== undefined &&
+    request.generationTarget !== 'characterProfiles' &&
+    providedProfiles.length > 0
+  ) {
+    return false;
+  }
+
   return (
     emptyCharacterSlotCount > 0 ||
     (request.preferredCastSize !== undefined &&
       providedProfiles.length < request.preferredCastSize) ||
-    (request.preferredCastSize === undefined && providedProfiles.length < 4)
+    (request.preferredCastSize === undefined && providedProfiles.length < 8)
   );
 }
 
@@ -183,6 +199,14 @@ export function getCastSizeConstraint(
   const emptyCharacterSlotCount = request.emptyCharacterSlotCount ?? 0;
   const visibleSlotCount = providedCount + emptyCharacterSlotCount;
 
+  if (
+    request.generationTarget !== undefined &&
+    request.generationTarget !== 'characterProfiles' &&
+    providedCount > 0
+  ) {
+    return { exact: providedCount, minimum: providedCount, maximum: providedCount };
+  }
+
   if (request.preferredCastSize !== undefined) {
     const exact = request.strategy === 'fill-missing'
       ? Math.max(request.preferredCastSize, visibleSlotCount)
@@ -195,20 +219,20 @@ export function getCastSizeConstraint(
     const minimum = Math.max(
       emptyCharacterSlotCount > 0
         ? visibleSlotCount
-        : Math.min(providedCount + 1, 4),
+        : Math.min(providedCount + 1, 8),
       1,
     );
 
-    return { minimum, maximum: Math.max(minimum, 4) };
+    return { minimum, maximum: Math.max(minimum, 8) };
   }
 
   if (request.strategy === 'refine') {
     const minimum = emptyCharacterSlotCount > 0 ? visibleSlotCount : 1;
 
-    return { minimum, maximum: Math.max(minimum, 4) };
+    return { minimum, maximum: Math.max(minimum, 8) };
   }
 
-  return { minimum: 1, maximum: 4 };
+  return { minimum: 1, maximum: 8 };
 }
 
 // createCharacterProfileId produces a deterministic fallback id from a character name.
@@ -246,6 +270,14 @@ function resolveCharacterProfiles(
   providedProfiles: readonly CharacterProfile[],
   generatedProfiles: readonly CharacterProfile[] | undefined,
 ): readonly CharacterProfile[] {
+  if (
+    request.generationTarget !== undefined &&
+    request.generationTarget !== 'characterProfiles' &&
+    providedProfiles.length > 0
+  ) {
+    return providedProfiles;
+  }
+
   if (request.strategy === 'fill-missing') {
     return supplementFixedProfiles(
       providedProfiles,
@@ -275,7 +307,7 @@ function resolveCharacterProfiles(
 function supplementFixedProfiles(
   providedProfiles: readonly CharacterProfile[],
   generatedProfiles: readonly CharacterProfile[],
-  preferredCastSize: 1 | 2 | 3 | 4 | undefined,
+  preferredCastSize: SeriesCastSize | undefined,
   emptyCharacterSlotCount: number,
 ): readonly CharacterProfile[] {
   const distinctGeneratedProfiles = excludePinnedAndDuplicateProfiles(

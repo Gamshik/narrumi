@@ -34,6 +34,10 @@ const seriesCreativeBriefSchema = z.object({
     z.literal(2),
     z.literal(3),
     z.literal(4),
+    z.literal(5),
+    z.literal(6),
+    z.literal(7),
+    z.literal(8),
   ]).optional(),
   draftStrategy: z.enum(['fill-missing', 'refine', 'rebuild']).optional(),
   // aiFreedom is accepted only for requests from clients released before draft strategies.

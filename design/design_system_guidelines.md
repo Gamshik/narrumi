@@ -232,17 +232,17 @@ Rules:
 
 ### Create / Edit Series Setup
 
-- Keep setup on one scrollable screen with progressive disclosure; do not split it into a wizard.
-- Keep Participation Mode and the optional `Your idea` field visible. Place optional story anchors behind one clear "Add details" disclosure. Do not show CEFR, Genre, or Tone in series setup.
-- Keep expanded anchors visually lighter than the generated setup draft. Existing character profiles remain editable in the same flow.
-- Present `Fill gaps`, `Refine draft`, and `Rebuild` as one compact answer to "How should AI work?", with `Fill gaps` selected by default. Explain the selected permission in one short line.
-- When `Fill gaps` is paired with a numeric cast size below the completed character count, replace the generic helper with a direct explanation that existing characters are kept and that `Refine` or `Rebuild` is required to reduce them. For `Refine`, describe a numeric cast selection as exact.
-- Use one contextual primary action: `Fill empty fields`, `Refine my draft`, `Rebuild from my idea`, `Rebuild draft`, or `Create something for me`. Confirm only a rebuild that would discard visible final fields.
-- After a successful AI update, show one restrained `Undo AI changes` action. Clear it after the learner edits again; do not add a separate review wizard.
-- Keep generated title, premise, role, and characters editable before save. Do not visually erase the distinction between user-authored and AI-generated values when provenance affects re-generation.
-- Treat every visible blank character row as an intentional AI-fill slot for `Fill gaps` and `Refine draft`; never make a row disappear merely because generation normalized its empty text.
-- Keep every multiline setup input at its specified fixed height before and after AI generation. Long text scrolls inside the focused input; generated content must not reflow the form by growing or shrinking fields.
-- Offline setup editing and local draft saving must remain usable; disable only the AI action and explain that it becomes available online.
+- Use one modal flow with four focused cards: Role, Idea, Characters, and Title. Render one card at a time without horizontal paging or swipe navigation. Keep Back actions on every later card and make visited progress nodes directly navigable.
+- Give the flow a light mini-game rhythm through a compact four-node path, one labeled Sorbet PNG per card, and restrained card-entry motion that respects Reduce Motion. Do not add scores, streak pressure, failure states, or decorative motion that competes with the form.
+- Use one compact `Series setup` surface for both navigation and memory. Keep its title, four-node path, and count on one line, with short answer chips beneath a quiet divider. Show the live Role choice immediately on the first card; on later cards, show earlier answers. Do not add a separate `Story so far` panel or heading. Truncate long idea text and let every chip reopen its source card without clearing later values.
+- Each card contains only its title, bundled illustration, fields or choices, and buttons. The illustration carries the short visual hint through embedded labels; do not repeat it with helper paragraphs, card numbering, notices, or AI-provenance captions. Interactive controls retain complete accessibility labels. The Role card owns only Producer/Character selection. The Idea card owns one required multiline `Story idea` field. The Characters card owns repeatable name plus optional role/personality rows and, in Character mode, one `Your character` field. The Title card owns one `Series title` field and the final `Save series` action.
+- Show every card's fields immediately. Do not add optional gates, story-detail accordions, AI-permission screens, review screens, CEFR, Genre, or Tone to new series creation.
+- Idea, Characters, and Title each use the same secondary `Generate by AI` action directly under their field group. Keep the manual fields visible at all times; do not add explanatory copy beneath the action.
+- AI suggestions remain editable but do not add a separate provenance caption or review stage. Manual edits still return the value to user-authored provenance internally.
+- Character rows remain compact and repeatable, with a maximum of eight. Each row contains a character name and one fixed-height optional `Role or personality` field. In Character mode, validation enforces that `Your character` matches one cast name without persistent helper copy.
+- Keep multiline setup inputs at their specified fixed height before and after AI generation. Long text scrolls inside the focused input; generated content must not reflow the card by growing or shrinking fields.
+- Offline setup editing, card navigation, manual completion, and local draft saving must remain usable. Disable only the three `Generate by AI` actions and use their button label to report the online requirement.
+- Existing-series editing may keep backward-compatible stored setup values, but new series creation must not expose advanced creative anchors, cast-size controls, or draft-strategy controls.
 
 ### Series Detail / Episode History
 

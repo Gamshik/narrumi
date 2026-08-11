@@ -226,9 +226,9 @@ Deno.test('fill-missing never removes completed profiles for a smaller cast sele
   };
 
   assertEquals(getCastSizeConstraint(request), {
-    exact: 4,
-    minimum: 4,
-    maximum: 4,
+    exact: fourProfiles.length,
+    minimum: fourProfiles.length,
+    maximum: fourProfiles.length,
   });
   assertEquals(resolveDraftFields(request, {}).characterProfiles, fourProfiles);
 });
@@ -243,7 +243,71 @@ Deno.test('AI-chosen refine may reduce or expand a complete cast', () => {
 
   assertEquals(getCastSizeConstraint(request), {
     minimum: 1,
-    maximum: 4,
+    maximum: 8,
+  });
+});
+
+Deno.test('title generation preserves the existing cast without requesting additions', () => {
+  const existingProfiles = [
+    ...providedProfiles,
+    modelDraft.characterProfiles[0],
+  ] as const;
+  const request = {
+    strategy: 'fill-missing' as const,
+    generationTarget: 'title' as const,
+    participationMode: 'director' as const,
+    premise: 'Three neighbors discover a radio that predicts tomorrow.',
+    mainCharacters: existingProfiles.map((profile) => profile.name),
+    characterProfiles: existingProfiles,
+  };
+
+  assertEquals(
+    shouldEvaluateSetupField(request, 'characterProfiles'),
+    false,
+  );
+  assertEquals(getCastSizeConstraint(request), {
+    exact: 3,
+    minimum: 3,
+    maximum: 3,
+  });
+  assertEquals(
+    resolveDraftFields(request, modelDraft).characterProfiles,
+    existingProfiles,
+  );
+});
+
+Deno.test('character generation allows the AI to choose from one to eight profiles', () => {
+  const request = {
+    strategy: 'fill-missing' as const,
+    generationTarget: 'characterProfiles' as const,
+    participationMode: 'director' as const,
+    mainCharacters: [],
+    characterProfiles: [],
+  };
+
+  assertEquals(
+    shouldEvaluateSetupField(request, 'characterProfiles'),
+    true,
+  );
+  assertEquals(getCastSizeConstraint(request), {
+    minimum: 1,
+    maximum: 8,
+  });
+});
+
+Deno.test('an explicit eight-character preference is accepted exactly', () => {
+  const request = {
+    strategy: 'rebuild' as const,
+    participationMode: 'director' as const,
+    mainCharacters: [],
+    characterProfiles: [],
+    preferredCastSize: 8 as const,
+  };
+
+  assertEquals(getCastSizeConstraint(request), {
+    exact: 8,
+    minimum: 8,
+    maximum: 8,
   });
 });
 

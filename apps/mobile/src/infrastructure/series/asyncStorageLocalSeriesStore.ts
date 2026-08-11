@@ -21,7 +21,9 @@ import {
   learningGenres,
   learningSignalKinds,
   seriesParticipationModes,
+  seriesCastSizes,
   type Series,
+  type SeriesCastSize,
   type SeriesCharacterProfile,
   type SeriesCreativeBrief,
   type SeriesMemory,
@@ -632,7 +634,7 @@ function readSeriesCreativeBrief(record: UnknownRecord): SeriesCreativeBrief {
 
   if (
     preferredCastSize !== undefined &&
-    ![1, 2, 3, 4].includes(preferredCastSize)
+    !seriesCastSizes.includes(preferredCastSize as SeriesCastSize)
   ) {
     throw new Error('Series preferred cast size is unsupported');
   }
@@ -645,7 +647,7 @@ function readSeriesCreativeBrief(record: UnknownRecord): SeriesCreativeBrief {
     mustInclude: readText(brief, 'mustInclude'),
     avoid: readText(brief, 'avoid'),
     ...(preferredCastSize !== undefined
-      ? { preferredCastSize: preferredCastSize as 1 | 2 | 3 | 4 }
+      ? { preferredCastSize: preferredCastSize as SeriesCastSize }
       : {}),
     draftStrategy: draftStrategy as SeriesCreativeBrief['draftStrategy'],
   };

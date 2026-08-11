@@ -1,9 +1,9 @@
-import type { SeriesDraftStrategy } from '@domain/index';
+import type { SeriesCastSize, SeriesDraftStrategy } from '@domain/index';
 
 // describeDraftStrategy explains update permission and any cast-size conflict.
 export function describeDraftStrategy(
   strategy: SeriesDraftStrategy,
-  preferredCastSize: 1 | 2 | 3 | 4 | undefined,
+  preferredCastSize: SeriesCastSize | undefined,
   completedCharacterCount: number,
 ): string {
   if (strategy === 'fill-missing') {

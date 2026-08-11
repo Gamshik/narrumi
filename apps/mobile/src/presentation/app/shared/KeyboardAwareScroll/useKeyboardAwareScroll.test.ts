@@ -18,11 +18,18 @@ describe('setup keyboard-aware scrolling', (): void => {
       '../SeriesCreativeBriefEditor/SeriesCreativeBriefEditor.tsx',
       '../CharacterProfilesEditor/CharacterProfilesEditor.tsx',
     ];
-    // screenSourcePaths cover both setup surfaces that share the same form behavior.
+    // screenSourcePaths cover setup surfaces that use the reusable vertical-scroll hook.
     const screenSourcePaths: readonly string[] = [
-      '../../screens/HomeScreen.tsx',
       '../../screens/SeriesDetailsScreen.tsx',
     ];
+    // createFlowSource protects the quest-card equivalent for its focused scrolling surface.
+    const createFlowSource: string = readSource(
+      '../../screens/home/components/CreateSeriesFlow/CreateSeriesFlow.tsx',
+    );
+    // createQuestHookSource owns the single active card's exact keyboard responder call.
+    const createQuestHookSource: string = readSource(
+      '../../screens/home/components/CreateSeriesFlow/useSeriesSetupQuest.ts',
+    );
 
     assert.match(
       hookSource,
@@ -40,5 +47,15 @@ describe('setup keyboard-aware scrolling', (): void => {
       assert.match(screenSource, /onFocus=\{revealFocusedInput\}/);
       assert.doesNotMatch(screenSource, /scrollToField|fieldOffsetsRef/);
     });
+
+    assert.match(
+      createQuestHookSource,
+      /scrollResponderScrollNativeHandleToKeyboard\([\s\S]*?target,[\s\S]*?116,[\s\S]*?true,/,
+    );
+    assert.match(createFlowSource, /onFocus=\{quest\.revealFocusedInput\}/);
+    assert.doesNotMatch(
+      `${createFlowSource}\n${createQuestHookSource}`,
+      /scrollToField|fieldOffsetsRef/,
+    );
   });
 });

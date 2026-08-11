@@ -20,6 +20,7 @@ import {
   type SetupDraftField,
   shouldEvaluateSetupField,
 } from './draftResolution.ts';
+import { getSetupGenerationTargetPolicy } from './generationTargetPolicy.ts';
 import {
   buildModerationReview,
   collectModerationEntries,
@@ -69,6 +70,10 @@ const creativeBriefSchema = z.object({
     z.literal(2),
     z.literal(3),
     z.literal(4),
+    z.literal(5),
+    z.literal(6),
+    z.literal(7),
+    z.literal(8),
   ]).optional(),
   draftStrategy: z.enum(['fill-missing', 'refine', 'rebuild']),
 });
@@ -84,6 +89,7 @@ const setupDraftFieldSchema = z.enum([
 // setupDraftRequestSchema validates selected constraints and optional user text.
 const setupDraftRequestSchema = z.object({
   generationRequestId: z.string().trim().min(1).max(240),
+  generationTarget: z.enum(['premise', 'characterProfiles', 'title']).optional(),
   title: z.string().trim().min(1).max(160).optional(),
   participationMode: z.enum(['director', 'character']),
   premise: z.string().trim().min(1).max(1000).optional(),
@@ -431,12 +437,15 @@ async function generateSetupDraft(
           'Title, premise, cast, and user role must describe one coherent original story.',
           'Character names and roles must be distinct enough to avoid confusion.',
           'In character mode, userRole must identify one returned character exactly.',
-          'The result must follow the selected fill-missing, refine, or rebuild replacement permissions.',
+          'Do not re-evaluate cast size, target-field permissions, or structural preservation rules; the server has already enforced them deterministically.',
+          getSetupGenerationTargetPolicy(request.generationTarget)
+            .reviewerCriterion,
           'The result must not copy protected story worlds, names, characters, or plots.',
         ],
         context: {
           participationMode: request.participationMode,
           draftStrategy: request.creativeBrief.draftStrategy,
+          generationTarget: request.generationTarget,
           creativeBrief: request.creativeBrief,
           currentDraft: {
             title: request.title,
@@ -447,6 +456,9 @@ async function generateSetupDraft(
             userRole: request.userRole,
           },
           fieldsToEvaluate: getFieldsToEvaluate(request),
+          serverEnforcedCastSize: getCastSizeConstraint(
+            toDraftRequestFields(request),
+          ),
         },
         candidate,
       }),
@@ -511,6 +523,7 @@ function buildPrompt(request: SetupDraftRequest): string {
   const payload: Record<string, unknown> = {
     task: 'generate-series-setup',
     draftStrategy,
+    generationTarget: request.generationTarget,
     generationOrder: setupTextFields,
     fieldsToEvaluate,
     selectedConstraints: {
@@ -518,6 +531,8 @@ function buildPrompt(request: SetupDraftRequest): string {
     },
     protectedCreativeBrief,
     strategyPolicy: getDraftStrategyPolicy(draftStrategy),
+    targetPolicy: getSetupGenerationTargetPolicy(request.generationTarget)
+      .writerInstruction,
   };
 
   if (draftStrategy === 'fill-missing') {
@@ -570,18 +585,22 @@ function buildRepairPrompt(
     {
       task: 'repair-reviewed-series-setup',
       draftStrategy: request.creativeBrief.draftStrategy,
+      generationTarget: request.generationTarget,
       fieldsToEvaluate: getFieldsToEvaluate(request),
       strategyPolicy: getDraftStrategyPolicy(
         request.creativeBrief.draftStrategy,
       ),
       selectedConstraints: {
         participationMode: request.participationMode,
+        castSize: getCastSizeConstraint(toDraftRequestFields(request)),
       },
       protectedCreativeBrief: request.creativeBrief,
       candidate,
       reviewerIssues: issues,
       outputRules: [
         'Resolve every reviewer issue with the smallest possible edit.',
+        getSetupGenerationTargetPolicy(request.generationTarget)
+          .repairInstruction,
         'Return every field listed in fieldsToEvaluate; copy unaffected permitted fields exactly from candidate so server preservation does not restore an older draft value.',
         'Preserve unaffected names, roles, facts, and wording.',
         'In character mode, userRole must exactly match one returned characterProfiles name.',
@@ -635,6 +654,9 @@ function finalizeDraft(
 function toDraftRequestFields(request: SetupDraftRequest): DraftRequestFields {
   return {
     strategy: request.creativeBrief.draftStrategy,
+    ...(request.generationTarget !== undefined
+      ? { generationTarget: request.generationTarget }
+      : {}),
     participationMode: request.participationMode,
     ...(request.title !== undefined ? { title: request.title } : {}),
     ...(request.premise !== undefined ? { premise: request.premise } : {}),
@@ -669,6 +691,14 @@ function buildCastRule(
   const emptyCharacterSlotCount = request.emptyCharacterSlotCount;
   const minimumVisibleSize = pinnedCount + emptyCharacterSlotCount;
 
+  if (
+    request.generationTarget !== undefined &&
+    request.generationTarget !== 'characterProfiles' &&
+    pinnedCount > 0
+  ) {
+    return `Preserve the existing ${pinnedCount} character profiles exactly; this request targets ${request.generationTarget}, not the cast.`;
+  }
+
   if (strategy === 'refine') {
     const requiredSize = preferredCastSize === undefined
       ? minimumVisibleSize
@@ -677,9 +707,9 @@ function buildCastRule(
       ? `The learner selected an exact cast size. Return exactly ${preferredCastSize} complete profiles; remove or replace current profiles as needed. Visible rows beyond that selected total do not need to remain.`
       : emptyCharacterSlotCount > 0
       ? `Return a complete cast of ${Math.max(requiredSize, 1)} to ${
-        Math.max(requiredSize, 4)
+        Math.max(requiredSize, 8)
       } profiles and fill every visible empty character row.`
-      : 'If replacing the cast, return one to four complete profiles.';
+      : 'If replacing the cast, return one to eight complete profiles.';
 
     return `Evaluate the current cast as a whole. ${
       preferredCastSize !== undefined || emptyCharacterSlotCount > 0
@@ -690,7 +720,7 @@ function buildCastRule(
 
   if (strategy === 'rebuild') {
     return preferredCastSize === undefined
-      ? 'Generate one to four completely new character profiles.'
+      ? 'Generate one to eight completely new character profiles.'
       : `Generate exactly ${preferredCastSize} completely new character profiles.`;
   }
 
@@ -699,15 +729,15 @@ function buildCastRule(
       const minimumGeneratedCount = Math.max(emptyCharacterSlotCount, 1);
 
       return `Choose an appropriate cast size from ${minimumGeneratedCount} to ${
-        Math.max(minimumGeneratedCount, 4)
+        Math.max(minimumGeneratedCount, 8)
       } and return that many character profiles.`;
     }
 
     const minimumFinalSize = Math.max(
       minimumVisibleSize,
-      Math.min(pinnedCount + 1, 4),
+      Math.min(pinnedCount + 1, 8),
     );
-    const maximumFinalSize = Math.max(minimumFinalSize, 4);
+    const maximumFinalSize = Math.max(minimumFinalSize, 8);
 
     return `Preserve all ${pinnedCount} pinned profiles. Choose a final cast size from ${minimumFinalSize} to ${maximumFinalSize}, then return only the new profiles needed to reach that size. Do not repeat pinned profiles.`;
   }

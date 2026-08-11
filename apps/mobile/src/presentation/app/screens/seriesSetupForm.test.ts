@@ -1,15 +1,19 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import type { LocalSeriesSetupDraft } from '@domain/index';
+
 import {
   applyAiGeneratedFields,
   createEmptySeriesSetupForm,
   createLocalSeriesSetupDraft,
   createSeriesSetupFormFromDraft,
+  createSimpleSeriesSetupFormFromDraft,
   getSeriesSetupGenerationActionLabel,
   markSetupFieldUserAuthored,
   shouldConfirmSeriesSetupGeneration,
   validateSeriesSetupForm,
+  type SeriesSetupFormState,
 } from './seriesSetupForm';
 
 describe('series setup co-creation state', (): void => {
@@ -158,5 +162,32 @@ describe('series setup co-creation state', (): void => {
 
     assert.deepEqual(createSeriesSetupFormFromDraft(draft), form);
     assert.equal(draft.updatedAt, '2026-07-17T10:00:00.000Z');
+  });
+
+  it('migrates older drafts into the visible four-card fields', (): void => {
+    // legacyForm represents a draft saved by the removed advanced setup flow.
+    const legacyForm: SeriesSetupFormState = {
+      ...createEmptySeriesSetupForm(),
+      creativeBrief: {
+        ...createEmptySeriesSetupForm().creativeBrief,
+        idea: 'Two old friends find a silent train.',
+        worldAndSetting: 'A hidden platform',
+        draftStrategy: 'rebuild' as const,
+      },
+    };
+    // legacyDraft gives the migration a complete persisted draft contract.
+    const legacyDraft: LocalSeriesSetupDraft = createLocalSeriesSetupDraft(
+      legacyForm,
+      'new-series',
+      '2026-07-31T08:00:00.000Z',
+    );
+    // simpleForm exposes the old idea as the required premise and clears hidden controls.
+    const simpleForm: SeriesSetupFormState =
+      createSimpleSeriesSetupFormFromDraft(legacyDraft);
+
+    assert.equal(simpleForm.premise, 'Two old friends find a silent train.');
+    assert.equal(simpleForm.creativeBrief.idea, '');
+    assert.equal(simpleForm.creativeBrief.worldAndSetting, '');
+    assert.equal(simpleForm.creativeBrief.draftStrategy, 'fill-missing');
   });
 });

@@ -42,6 +42,21 @@ Deno.test('episode review ignores setup-only diagnoses', (): void => {
   assertEquals(result, { accepted: true, issues: [] });
 });
 
+Deno.test('series setup review ignores server-enforced constraint diagnoses', (): void => {
+  const result = normalizeQualityReview('series-setup', {
+    accepted: false,
+    issues: [
+      {
+        code: 'setup_constraint_break',
+        evidence: 'The generated cast contains five profiles.',
+        retryInstruction: 'Reduce the cast to the old default size.',
+      },
+    ],
+  });
+
+  assertEquals(result, { accepted: true, issues: [] });
+});
+
 Deno.test('episode review preserves relevant concrete diagnoses', (): void => {
   const result = normalizeQualityReview('episode-opening', {
     accepted: false,

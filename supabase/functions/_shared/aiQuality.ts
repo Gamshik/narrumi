@@ -20,12 +20,12 @@ export {
 const allowedIssueCodesByWorkflow: Readonly<
   Record<QualityWorkflow, readonly QualityIssueCode[]>
 > = {
+  // Setup size and replacement permissions are server-finalized; review only semantic story rules.
   'series-setup': [
     'cefr_mismatch',
     'scenario_mismatch',
     'participation_mismatch',
     'safety_or_copyright',
-    'setup_constraint_break',
   ],
   'episode-opening': [
     'cefr_mismatch',

@@ -233,7 +233,7 @@ test('episode setup uses fixed icon navigation over shared screen edges', (): vo
 // The test keeps every app-level Back and Exit action on the shared circular icon contract.
 test('Back and Exit navigation reuses BackIconButton across screens', (): void => {
   const navigationSources = [
-    '../app/screens/HomeScreen.tsx',
+    '../app/screens/home/components/CreateSeriesFlow/CreateSeriesFlow.tsx',
     '../app/screens/SeriesDetailsScreen.tsx',
     '../app/screens/SeriesDetailsEdgeEffects/SeriesDetailsEdgeEffects.tsx',
     '../app/screens/DailySessionEdgeEffects/DailySessionEdgeEffects.tsx',
@@ -537,6 +537,13 @@ test('Home and create-series share top glass and a gradient-only bottom edge', (
     resolve(__dirname, '../app/screens/HomeScreen.tsx'),
     'utf8',
   );
+  const createSeriesFlowSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/home/components/CreateSeriesFlow/CreateSeriesFlow.tsx',
+    ),
+    'utf8',
+  );
   const edgeEffectsSource = readFileSync(
     resolve(
       __dirname,
@@ -574,13 +581,12 @@ test('Home and create-series share top glass and a gradient-only bottom edge', (
   assert.match(edgeEffectsSource, /<ScreenEdgeEffects/);
   assert.match(edgeEffectsSource, /inputRange:\s*\[0, 0\.5, 0\.82, 1\]/);
   assert.match(
-    homeScreenSource,
-    /blurTargetRef=\{modalBlurTargetRef\}/,
+    createSeriesFlowSource,
+    /blurTargetRef=\{blurTargetRef\}/,
   );
-  assert.match(homeScreenSource, /<ScreenEdgeEffects/);
-  assert.match(homeScreenSource, /blurTarget=\{modalBlurTargetRef\}/);
-  assert.match(homeScreenSource, /screenEdgeDepths\.modalBottom/);
-  assert.match(homeScreenSource, /bottomVariant="modal"/);
+  assert.match(createSeriesFlowSource, /<ScreenEdgeEffects/);
+  assert.match(createSeriesFlowSource, /blurTarget=\{blurTargetRef\}/);
+  assert.match(createSeriesFlowSource, /bottomVariant="modal"/);
   assert.equal((sharedEdgeEffectsSource.match(/<BlurView/g) ?? []).length, 3);
   assert.equal(
     (sharedEdgeEffectsSource.match(/blurTarget=\{blurTarget\}/g) ?? []).length,

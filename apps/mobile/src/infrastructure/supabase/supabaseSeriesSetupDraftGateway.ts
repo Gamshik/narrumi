@@ -27,6 +27,8 @@ const seriesSetupDraftSchema = z.object({
         description: z.string().trim(),
       }),
     )
+    .min(1)
+    .max(8)
     .optional(),
   userRole: z.string().trim().min(1).optional(),
   changedFields: z.array(z.enum(seriesSetupTextFields)).max(4),

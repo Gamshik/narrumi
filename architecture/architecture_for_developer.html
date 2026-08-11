@@ -245,6 +245,10 @@
                 grid-template-columns: repeat(5, 1fr);
             }
 
+            .flow.four {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
             .node {
                 position: relative;
                 min-height: 104px;
@@ -506,54 +510,50 @@
             <section class="card">
                 <h2>Co-creation setup</h2>
                 <p>
-                    Создание и редактирование сериала остается одним экраном с
-                    progressive disclosure, а не wizard. Participation Mode и
-                    необязательное <strong>Your idea</strong>
-                    видны сразу. По желанию раскрываются
-                    <code>worldAndSetting</code>, <code>backstory</code>,
-                    <code>storyDriver</code>, <code>preferredCastSize</code>
-                    (1–4 или выбор AI), <code>mustInclude</code> и
-                    <code>avoid</code>; существующие профили персонажей остаются
-                    редактируемыми.
+                    Создание нового сериала идет как модальный поток из четырех
+                    коротких карточек: Role, Idea, Characters и Title. Каждая
+                    карточка сразу показывает свои поля. Кнопки Back, посещенные
+                    узлы прогресса и компактные ответы внутри единой панели
+                    <strong>Series setup</strong> возвращают к предыдущим решениям,
+                    не удаляя более поздние значения. Role выбирает Producer или
+                    Character, Idea редактирует premise, Characters содержит имя
+                    и короткую роль или personality, а в Character mode также
+                    канонический <code>userRole</code>. Title завершает setup.
+                    Idea, Characters и Title можно заполнить вручную или заменить
+                    только текущую карточку через Generate by AI.
                 </p>
                 <div class="diagram">
-                    <div class="flow five">
+                    <div class="flow four">
                         <div class="node connector">
-                            <strong>User anchors</strong>
-                            <span>exactly preserved</span>
+                            <strong>Role</strong>
+                            <span>Producer / Character</span>
                         </div>
                         <div class="node connector">
-                            <strong>Draft strategy</strong>
-                            <span>fill gaps / refine / rebuild</span>
+                            <strong>Idea</strong>
+                            <span>manual or AI premise</span>
                         </div>
                         <div class="node connector">
-                            <strong>Contextual AI action</strong>
-                            <span>online-only, strategy-enforced</span>
-                        </div>
-                        <div class="node connector">
-                            <strong>Edit suggestions</strong>
-                            <span>edited AI field becomes user-authored</span>
+                            <strong>Characters</strong>
+                            <span>names + role/personality</span>
                         </div>
                         <div class="node">
-                            <strong>Local first</strong>
-                            <span>brief + provenance + sync</span>
+                            <strong>Title</strong>
+                            <span>manual or AI, then save</span>
                         </div>
                     </div>
                 </div>
                 <div class="note success">
-                    Fill gaps не меняет заполненные поля; Refine выборочно
-                    перерабатывает только полезные кандидаты; Rebuild исключает
-                    старый итоговый черновик из model context. Пустые видимые
-                    карточки персонажей передаются как отдельные AI-fill slots,
-                    а AI choice может дополнить уже начатый состав. Числовой
-                    preferredCastSize точен для Refine и Rebuild; Fill gaps не
-                    сокращает готовый состав и показывает это ограничение в UI. Для старых записей
-                    стратегия безопасно становится fill-missing, а существующие
-                    setup-поля без provenance считаются пользовательскими.
+                    Каждый Generate by AI выполняет безопасный fill-missing запрос
+                    полного связного setup, но клиент применяет только текущую
+                    карточку: premise, cast + Character role или title. Остальные
+                    видимые ответы не меняются, а результат остается редактируемым.
+                    Расширенные creative anchors и выбор стратегии не показываются
+                    при создании нового сериала; совместимость со старыми записями
+                    сохраняется в persistence и существующем editor.
                 </div>
                 <div class="note warning">
                     Форму и локальный черновик можно использовать офлайн; без
-                    сети отключается только AI-достраивание. После первого
+                    сети отключаются только три Generate by AI action. После первого
                     эпизода весь setup становится read-only.
                 </div>
                 <div class="note">

@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { Text, TextInput, View } from 'react-native';
 
 import type {
+  SeriesCastSize,
   SeriesCreativeBrief,
   SeriesDraftStrategy,
 } from '@domain/index';
@@ -19,7 +20,7 @@ import {
 import { describeDraftStrategy } from './draftStrategyDescription';
 
 // CastSizeChoice is the presentation value for an optional bounded cast preference.
-type CastSizeChoice = 'auto' | '1' | '2' | '3' | '4';
+type CastSizeChoice = 'auto' | `${SeriesCastSize}`;
 
 // CreativeBriefTextField identifies the editable text anchors owned by the learner.
 type CreativeBriefTextField = Exclude<
@@ -58,7 +59,17 @@ const draftStrategyLabels: Record<SeriesDraftStrategy, string> = {
 };
 
 // castSizeOptions lets the learner stay lightweight or request a small recurring cast.
-const castSizeOptions = ['auto', '1', '2', '3', '4'] as const;
+const castSizeOptions: readonly CastSizeChoice[] = [
+  'auto',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+];
 
 // castSizeLabels keeps the automatic option human-readable.
 const castSizeLabels: Record<CastSizeChoice, string> = {
@@ -67,6 +78,10 @@ const castSizeLabels: Record<CastSizeChoice, string> = {
   '2': '2',
   '3': '3',
   '4': '4',
+  '5': '5',
+  '6': '6',
+  '7': '7',
+  '8': '8',
 };
 
 // SeriesCreativeBriefEditor renders one dominant idea field with optional progressive anchors.
@@ -114,7 +129,7 @@ export function SeriesCreativeBriefEditor({
 
     onChange({
       ...brief,
-      preferredCastSize: Number(choice) as 1 | 2 | 3 | 4,
+      preferredCastSize: Number(choice) as SeriesCastSize,
     });
   };
 

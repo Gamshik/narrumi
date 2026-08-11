@@ -92,17 +92,17 @@ Domain rules:
 - In `character` mode, `userRole` is the canonical `SeriesCharacterProfile.name` owned by the learner. This stable identity lets deterministic presentation code classify dialogue ownership; UI code must not ask an AI model to infer whether a speaker is the learner.
 - Character-mode reader prose uses second person for the learner role. The Story Writer may establish circumstances, perceptions, consequences, and other characters' behavior, but it must not invent the learner role's direct speech, voluntary actions, decisions, plans, thoughts, or emotions.
 - Participation mode can be changed only before the first generated episode. After the first episode exists, it is read-only for that series.
-- Series setup is a single progressive-disclosure screen, not a wizard. Participation mode is the explicit selected constraint; CEFR level and genre belong to episode preparation, and Tone is not a separate field.
-- `CreativeBrief` contains optional `idea` (shown as `Your idea`), `worldAndSetting`, `backstory`, `storyDriver`, `preferredCastSize` (`1`-`4` or AI choice), `mustInclude`, and `avoid`, plus `draftStrategy` as `fill-missing`, `refine`, or `rebuild`. `fill-missing` is the safe default. Existing character profiles remain editable setup fields.
-- Setup provenance records whether each generated-capable field is `user` or `ai`. A manual edit to an AI field changes that field to `user` provenance.
-- Series setup text fields are required before saving a ready series: title, premise, main characters, and `userRole` for `character`. An incomplete form may be persisted locally as a draft.
-- The AI setup action is online-only before the first episode and obeys `draftStrategy`. The mobile request normalizes completed character profiles separately from `emptyCharacterSlotCount`, so visible blank rows remain explicit generation work. `fill-missing` preserves populated final fields exactly and, when cast size is AI-chosen, may append distinct profiles until the model-selected final cast is complete. It never removes completed profiles, so a smaller numeric preference resolves to the existing count and UI must explain the conflict. `refine` sends the current draft for evaluation and lets the model omit any strong field, except that a numeric `preferredCastSize` is exact and requires resizing the cast, while a visible blank slot without an exact smaller target makes a complete cast response mandatory. `rebuild` also treats numeric cast size as exact, excludes current final fields from model context, and resolves every required field from protected anchors or, when anchors are empty, from participation mode.
+- New series setup is one modal flow with four reversible required cards: Role, Idea, Characters, and Title. Every card renders its fields immediately. Previously visited cards remain reachable through Back actions, progress nodes, and compact prior-answer summaries. Participation mode is the explicit selected constraint; CEFR level and genre belong to episode preparation, and Tone is not a separate field.
+- Idea stores the required `premise`. Characters stores `SeriesCharacterProfile` rows with canonical names and concise optional role/personality descriptions; Character mode also stores a matching `userRole`. Title stores the required series `title`.
+- Idea, Characters, and Title each expose an online-only field-local AI action. The client clears only that target in a temporary `fill-missing` request, identifies it explicitly as the generation target, preserves other visible card values as model context, validates the complete returned draft, and applies only the target field. Character generation may choose one to eight profiles. A non-character target freezes an existing cast at its current size. Participation mode is never generated or changed.
+- Setup provenance records whether each generated-capable field is `user` or `ai`. A manual edit to an AI field changes that field to `user` provenance. The simplified flow does not add a separate AI-permission or review stage.
+- Series setup text fields are required before saving a ready series: title, premise, main characters, and `userRole` for `character`. Forward navigation is blocked at an incomplete required card, while the incomplete form may still be persisted locally as a draft from the header action.
+- New drafts use an empty default `CreativeBrief` and internal `fill-missing`; the new-series UI does not expose advanced anchors, cast size, or draft strategies. When an older unsaved draft is resumed, its premise wins, otherwise legacy `creativeBrief.idea` is promoted to premise, and hidden advanced values are cleared before the simplified form is shown.
 - A transient setup-generation transport failure is retried once with the same durable `generationRequestId`. The retry must stay inside the original loading state and rely on server idempotency, so one learner tap cannot duplicate model work and does not require a second manual tap.
-- Every strategy must preserve creative anchors and must not generate or change participation mode. Character mode still requires a resolved `userRole` matching one character profile.
-- The response includes `changedFields`, computed by the Edge Function from the resolved draft rather than trusted from model output. The client uses it for provenance and keeps one in-memory pre-generation snapshot for Undo.
-- Creative brief and setup provenance are local-first series data and participate in remote sync. Backward-compatible reads map missing or legacy strategy data to `fill-missing` and treat already-persisted setup text without provenance as `user`.
-- The setup form and draft are offline-capable; the AI setup action is online-only and exposes an explicit offline state.
-- Opening an existing series must expose a setup menu with the same fields. It is editable only while the series has no episodes and read-only after the first generated episode.
+- The response includes `changedFields`, computed by the Edge Function from the resolved draft rather than trusted from model output. New-series presentation records provenance only for the target it actually applies.
+- Creative-brief compatibility data and setup provenance remain local-first series data and participate in remote sync. Backward-compatible reads map missing or legacy strategy data to `fill-missing` and treat already-persisted setup text without provenance as `user`.
+- The setup form, navigation, manual fields, and local draft are offline-capable; only the three field-local AI actions are online-only and expose explicit offline states.
+- Opening an existing series continues to use the backward-compatible setup menu for stored fields. It is editable only while the series has no episodes and read-only after the first generated episode.
 
 ### Episode
 
@@ -321,7 +321,7 @@ Responsibilities:
 - Authenticate requests when user state is needed.
 - Validate request payloads.
 - Enforce copyright and safety constraints.
-- Build bounded model context from participation mode, creative brief, eligible setup fields, provenance, safety constraints, and output schema for setup generation; or from compact series memory, recent summary, selected Story Words, episode-level CEFR and genre, and output schema for episode generation.
+- Build bounded model context from participation mode and the visible idea, cast, learner identity, and title supplied to a card-local new-series request; accept creative-brief and strategy context only from the backward-compatible existing-series editor; or use compact series memory, recent summary, selected Story Words, episode-level CEFR and genre, and output schema for episode generation.
 - Never send unbounded full series history.
 - Call OpenRouter using server-side secrets only.
 - Use Vercel AI SDK structured JSON output.
@@ -416,15 +416,16 @@ Records that must sync when implemented:
 ### Series Creation Flow
 
 ```text
-User opens one progressive-disclosure setup screen
-  -> select participation mode
-  -> optionally enter Your idea, story anchors, and editable character profiles
-  -> choose fill-missing, refine, or rebuild draft strategy
-  -> save form changes locally as a draft
-  -> optionally, when online, call SetupGenerationGateway through the contextual AI action
-  -> Edge Function validates input, safety and copyright boundaries
-  -> resolve final fields under the selected strategy; always preserve creative anchors
-  -> user edits suggestions; edited fields become user-authored
+User opens one four-card setup screen
+  -> choose Producer or Character on the Role card
+  -> write an Idea or generate only the premise through SetupGenerationGateway
+  -> add Characters plus Character-mode role, or generate only that cast card
+  -> write a Title or generate only the title from earlier visible answers
+  -> move Back or use prior-answer summaries without discarding later values
+  -> save incomplete form changes locally as a draft from any card
+  -> each online AI request validates a complete coherent setup for safety and copyright
+  -> client applies only the requested card and keeps every other visible value unchanged
+  -> user edits any suggestion; edited fields become user-authored
   -> validate required ready-series fields
   -> create compact initial memory
   -> write local series and provenance

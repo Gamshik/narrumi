@@ -116,6 +116,24 @@ export function createSeriesSetupFormFromDraft(
   };
 }
 
+// createSimpleSeriesSetupFormFromDraft migrates an older draft into the four-card flow.
+export function createSimpleSeriesSetupFormFromDraft(
+  draft: LocalSeriesSetupDraft,
+): SeriesSetupFormState {
+  const restoredForm: SeriesSetupFormState =
+    createSeriesSetupFormFromDraft(draft);
+  // premise preserves the learner's old visible draft first, then promotes a legacy idea.
+  const premise: string =
+    restoredForm.premise.trim() || restoredForm.creativeBrief.idea.trim();
+
+  return {
+    ...restoredForm,
+    premise,
+    // Removed advanced fields must not silently influence the simplified creation flow.
+    creativeBrief: createDefaultSeriesCreativeBrief(),
+  };
+}
+
 // createLocalSeriesSetupDraft captures the controlled form before any online validation.
 export function createLocalSeriesSetupDraft(
   form: SeriesSetupFormState,
