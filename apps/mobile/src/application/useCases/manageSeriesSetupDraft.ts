@@ -1,4 +1,7 @@
-import type { LocalSeriesStore } from '@application/ports';
+import type {
+  LocalSeriesSetupDraftCollection,
+  LocalSeriesStore,
+} from '@application/ports';
 import type { LocalSeriesSetupDraft } from '@domain/index';
 
 // SeriesSetupDraftStore is the local-only persistence slice used by form drafts.
@@ -6,6 +9,22 @@ type SeriesSetupDraftStore = Pick<
   LocalSeriesStore,
   'getSeriesSetupDraft' | 'saveSeriesSetupDraft' | 'deleteSeriesSetupDraft'
 >;
+
+// SeriesSetupDraftCollectionStore adds collection reads to the focused draft mutation port.
+type SeriesSetupDraftCollectionStore = SeriesSetupDraftStore &
+  LocalSeriesSetupDraftCollection;
+
+// ListSeriesSetupDraftsResult returns every independent unfinished setup snapshot.
+export type ListSeriesSetupDraftsResult = {
+  // drafts are ordered newest first by the local adapter.
+  readonly drafts: readonly LocalSeriesSetupDraft[];
+};
+
+// ListSeriesSetupDrafts exposes all locally saved create flows to Home.
+export type ListSeriesSetupDrafts = {
+  // execute reads the complete validated local draft collection without network work.
+  readonly execute: () => Promise<ListSeriesSetupDraftsResult>;
+};
 
 // LoadSeriesSetupDraftInput identifies one local-only setup form snapshot.
 export type LoadSeriesSetupDraftInput = {
@@ -44,6 +63,26 @@ export type DeleteSeriesSetupDraft = {
   // execute deletes the requested local-only setup snapshot.
   readonly execute: (input: DeleteSeriesSetupDraftInput) => Promise<void>;
 };
+
+// createListSeriesSetupDrafts injects the local collection reader behind a focused contract.
+export function createListSeriesSetupDrafts(
+  store: SeriesSetupDraftCollectionStore,
+): ListSeriesSetupDrafts {
+  return {
+    execute: async (): Promise<ListSeriesSetupDraftsResult> => {
+      // drafts excludes existing-series edit snapshots, which belong to their detail screen.
+      const drafts: readonly LocalSeriesSetupDraft[] =
+        await store.listSeriesSetupDrafts();
+
+      return {
+        drafts: drafts.filter(
+          (draft: LocalSeriesSetupDraft): boolean =>
+            draft.seriesId === undefined,
+        ),
+      };
+    },
+  };
+}
 
 // createLoadSeriesSetupDraft injects local persistence behind a focused read contract.
 export function createLoadSeriesSetupDraft(

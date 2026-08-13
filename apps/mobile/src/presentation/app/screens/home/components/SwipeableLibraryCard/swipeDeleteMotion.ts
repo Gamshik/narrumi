@@ -1,5 +1,5 @@
-// SeriesDeleteActionPresentation is the layered visual state at one reveal progress value.
-export type SeriesDeleteActionPresentation = {
+// SwipeDeleteActionPresentation is the layered visual state at one reveal progress value.
+export type SwipeDeleteActionPresentation = {
   // haloOpacity introduces the branded grape light only while the lane is visible.
   readonly haloOpacity: number;
   // haloScale makes the internal light bloom as the foreground uncovers it.
@@ -24,18 +24,18 @@ export type SeriesDeleteActionPresentation = {
   readonly sheenTranslateX: number;
 };
 
-// seriesSwipeActionWidth is both the native snap distance and exact action width in points.
-export const seriesSwipeActionWidth: number = 104;
-// seriesSwipeOpenThreshold requires intent while keeping the larger action easy to reveal.
-export const seriesSwipeOpenThreshold: number = 46;
-// seriesSwipeActivationDistance protects ordinary taps and vertical list movement from jitter.
-export const seriesSwipeActivationDistance: number = 12;
+// swipeDeleteActionWidth is both the native snap distance and exact action width in points.
+export const swipeDeleteActionWidth: number = 104;
+// swipeDeleteOpenThreshold requires intent while keeping the larger action easy to reveal.
+export const swipeDeleteOpenThreshold: number = 46;
+// swipeDeleteActivationDistance protects taps and vertical list movement from jitter.
+export const swipeDeleteActivationDistance: number = 12;
 
-// getSeriesDeleteActionPresentation maps native progress to the Sorbet reveal choreography.
-export function getSeriesDeleteActionPresentation(
+// getSwipeDeleteActionPresentation maps native progress to the Sorbet reveal choreography.
+export function getSwipeDeleteActionPresentation(
   // progress is the native swipe reveal where zero is covered and one is fully open.
   progress: number,
-): SeriesDeleteActionPresentation {
+): SwipeDeleteActionPresentation {
   'worklet';
 
   // clampedProgress prevents native interruption or overshoot values from leaking into visuals.

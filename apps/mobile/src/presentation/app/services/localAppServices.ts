@@ -13,6 +13,7 @@ import {
   createLoadLearningSignals,
   createLoadSeriesDetails,
   createListSeries,
+  createListSeriesSetupDrafts,
   createLoadSeriesSetupDraft,
   createManageAuthSession,
   createDeleteSeriesSetupDraft,
@@ -112,6 +113,8 @@ const hydrateBootstrapSession = createHydrateBootstrapSession(
 const deleteEpisode = createDeleteEpisode(localSeriesStore, systemClock);
 const deleteSeries = createDeleteSeries(localSeriesStore, systemClock);
 const listSeries = createListSeries(localSeriesStore);
+// listSeriesSetupDrafts resolves every independent local create-flow snapshot.
+const listSeriesSetupDrafts = createListSeriesSetupDrafts(localSeriesStore);
 // loadSeriesSetupDraft restores an unfinished form without pre-sync or network access.
 const loadSeriesSetupDraft = createLoadSeriesSetupDraft(localSeriesStore);
 // saveSeriesSetupDraft persists incomplete form values without final validation.
@@ -196,6 +199,7 @@ export const localAppServices = {
   deleteSeriesSetupDraft,
   hydrateBootstrapSession,
   listSeries: withPreSync(listSeries, syncLocalChanges),
+  listSeriesSetupDrafts,
   loadLearningPreferences: withPreSync(
     loadLearningPreferences,
     syncLocalChanges,

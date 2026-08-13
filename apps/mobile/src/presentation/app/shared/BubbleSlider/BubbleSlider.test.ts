@@ -5,16 +5,15 @@ import test from 'node:test';
 
 import {
   getSliderPercentage,
-  getSliderTouchPosition,
-  getSliderValueFromPosition,
+  getSliderValueFromDrag,
   getSteppedSliderValue,
 } from './BubbleSlider.helpers';
 
-// The test callback protects bounded integer Story Word values during drag gestures.
-test('slider positions snap to valid Story Word steps', (): void => {
-  assert.equal(getSliderValueFromPosition(-20, 120, 0, 12, 1), 0);
-  assert.equal(getSliderValueFromPosition(54, 120, 0, 12, 1), 5);
-  assert.equal(getSliderValueFromPosition(200, 120, 0, 12, 1), 12);
+// The test prevents an off-center thumb press from changing the value before movement begins.
+test('slider drags start from the current value and advance one step at a time', (): void => {
+  assert.equal(getSliderValueFromDrag(6, 0, 120, 0, 12, 1), 6);
+  assert.equal(getSliderValueFromDrag(6, -10, 120, 0, 12, 1), 5);
+  assert.equal(getSliderValueFromDrag(6, 10, 120, 0, 12, 1), 7);
 });
 
 // The test callback keeps direct and accessibility adjustments inside product bounds.
@@ -23,12 +22,6 @@ test('slider candidates clamp and snap safely', (): void => {
   assert.equal(getSteppedSliderValue(5.6, 0, 12, 1), 6);
   assert.equal(getSteppedSliderValue(13, 0, 12, 1), 12);
   assert.equal(getSteppedSliderValue(0.74, 0, 1, 0.25), 0.75);
-});
-
-// The test protects Android drag mapping from child-relative locationX changes during one gesture.
-test('slider touch position prefers measured window coordinates', (): void => {
-  assert.equal(getSliderTouchPosition(184, 64, 9, 12), 120);
-  assert.equal(getSliderTouchPosition(184, undefined, 49, 12), 37);
 });
 
 // The test callback keeps visual progress bounded for stale persisted values.
@@ -57,9 +50,13 @@ test('slider keeps position and micro-bubble motion on the JS driver', (): void 
   assert.match(particleSource, /styles\.particleLarge/);
   assert.match(sliderSource, /supportsSliderParticles:\s*boolean = Platform\.OS !== 'android'/);
   assert.match(sliderSource, /emitMicroBubbles\(movementDirection\)/);
-  assert.match(sliderSource, /event\.nativeEvent\.pageX/);
-  assert.match(sliderSource, /gestureState\.moveX - trackPageXRef\.current/);
-  assert.match(sliderSource, /measureInWindow/);
+  assert.match(sliderSource, /getSliderValueFromDrag/);
+  assert.match(
+    sliderSource,
+    /dragStartValueRef\.current = currentValueRef\.current/,
+  );
+  assert.doesNotMatch(sliderSource, /getSliderValueFromPosition/);
+  assert.doesNotMatch(sliderSource, /pageX|locationX|moveX|measureInWindow/);
   assert.match(particleSource, /outputRange: \[0\.9, 0\.82, 0\.28, 0\]/);
   assert.doesNotMatch(sliderSource, /styles\.valueBubble/);
 });

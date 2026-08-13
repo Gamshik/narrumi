@@ -2,8 +2,8 @@ import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native';
 
 import { fontFamilies, radii } from '@presentation/theme';
 
-// SeriesDeleteActionStyles owns the layered material and geometry-safe feedback inside the lane.
-type SeriesDeleteActionStyles = {
+// SwipeDeleteActionStyles owns the layered material and geometry-safe feedback inside the lane.
+type SwipeDeleteActionStyles = {
   // cluster holds the icon core and delayed caption in one centered composition.
   readonly cluster: ViewStyle;
   // depthGradient shades the lower material so the action feels inflated rather than flat.
@@ -35,7 +35,7 @@ type SeriesDeleteActionStyles = {
 };
 
 // styles create one Sorbet material while preserving the native swipe geometry.
-export const styles: SeriesDeleteActionStyles = StyleSheet.create({
+export const styles: SwipeDeleteActionStyles = StyleSheet.create({
   cluster: {
     alignItems: 'center',
     gap: 4,

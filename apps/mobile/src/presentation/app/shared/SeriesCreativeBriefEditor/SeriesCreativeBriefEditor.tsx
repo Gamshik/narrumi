@@ -318,7 +318,7 @@ function BriefTextField({
         maxLength={maxLength}
         multiline={usesMultilineLayout}
         onChangeText={onChangeText}
-        onFocus={(event) => onFocus?.(event.nativeEvent.target)}
+        onFocus={(event): void => onFocus?.(event.nativeEvent.target)}
         placeholder={placeholder}
         placeholderTextColor={placeholderColor}
         scrollEnabled={usesMultilineLayout}

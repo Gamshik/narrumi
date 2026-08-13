@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type {
   LocalLearningSignalFilter,
+  LocalSeriesSetupDraftCollection,
   LocalSeriesStore,
   LocalWordSetFilter,
 } from '@application/ports';
@@ -54,7 +55,16 @@ const STORAGE_KEYS = {
 } as const;
 
 // AsyncStorageLocalSeriesStore persists offline series data and sync metadata.
-export class AsyncStorageLocalSeriesStore implements LocalSeriesStore {
+export class AsyncStorageLocalSeriesStore
+  implements LocalSeriesStore, LocalSeriesSetupDraftCollection
+{
+  // listSeriesSetupDrafts returns all independent create-flow snapshots, newest first.
+  async listSeriesSetupDrafts(): Promise<readonly LocalSeriesSetupDraft[]> {
+    const records = await this.readSeriesSetupDraftMap();
+
+    return Object.values(records).sort(compareUpdatedAtDescending);
+  }
+
   // getSeriesSetupDraft reads one validated incomplete local-only setup form.
   async getSeriesSetupDraft(
     draftId: string,

@@ -1,12 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
-import { Text, View } from 'react-native';
 
 import {
-  BubbleButton,
-  BubbleSheet,
-  BubbleStatus,
+  DeleteConfirmationSheet,
   useAppTheme,
 } from '@presentation/app';
 import { localAppServices } from '@presentation/app/services/localAppServices';
@@ -26,7 +23,7 @@ export default function DeleteSeriesConfirmationRoute(): ReactElement {
   const { isDark } = useAppTheme();
   const { seriesId, title } =
     useLocalSearchParams<DeleteSeriesConfirmationParams>();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>();
   // colors resolves the active theme tokens for the shared sheet and controls.
   const colors: AppColors = isDark ? darkColors : lightColors;
@@ -53,70 +50,18 @@ export default function DeleteSeriesConfirmationRoute(): ReactElement {
   };
 
   return (
-    <BubbleSheet
+    <DeleteConfirmationSheet
       closeAccessibilityLabel="Cancel series deletion"
       colors={colors}
-      onClose={closeSheet}
+      errorMessage={errorMessage}
+      isDeleting={isDeleting}
+      isTargetValid={Boolean(seriesId)}
+      message={`This removes ${title ? `"${title}"` : 'this series'} and its saved episodes from this device.`}
+      onCancel={closeSheet}
+      onConfirm={(): void => {
+        void confirmDelete();
+      }}
       title="Delete series?"
-    >
-      <View style={{ gap: 14 }}>
-        <Text
-          style={{
-            color: colors.labelSecondary,
-            fontSize: 14,
-            lineHeight: 21,
-          }}
-        >
-          This removes {title ? `"${title}"` : 'this series'} and its saved episodes from this device.
-        </Text>
-        {errorMessage ? (
-          <BubbleStatus
-            colors={colors}
-            message={errorMessage}
-            title="Could not delete"
-            tone="error"
-            variant="compact"
-          />
-        ) : null}
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <BubbleButton
-            colors={colors}
-            disabled={isDeleting}
-            onPress={closeSheet}
-            variant="secondary"
-            style={{ flex: 1 }}
-          >
-            <Text
-              style={{
-                color: colors.labelPrimary,
-                fontSize: 14,
-                fontWeight: '800',
-              }}
-            >
-              Cancel
-            </Text>
-          </BubbleButton>
-          <BubbleButton
-            colors={colors}
-            disabled={isDeleting || !seriesId}
-            onPress={() => {
-              void confirmDelete();
-            }}
-            variant="danger"
-            style={{ flex: 1 }}
-          >
-            <Text
-              style={{
-                color: '#ffffff',
-                fontSize: 14,
-                fontWeight: '900',
-              }}
-            >
-              {isDeleting ? 'Deleting' : 'Delete'}
-            </Text>
-          </BubbleButton>
-        </View>
-      </View>
-    </BubbleSheet>
+    />
   );
 }

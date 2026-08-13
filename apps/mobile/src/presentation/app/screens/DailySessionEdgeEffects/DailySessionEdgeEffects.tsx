@@ -1,5 +1,5 @@
 import type { ReactElement, RefObject } from 'react';
-import { Animated, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { fontFamilies, type AppColors } from '@presentation/theme';
 
@@ -16,46 +16,26 @@ type DailySessionEdgeEffectsProps = {
   readonly colors: AppColors;
   // isDark selects the matching native blur tint.
   readonly isDark: boolean;
-  // materialOpacity fades top glass in the same short phase as Home.
-  readonly materialOpacity: Animated.Value;
   // onExit returns from episode setup to the owning series.
   readonly onExit: () => void;
   // topInset positions the icon below the device status area.
   readonly topInset: number;
-  // title is the compact series name revealed after scrolling.
+  // title is the single centered setup heading.
   readonly title: string;
-  // titleTransitionProgress drives the compact title's late overlap with the large hero.
-  readonly titleTransitionProgress: Animated.Value;
 };
 
-// DailySessionEdgeEffects renders fixed icon navigation over shared top and bottom fades.
+// DailySessionEdgeEffects renders a fixed create-style header over shared edge material.
 export function DailySessionEdgeEffects({
   blurTarget,
   bottomInset,
   colors,
   isDark,
-  materialOpacity,
   onExit,
   title,
-  titleTransitionProgress,
   topInset,
 }: DailySessionEdgeEffectsProps): ReactElement {
   // exitButtonTop aligns the 44-point target inside the strongest glass region.
   const exitButtonTop: number = topInset + 12;
-  // compactTitleOpacity begins near the end of the large title fade, matching Home.
-  const compactTitleOpacity: Animated.AnimatedInterpolation<number> =
-    titleTransitionProgress.interpolate({
-      inputRange: [0, 0.5, 0.82, 1],
-      outputRange: [0, 0, 1, 1],
-      extrapolate: 'clamp',
-    });
-  // compactTitleTranslateY gives the compact title the same short settling motion as Home.
-  const compactTitleTranslateY: Animated.AnimatedInterpolation<number> =
-    titleTransitionProgress.interpolate({
-      inputRange: [0, 0.5, 0.82, 1],
-      outputRange: [-4, -4, 0, 0],
-      extrapolate: 'clamp',
-    });
 
   return (
     <View pointerEvents="box-none" style={dailySessionEdgeEffectStyles.fill}>
@@ -65,18 +45,16 @@ export function DailySessionEdgeEffects({
         bottomVariant="modal"
         colors={colors}
         isDark={isDark}
-        materialOpacity={materialOpacity}
+        materialOpacity={1}
         topInset={topInset}
         topVariant="compact"
       />
-      <Animated.View
+      <View
         pointerEvents="none"
         style={[
           dailySessionEdgeEffectStyles.compactTitleContainer,
           {
-            opacity: compactTitleOpacity,
             top: exitButtonTop,
-            transform: [{ translateY: compactTitleTranslateY }],
           },
         ]}
       >
@@ -90,7 +68,7 @@ export function DailySessionEdgeEffects({
         >
           {title}
         </Text>
-      </Animated.View>
+      </View>
       <BackIconButton
         accessibilityHint="Returns to the series screen"
         accessibilityLabel="Exit episode setup"

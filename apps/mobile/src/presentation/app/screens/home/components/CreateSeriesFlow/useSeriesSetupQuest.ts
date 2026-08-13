@@ -46,8 +46,6 @@ export type SeriesSetupQuestController = {
   readonly moveNext: () => void;
   // navigateTo reopens a visited card or explicitly extends the path.
   readonly navigateTo: (step: SeriesSetupStep, canExtendFlow?: boolean) => void;
-  // revealFocusedInput keeps the exact native input above the keyboard.
-  readonly revealFocusedInput: (target: number) => void;
 };
 
 // useSeriesSetupQuest owns reversible navigation, resume state, and card motion.
@@ -175,15 +173,6 @@ export function useSeriesSetupQuest({
     }
   };
 
-  // revealFocusedInput keeps focused text visible inside the current card.
-  const revealFocusedInput = (target: number): void => {
-    stepScrollRef.current?.scrollResponderScrollNativeHandleToKeyboard(
-      target,
-      116,
-      true,
-    );
-  };
-
   return {
     activeIndex,
     activeStep,
@@ -196,6 +185,5 @@ export function useSeriesSetupQuest({
     moveBack,
     moveNext,
     navigateTo,
-    revealFocusedInput,
   };
 }

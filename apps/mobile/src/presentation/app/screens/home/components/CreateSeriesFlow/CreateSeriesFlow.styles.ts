@@ -55,6 +55,10 @@ export function createCreateSeriesFlowStyles(
       fontFamily: fontFamilies.bodyHeavy,
       fontSize: 11,
     },
+    headerActionPlaceholder: {
+      width: 58,
+      height: 38,
+    },
     setupOverview: {
       minHeight: 91,
       gap: 7,
@@ -302,17 +306,6 @@ export function createCreateSeriesFlowStyles(
     optionRadioSelected: {
       borderWidth: 5,
       borderColor: colors.systemBlue,
-    },
-    aiActionButton: {
-      minHeight: 46,
-      paddingHorizontal: 14,
-      paddingVertical: 11,
-    },
-    aiActionButtonText: {
-      color: colors.systemBlue,
-      fontFamily: fontFamilies.bodyHeavy,
-      fontSize: 13,
-      textAlign: 'center',
     },
     status: {
       marginTop: 10,

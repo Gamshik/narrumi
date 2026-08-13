@@ -19,16 +19,19 @@ import Svg, { Path, Rect } from 'react-native-svg';
 
 import type { AppColors } from '@presentation/theme';
 
-import { getSeriesDeleteActionPresentation } from '../seriesSwipeMotion';
+import type { SwipeableLibraryItemKind } from '../../SwipeableLibraryCard/SwipeableLibraryCard';
+import { getSwipeDeleteActionPresentation } from '../../SwipeableLibraryCard/swipeDeleteMotion';
 import { styles } from './SeriesDeleteAction.styles';
 
-// SeriesDeleteActionProps defines the destructive lane revealed by native card motion.
-export type SeriesDeleteActionProps = {
+// SwipeDeleteActionProps defines the destructive lane shared by series and draft rows.
+export type SwipeDeleteActionProps = {
   // colors supplies semantic Sorbet materials for the active theme.
   readonly colors: AppColors;
   // disabled prevents repeated confirmation requests during persistence.
   readonly disabled: boolean;
-  // label identifies the series to assistive technology.
+  // itemKind provides precise accessibility copy for the target collection.
+  readonly itemKind: SwipeableLibraryItemKind;
+  // label identifies the item to assistive technology.
   readonly label: string;
   // progress tracks the native reveal from fully covered to fully open.
   readonly progress: SharedValue<number>;
@@ -47,20 +50,21 @@ const actionPressSpring: WithSpringConfig = {
   stiffness: 340,
 };
 
-// SeriesDeleteAction renders a layered berry material rather than a separate red button.
-export function SeriesDeleteAction({
+// SwipeDeleteAction renders a layered berry material rather than a separate red button.
+export function SwipeDeleteAction({
   colors,
   disabled,
+  itemKind,
   label,
   progress,
   width,
   onPress,
-}: SeriesDeleteActionProps): ReactElement {
+}: SwipeDeleteActionProps): ReactElement {
   // pressProgress compresses only the visual core so the edge-to-edge geometry never gaps.
   const pressProgress = useSharedValue<number>(0);
   // haloMotionStyle creates the slowest internal layer for depth and parallax.
   const haloMotionStyle = useAnimatedStyle<ViewStyle>((): ViewStyle => {
-    const presentation = getSeriesDeleteActionPresentation(progress.value);
+    const presentation = getSwipeDeleteActionPresentation(progress.value);
 
     return {
       opacity: presentation.haloOpacity,
@@ -72,7 +76,7 @@ export function SeriesDeleteAction({
   }, [progress]);
   // sheenMotionStyle sends one soft light front across the material during reveal.
   const sheenMotionStyle = useAnimatedStyle<ViewStyle>((): ViewStyle => {
-    const presentation = getSeriesDeleteActionPresentation(progress.value);
+    const presentation = getSwipeDeleteActionPresentation(progress.value);
 
     return {
       opacity: presentation.sheenOpacity,
@@ -81,7 +85,7 @@ export function SeriesDeleteAction({
   }, [progress]);
   // orbRevealStyle inflates and unwinds the destructive icon after useful space exists.
   const orbRevealStyle = useAnimatedStyle<ViewStyle>((): ViewStyle => {
-    const presentation = getSeriesDeleteActionPresentation(progress.value);
+    const presentation = getSwipeDeleteActionPresentation(progress.value);
 
     return {
       opacity: presentation.orbOpacity,
@@ -94,7 +98,7 @@ export function SeriesDeleteAction({
   }, [progress]);
   // labelRevealStyle completes the sequence only near the stable open position.
   const labelRevealStyle = useAnimatedStyle<TextStyle>((): TextStyle => {
-    const presentation = getSeriesDeleteActionPresentation(progress.value);
+    const presentation = getSwipeDeleteActionPresentation(progress.value);
 
     return {
       opacity: presentation.labelOpacity,
@@ -128,7 +132,7 @@ export function SeriesDeleteAction({
   return (
     <View style={[styles.surface, { backgroundColor: colors.systemRed, width }]}>
       <Pressable
-        accessibilityHint="Opens a confirmation before deleting the series"
+        accessibilityHint={`Opens a confirmation before deleting the ${itemKind}`}
         accessibilityLabel={`Delete ${label}`}
         accessibilityRole="button"
         disabled={disabled}

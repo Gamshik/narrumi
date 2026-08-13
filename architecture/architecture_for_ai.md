@@ -96,13 +96,13 @@ Domain rules:
 - Idea stores the required `premise`. Characters stores `SeriesCharacterProfile` rows with canonical names and concise optional role/personality descriptions; Character mode also stores a matching `userRole`. Title stores the required series `title`.
 - Idea, Characters, and Title each expose an online-only field-local AI action. The client clears only that target in a temporary `fill-missing` request, identifies it explicitly as the generation target, preserves other visible card values as model context, validates the complete returned draft, and applies only the target field. Character generation may choose one to eight profiles. A non-character target freezes an existing cast at its current size. Participation mode is never generated or changed.
 - Setup provenance records whether each generated-capable field is `user` or `ai`. A manual edit to an AI field changes that field to `user` provenance. The simplified flow does not add a separate AI-permission or review stage.
-- Series setup text fields are required before saving a ready series: title, premise, main characters, and `userRole` for `character`. Forward navigation is blocked at an incomplete required card, while the incomplete form may still be persisted locally as a draft from the header action.
+- Series setup text fields are required before saving a ready series: title, premise, main characters, and `userRole` for `character`. Forward navigation is blocked at an incomplete required card, while the incomplete form may still be persisted locally as a draft from the header action. Every fresh create flow receives a distinct local draft id; resuming keeps that id, and completing a series deletes only its source draft.
 - New drafts use an empty default `CreativeBrief` and internal `fill-missing`; the new-series UI does not expose advanced anchors, cast size, or draft strategies. When an older unsaved draft is resumed, its premise wins, otherwise legacy `creativeBrief.idea` is promoted to premise, and hidden advanced values are cleared before the simplified form is shown.
 - A transient setup-generation transport failure is retried once with the same durable `generationRequestId`. The retry must stay inside the original loading state and rely on server idempotency, so one learner tap cannot duplicate model work and does not require a second manual tap.
 - The response includes `changedFields`, computed by the Edge Function from the resolved draft rather than trusted from model output. New-series presentation records provenance only for the target it actually applies.
 - Creative-brief compatibility data and setup provenance remain local-first series data and participate in remote sync. Backward-compatible reads map missing or legacy strategy data to `fill-missing` and treat already-persisted setup text without provenance as `user`.
 - The setup form, navigation, manual fields, and local draft are offline-capable; only the three field-local AI actions are online-only and expose explicit offline states.
-- Opening an existing series continues to use the backward-compatible setup menu for stored fields. It is editable only while the series has no episodes and read-only after the first generated episode.
+- Opening an existing series reuses the four-card setup presentation and targeted generation behavior. It is editable only while the series has no episodes and read-only after the first generated episode; persisted compatibility fields remain preserved but are not exposed as legacy controls.
 
 ### Episode
 
@@ -214,7 +214,7 @@ Required MVP use cases:
 - Browse/search vocabulary for dictionary and Story Words selection.
 - Create a series.
 - Update series settings when allowed by product scope.
-- Save an incomplete setup draft locally.
+- Save, list, resume, and explicitly delete independent incomplete setup drafts locally. Draft deletion is confirmation-gated and addresses one stable draft id without clearing the collection.
 - Generate missing or AI-authored setup fields through an Edge Function when online while preserving user-authored fields.
 - Mark an AI-generated setup field as user-authored when the learner edits it.
 - List local series.
@@ -245,7 +245,7 @@ Define narrow application-facing ports for external capabilities.
 | Port | Responsibility | Typical MVP implementation |
 | --- | --- | --- |
 | VocabularyCatalog | Load/query bundled Oxford 5000 data | Local JSON adapter |
-| LocalSeriesStore | Persist setup drafts, creative briefs, provenance, series, episodes, memory, word sets, signals, preferences | AsyncStorage adapter |
+| LocalSeriesStore | Persist and list independent setup drafts, creative briefs, provenance, series, episodes, memory, word sets, signals, preferences | AsyncStorage adapter |
 | RemoteSeriesStore | Read/write authenticated cloud records, including creative briefs and provenance | Supabase adapter with RLS |
 | SyncQueue | Store pending local operations and sync metadata | AsyncStorage metadata adapter |
 | SetupGenerationGateway | Generate validated suggestions only for missing or AI-authored setup fields | Supabase Edge Function client |
@@ -325,7 +325,7 @@ Responsibilities:
 - Never send unbounded full series history.
 - Call OpenRouter using server-side secrets only.
 - Use Vercel AI SDK structured JSON output.
-- For budget models, generate episode story prose or continuation first, freeze it, and only then generate the next choice from that text. Generate semantic English reader frames without translation instructions, find Story Word targets deterministically, and only then request Russian translations for those exact targets. Keep learner feedback and compact memory together, then assemble one final validated payload inside the Edge Function.
+- For budget models, generate episode story prose or continuation first, freeze it, and only then generate the next choice from that text. Generate semantic English reader frames without translation instructions; if bounded framing attempts fail structurally, preserve the accepted prose with deterministic length-bounded narration frames and let finalization extract only safely attributed quoted dialogue. Find Story Word targets deterministically, and only then request Russian translations for those exact targets. Keep learner feedback and compact memory together, then assemble one final validated payload inside the Edge Function.
 - Route model work by responsibility behind one shared server gateway: Writer for creative setup and story prose; Decision for prompts and choices derived from frozen story text; Reviewer for workflow-specific semantic review; Validator for learner feedback and compact memory; Utility for translation and reader metadata; and Fallback for one targeted evidence-based repair or one complete replacement after structural writer failure. Give Writer, Decision, Reviewer, and Fallback a low reasoning budget while Validator and Utility use the minimal reasoning effort required by current GPT-5 endpoints.
 - Run the Episode Writer and independent Language/Continuity/Safety Reviewer flow for series setup, episode openings, and every interaction continuation. Structural schema success alone is not acceptance.
 - The semantic Reviewer checks only the closed issue taxonomy relevant to the current workflow. It may reject only high-confidence violations supported by concrete candidate evidence, including applicable CEFR, concrete grammar or sentence-construction errors, continuity, learner-action and scenario alignment, recent-text repetition, participation mode, Character-mode second-person point of view and learner agency, part-of-speech-aware Story Word naturalness, insufficient continuation development, logical closure, next-choice alignment and diversity, safety, and copyright constraints. An incomplete continuation normally develops the learner action through two or three connected narrative beats before the next decision, without enforcing a fixed word count. Hard episode timing is deterministic: completion is forbidden before interaction 5, forced on interaction 10, and cannot be rejected as a subjective pacing preference inside interactions 5-9. The Reviewer returns only a bounded verdict and targeted retry hints; it does not silently rewrite accepted story content.

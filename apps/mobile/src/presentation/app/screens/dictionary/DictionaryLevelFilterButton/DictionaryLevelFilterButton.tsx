@@ -49,7 +49,7 @@ export function DictionaryLevelFilterButton({
           backgroundColor: isFiltered
             ? colors.badgeAccentSurface
             : colors.pillSurface,
-          borderColor: isFiltered ? colors.systemPurple : colors.bubbleBorder,
+          borderColor: isFiltered ? colors.systemPurple : colors.pillBorder,
         },
       ]}
     >

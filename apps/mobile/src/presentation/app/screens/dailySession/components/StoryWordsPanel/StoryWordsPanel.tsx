@@ -30,6 +30,8 @@ const shuffleAllRotationDurationMs: number = 620;
 export type StoryWordsPanelProps = {
   // colors provides the active light or dark semantic theme tokens.
   readonly colors: AppColors;
+  // isLocked freezes the generation snapshot until the active request settles.
+  readonly isLocked: boolean;
   // isShuffling marks only an explicit full-set replacement as a global update.
   readonly isShuffling: boolean;
   // replacingWordId scopes progress feedback to the one locally changing card.
@@ -49,6 +51,7 @@ export type StoryWordsPanelProps = {
 // StoryWordsPanel keeps the editable set dense enough to scan as one group.
 export function StoryWordsPanel({
   colors,
+  isLocked,
   isShuffling,
   replacingWordId,
   styles,
@@ -104,7 +107,10 @@ export function StoryWordsPanel({
   };
   // isInteractionDisabled prevents overlapping local persistence operations.
   const isInteractionDisabled: boolean =
-    isShuffling || isGridTransitioning || replacingWordId !== undefined;
+    isLocked ||
+    isShuffling ||
+    isGridTransitioning ||
+    replacingWordId !== undefined;
   // shuffleAllRotation explains the pending full-set action without dimming the button.
   const shuffleAllRotation: Animated.AnimatedInterpolation<string> =
     shuffleAllProgress.interpolate({

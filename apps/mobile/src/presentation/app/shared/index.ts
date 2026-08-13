@@ -5,6 +5,7 @@ export * from './BubbleSheet';
 export * from './BubbleSurface';
 export * from './BubbleToggle';
 export * from './DictionaryWordDetailsSheet';
+export * from './DeleteConfirmationSheet';
 export * from './JellyPressable';
 export * from './KeyboardAwareScroll';
 export * from './LevelBadge';

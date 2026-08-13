@@ -18,8 +18,8 @@ export type CreateSeriesFlowProps = {
   readonly form: SeriesSetupFormState;
   // isDark selects dark-theme geometry for shared choice controls.
   readonly isDark: boolean;
-  // isGeneratingSetup blocks duplicate AI setup requests.
-  readonly isGeneratingSetup: boolean;
+  // generatingSetupTarget identifies the creative card with an active AI request.
+  readonly generatingSetupTarget: SeriesSetupGenerationTarget | undefined;
   // isOnline tells whether the server-backed AI action is currently available.
   readonly isOnline: boolean;
   // isSaving blocks duplicate local draft or series writes.
@@ -28,6 +28,8 @@ export type CreateSeriesFlowProps = {
   readonly isVisible: boolean;
   // styles is the shared app StyleSheet required by existing setup fields.
   readonly styles: AppStyles;
+  // variant selects creation, editable setup, or locked setup presentation.
+  readonly variant: 'create' | 'edit' | 'view';
   // onChangeForm publishes a complete controlled form after any learner edit.
   readonly onChangeForm: (form: SeriesSetupFormState) => void;
   // onClose dismisses the flow without writing the current in-memory form.
@@ -38,6 +40,6 @@ export type CreateSeriesFlowProps = {
   ) => Promise<boolean>;
   // onSaveDraft persists the current form locally and closes the flow.
   readonly onSaveDraft: () => Promise<void>;
-  // onSubmit creates the complete locally persisted series from all four cards.
+  // onSubmit creates or updates the complete locally persisted series from all four cards.
   readonly onSubmit: () => Promise<void>;
 };

@@ -3,9 +3,6 @@ import type { ReactElement, RefObject } from 'react';
 import {
   Alert,
   Animated,
-  Easing,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   Text,
   type ViewStyle,
   View,
@@ -15,21 +12,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { darkColors, lightColors } from '@presentation/theme';
 
 import {
-  JellyPressable,
   PlatformBlurTargetView,
   screenEdgeDepths,
-  CefrLevelSelector,
-  SeriesSetupChoiceGroup,
   useReducedMotionPreference,
 } from '../shared';
 import { useAppTheme } from '../theme';
 
 import {
-  learningGenres,
   type CefrLevel,
   type LearningGenre,
   type LearningPreferences,
-  type Series,
   type VocabularyItem,
   type WordSet,
 } from '@domain/index';
@@ -38,23 +30,20 @@ import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
 import { useEpisodeGeneration } from '../generation';
 import { DictionaryPickerPanel } from './dailySession/components/DictionaryPickerPanel';
-import { StoryWordsPanel } from './dailySession/components/StoryWordsPanel';
+import { EpisodeSetupDetailsCard } from './dailySession/components/EpisodeSetupDetailsCard';
 import {
-  episodeGenreLabels,
-  resolveEpisodeSetupDefaults,
-} from './dailySession/episodeSetupOptions';
+  EpisodeSetupFlow,
+  EpisodeSetupFooter,
+  type EpisodeSetupStep,
+} from './dailySession/components/EpisodeSetupFlow';
+import { StoryWordsPanel } from './dailySession/components/StoryWordsPanel';
+import { resolveEpisodeSetupDefaults } from './dailySession/episodeSetupOptions';
 import { DailySessionEdgeEffects } from './DailySessionEdgeEffects';
 import { EpisodeReaderScreen } from './EpisodeReaderScreen';
 import { SupabaseFunctionError } from '@infrastructure/supabase/supabaseFunctionError';
 
-// setupHeaderCollapseOffset matches Home's deliberate upward-scroll threshold.
-const setupHeaderCollapseOffset: number = 38;
-// setupHeaderExpandOffset matches Home's hysteresis against small scroll reversals.
-const setupHeaderExpandOffset: number = 12;
-// setupTitleTransitionDuration keeps the large-to-compact title swap identical to Home.
-const setupTitleTransitionDuration: number = 220;
-// setupMaterialTransitionDuration fades top glass independently without a directional reveal.
-const setupMaterialTransitionDuration: number = 180;
+// episodeSetupFooterReservedDepth keeps the final scroll content above fixed actions.
+const episodeSetupFooterReservedDepth: number = 116;
 
 // DailySessionScreenProps carries themed styles into the unified episode flow.
 type DailySessionScreenProps = {
@@ -90,49 +79,27 @@ export function DailySessionScreen({
   const reduceMotion: boolean = useReducedMotionPreference();
   const insets = useSafeAreaInsets();
   const colors = isDark ? darkColors : lightColors;
-  // titleTransition drives the autonomous large-to-compact title swap.
-  const [titleTransition] = useState<Animated.Value>(
-    (): Animated.Value => new Animated.Value(0),
-  );
-  // materialTransition controls only the top blur-and-gradient opacity.
-  const [materialTransition] = useState<Animated.Value>(
-    (): Animated.Value => new Animated.Value(0),
-  );
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   // blurTargetRef preserves the shared edge-effect source contract around Story Words.
   const blurTargetRef: RefObject<View | null> = useRef<View>(null);
   // setupContentInsets places the hero below top glass and clears the quiet lower fade.
   const setupContentInsets: ViewStyle = {
     paddingTop: insets.top + screenEdgeDepths.compactTop + 2,
-    paddingBottom: insets.bottom + screenEdgeDepths.modalBottom + 16,
+    paddingBottom:
+      insets.bottom +
+      screenEdgeDepths.modalBottom +
+      episodeSetupFooterReservedDepth,
   };
-  // largeTitleOpacity removes the hero title before the compact peer becomes fully visible.
-  const largeTitleOpacity: Animated.AnimatedInterpolation<number> =
-    titleTransition.interpolate({
-      inputRange: [0, 0.18, 0.58, 1],
-      outputRange: [1, 1, 0, 0],
-      extrapolate: 'clamp',
-    });
-  // largeTitleTranslateY lets the hero title leave with its scrolling content.
-  const largeTitleTranslateY: Animated.AnimatedInterpolation<number> =
-    titleTransition.interpolate({
-      inputRange: [0, 0.58, 1],
-      outputRange: [0, -10, -10],
-      extrapolate: 'clamp',
-    });
-  // largeTitleScale adds the same restrained compression used by Home.
-  const largeTitleScale: Animated.AnimatedInterpolation<number> =
-    titleTransition.interpolate({
-      inputRange: [0, 0.58, 1],
-      outputRange: [1, 0.97, 0.97],
-      extrapolate: 'clamp',
-    });
   const [stage, setStage] = useState<EpisodeFlowStage>('loading');
   const [selectionState, setSelectionState] =
     useState<EpisodeWordSelectionState>();
-  const [series, setSeries] = useState<Series>();
   const [selectedCefrLevel, setSelectedCefrLevel] = useState<CefrLevel>();
   const [selectedGenre, setSelectedGenre] = useState<LearningGenre>();
+  // activeSetupStep keeps repeated episode preparation focused on one task.
+  const [activeSetupStep, setActiveSetupStep] =
+    useState<EpisodeSetupStep>('details');
+  // furthestSetupStepIndex enables reversible navigation only after Continue.
+  const [furthestSetupStepIndex, setFurthestSetupStepIndex] =
+    useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string>();
   const [pickerWordId, setPickerWordId] = useState<string>();
   const [dictionarySearch, setDictionarySearch] = useState('');
@@ -151,40 +118,32 @@ export function DailySessionScreen({
     ? generationStates.get(seriesId)
     : undefined;
   // isGenerating follows the root provider instead of this route's mount lifetime.
-  const isGenerating = generationState?.kind === 'generating';
+  const isGenerating: boolean = generationState?.kind === 'generating';
   const [generatedEpisodeOrderIndex, setGeneratedEpisodeOrderIndex] =
     useState<number>();
   const [isOnline, setIsOnline] = useState(false);
+  // isEpisodeSetupBusy prevents navigation across an unresolved local or online write.
+  const isEpisodeSetupBusy: boolean =
+    isChoosing ||
+    isShuffling ||
+    replacingWordId !== undefined ||
+    isGenerating;
 
-  useEffect(() => {
-    // The scroll threshold selects a stable target; both animations finish independently of the gesture.
-    const titleAnimation: Animated.CompositeAnimation = Animated.timing(
-      titleTransition,
-      {
-        toValue: isHeaderCollapsed ? 1 : 0,
-        duration: setupTitleTransitionDuration,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      },
-    );
-    const materialAnimation: Animated.CompositeAnimation = Animated.timing(
-      materialTransition,
-      {
-        toValue: isHeaderCollapsed ? 1 : 0,
-        duration: setupMaterialTransitionDuration,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      },
-    );
+  useEffect((): void => {
+    // A different series always begins with its remembered episode direction.
+    setActiveSetupStep('details');
+    setFurthestSetupStepIndex(0);
+  }, [seriesId]);
 
-    titleAnimation.start();
-    materialAnimation.start();
+  useEffect((): void => {
+    if (!isGenerating) {
+      return;
+    }
 
-    return (): void => {
-      titleAnimation.stop();
-      materialAnimation.stop();
-    };
-  }, [isHeaderCollapsed, materialTransition, titleTransition]);
+    // Restored generation requests reopen the exact step that owns their progress.
+    setActiveSetupStep('words');
+    setFurthestSetupStepIndex(1);
+  }, [isGenerating]);
 
   const loadWordSelection = useCallback(async (isActive = true): Promise<void> => {
     setErrorMessage(undefined);
@@ -193,7 +152,6 @@ export function DailySessionScreen({
       const seriesDetails = seriesId
         ? await localAppServices.loadSeriesDetails.execute({ seriesId })
         : undefined;
-      const loadedSeries = seriesDetails?.series;
       const latestEpisode = seriesDetails?.episodes.at(-1);
       const incompleteEpisode = seriesDetails?.episodes
         .filter((episode) => !episode.isComplete)
@@ -205,7 +163,6 @@ export function DailySessionScreen({
       );
 
       if (isActive) {
-        setSeries(loadedSeries);
         setSelectionState(result);
         setSelectedCefrLevel(defaults.cefrLevel);
         setSelectedGenre(defaults.genre);
@@ -325,7 +282,7 @@ export function DailySessionScreen({
   }, [dictionarySearch, pickerWordId, selectionState]);
 
   const replaceWord = async (wordId: string): Promise<void> => {
-    if (!selectionState || replacingWordId || isShuffling) {
+    if (!selectionState || replacingWordId || isShuffling || isGenerating) {
       return;
     }
 
@@ -351,7 +308,7 @@ export function DailySessionScreen({
   };
 
   const shuffleWords = async (): Promise<void> => {
-    if (!selectionState) {
+    if (!selectionState || isShuffling || isGenerating) {
       return;
     }
 
@@ -377,7 +334,7 @@ export function DailySessionScreen({
   };
 
   const chooseWord = async (replacementWordId: string): Promise<boolean> => {
-    if (!selectionState || !pickerWordId) {
+    if (!selectionState || !pickerWordId || isChoosing || isGenerating) {
       return false;
     }
 
@@ -417,6 +374,15 @@ export function DailySessionScreen({
     setDictionarySearch('');
   }, []);
 
+  // openDictionaryPicker prevents a late tap from editing the immutable generation snapshot.
+  const openDictionaryPicker = (wordId: string): void => {
+    if (isEpisodeSetupBusy) {
+      return;
+    }
+
+    setPickerWordId(wordId);
+  };
+
   const generateEpisode = (): void => {
     if (!seriesId) {
       setErrorMessage('Open a series before generating an episode.');
@@ -443,19 +409,19 @@ export function DailySessionScreen({
     }).catch((): void => undefined);
   };
 
-  const handleSetupScroll = (
-    event: NativeSyntheticEvent<NativeScrollEvent>,
-  ): void => {
-    const offsetY: number = event.nativeEvent.contentOffset.y;
-
-    if (!isHeaderCollapsed && offsetY >= setupHeaderCollapseOffset) {
-      setIsHeaderCollapsed(true);
+  // showEpisodeSetupStep reopens a reached task without mutating later choices.
+  const showEpisodeSetupStep = (step: EpisodeSetupStep): void => {
+    if (isEpisodeSetupBusy) {
       return;
     }
 
-    if (isHeaderCollapsed && offsetY <= setupHeaderExpandOffset) {
-      setIsHeaderCollapsed(false);
-    }
+    setActiveSetupStep(step);
+  };
+
+  // continueToStoryWords unlocks the second task while preserving episode direction.
+  const continueToStoryWords = (): void => {
+    setFurthestSetupStepIndex(1);
+    setActiveSetupStep('words');
   };
 
   if (stage === 'reader') {
@@ -481,27 +447,7 @@ export function DailySessionScreen({
         <Animated.ScrollView
           contentContainerStyle={[styles.screenContent, setupContentInsets]}
           keyboardShouldPersistTaps="handled"
-          onScroll={handleSetupScroll}
-          scrollEventThrottle={16}
         >
-          <Animated.View
-            style={[
-              styles.dailySessionTitleBlock,
-              {
-                opacity: largeTitleOpacity,
-                transform: [
-                  { translateY: largeTitleTranslateY },
-                  { scale: largeTitleScale },
-                ],
-              },
-            ]}
-          >
-            <Text style={styles.appCategory}>NEXT EPISODE</Text>
-            <Text style={styles.largeTitle}>
-              {series?.title ?? 'Story Setup'}
-            </Text>
-          </Animated.View>
-
       {errorMessage ? (
         <View style={styles.stateMessage}>
           <Text style={styles.stateMessageTitle}>{errorMessage}</Text>
@@ -516,19 +462,30 @@ export function DailySessionScreen({
           </Text>
         </View>
       ) : (
-        <>
-          <EpisodeSettingsSelection
-            isDark={isDark}
-            selectedCefrLevel={selectedCefrLevel}
-            selectedGenre={selectedGenre}
-            styles={styles}
-            onSelectCefrLevel={setSelectedCefrLevel}
-            onSelectGenre={setSelectedGenre}
-          />
-          {pickerWordId ? (
+        <EpisodeSetupFlow
+          activeStep={activeSetupStep}
+          cefrLevel={selectedCefrLevel}
+          colors={colors}
+          furthestIndex={furthestSetupStepIndex}
+          genre={selectedGenre}
+          isNavigationLocked={isEpisodeSetupBusy}
+          onSelectStep={showEpisodeSetupStep}
+        >
+          {activeSetupStep === 'details' ? (
+            <EpisodeSetupDetailsCard
+              colors={colors}
+              isDark={isDark}
+              selectedCefrLevel={selectedCefrLevel}
+              selectedGenre={selectedGenre}
+              sharedStyles={styles}
+              onSelectCefrLevel={setSelectedCefrLevel}
+              onSelectGenre={setSelectedGenre}
+            />
+          ) : pickerWordId ? (
             <DictionaryPickerPanel
               colors={colors}
               isChoosing={isChoosing}
+              isLocked={isGenerating}
               isLoading={isDictionaryLoading}
               reduceMotion={reduceMotion}
               search={dictionarySearch}
@@ -544,30 +501,21 @@ export function DailySessionScreen({
           ) : (
             <StoryWordsPanel
               colors={colors}
+              isLocked={isGenerating}
               isShuffling={isShuffling}
               replacingWordId={replacingWordId}
               styles={styles}
               words={selectionState.words}
-              onPickWord={(wordId) => {
-                setPickerWordId(wordId);
-              }}
-              onReplaceWord={(wordId) => {
+              onPickWord={openDictionaryPicker}
+              onReplaceWord={(wordId: string): void => {
                 void replaceWord(wordId);
               }}
-              onShuffleWords={() => {
+              onShuffleWords={(): void => {
                 void shuffleWords();
               }}
             />
           )}
-          <EpisodeGenerationButton
-            isGenerating={isGenerating}
-            isOnline={isOnline}
-            styles={styles}
-            onGenerateEpisode={() => {
-              void generateEpisode();
-            }}
-          />
-        </>
+        </EpisodeSetupFlow>
       )}
         </Animated.ScrollView>
       </PlatformBlurTargetView>
@@ -576,107 +524,23 @@ export function DailySessionScreen({
         bottomInset={insets.bottom}
         colors={colors}
         isDark={isDark}
-        materialOpacity={materialTransition}
-        title={series?.title ?? 'Story Setup'}
-        titleTransitionProgress={titleTransition}
+        title="Create an episode"
         topInset={insets.top}
         onExit={onExit}
       />
-    </View>
-  );
-}
-
-// EpisodeSettingsSelection renders the per-episode CEFR and genre controls.
-function EpisodeSettingsSelection({
-  isDark,
-  selectedCefrLevel,
-  selectedGenre,
-  styles,
-  onSelectCefrLevel,
-  onSelectGenre,
-}: {
-  // isDark selects the same restrained setup material used by series creation.
-  readonly isDark: boolean;
-  // selectedCefrLevel is the language target remembered from settings or episode history.
-  readonly selectedCefrLevel: CefrLevel | undefined;
-  // selectedGenre is the locally selected story genre when present.
-  readonly selectedGenre: LearningGenre | undefined;
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // onSelectCefrLevel updates only the episode target and preserves explicit Story Words.
-  readonly onSelectCefrLevel: (cefrLevel: CefrLevel) => void;
-  // onSelectGenre stores the selected genre in screen state.
-  readonly onSelectGenre: (genre: LearningGenre) => void;
-}): ReactElement {
-  return (
-    <View style={styles.settingsCard}>
-      {selectedCefrLevel ? (
-        <CefrLevelSelector
-          isDark={isDark}
-          selectedLevel={selectedCefrLevel}
-          styles={styles}
-          onSelect={onSelectCefrLevel}
+      {stage === 'setup' && selectionState && !pickerWordId ? (
+        <EpisodeSetupFooter
+          activeStep={activeSetupStep}
+          bottomInset={insets.bottom}
+          colors={colors}
+          isBusy={isEpisodeSetupBusy}
+          isGenerating={isGenerating}
+          isOnline={isOnline}
+          onBack={(): void => setActiveSetupStep('details')}
+          onContinue={continueToStoryWords}
+          onGenerate={generateEpisode}
         />
       ) : null}
-      <SeriesSetupChoiceGroup
-        isDark={isDark}
-        isWrapped
-        label="Genre"
-        labels={episodeGenreLabels}
-        options={learningGenres}
-        selected={selectedGenre}
-        styles={styles}
-        onSelect={onSelectGenre}
-      />
     </View>
-  );
-}
-
-// EpisodeGenerationButton keeps the final setup action concise and state-aware.
-function EpisodeGenerationButton({
-  isGenerating,
-  isOnline,
-  styles,
-  onGenerateEpisode,
-}: {
-  // isGenerating prevents duplicate requests and announces in-progress work.
-  readonly isGenerating: boolean;
-  // isOnline tells whether server-backed generation could be attempted.
-  readonly isOnline: boolean;
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // onGenerateEpisode calls the Supabase AI boundary through application use cases.
-  readonly onGenerateEpisode: () => void;
-}): ReactElement {
-  // isDisabled keeps the action stable while offline or during the active request.
-  const isDisabled: boolean = !isOnline || isGenerating;
-
-  return (
-    <JellyPressable
-      accessibilityHint={
-        isOnline
-          ? 'Creates the next episode from the selected Story Words and genre'
-          : 'Episode generation becomes available when the device is online'
-      }
-      accessibilityState={{
-        busy: isGenerating,
-        disabled: isDisabled,
-      }}
-      disabled={isDisabled}
-      onPress={onGenerateEpisode}
-      style={({ pressed }) => [
-        styles.primaryButton,
-        isDisabled && styles.disabledControl,
-        pressed && !isDisabled && styles.pressed,
-      ]}
-    >
-      <Text style={styles.primaryButtonText}>
-        {isGenerating
-          ? 'Generating Episode...'
-          : isOnline
-            ? 'Generate Episode'
-            : 'Available When Online'}
-      </Text>
-    </JellyPressable>
   );
 }

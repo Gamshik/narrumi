@@ -9,6 +9,14 @@ import type {
   WordSet,
 } from '@domain/index';
 
+// LocalSeriesSetupDraftCollection lists independent unfinished setup forms without widening every store fake.
+export type LocalSeriesSetupDraftCollection = {
+  // listSeriesSetupDrafts returns every validated local draft in recent-first order.
+  readonly listSeriesSetupDrafts: () => Promise<
+    readonly LocalSeriesSetupDraft[]
+  >;
+};
+
 // LocalSeriesStore is the application port for immediate offline series writes.
 export type LocalSeriesStore = {
   // getSeriesSetupDraft reads one unfinished local-only setup form.

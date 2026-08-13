@@ -1,5 +1,6 @@
 import type {
   LocalLearningSignalFilter,
+  LocalSeriesSetupDraftCollection,
   LocalSeriesStore,
   LocalWordSetFilter,
   SyncQueue,
@@ -17,16 +18,26 @@ import type {
 } from '@domain/index';
 
 // QueuedLocalSeriesStore adds durable sync intents after successful local writes.
-export class QueuedLocalSeriesStore implements LocalSeriesStore {
+export class QueuedLocalSeriesStore
+  implements LocalSeriesStore, LocalSeriesSetupDraftCollection
+{
   // store remains the immediate source of truth for all reads and writes.
-  private readonly store: LocalSeriesStore;
+  private readonly store: LocalSeriesStore & LocalSeriesSetupDraftCollection;
   // queue receives replay pointers only after local persistence succeeds.
   private readonly queue: SyncQueue;
 
   // constructor composes local persistence with pending-operation storage.
-  constructor(store: LocalSeriesStore, queue: SyncQueue) {
+  constructor(
+    store: LocalSeriesStore & LocalSeriesSetupDraftCollection,
+    queue: SyncQueue,
+  ) {
     this.store = store;
     this.queue = queue;
+  }
+
+  // listSeriesSetupDrafts forwards the local-only draft collection without sync work.
+  listSeriesSetupDrafts(): Promise<readonly LocalSeriesSetupDraft[]> {
+    return this.store.listSeriesSetupDrafts();
   }
 
   // getSeriesSetupDraft forwards local-only form reads without remote reconciliation.

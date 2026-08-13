@@ -11,6 +11,7 @@ import {
   type DialogueFrameDraft,
   downgradeUnquotedDialogueFrames,
   looksLikeNarrationInDialogue,
+  type ReaderFrameDraft,
 } from '../_shared/dialogueFramePolicy.ts';
 import {
   createEnglishGeneratedTextSchema,
@@ -41,12 +42,11 @@ import {
 } from '../_shared/aiGateway.ts';
 import {
   generateQualityAcceptedCandidate,
-  hasOnlyChoiceQualityIssues,
-  hasOnlyDialogueQualityIssues,
   type QualityReview,
   reviewGeneratedCandidate,
 } from '../_shared/aiQuality.ts';
 import { resolveOptionalAiEnrichment } from '../_shared/optionalAiEnrichment.ts';
+import { resolveReaderFrameEnrichment } from '../_shared/readerFrameFallback.ts';
 import {
   buildOpeningParticipationReviewCriteria,
   buildOpeningParticipationRules,
@@ -58,6 +58,13 @@ import {
   reviewDeterministicStoryIntegrity,
   STORY_INTEGRITY_REVIEW_CRITERIA,
 } from '../_shared/storyIntegrityPolicy.ts';
+import {
+  EPISODE_REPETITION_REPAIR_RULES,
+  EPISODE_REPETITION_REVIEW_CRITERION,
+  hasEpisodeRepetitionIssue,
+  resolveEpisodeRepairStrategy,
+  type EpisodeRepairStrategy,
+} from './episodeRepairPolicy.ts';
 
 // writerModel is logged without exposing prompts or server secrets.
 const writerModel: string = getAiModelId('writer');
@@ -449,7 +456,7 @@ async function reviewEpisodeCreativeCandidate(
       `English grammar and vocabulary must be broadly suitable for CEFR ${payload.cefrLevel}; reject only a sustained mismatch, not isolated contextual words or names.`,
       'Use language_error only for a concrete grammar error, malformed sentence, incorrect collocation, or clearly unnatural English construction, not for subjective style preferences.',
       'When compact memory or a previous episode summary contains facts, the scene must not contradict them; empty prior context creates no continuity requirement.',
-      'When a previous summary or unresolved cliffhanger exists, the scene must advance it instead of repeating or lightly paraphrasing it.',
+      EPISODE_REPETITION_REVIEW_CRITERION,
       'Every used Story Word must match its supplied partOfSpeech and the dictionary sense demonstrated by usageExamples; the exact headword must be integrated into natural grammar rather than used as another part of speech.',
       'Selected Story Words must be used naturally and only some should be introduced in the opening when the set is large.',
       'The scene, cliffhanger, prompt, and choices must describe one aligned scenario.',
@@ -550,7 +557,12 @@ async function repairEpisodeCreativeCandidate(
   candidate: EpisodeCreativeCandidate,
   issues: QualityReview['issues'],
 ): Promise<EpisodeCreativeCandidate> {
-  if (hasOnlyChoiceQualityIssues(issues)) {
+  // repairStrategy selects a narrow edit while allowing repetition to advance the full scene.
+  const repairStrategy: EpisodeRepairStrategy = resolveEpisodeRepairStrategy(
+    issues,
+  );
+
+  if (repairStrategy === 'decision') {
     // interactionDraft is the only mutable part when the reviewer accepted the story itself.
     const interactionDraft: InteractionDraft =
       await repairEpisodeInteractionDraft(
@@ -563,7 +575,7 @@ async function repairEpisodeCreativeCandidate(
     return { coreDraft: candidate.coreDraft, interactionDraft };
   }
 
-  if (hasOnlyDialogueQualityIssues(issues)) {
+  if (repairStrategy === 'dialogue') {
     // dialogueRepair cannot alter choices, summaries, titles, or other accepted story state.
     const dialogueRepair: EpisodeDialogueRepair = await repairEpisodeDialogue(
       candidate.coreDraft,
@@ -585,8 +597,10 @@ async function repairEpisodeCreativeCandidate(
     prompt: buildEpisodeRepairPrompt(payload, candidate, issues),
     role: 'fallback',
     schema: episodeCreativeCandidateSchema,
-    taskName: 'episode_opening_repair',
-    system: buildEpisodeRepairSystemPrompt(),
+    taskName: repairStrategy === 'repetition'
+      ? 'episode_opening_repetition_repair'
+      : 'episode_opening_repair',
+    system: buildEpisodeRepairSystemPrompt(issues),
     temperature: 0.3,
     maxOutputTokens: 2700,
   });
@@ -641,23 +655,35 @@ async function generateReaderFrameDraft(
   payload: GenerateEpisodeRequest,
   coreDraft: CoreEpisodeDraft,
 ): Promise<SentenceFrameDraft> {
-  // generatedDraft is untrusted semantic framing returned by the Utility model.
-  const generatedDraft: SentenceFrameDraft = await generateJsonWithSchema({
-    prompt: buildReaderFramePrompt(payload, coreDraft),
-    role: 'utility',
-    schema: sentenceFrameDraftSchema,
-    taskName: 'episode_reader_frames',
-    system: buildReaderFrameSystemPrompt(),
-    temperature: 0.1,
-    maxOutputTokens: 2200,
-    maxAttempts: 2,
-  });
+  // generatedFrames are optional metadata over already accepted English prose.
+  const generatedFrames: readonly ReaderFrameDraft[] =
+    await resolveReaderFrameEnrichment({
+    stage: 'episode_reader_frames',
+    sourceText: coreDraft.sceneText,
+    minFrames: 3,
+    maxFrames: 16,
+    maxFrameLength: 600,
+    generate: async (): Promise<readonly ReaderFrameDraft[]> => {
+      const generatedDraft: SentenceFrameDraft = await generateJsonWithSchema({
+        prompt: buildReaderFramePrompt(payload, coreDraft),
+        role: 'utility',
+        schema: sentenceFrameDraftSchema,
+        taskName: 'episode_reader_frames',
+        system: buildReaderFrameSystemPrompt(),
+        temperature: 0.1,
+        maxOutputTokens: 2200,
+        maxAttempts: 2,
+      });
+
+      return generatedDraft.frames;
+    },
+    });
 
   return {
     frames: [
       ...downgradeUnquotedDialogueFrames(
         coreDraft.sceneText,
-        generatedDraft.frames,
+        generatedFrames,
       ),
     ],
   };
@@ -1055,7 +1081,15 @@ function buildEpisodeFallbackSystemPrompt(): string {
 }
 
 // buildEpisodeRepairSystemPrompt constrains the stronger model to evidence-based edits.
-function buildEpisodeRepairSystemPrompt(): string {
+function buildEpisodeRepairSystemPrompt(
+  issues: QualityReview['issues'],
+): string {
+  // repetitionRepairRules are omitted when the reviewer found no repeated narrative beat.
+  const repetitionRepairRules: readonly string[] =
+    hasEpisodeRepetitionIssue(issues)
+      ? EPISODE_REPETITION_REPAIR_RULES
+      : [];
+
   return [
     'You are a precise editor for an interactive English-learning episode.',
     'Return exactly one complete raw JSON object. Do not wrap it in Markdown fences.',
@@ -1063,7 +1097,8 @@ function buildEpisodeRepairSystemPrompt(): string {
     'Keep every learner-facing field in English; Russian is never allowed in story content.',
     'Preserve fields and wording that are not implicated by an issue.',
     'For choice_mismatch or choice_similarity, edit interactionDraft only unless the evidence proves the cliffhanger itself is defective.',
-    'For continuity, repetition, language, Story Word, or CEFR issues, make the smallest necessary edits and keep the same story event.',
+    'For continuity, language, Story Word, or CEFR issues, make the smallest necessary edits and preserve unaffected story events.',
+    ...repetitionRepairRules,
     'When repairing a Story Word, preserve its exact supplied partOfSpeech and usageExample sense.',
     'Keep every direct speech passage inside ASCII double quotation marks so it can be verified before rendering.',
     'For dialogue_format, preserve the spoken wording and speaker while adding the missing ASCII quotation marks.',
@@ -1152,7 +1187,7 @@ function buildEpisodeCorePrompt(
       },
       outputRules: [
         'Return { "title"?: string, "previouslyRecap"?: string, "sceneText": string, "cliffhanger": string, "summaryUpdate": string }.',
-        'If providing previouslyRecap, keep it very short (under 300 characters).',
+        'If providing previouslyRecap, keep it very short (under 300 characters) and use it only for prior context; sceneText must begin with the next event rather than retelling the recap.',
         'Keep the title short (under 60 characters).',
         'The title field names only this specific episode and must express its central event, discovery, conflict, or decision.',
         'Treat seriesTitle as story context only. Never copy, repeat, paraphrase, prefix, or suffix seriesTitle inside the episode title.',
@@ -1239,7 +1274,7 @@ function buildEpisodeFallbackPrompt(
       outputRules: [
         'Return { "coreDraft": { "title"?: string, "previouslyRecap"?: string, "sceneText": string, "cliffhanger": string, "summaryUpdate": string }, "interactionDraft": { "prompt": string, "choices": [{ "label": string, "isSpeech"?: boolean, "outcomeHint"?: string }] } }.',
         'Write one coherent scene that advances prior context, uses suitable CEFR language, and ends in a concrete decision.',
-        'Do not repeat or paraphrase the prior summary or unresolved cliffhanger.',
+        'previouslyRecap may briefly summarize prior context, but sceneText must begin after it and advance with a new causal event rather than repeat or paraphrase the prior summary or unresolved cliffhanger.',
         'Treat every supplied character name as a reserved identity; new people must use distinct names.',
         'Enclose every literal spoken utterance in ASCII double quotation marks and omit disconnected instruction-like fragments.',
         'Use 2-4 selected Story Words naturally, or fewer when the selected set is smaller.',
@@ -1262,6 +1297,12 @@ function buildEpisodeRepairPrompt(
   candidate: EpisodeCreativeCandidate,
   issues: QualityReview['issues'],
 ): string {
+  // repetitionRepairRules permit linked scene fields to advance together when required.
+  const repetitionRepairRules: readonly string[] =
+    hasEpisodeRepetitionIssue(issues)
+      ? EPISODE_REPETITION_REPAIR_RULES
+      : [];
+
   return JSON.stringify(
     {
       task: 'repair-reviewed-episode-opening',
@@ -1288,6 +1329,7 @@ function buildEpisodeRepairPrompt(
         'Return the complete candidate with coreDraft and interactionDraft.',
         'Resolve every reviewer issue and make the smallest possible edit.',
         'Preserve all unaffected fields, story events, names, facts, and wording.',
+        ...repetitionRepairRules,
         'Canonical character names always refer to the same supplied profiles; rename only an actually new person that reused a reserved name.',
         'Do not add explanations, change logs, Markdown, or fields outside the schema.',
       ],

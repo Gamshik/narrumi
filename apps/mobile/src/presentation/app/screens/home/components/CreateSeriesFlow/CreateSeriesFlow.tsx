@@ -25,6 +25,7 @@ import {
 import { preloadCreateSeriesCardImages } from './CreateSeriesFlow.assets';
 import type { CreateSeriesFlowProps } from './CreateSeriesFlow.types';
 import {
+  getSeriesSetupStepGenerationTarget,
   isSeriesSetupStepComplete,
   type SeriesSetupStep,
 } from './seriesSetupFlow';
@@ -41,12 +42,13 @@ export function CreateSeriesFlow({
   colors,
   errors,
   form,
+  generatingSetupTarget,
   isDark,
-  isGeneratingSetup,
   isOnline,
   isSaving,
   isVisible,
   styles: sharedStyles,
+  variant,
   onChangeForm,
   onClose,
   onGenerate,
@@ -71,11 +73,25 @@ export function CreateSeriesFlow({
     // A failed cache warmup is non-blocking because every image remains a bundled module.
     void preloadCreateSeriesCardImages().catch((): void => undefined);
   }, []);
+  // isGeneratingSetup keeps every conflicting action locked during one AI request.
+  const isGeneratingSetup: boolean = generatingSetupTarget !== undefined;
+  // isGeneratingActiveStep shows progress only on the card that started the request.
+  const isGeneratingActiveStep: boolean =
+    generatingSetupTarget ===
+    getSeriesSetupStepGenerationTarget(quest.activeStep);
   // isBusy blocks conflicting navigation while local or online work is active.
   const isBusy: boolean = isSaving || isGeneratingSetup;
+  // isExistingSeries selects copy shared by editable and read-only series setup.
+  const isExistingSeries: boolean = variant !== 'create';
+  // isEditable preserves the first-episode setup lock in the shared presentation.
+  const isEditable: boolean = variant !== 'view';
   // getPrimaryLabel keeps the bottom action contextual to the current required task.
   const getPrimaryLabel = (): string => {
-    return quest.activeStep === 'title' ? 'Save series' : 'Continue';
+    if (quest.activeStep !== 'title') {
+      return 'Continue';
+    }
+
+    return isExistingSeries ? 'Save changes' : 'Save series';
   };
 
   // runPrimaryAction routes the current card to its single dominant outcome.
@@ -114,26 +130,44 @@ export function CreateSeriesFlow({
           >
             <View style={flowStyles.header}>
               <BackIconButton
-                accessibilityHint="Closes series creation"
-                accessibilityLabel="Back from series creation"
+                accessibilityHint={
+                  isExistingSeries
+                    ? 'Closes series setup'
+                    : 'Closes series creation'
+                }
+                accessibilityLabel={
+                  isExistingSeries
+                    ? 'Back from series setup'
+                    : 'Back from series creation'
+                }
                 colors={colors}
                 onPress={onClose}
               />
               <View style={flowStyles.headerCopy}>
-                <Text style={flowStyles.headerTitle}>Create a series</Text>
+                <Text style={flowStyles.headerTitle}>
+                  {isExistingSeries ? 'Series setup' : 'Create a series'}
+                </Text>
               </View>
-              <BubbleButton
-                accessibilityHint="Saves the current setup locally and closes"
-                colors={colors}
-                contentStyle={flowStyles.saveButton}
-                disabled={isBusy}
-                onPress={(): void => {
-                  void onSaveDraft();
-                }}
-                variant="secondary"
-              >
-                <Text style={flowStyles.saveButtonText}>Save</Text>
-              </BubbleButton>
+              {isEditable ? (
+                <BubbleButton
+                  accessibilityHint={
+                    isExistingSeries
+                      ? 'Saves the current series setup and closes'
+                      : 'Saves the current setup locally and closes'
+                  }
+                  colors={colors}
+                  contentStyle={flowStyles.saveButton}
+                  disabled={isBusy}
+                  onPress={(): void => {
+                    void onSaveDraft();
+                  }}
+                  variant="secondary"
+                >
+                  <Text style={flowStyles.saveButtonText}>Save</Text>
+                </BubbleButton>
+              ) : (
+                <View style={flowStyles.headerActionPlaceholder} />
+              )}
             </View>
 
             <SeriesSetupOverview
@@ -165,7 +199,8 @@ export function CreateSeriesFlow({
                 errors={errors}
                 form={form}
                 isBusy={isBusy}
-                isGeneratingSetup={isGeneratingSetup}
+                isGeneratingCurrentStep={isGeneratingActiveStep}
+                isEditable={isEditable}
                 isOnline={isOnline}
                 isPrimaryDisabled={
                   isBusy ||
@@ -178,7 +213,6 @@ export function CreateSeriesFlow({
                 styles={flowStyles}
                 onBack={quest.moveBack}
                 onChangeForm={onChangeForm}
-                onFocus={quest.revealFocusedInput}
                 onGenerate={(target: SeriesSetupGenerationTarget): void => {
                   void onGenerate(target);
                 }}

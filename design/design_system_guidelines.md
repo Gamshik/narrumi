@@ -226,9 +226,10 @@ Rules:
 
 ### Home / Series List
 
-- Use stronger contrast between the hero CTA and browsing cards.
+- Use stronger contrast between the primary create action and browsing cards.
 - Cards in the same list should keep a stable typography scale. Do not resize titles per item to fit.
-- "Create story" style entry points should stay compact and intentional rather than billboard-sized.
+- Keep Home as one stable library instead of splitting completed series and unfinished setups behind a switch. Place one compact, labeled `+ New series` primary action beside the `Your library` heading; the visible label must carry the meaning rather than relying on an icon-only bubble. When drafts exist, render them first under `Continue setup`, followed by completed items under `Your series`. Use spacing and section labels to express the relationship without a shared border, overlapping controls, or a floating action dock. In the fully empty state, keep the labeled create action visible and pair it with concise first-series guidance. Creation always starts a fresh form; only a draft row may resume stored form state.
+- Keep draft rows laconic: one centered progress marker beside the title and one metadata line inside a single tappable bubble. Do not add a separate resume button, redundant draft badge, preview paragraph, or decorative navigation icon. Whenever text or a glyph sits inside a fixed block, center it on both axes with explicit type metrics instead of visual offset hacks. Reuse the completed-series left-swipe delete lane and confirmation sheet for explicit discard; an ordinary card tap still resumes the draft and no inline delete button is added.
 
 ### Create / Edit Series Setup
 
@@ -238,11 +239,12 @@ Rules:
 - Each card contains only its title, bundled illustration, fields or choices, and buttons. The illustration carries the short visual hint through embedded labels; do not repeat it with helper paragraphs, card numbering, notices, or AI-provenance captions. Interactive controls retain complete accessibility labels. The Role card owns only Producer/Character selection. The Idea card owns one required multiline `Story idea` field. The Characters card owns repeatable name plus optional role/personality rows and, in Character mode, one `Your character` field. The Title card owns one `Series title` field and the final `Save series` action.
 - Show every card's fields immediately. Do not add optional gates, story-detail accordions, AI-permission screens, review screens, CEFR, Genre, or Tone to new series creation.
 - Idea, Characters, and Title each use the same secondary `Generate by AI` action directly under their field group. Keep the manual fields visible at all times; do not add explanatory copy beneath the action.
+- During AI generation, replace that action in place with one equal-height Sorbet capsule containing three softly staggered candy dots and a concise card-specific label. Do not repeat generation status elsewhere in the card, use a generic spinner, or shift the surrounding layout. Freeze the dots when Reduce Motion is enabled.
 - AI suggestions remain editable but do not add a separate provenance caption or review stage. Manual edits still return the value to user-authored provenance internally.
 - Character rows remain compact and repeatable, with a maximum of eight. Each row contains a character name and one fixed-height optional `Role or personality` field. In Character mode, validation enforces that `Your character` matches one cast name without persistent helper copy.
 - Keep multiline setup inputs at their specified fixed height before and after AI generation. Long text scrolls inside the focused input; generated content must not reflow the card by growing or shrinking fields.
 - Offline setup editing, card navigation, manual completion, and local draft saving must remain usable. Disable only the three `Generate by AI` actions and use their button label to report the online requirement.
-- Existing-series editing may keep backward-compatible stored setup values, but new series creation must not expose advanced creative anchors, cast-size controls, or draft-strategy controls.
+- Reuse this four-card presentation when editing an existing series before its first episode. Existing-series editing preserves backward-compatible stored setup values, but neither creation nor editing exposes advanced creative anchors, cast-size controls, or draft-strategy controls. After episode one, the setup remains read-only.
 
 ### Series Detail / Episode History
 
@@ -252,6 +254,11 @@ Rules:
 
 ### Episode Preparation
 
+- Match the create-series header hierarchy with one fixed centered `Create an episode` title and a Back icon on the left. Do not add a `Next episode` eyebrow, repeat the series title beneath it, or duplicate the title as a large scrolling hero.
+- Treat episode preparation as a compact two-step launch sequence rather than a settings page or a copy of the four-card series wizard. Step one, `Scene`, owns CEFR and Genre; step two owns Story Words and generation. Keep only one focused primary card visible at a time.
+- Use one compact two-node `Episode setup` surface above the active card. Show the selected Level and Genre immediately beneath the progress path as the same short, horizontally scrollable answer chips used by series setup, so changing steps never moves the active card. The chips reopen Scene without clearing or regenerating the selected words. Keep prior reached nodes tappable and use the same restrained vertical card-entry motion as series setup.
+- Keep the active step's actions in a fixed Sorbet footer so they remain reachable on narrow screens. Scene has one `Continue` action. Story Words has `Back` and `Generate episode`. Replace the generation action in place with three softly staggered candy dots and `Writing your episode...`; returning during generation must restore that same locked progress state. Freeze every Story Words mutation while generation owns its captured word set: dictionary picking, single-word replacement, and full-set shuffle remain disabled until the request settles.
+- Keep this repeated flow fast: do not add a review step, Save or draft-management controls, large repeated illustrations, free-text episode direction, or setup ceremony borrowed from one-time series creation.
 - Show CEFR and Genre as explicit controls before Story Words and generation. Do not show a separate Tone control.
 - The first episode displays the preferred CEFR from Settings and the first genre option. Later episodes display the preceding episode's selections.
 - Changing CEFR must not replace, remove, hide, or filter Story Words. CEFR applies to episode prose difficulty only; Dictionary choices and shuffle suggestions remain available across every Oxford level.

@@ -10,6 +10,8 @@ export type SeriesSetupOptionCardProps = {
   readonly icon: string;
   // isSelected controls radio semantics and selected Sorbet depth.
   readonly isSelected: boolean;
+  // isDisabled keeps a persisted setup choice readable without allowing changes.
+  readonly isDisabled?: boolean;
   // label is the concise learner-facing option name.
   readonly label: string;
   // styles provides the active theme's quest-card style contract.
@@ -21,6 +23,7 @@ export type SeriesSetupOptionCardProps = {
 // SeriesSetupOptionCard renders one accessible radio-like choice with explanatory copy.
 export function SeriesSetupOptionCard({
   icon,
+  isDisabled = false,
   isSelected,
   label,
   styles,
@@ -30,7 +33,8 @@ export function SeriesSetupOptionCard({
     <JellyPressable
       accessibilityLabel={label}
       accessibilityRole="radio"
-      accessibilityState={{ checked: isSelected }}
+      accessibilityState={{ checked: isSelected, disabled: isDisabled }}
+      disabled={isDisabled}
       onPress={onPress}
       style={[
         styles.optionCard,

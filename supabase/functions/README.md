@@ -50,6 +50,13 @@ interaction 5, permits a logical Writer-selected ending on interactions 5-9, and
 completion on interaction 10. A standalone reviewer `pacing_error` is discarded.
 Deterministic schemas and finalizers always remain mandatory.
 
+For episode openings, repetition review applies to scene prose that retells prior context,
+duplicates its own narrative beat, or copies the scene ending into the decision prompt.
+The intentionally overlapping `previouslyRecap`, `summaryUpdate`, and `cliffhanger` fields
+are not repetition failures merely for fulfilling their recap or summary contracts. A
+repetition-only recovery preserves continuity facts but rewrites the linked opening fields
+around a genuinely new causal beat before the mandatory final review.
+
 Character mode is an explicit point-of-view and agency contract, not merely a choice-label
 hint. Writer and Decision prompts address the learner role as `you`, never author a new
 voluntary action or line for that role, and never repeat a submitted answer inside the
@@ -63,8 +70,11 @@ Current Gemini 3.5/3.6 models do not receive deprecated temperature or frequency
 parameters. Reader framing remains semantic: related sentences are grouped into meaningful
 paragraph or action-beat blocks instead of being split mechanically. Framing and Russian
 translation use separate structured requests so translation instructions cannot alter story
-text. Every learner-facing generated field must pass a predominantly-English schema and
-finalizer check; Cyrillic is allowed only in validated translation values.
+text. If both bounded framing attempts fail structurally, the server preserves the already
+accepted story with deterministic, length-bounded narration frames; finalization still
+extracts safely attributed quoted dialogue. Every learner-facing generated field must pass
+a predominantly-English schema and finalizer check; Cyrillic is allowed only in validated
+translation values.
 
 Dialogue frames contain spoken words only. Prompts explicitly separate speech from tags,
 actions, and stage directions. A deterministic frame policy downgrades output such as

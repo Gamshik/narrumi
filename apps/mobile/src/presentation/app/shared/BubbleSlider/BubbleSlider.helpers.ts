@@ -21,41 +21,25 @@ export function getSteppedSliderValue(
   );
 }
 
-// getSliderValueFromPosition maps one horizontal pointer position to a valid slider value.
-export function getSliderValueFromPosition(
-  position: number,
+// getSliderValueFromDrag applies pointer movement to the value held when the drag began.
+export function getSliderValueFromDrag(
+  startValue: number,
+  horizontalDistance: number,
   trackWidth: number,
   min: number,
   max: number,
   step: number,
 ): number {
   if (trackWidth <= 0) {
-    return min;
+    return getSteppedSliderValue(startValue, min, max, step);
   }
 
-  const boundedPosition: number = Math.max(0, Math.min(trackWidth, position));
-  const percentage: number = boundedPosition / trackWidth;
-
   return getSteppedSliderValue(
-    min + percentage * (max - min),
+    startValue + (horizontalDistance / trackWidth) * (max - min),
     min,
     max,
     step,
   );
-}
-
-// getSliderTouchPosition resolves a pointer against the measured track instead of an Android child target.
-export function getSliderTouchPosition(
-  pageX: number,
-  trackPageX: number | undefined,
-  fallbackLocationX: number,
-  fallbackInset: number,
-): number {
-  if (trackPageX !== undefined && Number.isFinite(trackPageX)) {
-    return pageX - trackPageX;
-  }
-
-  return fallbackLocationX - fallbackInset;
 }
 
 // getSliderPercentage converts a bounded value into the 0-1 visual progress range.

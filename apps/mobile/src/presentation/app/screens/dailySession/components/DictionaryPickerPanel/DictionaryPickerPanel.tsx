@@ -38,6 +38,8 @@ export type DictionaryPickerPanelProps = {
   readonly colors: AppColors;
   // isChoosing disables duplicate writes while the selected word is saved.
   readonly isChoosing: boolean;
+  // isLocked prevents replacement after episode generation captures its word set.
+  readonly isLocked: boolean;
   // isLoading distinguishes dictionary lookup from an empty result.
   readonly isLoading: boolean;
   // reduceMotion replaces decorative panel travel with an immediate state change.
@@ -62,6 +64,7 @@ export type DictionaryPickerPanelProps = {
 export function DictionaryPickerPanel({
   colors,
   isChoosing,
+  isLocked,
   isLoading,
   reduceMotion,
   search,
@@ -131,6 +134,10 @@ export function DictionaryPickerPanel({
   };
   // chooseWord closes through the same material transition only after local persistence succeeds.
   const chooseWord = async (wordId: string): Promise<void> => {
+    if (isLocked || isChoosing) {
+      return;
+    }
+
     const wasChosen: boolean = await onChooseWord(wordId);
 
     if (wasChosen) {
@@ -268,7 +275,7 @@ export function DictionaryPickerPanel({
               <JellyPressable
                 accessibilityHint="Replaces the current Story Word"
                 accessibilityLabel={`Choose ${word.word}, ${word.translation}`}
-                disabled={isChoosing}
+                disabled={isChoosing || isLocked}
                 onPress={() => {
                   void chooseWord(word.id);
                 }}
@@ -277,7 +284,7 @@ export function DictionaryPickerPanel({
                 style={({ pressed }) => [
                   panelStyles.wordRow,
                   wordRowStyle,
-                  isChoosing && styles.disabledControl,
+                  (isChoosing || isLocked) && styles.disabledControl,
                   pressed && panelStyles.wordRowPressed,
                 ]}
               >

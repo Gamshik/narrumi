@@ -8,7 +8,7 @@ type DailySessionEdgeEffectStyles = {
   readonly exitButton: ViewStyle;
   // compactTitleContainer centers the collapsed title without intercepting navigation presses.
   readonly compactTitleContainer: ViewStyle;
-  // compactTitle keeps the collapsed series name restrained and readable.
+  // compactTitle matches the centered create-series modal heading.
   readonly compactTitle: TextStyle;
 };
 
@@ -35,8 +35,8 @@ export const dailySessionEdgeEffectStyles: DailySessionEdgeEffectStyles =
       justifyContent: 'center',
     },
     compactTitle: {
-      fontSize: 17,
-      lineHeight: 24,
+      fontSize: 20,
+      lineHeight: 25,
       letterSpacing: -0.25,
       textAlign: 'center',
     },

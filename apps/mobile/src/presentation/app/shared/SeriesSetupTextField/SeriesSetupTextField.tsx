@@ -1,5 +1,10 @@
 import type { ReactElement } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import {
+  Text,
+  TextInput,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 
 import type { AppColors } from '@presentation/theme';
 
@@ -37,6 +42,8 @@ export type SeriesSetupTextFieldProps = {
   readonly onChangeText: (value: string) => void;
   // onFocus lets the parent reveal the exact native keyboard target.
   readonly onFocus: KeyboardFocusTargetHandler;
+  // onLayout lets a form use this field's stable position instead of its native handle.
+  readonly onLayout?: (event: LayoutChangeEvent) => void;
 };
 
 // SeriesSetupTextField renders a shared setup input with unobtrusive AI provenance.
@@ -55,12 +62,13 @@ export function SeriesSetupTextField({
   value,
   onChangeText,
   onFocus,
+  onLayout,
 }: SeriesSetupTextFieldProps): ReactElement {
   // usesMultilineLayout keeps narrative fields top-aligned.
   const usesMultilineLayout: boolean = isMultiline || isCompactMultiline;
 
   return (
-    <View style={styles.formGroup}>
+    <View onLayout={onLayout} style={styles.formGroup}>
       <View style={styles.formLabelRow}>
         <Text style={styles.sectionLabel}>{label.toUpperCase()}</Text>
         {isAiSuggested ? (
@@ -73,7 +81,7 @@ export function SeriesSetupTextField({
         maxLength={maxLength}
         multiline={usesMultilineLayout}
         onChangeText={onChangeText}
-        onFocus={(event) => onFocus(event.nativeEvent.target)}
+        onFocus={(event): void => onFocus(event.nativeEvent.target)}
         placeholder={placeholder}
         placeholderTextColor={styles.placeholder.color}
         scrollEnabled={usesMultilineLayout}

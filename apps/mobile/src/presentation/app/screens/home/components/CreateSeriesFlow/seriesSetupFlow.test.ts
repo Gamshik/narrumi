@@ -10,6 +10,7 @@ import {
 import {
   getInitialSeriesSetupStep,
   getSeriesSetupMemoryItems,
+  getSeriesSetupStepGenerationTarget,
   isSeriesSetupStepComplete,
   seriesSetupSteps,
   type SeriesSetupMemoryItem,
@@ -32,6 +33,19 @@ describe('create-series four-card state', (): void => {
       'characters',
       'title',
     ]);
+  });
+
+  it('maps AI progress to only the request-owning card', (): void => {
+    assert.equal(
+      getSeriesSetupStepGenerationTarget('participation'),
+      undefined,
+    );
+    assert.equal(getSeriesSetupStepGenerationTarget('idea'), 'premise');
+    assert.equal(
+      getSeriesSetupStepGenerationTarget('characters'),
+      'characterProfiles',
+    );
+    assert.equal(getSeriesSetupStepGenerationTarget('title'), 'title');
   });
 
   it('resumes at the earliest unfinished required card', (): void => {
@@ -153,6 +167,11 @@ describe('create-series four-card state', (): void => {
       resolve(__dirname, 'CreateSeriesFlow.tsx'),
       'utf8',
     );
+    // homeSource protects active generation state from collapsing into a global boolean.
+    const homeSource: string = readFileSync(
+      resolve(__dirname, '../../../HomeScreen.tsx'),
+      'utf8',
+    );
     // overviewSource protects the unified progress-and-memory surface.
     const overviewSource: string = readFileSync(
       resolve(
@@ -171,6 +190,30 @@ describe('create-series four-card state', (): void => {
       resolve(
         __dirname,
         'components/GenerateWithAiAction/GenerateWithAiAction.tsx',
+      ),
+      'utf8',
+    );
+    // actionStyleSource protects the equal-height Sorbet generation capsule.
+    const actionStyleSource: string = readFileSync(
+      resolve(
+        __dirname,
+        'components/GenerateWithAiAction/GenerateWithAiAction.styles.ts',
+      ),
+      'utf8',
+    );
+    // actionMotionSource protects the restrained and accessible candy-dot wave.
+    const actionMotionSource: string = readFileSync(
+      resolve(
+        __dirname,
+        'components/GenerateWithAiAction/useAiGenerationPulse.ts',
+      ),
+      'utf8',
+    );
+    // questSource protects the card from repeating the inline generation status.
+    const questSource: string = readFileSync(
+      resolve(
+        __dirname,
+        'components/SeriesSetupQuest/SeriesSetupQuest.tsx',
       ),
       'utf8',
     );
@@ -236,6 +279,18 @@ describe('create-series four-card state', (): void => {
     assert.match(fieldSource, /label="Your character"/);
     assert.match(fieldSource, /label="Series title"/);
     assert.match(actionSource, /Generate by AI/);
+    assert.match(fieldSource, /Creating an idea…/);
+    assert.match(fieldSource, /Creating your cast…/);
+    assert.match(fieldSource, /Naming your series…/);
+    assert.match(actionMotionSource, /useReducedMotionPreference/);
+    assert.match(actionMotionSource, /Animated\.stagger/);
+    assert.match(actionSource, /accessibilityRole="progressbar"/);
+    assert.match(actionSource, /accessibilityState=\{\{ busy: true \}\}/);
+    assert.match(
+      actionStyleSource,
+      /loadingSurface:[\s\S]*?minHeight: 46/,
+    );
+    assert.doesNotMatch(questSource, /Creating an AI suggestion/);
     assert.match(imageSource, /role\.png/);
     assert.match(imageSource, /idea\.png/);
     assert.match(imageSource, /characters\.png/);
@@ -263,6 +318,11 @@ describe('create-series four-card state', (): void => {
       /worldAndSetting|backstory|storyDriver|preferredCastSize|mustInclude|avoid/,
     );
     assert.doesNotMatch(flowSource, /OptionalStepGate|pagingEnabled/);
+    assert.match(homeSource, /setGeneratingSetupTarget\(target\)/);
+    assert.match(
+      flowSource,
+      /generatingSetupTarget ===[\s\S]*?getSeriesSetupStepGenerationTarget\(quest\.activeStep\)/,
+    );
     assert.match(flowSource, /<SeriesSetupOverview/);
     assert.doesNotMatch(
       flowSource,
@@ -270,5 +330,54 @@ describe('create-series four-card state', (): void => {
     );
     assert.match(overviewSource, /setupOverviewMemory/);
     assert.doesNotMatch(overviewSource, /STORY SO FAR/);
+  });
+
+  it('reuses the four-card flow for editable existing-series setup', (): void => {
+    // seriesDetailsSource protects the pre-first-episode editor from returning to the legacy form.
+    const seriesDetailsSource: string = readFileSync(
+      resolve(__dirname, '../../../SeriesDetailsScreen.tsx'),
+      'utf8',
+    );
+    // flowSource protects the existing-series title and final save copy.
+    const flowSource: string = readFileSync(
+      resolve(__dirname, 'CreateSeriesFlow.tsx'),
+      'utf8',
+    );
+    // questSource protects read-only navigation from exposing a save action.
+    const questSource: string = readFileSync(
+      resolve(
+        __dirname,
+        'components/SeriesSetupQuest/SeriesSetupQuest.tsx',
+      ),
+      'utf8',
+    );
+    // stepContentSource passes the first-episode lock to every field-owning card.
+    const stepContentSource: string = readFileSync(
+      resolve(__dirname, 'SeriesSetupStepContent.tsx'),
+      'utf8',
+    );
+
+    assert.match(
+      seriesDetailsSource,
+      /<CreateSeriesFlow[\s\S]*?variant=\{canEditSetup \? 'edit' : 'view'\}/,
+    );
+    assert.match(seriesDetailsSource, /onGenerate=\{generateSetupField\}/);
+    assert.match(seriesDetailsSource, /onSaveDraft=\{saveSetup\}/);
+    assert.match(seriesDetailsSource, /onSubmit=\{saveSetup\}/);
+    assert.match(
+      flowSource,
+      /isExistingSeries \? 'Series setup' : 'Create a series'/,
+    );
+    assert.match(
+      flowSource,
+      /isExistingSeries \? 'Save changes' : 'Save series'/,
+    );
+    assert.match(flowSource, /const isEditable: boolean = variant !== 'view'/);
+    assert.match(flowSource, /isEditable=\{isEditable\}/);
+    assert.match(questSource, /\{isEditable \? \([\s\S]*?<BubbleButton/);
+    assert.match(stepContentSource, /<ParticipationStep[\s\S]*?isEditable=\{isEditable\}/);
+    assert.match(stepContentSource, /<IdeaStep[\s\S]*?isEditable=\{isEditable\}/);
+    assert.match(stepContentSource, /<CharactersStep[\s\S]*?isEditable=\{isEditable\}/);
+    assert.match(stepContentSource, /<TitleStep[\s\S]*?isEditable=\{isEditable\}/);
   });
 });

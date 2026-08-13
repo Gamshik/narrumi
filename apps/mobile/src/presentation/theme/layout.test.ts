@@ -42,6 +42,21 @@ test('home saved-series swipe card remains compact and intentional', (): void =>
     resolve(__dirname, '../app/screens/HomeScreen.tsx'),
     'utf8',
   );
+  // homeLibrarySource owns the extracted completed-series collection on Home.
+  const homeLibrarySource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/home/components/HomeLibrary/HomeLibrary.tsx',
+    ),
+    'utf8',
+  );
+  const homeLibraryStylesSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/home/components/HomeLibrary/HomeLibrary.styles.ts',
+    ),
+    'utf8',
+  );
   const cardSource = readFileSync(
     resolve(
       __dirname,
@@ -53,6 +68,22 @@ test('home saved-series swipe card remains compact and intentional', (): void =>
     resolve(
       __dirname,
       '../app/screens/home/components/SwipeableSeriesCard/SwipeableSeriesCard.styles.ts',
+    ),
+    'utf8',
+  );
+  // swipeCardSource owns native gesture behavior shared by series and drafts.
+  const swipeCardSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/home/components/SwipeableLibraryCard/SwipeableLibraryCard.tsx',
+    ),
+    'utf8',
+  );
+  // swipeCardStylesSource owns the single clipped silhouette for both row types.
+  const swipeCardStylesSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/home/components/SwipeableLibraryCard/SwipeableLibraryCard.styles.ts',
     ),
     'utf8',
   );
@@ -68,36 +99,48 @@ test('home saved-series swipe card remains compact and intentional', (): void =>
     'utf8',
   );
 
-  assert.match(appStylesSource, /seriesListGrid:\s*\{\s*gap:\s*10,/);
+  assert.match(homeLibraryStylesSource, /list:\s*\{\s*gap:\s*10,/);
   assert.match(cardStylesSource, /cardSurface:\s*\{[\s\S]*?height:\s*88,/);
   assert.match(cardStylesSource, /title:\s*\{[\s\S]*?fontSize:\s*16,[\s\S]*?lineHeight:\s*23,/);
   assert.match(cardStylesSource, /meta:\s*\{[\s\S]*?fontSize:\s*13,[\s\S]*?lineHeight:\s*19,/);
-  assert.match(cardSource, /<ReanimatedSwipeable/);
-  assert.match(cardSource, /overshootRight=\{false\}/);
-  assert.match(cardSource, /dragOffsetFromRightEdge=\{seriesSwipeActivationDistance\}/);
-  assert.match(cardSource, /ReduceMotion\.System/);
+  assert.match(cardSource, /<SwipeableLibraryCard/);
+  assert.match(swipeCardSource, /<ReanimatedSwipeable/);
+  assert.match(swipeCardSource, /overshootRight=\{false\}/);
+  assert.match(
+    swipeCardSource,
+    /dragOffsetFromRightEdge=\{swipeDeleteActivationDistance\}/,
+  );
+  assert.match(swipeCardSource, /ReduceMotion\.System/);
   assert.match(deleteActionSource, /<Animated\.Text[\s\S]*?DELETE[\s\S]*?<\/Animated\.Text>/);
   assert.match(deleteActionSource, /styles\.materialGradient/);
   assert.match(deleteActionSource, /styles\.halo/);
   assert.match(deleteActionSource, /styles\.sheen/);
   assert.match(deleteActionSource, /styles\.orbShell/);
   assert.match(deleteActionSource, /withSpring\(1, actionPressSpring\)/);
-  assert.match(cardSource, /width=\{seriesSwipeActionWidth\}/);
-  assert.doesNotMatch(cardSource, /JellyPressable|scaleTo=/);
-  assert.match(cardStylesSource, /cardPressablePressed:\s*\{\s*opacity:\s*0\.96,/);
+  assert.match(swipeCardSource, /width=\{swipeDeleteActionWidth\}/);
+  assert.doesNotMatch(swipeCardSource, /JellyPressable|scaleTo=/);
+  assert.match(
+    swipeCardStylesSource,
+    /cardPressablePressed:\s*\{\s*opacity:\s*0\.96,/,
+  );
   assert.match(
     cardSource,
     /backgroundColor:\s*colors\.bubbleSurfaceRaised/,
   );
-  assert.match(cardSource, /name: 'delete', label: 'Delete series'/);
   assert.match(
-    cardStylesSource,
+    swipeCardSource,
+    /name: 'delete', label: `Delete \$\{itemKind\}`/,
+  );
+  assert.match(
+    swipeCardStylesSource,
     /swipeContainer:\s*\{[\s\S]*?borderRadius:\s*radii\.lg,[\s\S]*?overflow:\s*'hidden',/,
   );
   assert.match(rootLayoutSource, /<GestureHandlerRootView style=\{\{ flex: 1 \}\}>/);
   assert.doesNotMatch(cardSource, /PanResponder|useSeriesSwipeGesture/);
   assert.doesNotMatch(homeScreenSource, /scrollEnabled=\{!isSeriesSwipeActive\}/);
-  assert.match(homeScreenSource, /<SwipeableSeriesCard/);
+  assert.match(homeScreenSource, /<HomeLibrary/);
+  assert.match(homeLibrarySource, /<SwipeableSeriesCard/);
+  assert.match(homeLibrarySource, /<SeriesDraftCard/);
   assert.doesNotMatch(homeScreenSource, /SwipeToDeleteWrapper/);
   assert.doesNotMatch(homeScreenSource, /isFeatured/);
   assert.doesNotMatch(appStylesSource, /seriesCardFeatured/);
@@ -124,8 +167,8 @@ test('episode history cards reserve equal text slots without fixed card height',
   assert.match(detailsScreenSource, /style=\{\[styles\.secondaryText, styles\.episodeCardSummary\]\}/);
 });
 
-// The test protects Baloo titles from vertical clipping and keeps the resume action compact.
-test('display titles have safe metrics and the episode action stays compact', (): void => {
+// The test protects Baloo titles from vertical clipping.
+test('display titles have safe metrics', (): void => {
   const stylesSource = readFileSync(
     resolve(__dirname, '../app/MobileApp.styles.ts'),
     'utf8',
@@ -134,16 +177,52 @@ test('display titles have safe metrics and the episode action stays compact', ()
   assert.match(stylesSource, /homeTitle:\s*\{[\s\S]*?lineHeight:\s*46,/);
   assert.match(stylesSource, /largeTitle:\s*\{[\s\S]*?lineHeight:\s*40,[\s\S]*?paddingVertical:\s*2,/);
   assert.match(stylesSource, /actionTitle:\s*\{[\s\S]*?lineHeight:\s*23,/);
-  assert.match(stylesSource, /continueBanner:\s*\{\s*gap:\s*8,\s*padding:\s*16,/);
-  assert.match(stylesSource, /bannerButton:\s*\{[\s\S]*?minHeight:\s*44,/);
 });
 
-// The test protects a full-width Setup hero behind fixed icon navigation and shared edge material.
-test('episode setup uses fixed icon navigation over shared screen edges', (): void => {
-  const stylesSource = readFileSync(
-    resolve(__dirname, '../app/MobileApp.styles.ts'),
+// The test keeps the series hero title-only and groups its two destinations without helper copy.
+test('series details uses a concise title and grouped quick actions', (): void => {
+  const detailsScreenSource = readFileSync(
+    resolve(__dirname, '../app/screens/SeriesDetailsScreen.tsx'),
     'utf8',
   );
+  const quickActionsSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/seriesDetails/components/SeriesQuickActions/SeriesQuickActions.tsx',
+    ),
+    'utf8',
+  );
+  const quickActionsStylesSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/seriesDetails/components/SeriesQuickActions/SeriesQuickActions.styles.ts',
+    ),
+    'utf8',
+  );
+
+  assert.match(detailsScreenSource, /<SeriesQuickActions/);
+  assert.doesNotMatch(detailsScreenSource, /PERSONAL SERIES/);
+  assert.doesNotMatch(detailsScreenSource, /buildSeriesDetailsMeta/);
+  assert.match(quickActionsSource, /<BubbleSurface/);
+  assert.match(quickActionsSource, /variant="list"/);
+  assert.doesNotMatch(quickActionsSource, /BubbleButton/);
+  assert.match(quickActionsSource, /<JellyPressable/);
+  assert.match(
+    quickActionsSource,
+    /primaryLabel:[\s\S]*?'Continue'[\s\S]*?'Next episode'[\s\S]*?'First episode'/,
+  );
+  assert.match(quickActionsSource, />\s*Read all\s*</);
+  assert.match(quickActionsStylesSource, /container:[\s\S]*?flexDirection:\s*'row'/);
+  assert.match(quickActionsStylesSource, /actionContent:[\s\S]*?minHeight:\s*50/);
+  assert.match(quickActionsStylesSource, /divider:[\s\S]*?StyleSheet\.hairlineWidth/);
+  assert.doesNotMatch(
+    quickActionsSource,
+    /Return to the latest decision|Choose Story Words for the next episode/,
+  );
+});
+
+// The test protects one centered create-style title above the episode setup canvas.
+test('episode setup uses a centered fixed header over shared screen edges', (): void => {
   const dailySessionRouteSource = readFileSync(
     resolve(__dirname, '../../../app/daily-session.tsx'),
     'utf8',
@@ -163,6 +242,13 @@ test('episode setup uses fixed icon navigation over shared screen edges', (): vo
     resolve(
       __dirname,
       '../app/screens/DailySessionEdgeEffects/DailySessionEdgeEffects.tsx',
+    ),
+    'utf8',
+  );
+  const dailySessionEdgeEffectsStylesSource = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/DailySessionEdgeEffects/DailySessionEdgeEffects.styles.ts',
     ),
     'utf8',
   );
@@ -190,23 +276,16 @@ test('episode setup uses fixed icon navigation over shared screen edges', (): vo
     /<PlatformBlurTargetView[\s\S]*?blurTargetRef=\{blurTargetRef\}/,
   );
   assert.match(dailySessionSource, /<Animated\.ScrollView/);
-  assert.match(dailySessionSource, /onScroll=\{handleSetupScroll\}/);
-  assert.match(dailySessionSource, /setupHeaderCollapseOffset:\s*number = 38/);
-  assert.match(dailySessionSource, /setupHeaderExpandOffset:\s*number = 12/);
   assert.match(
     dailySessionSource,
     /paddingTop:\s*insets\.top \+ screenEdgeDepths\.compactTop \+ 2/,
   );
-  assert.match(dailySessionSource, /duration:\s*setupTitleTransitionDuration/);
-  assert.match(dailySessionSource, /duration:\s*setupMaterialTransitionDuration/);
-  assert.match(dailySessionSource, /styles\.dailySessionTitleBlock/);
   assert.match(dailySessionSource, /screenEdgeDepths\.modalBottom/);
   assert.match(dailySessionSource, /<DailySessionEdgeEffects/);
+  assert.match(dailySessionSource, /title="Create an episode"/);
+  assert.doesNotMatch(dailySessionSource, /NEXT EPISODE/);
+  assert.doesNotMatch(dailySessionSource, /series\?\.title/);
   assert.doesNotMatch(dailySessionSource, />Exit<\/Text>/);
-  assert.match(
-    stylesSource,
-    /dailySessionTitleBlock:\s*\{\s*minWidth:\s*0,\s*width:\s*"100%",/,
-  );
   assert.match(
     dailySessionEdgeEffectsSource,
     /accessibilityLabel="Exit episode setup"/,
@@ -216,15 +295,16 @@ test('episode setup uses fixed icon navigation over shared screen edges', (): vo
   assert.match(dailySessionEdgeEffectsSource, /bottomVariant="modal"/);
   assert.match(dailySessionEdgeEffectsSource, /topVariant="compact"/);
   assert.match(sharedEdgeEffectsSource, /compactTop:\s*82/);
-  assert.match(
-    dailySessionEdgeEffectsSource,
-    /materialOpacity=\{materialOpacity\}/,
-  );
-  assert.match(
-    dailySessionEdgeEffectsSource,
-    /inputRange:\s*\[0, 0\.5, 0\.82, 1\]/,
-  );
+  assert.match(dailySessionEdgeEffectsSource, /materialOpacity=\{1\}/);
   assert.match(dailySessionEdgeEffectsSource, /ellipsizeMode="tail"/);
+  assert.match(
+    dailySessionEdgeEffectsStylesSource,
+    /compactTitleContainer:[\s\S]*?left:\s*72,[\s\S]*?right:\s*72,/,
+  );
+  assert.match(
+    dailySessionEdgeEffectsStylesSource,
+    /compactTitle:[\s\S]*?fontSize:\s*20,[\s\S]*?lineHeight:\s*25,/,
+  );
   assert.match(backIconButtonSource, />\s*←\s*<\/Text>/);
   assert.match(backIconButtonStylesSource, /width:\s*44/);
   assert.match(backIconButtonSource, /accessibilityRole="button"/);
@@ -246,7 +326,7 @@ test('Back and Exit navigation reuses BackIconButton across screens', (): void =
 
   assert.equal(
     (combinedNavigationSource.match(/<BackIconButton/g) ?? []).length,
-    7,
+    6,
   );
   assert.doesNotMatch(
     combinedNavigationSource,
@@ -478,17 +558,26 @@ test('dictionary uses floating tools and symmetric edge depth', (): void => {
   assert.doesNotMatch(dictionarySource, /WORD CATALOG|DictionaryListFrame/);
 });
 
-// The test keeps the Create a Story action visually compact on populated and empty homes.
-test('home creation action uses compact surface metrics', (): void => {
-  const stylesSource = readFileSync(
-    resolve(__dirname, '../app/MobileApp.styles.ts'),
+// The test keeps Home creation compact and separate from library content sections.
+test('home library header uses a compact labeled action', (): void => {
+  // headerStylesSource owns the stable heading-and-action geometry.
+  const headerStylesSource: string = readFileSync(
+    resolve(
+      __dirname,
+      '../app/screens/home/components/HomeLibrary/HomeLibraryHeader/HomeLibraryHeader.styles.ts',
+    ),
     'utf8',
   );
 
-  assert.match(stylesSource, /heroSurfaceCompact:\s*\{\s*paddingHorizontal:\s*16,\s*paddingVertical:\s*13,/);
-  assert.match(stylesSource, /heroSurfaceEmpty:\s*\{\s*minHeight:\s*168,/);
-  assert.match(stylesSource, /heroContent:\s*\{\s*minHeight:\s*64,/);
-  assert.match(stylesSource, /heroButtonContent:\s*\{\s*minHeight:\s*42,/);
+  assert.match(
+    headerStylesSource,
+    /header:[\s\S]*?alignItems: 'center'[\s\S]*?flexDirection: 'row'[\s\S]*?justifyContent: 'space-between'/,
+  );
+  assert.match(
+    headerStylesSource,
+    /createActionContent:[\s\S]*?minHeight: 44[\s\S]*?paddingHorizontal: 14/,
+  );
+  assert.doesNotMatch(headerStylesSource, /position: 'absolute'|zIndex/);
 });
 
 // The test protects the single continuous backdrop from route-level remounts.
@@ -736,17 +825,11 @@ test('series details reveals only a compact title inside shared top glass', (): 
   assert.match(seriesEdgeEffectsSource, /numberOfLines=\{1\}/);
   assert.doesNotMatch(seriesEdgeEffectsSource, /adjustsFontSizeToFit/);
   assert.doesNotMatch(seriesEdgeEffectsSource, /minimumFontScale/);
+  assert.match(seriesScreenSource, /<CreateSeriesFlow/);
   assert.match(
     seriesScreenSource,
-    /blurTargetRef=\{setupModalBlurTargetRef\}/,
+    /variant=\{canEditSetup \? 'edit' : 'view'\}/,
   );
-  assert.match(
-    seriesScreenSource,
-    /blurTarget=\{setupModalBlurTargetRef\}/,
-  );
-  assert.match(seriesScreenSource, /setupModalContentInsets/);
-  assert.match(seriesScreenSource, /screenEdgeDepths\.modalBottom/);
-  assert.match(seriesScreenSource, /setupModalHeaderPosition/);
   assert.match(seriesScreenSource, /isDark=\{isDark\}/);
 });
 

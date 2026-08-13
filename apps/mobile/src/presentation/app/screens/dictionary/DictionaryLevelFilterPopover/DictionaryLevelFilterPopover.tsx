@@ -251,7 +251,7 @@ function LevelOption({
           backgroundColor: isSelected
             ? colors.pillSelectedSurface
             : colors.bubbleSurfaceMuted,
-          borderColor: isSelected ? colors.systemPurple : colors.bubbleBorder,
+          borderColor: isSelected ? colors.systemPurple : colors.pillBorder,
         },
       ]}
     >

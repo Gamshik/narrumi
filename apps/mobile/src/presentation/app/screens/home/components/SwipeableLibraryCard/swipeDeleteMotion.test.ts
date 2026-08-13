@@ -2,24 +2,24 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import {
-  getSeriesDeleteActionPresentation,
-  seriesSwipeActionWidth,
-  seriesSwipeActivationDistance,
-  seriesSwipeOpenThreshold,
-} from './seriesSwipeMotion';
+  getSwipeDeleteActionPresentation,
+  swipeDeleteActionWidth,
+  swipeDeleteActivationDistance,
+  swipeDeleteOpenThreshold,
+} from './swipeDeleteMotion';
 
-// The suite protects the geometry and sequential Sorbet reveal delegated to native motion.
-describe('seriesSwipeMotion', (): void => {
-  // One shared width must preserve a comfortable target without making the swipe feel heavy.
+// The suite protects shared series-and-draft geometry and sequential Sorbet reveal.
+describe('swipeDeleteMotion', (): void => {
+  // One shared width preserves a comfortable target without making either row feel heavy.
   test('keeps the destructive lane intentional and easy to reveal', (): void => {
-    assert.equal(seriesSwipeActionWidth, 104);
-    assert.ok(seriesSwipeOpenThreshold < seriesSwipeActionWidth / 2);
-    assert.ok(seriesSwipeActivationDistance >= 10);
+    assert.equal(swipeDeleteActionWidth, 104);
+    assert.ok(swipeDeleteOpenThreshold < swipeDeleteActionWidth / 2);
+    assert.ok(swipeDeleteActivationDistance >= 10);
   });
 
   // Hidden and overshooting values must resolve to deterministic visual endpoints.
   test('clamps every action layer outside native progress bounds', (): void => {
-    assert.deepEqual(getSeriesDeleteActionPresentation(-0.5), {
+    assert.deepEqual(getSwipeDeleteActionPresentation(-0.5), {
       haloOpacity: 0,
       haloScale: 0.58,
       haloTranslateX: 22,
@@ -32,7 +32,7 @@ describe('seriesSwipeMotion', (): void => {
       sheenOpacity: 0,
       sheenTranslateX: 44,
     });
-    assert.deepEqual(getSeriesDeleteActionPresentation(1.5), {
+    assert.deepEqual(getSwipeDeleteActionPresentation(1.5), {
       haloOpacity: 0.42,
       haloScale: 1.16,
       haloTranslateX: -6,
@@ -49,9 +49,9 @@ describe('seriesSwipeMotion', (): void => {
 
   // Background, icon, and label should arrive in order rather than appearing as one flat block.
   test('sequences material light, icon bubble, and label', (): void => {
-    const earlyPresentation = getSeriesDeleteActionPresentation(0.12);
-    const middlePresentation = getSeriesDeleteActionPresentation(0.48);
-    const openPresentation = getSeriesDeleteActionPresentation(1);
+    const earlyPresentation = getSwipeDeleteActionPresentation(0.12);
+    const middlePresentation = getSwipeDeleteActionPresentation(0.48);
+    const openPresentation = getSwipeDeleteActionPresentation(1);
 
     assert.ok(earlyPresentation.haloOpacity > 0);
     assert.equal(earlyPresentation.orbOpacity, 0);

@@ -5,30 +5,19 @@ import {
   Alert,
   Animated,
   Easing,
-  KeyboardAvoidingView,
   type LayoutChangeEvent,
-  Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  Platform,
-  ScrollView,
   Text,
   type ViewStyle,
   View,
 } from 'react-native';
 import {
   BackIconButton,
-  BubbleButton,
   BubbleStatus,
   BubbleSurface,
-  SeriesSetupChoiceGroup,
-  CharacterProfilesEditor,
-  SeriesCreativeBriefEditor,
-  SeriesSetupTextField,
-  useKeyboardAwareScroll,
   JellyPressable,
   PlatformBlurTargetView,
-  ScreenEdgeEffects,
   screenEdgeDepths,
 } from '../shared';
 import { useAppTheme } from '../theme';
@@ -37,12 +26,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   characterProfileNames,
-  normalizeCharacterProfiles,
-  seriesParticipationModes,
   type Episode,
   type Series,
   type SeriesMemory,
 } from '@domain/index';
+import type {
+  ConnectivityState,
+  SeriesSetupGenerationTarget,
+} from '@application/ports';
+import type {
+  GenerateSeriesSetupDraftInput,
+  GenerateSeriesSetupDraftResult,
+} from '@application/useCases';
 
 import { localAppServices } from '../services/localAppServices';
 import type { AppStyles } from '../types';
@@ -51,17 +46,16 @@ import {
   SeriesDetailsEdgeEffects,
   type SeriesTitleScrollThresholds,
 } from './SeriesDetailsEdgeEffects';
-import { buildSeriesSetupDraftRequest } from './seriesSetupDraftRequest';
 import {
-  applyAiGeneratedFields,
+  applyTargetedSeriesSetupDraft,
+  buildTargetedSeriesSetupDraftRequest,
+} from './seriesSetupDraftRequest';
+import { SeriesQuickActions } from './seriesDetails/components/SeriesQuickActions';
+import { CreateSeriesFlow } from './home/components/CreateSeriesFlow';
+import {
   createLocalSeriesSetupDraft,
   createSeriesSetupForm,
   createSeriesSetupFormFromDraft,
-  getSeriesSetupGenerationActionLabel,
-  isAiGeneratedField,
-  markSetupFieldUserAuthored,
-  participationModeLabels,
-  shouldConfirmSeriesSetupGeneration,
   validateSeriesSetupForm,
   type SeriesSetupFormErrors,
   type SeriesSetupFormState,
@@ -119,12 +113,13 @@ export function SeriesDetailsScreen({
   const [state, setState] = useState<SeriesDetailsState>();
   const [setupForm, setSetupForm] = useState<SeriesSetupFormState>();
   const [setupErrors, setSetupErrors] = useState<SeriesSetupFormErrors>({});
-  // generationUndoForm keeps one pre-generation setup snapshot until another edit.
-  const [generationUndoForm, setGenerationUndoForm] =
-    useState<SeriesSetupFormState>();
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isSavingSetup, setIsSavingSetup] = useState(false);
-  const [isGeneratingSetup, setIsGeneratingSetup] = useState(false);
+  // generatingSetupTarget identifies the card that owns the current targeted AI request.
+  const [generatingSetupTarget, setGeneratingSetupTarget] =
+    useState<SeriesSetupGenerationTarget>();
+  // isSetupOnline controls the online-only actions inside the shared setup flow.
+  const [isSetupOnline, setIsSetupOnline] = useState<boolean>(false);
   // setupGenerationLockRef blocks rapid presses before React applies busy state.
   const setupGenerationLockRef = useRef<boolean>(false);
   const [deletingEpisodeId, setDeletingEpisodeId] = useState<string>();
@@ -252,7 +247,6 @@ export function SeriesDetailsScreen({
 
       if (!isComplete) {
         setIsSetupOpen(false);
-        setGenerationUndoForm(undefined);
         setSetupErrors({});
         setSetupForm(createSeriesSetupForm(state.series));
         return;
@@ -276,7 +270,6 @@ export function SeriesDetailsScreen({
         .execute({ draftId: state.series.id })
         .catch(() => undefined);
       setIsSetupOpen(false);
-      setGenerationUndoForm(undefined);
       setSetupErrors({});
       await loadDetails();
     } catch (error) {
@@ -291,74 +284,50 @@ export function SeriesDetailsScreen({
     }
   };
 
-  const generateSetup = async (): Promise<void> => {
+  // generateSetupField replaces only the field owned by the active setup card.
+  const generateSetupField = async (
+    target: SeriesSetupGenerationTarget,
+  ): Promise<boolean> => {
     if (!setupForm) {
-      return;
+      return false;
     }
 
     if (setupGenerationLockRef.current) {
-      return;
+      return false;
     }
 
     setupGenerationLockRef.current = true;
-    setIsGeneratingSetup(true);
+    setGeneratingSetupTarget(target);
     setSetupActionError(undefined);
 
     try {
-      const generationRequest = buildSeriesSetupDraftRequest(setupForm);
-      const result = await localAppServices.generateSeriesSetupDraft.execute(
-        generationRequest,
-      );
-      const generatedForm = applyAiGeneratedFields(
-        {
-          ...setupForm,
-          title: result.draft.title,
-          premise: result.draft.premise,
-          characterProfiles: result.draft.characterProfiles,
-          userRole:
-            setupForm.participationMode === 'character'
-              ? result.draft.userRole ?? setupForm.userRole
-              : '',
-        },
-        result.draft.changedFields,
-      );
+      const generationRequest: GenerateSeriesSetupDraftInput =
+        buildTargetedSeriesSetupDraftRequest(setupForm, target);
+      const result: GenerateSeriesSetupDraftResult =
+        await localAppServices.generateSeriesSetupDraft.execute(
+          generationRequest,
+        );
+      const generatedForm: SeriesSetupFormState =
+        applyTargetedSeriesSetupDraft(setupForm, target, result.draft);
 
-      setGenerationUndoForm(
-        result.draft.changedFields.length > 0 ? setupForm : undefined,
-      );
       setSetupForm(generatedForm);
-      setSetupErrors({});
+      setSetupErrors((currentErrors: SeriesSetupFormErrors) =>
+        Object.keys(currentErrors).length > 0
+          ? validateSeriesSetupForm(generatedForm)
+          : {},
+      );
+      return true;
     } catch (error) {
       setSetupActionError(
         error instanceof Error
           ? error.message
           : 'Series setup could not be generated.',
       );
+      return false;
     } finally {
       setupGenerationLockRef.current = false;
-      setIsGeneratingSetup(false);
+      setGeneratingSetupTarget(undefined);
     }
-  };
-
-  // requestSetupGeneration confirms only a rebuild that discards visible final fields.
-  const requestSetupGeneration = (): void => {
-    if (!setupForm || !shouldConfirmSeriesSetupGeneration(setupForm)) {
-      void generateSetup();
-      return;
-    }
-
-    Alert.alert(
-      'Rebuild this draft?',
-      'Title, premise, characters, and role may be replaced. Your idea and story anchors stay unchanged.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Rebuild',
-          style: 'destructive',
-          onPress: () => void generateSetup(),
-        },
-      ],
-    );
   };
 
   // cancelSetup closes the setup sheet without persisting, discarding unsaved edits
@@ -366,7 +335,6 @@ export function SeriesDetailsScreen({
   const cancelSetup = (): void => {
     setSetupErrors({});
     setSetupActionError(undefined);
-    setGenerationUndoForm(undefined);
     setIsSetupOpen(false);
 
     if (state) {
@@ -383,7 +351,14 @@ export function SeriesDetailsScreen({
 
     setSetupActionError(undefined);
     setSetupErrors({});
-    setGenerationUndoForm(undefined);
+
+    // networkState gives the shared setup cards a current online-action snapshot.
+    const networkState: ConnectivityState =
+      await localAppServices.networkStatus
+        .getCurrentState()
+        .catch((): ConnectivityState => ({ isOnline: false }));
+
+    setIsSetupOnline(networkState.isOnline);
 
     if (canEditSetup) {
       try {
@@ -480,7 +455,6 @@ export function SeriesDetailsScreen({
   const latestEpisode = state.episodes.at(-1);
   const hasEpisodeInProgress =
     latestEpisode !== undefined && !latestEpisode.isComplete;
-  const nextEpisodeNumber = state.episodes.length + 1;
 
   return (
     <View style={styles.flexOne}>
@@ -497,9 +471,6 @@ export function SeriesDetailsScreen({
             onLayout={handleSeriesHeaderLayout}
             style={styles.seriesDetailsHeader}
           >
-            <Text style={styles.readerBadge}>
-              PERSONAL SERIES
-            </Text>
             <Text
               adjustsFontSizeToFit
               minimumFontScale={0.72}
@@ -509,82 +480,23 @@ export function SeriesDetailsScreen({
             >
               {state.series.title}
             </Text>
-            <Text numberOfLines={2} style={styles.secondaryText}>
-              {buildSeriesDetailsMeta(state.series, state.episodes.length)}
-            </Text>
           </View>
 
-          <BubbleSurface
+          <SeriesQuickActions
             colors={colors}
-            tone="primary"
-            variant="card"
-            style={[styles.continueBanner, styles.seriesPrepareBanner]}
-          >
-            <Text style={styles.continueTag}>
-              {hasEpisodeInProgress ? 'CONTINUE' : 'PREPARE NEXT'}
-            </Text>
-            <Text
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-              numberOfLines={2}
-              style={styles.continueTitle}
-            >
-              {hasEpisodeInProgress
-                ? 'Resume episode'
-                : `Episode ${nextEpisodeNumber}`}
-            </Text>
-            <Text numberOfLines={2} style={styles.continueText}>
-              {hasEpisodeInProgress
-                ? 'Return to the latest decision.'
-                : 'Choose Story Words for the next episode.'}
-            </Text>
-            <BubbleButton
-              colors={colors}
-              contentStyle={styles.bannerButton}
-              onPress={() => {
-                if (latestEpisode && !latestEpisode.isComplete) {
-                  onContinueEpisode(latestEpisode.orderIndex);
+            hasEpisodeInProgress={hasEpisodeInProgress}
+            hasEpisodes={state.episodes.length > 0}
+            onPrimaryAction={() => {
+              if (latestEpisode && !latestEpisode.isComplete) {
+                onContinueEpisode(latestEpisode.orderIndex);
 
-                  return;
-                }
+                return;
+              }
 
-                onPrepareEpisode(state.series.id);
-              }}
-              variant="inverted"
-            >
-              <Text
-                adjustsFontSizeToFit
-                minimumFontScale={0.72}
-                numberOfLines={1}
-                style={styles.bannerButtonText}
-              >
-                {hasEpisodeInProgress ? 'Continue Reading' : 'Start Setup'}
-              </Text>
-            </BubbleButton>
-          </BubbleSurface>
-
-          {state.episodes.length > 0 ? (
-            <JellyPressable
-              onPress={() => onReadSeries(state.series.id)}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                styles.seriesSecondaryAction,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text
-                adjustsFontSizeToFit
-                minimumFontScale={0.78}
-                numberOfLines={1}
-                style={[
-                  styles.primaryButtonText,
-                  styles.seriesSecondaryActionText,
-                ]}
-              >
-                Read Full Series
-              </Text>
-            </JellyPressable>
-          ) : null}
+              onPrepareEpisode(state.series.id);
+            }}
+            onReadSeries={() => onReadSeries(state.series.id)}
+          />
 
           <Text style={styles.sectionLabel}>EPISODE HISTORY</Text>
           {state.episodes.length === 0 ? (
@@ -609,36 +521,32 @@ export function SeriesDetailsScreen({
             </View>
           )}
           {setupForm ? (
-            <SeriesSetupModal
+            <CreateSeriesFlow
               actionError={setupActionError}
-              canUndoGeneration={generationUndoForm !== undefined}
               colors={colors}
-              canEdit={canEditSetup}
               errors={setupErrors}
               form={setupForm}
-              isGenerating={isGeneratingSetup}
+              generatingSetupTarget={generatingSetupTarget}
               isDark={isDark}
+              isOnline={isSetupOnline}
               isSaving={isSavingSetup}
               isVisible={isSetupOpen}
               styles={styles}
-              onChangeForm={(nextForm) => {
-                setGenerationUndoForm(undefined);
+              variant={canEditSetup ? 'edit' : 'view'}
+              onChangeForm={(nextForm: SeriesSetupFormState): void => {
+                setSetupActionError(undefined);
                 setSetupForm(nextForm);
-                setSetupErrors((currentErrors) =>
-                  Object.keys(currentErrors).length > 0
-                    ? validateSeriesSetupForm(nextForm)
-                    : {},
+                setSetupErrors(
+                  (currentErrors: SeriesSetupFormErrors) =>
+                    Object.keys(currentErrors).length > 0
+                      ? validateSeriesSetupForm(nextForm)
+                      : {},
                 );
               }}
               onClose={cancelSetup}
-              onGenerate={requestSetupGeneration}
-              onSave={saveSetup}
-              onUndoGeneration={() => {
-                if (generationUndoForm) {
-                  setSetupForm(generationUndoForm);
-                  setGenerationUndoForm(undefined);
-                }
-              }}
+              onGenerate={generateSetupField}
+              onSaveDraft={saveSetup}
+              onSubmit={saveSetup}
             />
           ) : null}
         </Animated.ScrollView>
@@ -658,368 +566,6 @@ export function SeriesDetailsScreen({
       />
     </View>
   );
-}
-
-// SeriesSetupModal shows the locked or editable setup contract for one series.
-function SeriesSetupModal({
-  actionError,
-  canUndoGeneration,
-  colors,
-  canEdit,
-  errors,
-  form,
-  isGenerating,
-  isDark,
-  isSaving,
-  isVisible,
-  styles,
-  onChangeForm,
-  onClose,
-  onGenerate,
-  onSave,
-  onUndoGeneration,
-}: {
-  // actionError reports save or generation failures inside the open modal.
-  readonly actionError: string | undefined;
-  // canUndoGeneration reveals one rollback after a successful AI result.
-  readonly canUndoGeneration: boolean;
-  // colors is the current theme tokens.
-  readonly colors: typeof lightColors | typeof darkColors;
-  // canEdit is true only before the first generated episode exists.
-  readonly canEdit: boolean;
-  // errors are validation messages for editable setup fields.
-  readonly errors: SeriesSetupFormErrors;
-  // form stores the visible setup values.
-  readonly form: SeriesSetupFormState;
-  // isGenerating disables duplicate AI setup generation.
-  readonly isGenerating: boolean;
-  // isDark selects the matching shared blur tint.
-  readonly isDark: boolean;
-  // isSaving disables duplicate local writes.
-  readonly isSaving: boolean;
-  // isVisible controls the native modal presentation.
-  readonly isVisible: boolean;
-  // styles is the current theme StyleSheet contract.
-  readonly styles: AppStyles;
-  // onChangeForm updates one or more setup fields.
-  readonly onChangeForm: (form: SeriesSetupFormState) => void;
-  // onClose dismisses the setup sheet.
-  readonly onClose: () => void;
-  // onGenerate fills missing setup text through the AI boundary.
-  readonly onGenerate: () => void;
-  // onSave persists editable setup changes.
-  readonly onSave: () => void;
-  // onUndoGeneration restores the setup snapshot from before the latest AI result.
-  readonly onUndoGeneration: () => void;
-}): ReactElement {
-  const insets = useSafeAreaInsets();
-  const topInset: number = insets.top;
-  const bottomInset: number = insets.bottom;
-  const { scrollViewRef, revealFocusedInput } = useKeyboardAwareScroll();
-  // characterSectionOffsetRef preserves the existing add-row reveal behavior separately from keyboard focus.
-  const characterSectionOffsetRef = useRef<number | null>(null);
-  // setupModalBlurTargetRef preserves the shared edge-effect source contract inside setup.
-  const setupModalBlurTargetRef: RefObject<View | null> = useRef<View>(null);
-  // setupModalContentInsets matches the create-series modal's edge clearances.
-  const setupModalContentInsets: ViewStyle = {
-    paddingTop: topInset + 96,
-    paddingBottom: bottomInset + screenEdgeDepths.modalBottom + 16,
-  };
-  // setupModalHeaderPosition floats actions above shared top glass without an opaque slab.
-  const setupModalHeaderPosition: ViewStyle = {
-    position: 'absolute',
-    top: topInset,
-    left: 0,
-    right: 0,
-    zIndex: 2,
-    backgroundColor: 'transparent',
-  };
-  // isBusy blocks setup controls while a save or AI setup generation runs.
-  const isBusy = isSaving || isGenerating;
-  // isComplete switches the editable header action between draft save and final save.
-  const isComplete: boolean =
-    Object.keys(validateSeriesSetupForm(form)).length === 0;
-  // generationActionLabel reflects strategy and whether the creative context is blank.
-  const generationActionLabel: string =
-    getSeriesSetupGenerationActionLabel(form);
-  const updateForm = (patch: Partial<SeriesSetupFormState>): void => {
-    onChangeForm({ ...form, ...patch });
-  };
-  // scrollToAddedCharacter positions the newly inserted card below the modal header.
-  const scrollToAddedCharacter = (characterOffsetY: number): void => {
-    const sectionOffsetY = characterSectionOffsetRef.current;
-
-    if (sectionOffsetY === null) {
-      return;
-    }
-
-    scrollViewRef.current?.scrollTo({
-      y: Math.max(0, sectionOffsetY + characterOffsetY - 72),
-      animated: true,
-    });
-  };
-
-  return (
-    <Modal animationType="slide" visible={isVisible} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-        style={styles.modalScreen}
-      >
-        <PlatformBlurTargetView
-          blurTargetRef={setupModalBlurTargetRef}
-          style={styles.flexOne}
-        >
-          <ScrollView
-            ref={scrollViewRef}
-            contentContainerStyle={[
-              styles.modalContent,
-              setupModalContentInsets,
-            ]}
-            keyboardDismissMode="interactive"
-            keyboardShouldPersistTaps="always"
-          >
-          <View style={styles.setupSectionCard}>
-            <SeriesSetupChoiceGroup
-              isDark={isDark}
-              isDisabled={!canEdit}
-              label="Mode"
-              options={seriesParticipationModes}
-              selected={form.participationMode}
-              styles={styles}
-              labels={participationModeLabels}
-              onSelect={(participationMode) => {
-                const nextForm = markSetupFieldUserAuthored(
-                  {
-                    ...form,
-                    participationMode,
-                    ...(participationMode === 'director'
-                      ? { userRole: '' }
-                      : {}),
-                  },
-                  'userRole',
-                );
-
-                onChangeForm(nextForm);
-              }}
-            />
-
-            <SeriesCreativeBriefEditor
-              brief={form.creativeBrief}
-              colors={colors}
-              completedCharacterCount={
-                normalizeCharacterProfiles(form.characterProfiles).length
-              }
-              isDark={isDark}
-              isEditable={canEdit}
-              styles={styles}
-              onChange={(creativeBrief) => updateForm({ creativeBrief })}
-              onFocus={revealFocusedInput}
-            />
-            {canEdit ? (
-              <>
-                <BubbleButton
-                  accessibilityHint="Updates the final setup using the selected AI strategy"
-                  colors={colors}
-                  contentStyle={styles.setupBuildAction}
-                  disabled={isBusy}
-                  onPress={onGenerate}
-                  variant="primary"
-                >
-                  <Text style={styles.setupBuildActionText}>
-                    {generationActionLabel}
-                  </Text>
-                </BubbleButton>
-                {canUndoGeneration ? (
-                  <BubbleButton
-                    accessibilityHint="Restores the setup from before the latest AI result"
-                    colors={colors}
-                    contentStyle={styles.setupUndoAction}
-                    disabled={isBusy}
-                    onPress={onUndoGeneration}
-                    variant="secondary"
-                  >
-                    <Text style={styles.setupUndoActionText}>
-                      Undo AI changes
-                    </Text>
-                  </BubbleButton>
-                ) : null}
-              </>
-            ) : null}
-            <View style={styles.setupDraftHeader}>
-              <Text style={styles.setupDraftTitle}>Series draft</Text>
-              {canEdit ? (
-                <Text style={styles.formHelperText}>
-                  AI suggestions stay editable. Your idea and story anchors stay fixed.
-                </Text>
-              ) : null}
-            </View>
-            <SeriesSetupTextField
-              colors={colors}
-              {...(errors.title ? { error: errors.title } : {})}
-              isEditable={canEdit}
-              isAiSuggested={isAiGeneratedField(form, 'title')}
-              label="Title"
-              maxLength={160}
-              placeholder="Orbit Letters"
-              styles={styles}
-              value={form.title}
-              onFocus={revealFocusedInput}
-              onChangeText={(title) =>
-                onChangeForm(
-                  markSetupFieldUserAuthored({ ...form, title }, 'title'),
-                )
-              }
-            />
-            <SeriesSetupTextField
-              colors={colors}
-              {...(errors.premise ? { error: errors.premise } : {})}
-              isEditable={canEdit}
-              isAiSuggested={isAiGeneratedField(form, 'premise')}
-              isMultiline
-              label="Premise"
-              maxLength={1000}
-              placeholder="A learner receives strange English notes from a future city."
-              styles={styles}
-              value={form.premise}
-              onFocus={revealFocusedInput}
-              onChangeText={(premise) =>
-                onChangeForm(
-                  markSetupFieldUserAuthored(
-                    { ...form, premise },
-                    'premise',
-                  ),
-                )
-              }
-            />
-            {isAiGeneratedField(form, 'characterProfiles') ? (
-              <Text style={styles.setupAiSourceLabel}>
-                CAST · AI SUGGESTION · EDITABLE
-              </Text>
-            ) : null}
-            <CharacterProfilesEditor
-              colors={colors}
-              {...(errors.mainCharacters
-                ? { error: errors.mainCharacters }
-                : {})}
-              isEditable={canEdit}
-              profiles={form.characterProfiles}
-              onAddedProfileLayout={scrollToAddedCharacter}
-              onFocus={revealFocusedInput}
-              onLayout={(event) => {
-                characterSectionOffsetRef.current = event.nativeEvent.layout.y;
-              }}
-              onChange={(characterProfiles) =>
-                onChangeForm(
-                  markSetupFieldUserAuthored(
-                    { ...form, characterProfiles },
-                    'characterProfiles',
-                  ),
-                )
-              }
-            />
-            {form.participationMode === 'character' ? (
-              <SeriesSetupTextField
-                colors={colors}
-                {...(errors.userRole ? { error: errors.userRole } : {})}
-                {...(canEdit
-                  ? {
-                      helper:
-                        'Required. Use one character name from the cast above.',
-                    }
-                  : {})}
-                isEditable={canEdit}
-                isAiSuggested={isAiGeneratedField(form, 'userRole')}
-                isCompactMultiline
-                label="Your Character"
-                maxLength={160}
-                placeholder="Maya"
-                styles={styles}
-                value={form.userRole}
-                onFocus={revealFocusedInput}
-                onChangeText={(userRole) =>
-                  onChangeForm(
-                    markSetupFieldUserAuthored(
-                      { ...form, userRole },
-                      'userRole',
-                    ),
-                  )
-                }
-              />
-            ) : null}
-          </View>
-          {canEdit ? (
-            <>
-              {isBusy ? (
-                <BubbleStatus
-                  colors={colors}
-                  tone="loading"
-                  title={isSaving ? 'Saving setup...' : 'Generating setup...'}
-                  variant="row"
-                />
-          ) : null}
-          {!isBusy && actionError ? (
-            <BubbleStatus
-              accessibilityRole="alert"
-              colors={colors}
-              tone="error"
-              title={actionError}
-              variant="row"
-            />
-          ) : null}
-            </>
-          ) : (
-            <BubbleStatus
-              colors={colors}
-              tone="warning"
-              title="Setup is read-only after the first episode."
-              variant="row"
-            />
-          )}
-          </ScrollView>
-        </PlatformBlurTargetView>
-        <ScreenEdgeEffects
-          blurTarget={setupModalBlurTargetRef}
-          bottomInset={bottomInset}
-          bottomVariant="modal"
-          colors={colors}
-          isDark={isDark}
-          materialOpacity={1}
-          topInset={topInset}
-        />
-        <View style={[styles.modalHeader, setupModalHeaderPosition]}>
-          <BackIconButton
-            accessibilityHint="Closes series setup"
-            accessibilityLabel="Back from series setup"
-            colors={colors}
-            onPress={onClose}
-          />
-          <View style={styles.modalActions}>
-            <BubbleButton
-              colors={colors}
-              contentStyle={styles.modalSecondaryAction}
-              disabled={!canEdit || isBusy}
-              onPress={onSave}
-              variant="secondary"
-            >
-              <Text style={styles.modalSecondaryActionText}>
-                {isComplete ? 'Save' : 'Save draft'}
-              </Text>
-            </BubbleButton>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-// buildSeriesDetailsMeta keeps orientation compact without exposing the full premise.
-function buildSeriesDetailsMeta(series: Series, episodeCount: number): string {
-  const names = characterProfileNames(series.characterProfiles).slice(0, 2);
-  const cast = names.length > 0 ? names.join(' & ') : participationModeLabels[series.participationMode];
-  const episodeLabel = episodeCount === 1 ? '1 episode' : `${episodeCount} episodes`;
-
-  return `${cast} - ${episodeLabel}`;
 }
 
 // EpisodeHistoryRow opens one completed local episode in read/listen mode.

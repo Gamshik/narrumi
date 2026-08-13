@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { LocalSeriesStore } from '@application/ports';
+import type {
+  LocalSeriesSetupDraftCollection,
+  LocalSeriesStore,
+} from '@application/ports';
 import {
   newSeriesSetupDraftId,
   type LocalSeriesSetupDraft,
@@ -9,6 +12,7 @@ import {
 
 import {
   createDeleteSeriesSetupDraft,
+  createListSeriesSetupDrafts,
   createLoadSeriesSetupDraft,
   createSaveSeriesSetupDraft,
 } from './manageSeriesSetupDraft';
@@ -65,26 +69,70 @@ describe('manageSeriesSetupDraft', () => {
       {},
     );
   });
+
+  it('keeps independently saved drafts in the same local collection', async () => {
+    const store = createDraftStore();
+    const saveDraft = createSaveSeriesSetupDraft(store);
+    const listDrafts = createListSeriesSetupDrafts(store);
+    // secondDraft represents another New Series flow saved after the legacy draft.
+    const secondDraft: LocalSeriesSetupDraft = {
+      ...draft,
+      draftId: 'new-series:second',
+      premise: 'A second unfinished story.',
+      updatedAt: '2026-07-18T12:00:00.000Z',
+    };
+    // existingSeriesDraft belongs to its series detail editor rather than the Home Drafts tab.
+    const existingSeriesDraft: LocalSeriesSetupDraft = {
+      ...draft,
+      draftId: 'series:existing',
+      seriesId: 'series:existing',
+      title: 'Existing series edit',
+    };
+
+    await saveDraft.execute(draft);
+    await saveDraft.execute(secondDraft);
+    await saveDraft.execute(existingSeriesDraft);
+
+    assert.deepEqual((await listDrafts.execute()).drafts, [draft, secondDraft]);
+  });
+
+  it('deletes one selected draft without removing another', async () => {
+    const store = createDraftStore();
+    const saveDraft = createSaveSeriesSetupDraft(store);
+    const deleteDraft = createDeleteSeriesSetupDraft(store);
+    const listDrafts = createListSeriesSetupDrafts(store);
+    // secondDraft is the only local snapshot selected for deletion.
+    const secondDraft: LocalSeriesSetupDraft = {
+      ...draft,
+      draftId: 'new-series:second',
+      updatedAt: '2026-07-18T12:00:00.000Z',
+    };
+
+    await saveDraft.execute(draft);
+    await saveDraft.execute(secondDraft);
+    await deleteDraft.execute({ draftId: secondDraft.draftId });
+
+    assert.deepEqual((await listDrafts.execute()).drafts, [draft]);
+  });
 });
 
 // createDraftStore provides only the local-only port slice required by draft use cases.
 function createDraftStore(): Pick<
   LocalSeriesStore,
   'getSeriesSetupDraft' | 'saveSeriesSetupDraft' | 'deleteSeriesSetupDraft'
-> {
-  // storedDraft is the mutable in-memory form snapshot used by the focused test.
-  let storedDraft: LocalSeriesSetupDraft | undefined;
+> &
+  LocalSeriesSetupDraftCollection {
+  // storedDrafts is the mutable in-memory collection used by the focused tests.
+  const storedDrafts = new Map<string, LocalSeriesSetupDraft>();
 
   return {
-    getSeriesSetupDraft: async (draftId) =>
-      storedDraft?.draftId === draftId ? storedDraft : undefined,
+    listSeriesSetupDrafts: async () => [...storedDrafts.values()],
+    getSeriesSetupDraft: async (draftId) => storedDrafts.get(draftId),
     saveSeriesSetupDraft: async (value) => {
-      storedDraft = value;
+      storedDrafts.set(value.draftId, value);
     },
     deleteSeriesSetupDraft: async (draftId) => {
-      if (storedDraft?.draftId === draftId) {
-        storedDraft = undefined;
-      }
+      storedDrafts.delete(draftId);
     },
   };
 }

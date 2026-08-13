@@ -3,8 +3,31 @@ import type { SeriesCreativeBrief } from './seriesCreativeBrief';
 import type { SeriesParticipationMode } from './seriesParticipationMode';
 import type { SeriesSetupDraftMeta } from './seriesSetupDraftMeta';
 
-// newSeriesSetupDraftId is the stable local key for the unfinished create flow.
+// newSeriesSetupDraftId preserves the legacy singleton draft key for existing installations.
 export const newSeriesSetupDraftId = 'new-series';
+
+// createNewSeriesSetupDraftId creates a distinct local key for every fresh setup flow.
+export function createNewSeriesSetupDraftId(
+  updatedAt: string,
+  entropy: number,
+): string {
+  // timestamp keeps generated ids sortable and debuggable without exposing form content.
+  const timestamp: number = Date.parse(updatedAt);
+  // normalizedEntropy bounds caller randomness before converting it into a compact suffix.
+  const normalizedEntropy: number = Number.isFinite(entropy)
+    ? Math.abs(entropy % 1)
+    : 0;
+  // nonce prevents two fresh flows opened in the same millisecond from sharing a key.
+  const nonce: string = Math.floor(normalizedEntropy * 2_176_782_336)
+    .toString(36)
+    .padStart(6, '0');
+
+  if (!Number.isFinite(timestamp)) {
+    throw new Error('Draft timestamp must be a valid ISO date.');
+  }
+
+  return `new-series:${timestamp}:${nonce}`;
+}
 
 // LocalSeriesSetupDraft preserves an incomplete setup form without creating a Series.
 export type LocalSeriesSetupDraft = {

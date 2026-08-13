@@ -18,16 +18,13 @@ import { motion } from '@presentation/theme';
 import { useReducedMotionPreference } from '../SorbetTabBar';
 import {
   getSliderPercentage,
-  getSliderTouchPosition,
-  getSliderValueFromPosition,
+  getSliderValueFromDrag,
   getSteppedSliderValue,
 } from './BubbleSlider.helpers';
 import { BubbleSliderParticles } from './BubbleSliderParticles';
 import { bubbleSliderStyles as styles } from './BubbleSlider.styles';
 import type { BubbleSliderProps } from './BubbleSlider.types';
 
-// sliderTrackInset matches the horizontal margin that keeps the thumb inside its surface.
-const sliderTrackInset: number = 12;
 // supportsSliderParticles avoids restarting JS-driven decorative motion during Android drag events.
 const supportsSliderParticles: boolean = Platform.OS !== 'android';
 
@@ -48,13 +45,11 @@ export function BubbleSlider({
   onInteractionEnd,
 }: BubbleSliderProps): ReactElement {
   const reduceMotion: boolean = useReducedMotionPreference();
-  // gestureAreaRef measures the track in window coordinates for stable Android pageX mapping.
-  const gestureAreaRef = useRef<View>(null);
   const trackWidthRef = useRef<number>(0);
-  const trackPageXRef = useRef<number | undefined>(undefined);
   const isInteractingRef = useRef<boolean>(false);
   const currentValueRef = useRef<number>(value);
-  const startPositionRef = useRef<number>(0);
+  // dragStartValueRef anchors every gesture to the value visible when the thumb was pressed.
+  const dragStartValueRef = useRef<number>(value);
   const [localValue, setLocalValue] = useState<number>(value);
   const [progress] = useState<Animated.Value>(
     (): Animated.Value => new Animated.Value(getSliderPercentage(value, min, max)),
@@ -180,31 +175,15 @@ export function BubbleSlider({
   }, [onInteractionEnd, onSlidingComplete, setInteractionState]);
 
   useEffect((): void => {
-    // responder converts absolute touches into bounded values while reading measurements only during gestures.
+    // responder changes the value only from horizontal movement after the press begins.
     const responder: PanResponderInstance = PanResponder.create({
       onMoveShouldSetPanResponder: (): boolean => true,
       onMoveShouldSetPanResponderCapture: (): boolean => true,
-      onPanResponderGrant: (event: GestureResponderEvent): void => {
+      onPanResponderGrant: (): void => {
         isInteractingRef.current = true;
         onInteractionStart?.();
         setInteractionState(true);
-        const touchPosition: number = getSliderTouchPosition(
-          event.nativeEvent.pageX,
-          trackPageXRef.current,
-          event.nativeEvent.locationX,
-          sliderTrackInset,
-        );
-
-        startPositionRef.current = touchPosition;
-        applyValue(
-          getSliderValueFromPosition(
-            touchPosition,
-            trackWidthRef.current,
-            min,
-            max,
-            step,
-          ),
-        );
+        dragStartValueRef.current = currentValueRef.current;
       },
       onPanResponderMove: (
         _event: GestureResponderEvent,
@@ -216,14 +195,10 @@ export function BubbleSlider({
           return;
         }
 
-        const touchPosition: number =
-          trackPageXRef.current === undefined
-            ? startPositionRef.current + gestureState.dx
-            : gestureState.moveX - trackPageXRef.current;
-
         applyValue(
-          getSliderValueFromPosition(
-            touchPosition,
+          getSliderValueFromDrag(
+            dragStartValueRef.current,
+            gestureState.dx,
             trackWidth,
             min,
             max,
@@ -269,15 +244,6 @@ export function BubbleSlider({
   // handleTrackLayout retains only the usable distance between the thumb endpoints.
   const handleTrackLayout = (event: LayoutChangeEvent): void => {
     trackWidthRef.current = event.nativeEvent.layout.width;
-    gestureAreaRef.current?.measureInWindow(
-      (x: number, _y: number, width: number, _height: number): void => {
-        trackPageXRef.current = x;
-
-        if (width > 0) {
-          trackWidthRef.current = width;
-        }
-      },
-    );
   };
 
   // fillWidth drives both the colored track and compact thumb from one progress value.
@@ -309,11 +275,7 @@ export function BubbleSlider({
       style={styles.container}
       {...panResponder?.panHandlers}
     >
-      <View
-        onLayout={handleTrackLayout}
-        ref={gestureAreaRef}
-        style={styles.gestureArea}
-      >
+      <View onLayout={handleTrackLayout} style={styles.gestureArea}>
         <View
           pointerEvents="none"
           style={[

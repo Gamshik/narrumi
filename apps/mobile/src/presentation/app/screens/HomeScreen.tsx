@@ -14,8 +14,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  BubbleSurface,
-  BubbleButton,
   BubbleStatus,
   CollapsingTitleEdgeEffects,
   PlatformBlurTargetView,
@@ -28,7 +26,9 @@ import {
 
 import {
   characterProfileNames,
+  createNewSeriesSetupDraftId,
   newSeriesSetupDraftId,
+  type LocalSeriesSetupDraft,
   type Series,
 } from '@domain/index';
 import type {
@@ -47,9 +47,9 @@ import { floatingTabBarMetrics } from '@presentation/theme/layout';
 import { HomeSeriesSkeleton } from './home/components/HomeSeriesSkeleton';
 import { CreateSeriesFlow } from './home/components/CreateSeriesFlow';
 import {
-  resolveOpenSwipeSeriesId,
-  SwipeableSeriesCard,
+  resolveOpenSwipeRowId,
 } from './home/components/SwipeableSeriesCard';
+import { HomeLibrary } from './home/components/HomeLibrary';
 import {
   getHomeContentState,
   type HomeContentState,
@@ -62,7 +62,6 @@ import {
   createLocalSeriesSetupDraft,
   createEmptySeriesSetupForm,
   createSimpleSeriesSetupFormFromDraft,
-  participationModeLabels,
   validateSeriesSetupForm,
   type SeriesSetupFormErrors,
   type SeriesSetupFormState,
@@ -76,6 +75,8 @@ type HomeScreenProps = {
   readonly onOpenSeries: (seriesId: string) => void;
   // onRequestDeleteSeries opens the native-like confirmation sheet for one story.
   readonly onRequestDeleteSeries: (series: Series) => void;
+  // onRequestDeleteDraft opens confirmation for one unfinished local setup.
+  readonly onRequestDeleteDraft: (draft: LocalSeriesSetupDraft) => void;
 };
 
 // homeHeaderCollapseOffset starts the autonomous title transition after a deliberate upward scroll.
@@ -87,9 +88,15 @@ const homeTitleTransitionDuration: number = 220;
 // homeMaterialTransitionDuration softly fades static blur and tint without directional effects.
 const homeMaterialTransitionDuration: number = 180;
 
+// SeriesSetupOpenRequest separates a fresh draft id from an explicitly selected saved draft.
+type SeriesSetupOpenRequest =
+  | { readonly mode: 'create' }
+  | { readonly draftId: string; readonly mode: 'resume' };
+
 // HomeScreen renders the series-first dashboard and local create-series flow.
 export function HomeScreen({
   onOpenSeries,
+  onRequestDeleteDraft,
   onRequestDeleteSeries,
   styles,
 }: HomeScreenProps): ReactElement {
@@ -131,18 +138,29 @@ export function HomeScreen({
       outputRange: [1, 0.97, 0.97],
       extrapolate: 'clamp',
     });
+  // series contains completed personal stories loaded from local-first persistence.
   const [series, setSeries] = useState<readonly Series[]>([]);
-  // isInitialSeriesLoading distinguishes unresolved local data from a settled empty library.
-  const [isInitialSeriesLoading, setIsInitialSeriesLoading] =
+  // setupDrafts contains every independent unfinished new-series form stored locally.
+  const [setupDrafts, setSetupDrafts] = useState<
+    readonly LocalSeriesSetupDraft[]
+  >([]);
+  // isInitialLibraryLoading distinguishes unresolved local data from a settled empty library.
+  const [isInitialLibraryLoading, setIsInitialLibraryLoading] =
     useState<boolean>(true);
   const [form, setForm] = useState<SeriesSetupFormState>(
     createEmptySeriesSetupForm,
   );
   const [formErrors, setFormErrors] = useState<SeriesSetupFormErrors>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [openSwipeSeriesId, setOpenSwipeSeriesId] = useState<string>();
+  // activeSetupDraftId identifies the fresh or resumed draft owned by the open modal.
+  const [activeSetupDraftId, setActiveSetupDraftId] =
+    useState<string>(newSeriesSetupDraftId);
+  // openSwipeItemId keeps only one completed-series or draft delete lane visible.
+  const [openSwipeItemId, setOpenSwipeItemId] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
-  const [isGeneratingSetup, setIsGeneratingSetup] = useState(false);
+  // generatingSetupTarget identifies the only card whose AI request is active.
+  const [generatingSetupTarget, setGeneratingSetupTarget] =
+    useState<SeriesSetupGenerationTarget>();
   // isOnline keeps the setup AI action disabled when the current network snapshot is offline.
   const [isOnline, setIsOnline] = useState<boolean>(false);
   // setupGenerationLockRef blocks rapid presses before React applies busy state.
@@ -183,46 +201,60 @@ export function HomeScreen({
     };
   }, [isHeaderCollapsed, materialTransition, titleTransition]);
 
-  const loadSeries = useCallback(async (): Promise<void> => {
+  // loadHomeLibrary resolves completed series and the local setup draft in one loading cycle.
+  const loadHomeLibrary = useCallback(async (): Promise<void> => {
     try {
-      const result = await localAppServices.listSeries.execute();
+      const [seriesResult, draftResult] = await Promise.all([
+        localAppServices.listSeries.execute(),
+        localAppServices.listSeriesSetupDrafts.execute(),
+      ]);
 
-      setSeries(result.series);
+      setSeries(seriesResult.series);
+      setSetupDrafts(draftResult.drafts);
       setErrorMessage(undefined);
     } catch {
-      setErrorMessage('Local series could not be loaded.');
+      setErrorMessage('Your local series and drafts could not be loaded.');
     } finally {
-      setIsInitialSeriesLoading(false);
+      setIsInitialLibraryLoading(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      void loadSeries();
+      void loadHomeLibrary();
 
       return (): void => {
-        setOpenSwipeSeriesId(undefined);
+        setOpenSwipeItemId(undefined);
       };
-    }, [loadSeries]),
+    }, [loadHomeLibrary]),
   );
 
   const submitSeries = async (): Promise<void> => {
     const validationErrors = validateSeriesSetupForm(form);
     const isComplete: boolean = Object.keys(validationErrors).length === 0;
+    // localDraft is persisted before readiness validation or online moderation.
+    const localDraft: LocalSeriesSetupDraft = createLocalSeriesSetupDraft(
+      form,
+      activeSetupDraftId,
+      new Date().toISOString(),
+    );
     let isDraftSaved: boolean = false;
 
     setIsSaving(true);
     setFormActionError(undefined);
 
     try {
-      await localAppServices.saveSeriesSetupDraft.execute(
-        createLocalSeriesSetupDraft(
-          form,
-          newSeriesSetupDraftId,
-          new Date().toISOString(),
-        ),
-      );
+      await localAppServices.saveSeriesSetupDraft.execute(localDraft);
       isDraftSaved = true;
+      setSetupDrafts(
+        (currentDrafts: readonly LocalSeriesSetupDraft[]): readonly LocalSeriesSetupDraft[] => [
+          localDraft,
+          ...currentDrafts.filter(
+            (draft: LocalSeriesSetupDraft): boolean =>
+              draft.draftId !== localDraft.draftId,
+          ),
+        ],
+      );
 
       if (!isComplete) {
         setForm(createEmptySeriesSetupForm());
@@ -244,12 +276,19 @@ export function HomeScreen({
           : {}),
       });
       await localAppServices.deleteSeriesSetupDraft
-        .execute({ draftId: newSeriesSetupDraftId })
+        .execute({ draftId: activeSetupDraftId })
         .catch(() => undefined);
+      setSetupDrafts(
+        (currentDrafts: readonly LocalSeriesSetupDraft[]): readonly LocalSeriesSetupDraft[] =>
+          currentDrafts.filter(
+            (draft: LocalSeriesSetupDraft): boolean =>
+              draft.draftId !== activeSetupDraftId,
+          ),
+      );
       setForm(createEmptySeriesSetupForm());
       setFormErrors({});
       setIsCreateOpen(false);
-      await loadSeries();
+      await loadHomeLibrary();
     } catch (error) {
       const isModerationError =
         error instanceof SupabaseFunctionError &&
@@ -281,16 +320,28 @@ export function HomeScreen({
 
   // saveSetupDraft persists every card value locally without creating a ready series.
   const saveSetupDraft = async (): Promise<void> => {
+    // localDraft is the exact resumable snapshot displayed in Continue setup.
+    const localDraft: LocalSeriesSetupDraft = createLocalSeriesSetupDraft(
+      form,
+      activeSetupDraftId,
+      new Date().toISOString(),
+    );
+
     setIsSaving(true);
     setFormActionError(undefined);
 
     try {
       await localAppServices.saveSeriesSetupDraft.execute(
-        createLocalSeriesSetupDraft(
-          form,
-          newSeriesSetupDraftId,
-          new Date().toISOString(),
-        ),
+        localDraft,
+      );
+      setSetupDrafts(
+        (currentDrafts: readonly LocalSeriesSetupDraft[]): readonly LocalSeriesSetupDraft[] => [
+          localDraft,
+          ...currentDrafts.filter(
+            (draft: LocalSeriesSetupDraft): boolean =>
+              draft.draftId !== localDraft.draftId,
+          ),
+        ],
       );
       setForm(createEmptySeriesSetupForm());
       setFormErrors({});
@@ -307,10 +358,12 @@ export function HomeScreen({
     }
   };
 
-  // openCreateSeries restores an explicitly saved local draft before presenting the form.
-  const openCreateSeries = async (): Promise<void> => {
-    if (openSwipeSeriesId) {
-      setOpenSwipeSeriesId(undefined);
+  // openSeriesSetup opens either a clean form or the draft selected from its Home row.
+  const openSeriesSetup = async (
+    request: SeriesSetupOpenRequest,
+  ): Promise<void> => {
+    if (openSwipeItemId) {
+      setOpenSwipeItemId(undefined);
       return;
     }
 
@@ -322,9 +375,24 @@ export function HomeScreen({
 
     setIsOnline(networkState.isOnline);
 
+    if (request.mode === 'create') {
+      // openedAt seeds both the new id and the first eventual local snapshot timestamp.
+      const openedAt: string = new Date().toISOString();
+
+      setActiveSetupDraftId(
+        createNewSeriesSetupDraftId(openedAt, Math.random()),
+      );
+      setForm(createEmptySeriesSetupForm());
+      setFormErrors({});
+      setIsCreateOpen(true);
+      return;
+    }
+
+    setActiveSetupDraftId(request.draftId);
+
     try {
       const result = await localAppServices.loadSeriesSetupDraft.execute({
-        draftId: newSeriesSetupDraftId,
+        draftId: request.draftId,
       });
 
       setForm(
@@ -350,7 +418,7 @@ export function HomeScreen({
     }
 
     setupGenerationLockRef.current = true;
-    setIsGeneratingSetup(true);
+    setGeneratingSetupTarget(target);
     setFormActionError(undefined);
 
     try {
@@ -387,7 +455,7 @@ export function HomeScreen({
       return false;
     } finally {
       setupGenerationLockRef.current = false;
-      setIsGeneratingSetup(false);
+      setGeneratingSetupTarget(undefined);
     }
   };
 
@@ -397,20 +465,30 @@ export function HomeScreen({
   ): void => {
     onRequestDeleteSeries(seriesToDelete);
     onCancel?.();
-    setOpenSwipeSeriesId(undefined);
+    setOpenSwipeItemId(undefined);
   };
 
-  // changeOpenSwipeSeries keeps a late close animation from clearing a newer open row.
-  const changeOpenSwipeSeries = (
-    seriesId: string,
+  // requestDeleteDraft routes one local snapshot through the same confirmation pattern.
+  const requestDeleteDraft = (
+    draftToDelete: LocalSeriesSetupDraft,
+    onCancel?: () => void,
+  ): void => {
+    onRequestDeleteDraft(draftToDelete);
+    onCancel?.();
+    setOpenSwipeItemId(undefined);
+  };
+
+  // changeOpenSwipeItem keeps a late close animation from clearing a newer row.
+  const changeOpenSwipeItem = (
+    itemId: string,
     shouldOpen: boolean,
   ): void => {
-    setOpenSwipeSeriesId(
+    setOpenSwipeItemId(
       (
-        // currentSeriesId is the latest owner after any overlapping row animation.
-        currentSeriesId: string | undefined,
+        // currentItemId is the latest owner after any overlapping row animation.
+        currentItemId: string | undefined,
       ): string | undefined =>
-        resolveOpenSwipeSeriesId(currentSeriesId, seriesId, shouldOpen),
+        resolveOpenSwipeRowId(currentItemId, itemId, shouldOpen),
     );
   };
 
@@ -431,7 +509,7 @@ export function HomeScreen({
 
   // homeContentState gives the asynchronous loading state priority over the initial empty array.
   const homeContentState: HomeContentState = getHomeContentState(
-    isInitialSeriesLoading,
+    isInitialLibraryLoading,
     series.length,
   );
 
@@ -445,8 +523,8 @@ export function HomeScreen({
           contentContainerStyle={[styles.screenContent, homeContentInsets]}
           onScroll={handleHomeScroll}
           onScrollBeginDrag={() => {
-            if (openSwipeSeriesId) {
-              setOpenSwipeSeriesId(undefined);
+            if (openSwipeItemId) {
+              setOpenSwipeItemId(undefined);
             }
           }}
           scrollEventThrottle={16}
@@ -475,26 +553,21 @@ export function HomeScreen({
           {homeContentState === 'loading' ? (
             <HomeSeriesSkeleton colors={colors} />
           ) : (
-            <>
-              <CreateHero
-                colors={colors}
-                hasSeries={homeContentState === 'ready'}
-                styles={styles}
-                onCreateSeries={() => void openCreateSeries()}
-              />
-              {homeContentState === 'ready' ? (
-                <SeriesList
-                  colors={colors}
-                  hasOpenSwipe={openSwipeSeriesId !== undefined}
-                  openSwipeSeriesId={openSwipeSeriesId}
-                  series={series}
-                  styles={styles}
-                  onDeleteSeries={requestDeleteSeries}
-                  onOpenSeries={onOpenSeries}
-                  onOpenSwipeSeriesChange={changeOpenSwipeSeries}
-                />
-              ) : null}
-            </>
+            <HomeLibrary
+              colors={colors}
+              drafts={setupDrafts}
+              hasOpenSwipe={openSwipeItemId !== undefined}
+              openSwipeItemId={openSwipeItemId}
+              series={series}
+              onCreateSeries={() => void openSeriesSetup({ mode: 'create' })}
+              onDeleteDraft={requestDeleteDraft}
+              onDeleteSeries={requestDeleteSeries}
+              onOpenSeries={onOpenSeries}
+              onOpenSwipeItemChange={changeOpenSwipeItem}
+              onResumeDraft={(draftId: string): void =>
+                void openSeriesSetup({ draftId, mode: 'resume' })
+              }
+            />
           )}
         </Animated.ScrollView>
       </PlatformBlurTargetView>
@@ -512,13 +585,14 @@ export function HomeScreen({
         colors={colors}
         form={form}
         actionError={formActionError}
-        isGeneratingSetup={isGeneratingSetup}
+        generatingSetupTarget={generatingSetupTarget}
         isDark={isDark}
         isOnline={isOnline}
         isSaving={isSaving}
         isVisible={isCreateOpen}
         errors={formErrors}
         styles={styles}
+        variant="create"
         onChangeForm={(nextForm: SeriesSetupFormState): void => {
           setFormActionError(undefined);
           setForm(nextForm);
@@ -560,126 +634,5 @@ function HomeHeader({
         <View style={styles.homeTitleAccent} />
       </View>
     </View>
-  );
-}
-
-// CreateHero provides the main series-first action surface.
-function CreateHero({
-  colors,
-  hasSeries,
-  styles,
-  onCreateSeries,
-}: {
-  readonly colors: typeof lightColors | typeof darkColors;
-  readonly hasSeries: boolean;
-  readonly styles: AppStyles;
-  readonly onCreateSeries: () => void;
-}): ReactElement {
-  return (
-    <BubbleSurface
-      colors={colors}
-      style={[
-        styles.heroSurface,
-        hasSeries ? styles.heroSurfaceCompact : styles.heroSurfaceEmpty,
-      ]}
-      tone={hasSeries ? 'neutral' : 'primary'}
-      variant={hasSeries ? 'list' : 'hero'}
-    >
-      <View style={styles.heroContent}>
-        <View style={[styles.flex, styles.heroCopy]}>
-          <Text
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-            numberOfLines={1}
-            style={[
-              styles.heroTitle,
-              !hasSeries && styles.heroTitleOnAccent,
-            ]}
-          >
-            Create a story
-          </Text>
-          <Text
-            numberOfLines={2}
-            style={[
-              styles.heroText,
-              !hasSeries && styles.heroTextOnAccent,
-            ]}
-          >
-            {hasSeries
-              ? 'Pick a premise, characters, and level.'
-              : 'No saved series yet. Create one to begin.'}
-          </Text>
-        </View>
-        <BubbleButton
-          colors={colors}
-          contentStyle={styles.heroButtonContent}
-          onPress={onCreateSeries}
-          style={styles.heroButton}
-          variant={hasSeries ? 'primary' : 'inverted'}
-        >
-          <Text
-            adjustsFontSizeToFit
-            minimumFontScale={0.78}
-            numberOfLines={1}
-            style={[
-              styles.heroButtonText,
-              !hasSeries && styles.heroButtonTextOnAccent,
-            ]}
-          >
-            New Series
-          </Text>
-        </BubbleButton>
-      </View>
-    </BubbleSurface>
-  );
-}
-
-// SeriesList renders saved local series using Bubble cards.
-function SeriesList({
-  colors,
-  hasOpenSwipe,
-  openSwipeSeriesId,
-  series,
-  styles,
-  onDeleteSeries,
-  onOpenSeries,
-  onOpenSwipeSeriesChange,
-}: {
-  readonly colors: typeof lightColors | typeof darkColors;
-  readonly hasOpenSwipe: boolean;
-  readonly openSwipeSeriesId: string | undefined;
-  readonly series: readonly Series[];
-  readonly styles: AppStyles;
-  readonly onDeleteSeries: (series: Series, onCancel?: () => void) => void;
-  readonly onOpenSeries: (seriesId: string) => void;
-  readonly onOpenSwipeSeriesChange: (
-    seriesId: string,
-    shouldOpen: boolean,
-  ) => void;
-}): ReactElement {
-  return (
-    <>
-      <Text style={styles.sectionLabel}>MY SERIES</Text>
-      <View style={styles.seriesListGrid}>
-        {series.map((item) => (
-          <SwipeableSeriesCard
-            colors={colors}
-            modeLabel={participationModeLabels[item.participationMode]}
-            hasOpenSwipe={hasOpenSwipe}
-            isDeleting={false}
-            isOpen={item.id === openSwipeSeriesId}
-            key={item.id}
-            series={item}
-            onOpenChange={(shouldOpen: boolean): void =>
-              onOpenSwipeSeriesChange(item.id, shouldOpen)
-            }
-            onOpenSeries={onOpenSeries}
-            onRequestDelete={(onCancel: () => void): void =>
-              onDeleteSeries(item, onCancel)
-            }
-          />
-        ))}
-      </View>
-    </>
   );
 }

@@ -22,6 +22,8 @@ type ParticipationOption = {
 type ParticipationStepProps = {
   // form contains the current participation mode and all later setup values.
   readonly form: SeriesSetupFormState;
+  // isEditable locks mode selection after the first episode.
+  readonly isEditable: boolean;
   // styles provides the active theme's quest-card style contract.
   readonly styles: CreateSeriesFlowStyles;
   // onChangeForm publishes the complete controlled form after selection.
@@ -45,6 +47,7 @@ const participationOptions: readonly ParticipationOption[] = [
 // ParticipationStep selects how the learner influences every episode in the series.
 export function ParticipationStep({
   form,
+  isEditable,
   styles,
   onChangeForm,
 }: ParticipationStepProps): ReactElement {
@@ -53,6 +56,7 @@ export function ParticipationStep({
       {participationOptions.map((option: ParticipationOption) => (
         <SeriesSetupOptionCard
           icon={option.icon}
+          isDisabled={!isEditable}
           isSelected={form.participationMode === option.value}
           key={option.value}
           label={option.label}

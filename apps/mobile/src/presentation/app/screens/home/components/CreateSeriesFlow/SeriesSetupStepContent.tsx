@@ -11,6 +11,7 @@ import type {
 
 import type { CreateSeriesFlowStyles } from './CreateSeriesFlow.styles';
 import type { SeriesSetupStep } from './seriesSetupFlow';
+import type { SeriesSetupFieldFocusHandler } from './seriesSetupFocus';
 import { CharactersStep } from './steps/CharactersStep';
 import { IdeaStep } from './steps/IdeaStep';
 import { ParticipationStep } from './steps/ParticipationStep';
@@ -28,6 +29,10 @@ type SeriesSetupStepContentProps = {
   readonly form: SeriesSetupFormState;
   // isBusy prevents field edits while local persistence or AI work is active.
   readonly isBusy: boolean;
+  // isGenerating selects the inline progress state on creative cards.
+  readonly isGenerating: boolean;
+  // isEditable locks every setup value after the first episode.
+  readonly isEditable: boolean;
   // isOnline tells the AI card whether its server action is available.
   readonly isOnline: boolean;
   // sharedStyles provides the app-wide input and label style contract.
@@ -36,8 +41,8 @@ type SeriesSetupStepContentProps = {
   readonly step: SeriesSetupStep;
   // onChangeForm publishes a complete controlled form after an edit.
   readonly onChangeForm: (form: SeriesSetupFormState) => void;
-  // onFocus asks the active vertical card to reveal a native input target.
-  readonly onFocus: (target: number) => void;
+  // onFieldFocus reveals a measured setup field without a native handle.
+  readonly onFieldFocus: SeriesSetupFieldFocusHandler;
   // onGenerate requests an AI replacement for only the current card.
   readonly onGenerate: (target: SeriesSetupGenerationTarget) => void;
 };
@@ -49,17 +54,20 @@ export function SeriesSetupStepContent({
   flowStyles,
   form,
   isBusy,
+  isEditable,
+  isGenerating,
   isOnline,
   sharedStyles,
   step,
   onChangeForm,
-  onFocus,
+  onFieldFocus,
   onGenerate,
 }: SeriesSetupStepContentProps): ReactElement {
   if (step === 'participation') {
     return (
       <ParticipationStep
         form={form}
+        isEditable={isEditable}
         styles={flowStyles}
         onChangeForm={onChangeForm}
       />
@@ -73,11 +81,12 @@ export function SeriesSetupStepContent({
         errors={errors}
         form={form}
         isBusy={isBusy}
+        isEditable={isEditable}
+        isGenerating={isGenerating}
         isOnline={isOnline}
         sharedStyles={sharedStyles}
-        styles={flowStyles}
         onChangeForm={onChangeForm}
-        onFocus={onFocus}
+        onFieldFocus={onFieldFocus}
         onGenerate={(): void => onGenerate('premise')}
       />
     );
@@ -90,11 +99,12 @@ export function SeriesSetupStepContent({
         errors={errors}
         form={form}
         isBusy={isBusy}
+        isEditable={isEditable}
+        isGenerating={isGenerating}
         isOnline={isOnline}
         sharedStyles={sharedStyles}
-        styles={flowStyles}
         onChangeForm={onChangeForm}
-        onFocus={onFocus}
+        onFieldFocus={onFieldFocus}
         onGenerate={(): void => onGenerate('characterProfiles')}
       />
     );
@@ -106,11 +116,12 @@ export function SeriesSetupStepContent({
       errors={errors}
       form={form}
       isBusy={isBusy}
+      isEditable={isEditable}
+      isGenerating={isGenerating}
       isOnline={isOnline}
       sharedStyles={sharedStyles}
-      styles={flowStyles}
       onChangeForm={onChangeForm}
-      onFocus={onFocus}
+      onFieldFocus={onFieldFocus}
       onGenerate={(): void => onGenerate('title')}
     />
   );

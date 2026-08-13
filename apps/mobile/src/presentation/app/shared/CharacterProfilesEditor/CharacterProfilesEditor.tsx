@@ -34,11 +34,16 @@ export type CharacterProfilesEditorProps = {
   readonly isEditable?: boolean;
   // onFocus lets a keyboard-aware parent reveal the exact input that activates.
   readonly onFocus?: KeyboardFocusTargetHandler;
+  // onFieldFocus reports a repeated row's measured position to Cast-specific scrolling.
+  readonly onFieldFocus?: CharacterFieldFocusHandler;
   // onLayout lets a keyboard-aware parent remember this editor's vertical offset.
   readonly onLayout?: (event: LayoutChangeEvent) => void;
   // onAddedProfileLayout reveals the newly rendered row inside the parent scroll view.
   readonly onAddedProfileLayout?: (offsetY: number) => void;
 };
+
+// This callback reports a focused character row's vertical position inside the editor.
+export type CharacterFieldFocusHandler = (offsetY: number) => void;
 
 // CharacterProfilesEditor renders a compact cast section inside the existing setup form.
 export function CharacterProfilesEditor({
@@ -48,6 +53,7 @@ export function CharacterProfilesEditor({
   profiles,
   onChange,
   onFocus,
+  onFieldFocus,
   onLayout,
   onAddedProfileLayout,
 }: CharacterProfilesEditorProps): ReactElement {
@@ -57,6 +63,8 @@ export function CharacterProfilesEditor({
   const [pendingProfileId, setPendingProfileId] = useState<string | null>(null);
   // listOffsetRef stores the character-list origin inside the editor section.
   const listOffsetRef = useRef<number>(0);
+  // rowOffsetsRef stores each repeated row's measured position inside the character list.
+  const rowOffsetsRef = useRef<Record<string, number>>({});
   // styles memoizes the current palette-specific StyleSheet.
   const styles: CharacterProfilesEditorStyles = useMemo(
     () => createCharacterProfilesEditorStyles(colors),
@@ -101,9 +109,22 @@ export function CharacterProfilesEditor({
   };
 
   // focusField gives visual focus feedback and notifies the keyboard-aware screen.
-  const focusField = (fieldId: string, target: number): void => {
+  const focusField = (
+    fieldId: string,
+    target: number,
+    profileId: string,
+  ): void => {
     setFocusedField(fieldId);
     onFocus?.(target);
+    onFieldFocus?.(
+      listOffsetRef.current + (rowOffsetsRef.current[profileId] ?? 0),
+    );
+  };
+
+  // This handler records a row before using the same layout for add-row and focus behavior.
+  const handleRowLayout = (profileId: string, rowOffsetY: number): void => {
+    rowOffsetsRef.current[profileId] = rowOffsetY;
+    revealPendingProfile(profileId, rowOffsetY);
   };
 
   // revealPendingProfile reports the new row position after React Native completes layout.
@@ -147,9 +168,9 @@ export function CharacterProfilesEditor({
             return (
               <View
                 key={profile.id}
-                onLayout={(event) =>
-                  revealPendingProfile(profile.id, event.nativeEvent.layout.y)
-                }
+                onLayout={(event: LayoutChangeEvent): void => {
+                  handleRowLayout(profile.id, event.nativeEvent.layout.y);
+                }}
                 style={styles.row}
               >
                 <View style={styles.nameRow}>
@@ -159,8 +180,12 @@ export function CharacterProfilesEditor({
                     editable={isEditable}
                     onBlur={() => setFocusedField(null)}
                     onChangeText={(name) => updateProfile(index, { name })}
-                    onFocus={(event) =>
-                      focusField(nameFieldId, event.nativeEvent.target)
+                    onFocus={(event): void =>
+                      focusField(
+                        nameFieldId,
+                        event.nativeEvent.target,
+                        profile.id,
+                      )
                     }
                     placeholder="Character name"
                     placeholderTextColor={colors.labelTertiary}
@@ -191,8 +216,12 @@ export function CharacterProfilesEditor({
                   onChangeText={(description) =>
                     updateProfile(index, { description })
                   }
-                  onFocus={(event) =>
-                    focusField(descriptionFieldId, event.nativeEvent.target)
+                  onFocus={(event): void =>
+                    focusField(
+                      descriptionFieldId,
+                      event.nativeEvent.target,
+                      profile.id,
+                    )
                   }
                   placeholder="Role or personality (optional)"
                   placeholderTextColor={colors.labelTertiary}

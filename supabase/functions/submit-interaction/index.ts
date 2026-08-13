@@ -14,6 +14,7 @@ import {
   type DialogueFrameDraft,
   downgradeUnquotedDialogueFrames,
   looksLikeNarrationInDialogue,
+  type ReaderFrameDraft,
 } from '../_shared/dialogueFramePolicy.ts';
 import {
   createEnglishGeneratedTextSchema,
@@ -49,6 +50,7 @@ import {
   reviewGeneratedCandidate,
 } from '../_shared/aiQuality.ts';
 import { resolveOptionalAiEnrichment } from '../_shared/optionalAiEnrichment.ts';
+import { resolveReaderFrameEnrichment } from '../_shared/readerFrameFallback.ts';
 import {
   buildContinuationParticipationReviewCriteria,
   buildContinuationParticipationRules,
@@ -794,23 +796,35 @@ async function generateInteractionFrameDraft(
   payload: SubmitInteractionRequest,
   coreDraft: CoreInteractionDraft,
 ): Promise<SentenceFrameDraft> {
-  // generatedDraft is untrusted semantic framing returned by the Utility model.
-  const generatedDraft: SentenceFrameDraft = await generateJsonWithSchema({
-    prompt: buildInteractionFramePrompt(payload, coreDraft),
-    role: 'utility',
-    schema: sentenceFrameDraftSchema,
-    taskName: 'interaction_reader_frames',
-    system: buildInteractionFrameSystemPrompt(),
-    temperature: 0.1,
-    maxOutputTokens: 1200,
-    maxAttempts: 2,
-  });
+  // generatedFrames are optional metadata over already accepted English prose.
+  const generatedFrames: readonly ReaderFrameDraft[] =
+    await resolveReaderFrameEnrichment({
+    stage: 'interaction_reader_frames',
+    sourceText: coreDraft.continuationText,
+    minFrames: 1,
+    maxFrames: 10,
+    maxFrameLength: 600,
+    generate: async (): Promise<readonly ReaderFrameDraft[]> => {
+      const generatedDraft: SentenceFrameDraft = await generateJsonWithSchema({
+        prompt: buildInteractionFramePrompt(payload, coreDraft),
+        role: 'utility',
+        schema: sentenceFrameDraftSchema,
+        taskName: 'interaction_reader_frames',
+        system: buildInteractionFrameSystemPrompt(),
+        temperature: 0.1,
+        maxOutputTokens: 1200,
+        maxAttempts: 2,
+      });
+
+      return generatedDraft.frames;
+    },
+    });
 
   return {
     frames: [
       ...downgradeUnquotedDialogueFrames(
         coreDraft.continuationText,
-        generatedDraft.frames,
+        generatedFrames,
       ),
     ],
   };

@@ -1,4 +1,6 @@
+import { useRef } from 'react';
 import type { ReactElement } from 'react';
+import type { LayoutChangeEvent } from 'react-native';
 
 import type { AppColors } from '@presentation/theme';
 
@@ -9,8 +11,8 @@ import {
   type SeriesSetupFormErrors,
   type SeriesSetupFormState,
 } from '../../../../../seriesSetupForm';
-import type { CreateSeriesFlowStyles } from '../../CreateSeriesFlow.styles';
 import { GenerateWithAiAction } from '../../components/GenerateWithAiAction';
+import type { SeriesSetupFieldFocusHandler } from '../../seriesSetupFocus';
 
 // TitleStepProps defines the final required title card contract.
 type TitleStepProps = {
@@ -22,16 +24,18 @@ type TitleStepProps = {
   readonly form: SeriesSetupFormState;
   // isBusy prevents edits from racing an active save or generation request.
   readonly isBusy: boolean;
+  // isEditable locks the title after the first episode.
+  readonly isEditable: boolean;
+  // isGenerating selects the in-place title progress state.
+  readonly isGenerating: boolean;
   // isOnline tells whether AI title generation is currently available.
   readonly isOnline: boolean;
   // sharedStyles provides the existing setup input contract.
   readonly sharedStyles: AppStyles;
-  // styles provides the active flow's action styling.
-  readonly styles: CreateSeriesFlowStyles;
   // onChangeForm publishes the complete controlled form after typing.
   readonly onChangeForm: (form: SeriesSetupFormState) => void;
-  // onFocus asks the card to reveal the native input above the keyboard.
-  readonly onFocus: (target: number) => void;
+  // onFieldFocus reveals the measured title field above the keyboard.
+  readonly onFieldFocus: SeriesSetupFieldFocusHandler;
   // onGenerate replaces only the title through the AI boundary.
   readonly onGenerate: () => void;
 };
@@ -42,38 +46,50 @@ export function TitleStep({
   errors,
   form,
   isBusy,
+  isEditable,
+  isGenerating,
   isOnline,
   sharedStyles,
-  styles,
   onChangeForm,
-  onFocus,
+  onFieldFocus,
   onGenerate,
 }: TitleStepProps): ReactElement {
+  // fieldOffsetRef stores the title field's position inside the active card body.
+  const fieldOffsetRef = useRef<number>(0);
+
   return (
     <>
       <SeriesSetupTextField
         colors={colors}
         {...(errors.title ? { error: errors.title } : {})}
-        isEditable={!isBusy}
+        isEditable={isEditable && !isBusy}
         label="Series title"
         maxLength={160}
         placeholder="Orbit Letters"
         styles={sharedStyles}
         value={form.title}
-        onFocus={onFocus}
+        onFocus={(_target: number): void => {
+          onFieldFocus(fieldOffsetRef.current);
+        }}
+        onLayout={(event: LayoutChangeEvent): void => {
+          fieldOffsetRef.current = event.nativeEvent.layout.y;
+        }}
         onChangeText={(title: string): void =>
           onChangeForm(
             markSetupFieldUserAuthored({ ...form, title }, 'title'),
           )
         }
       />
-      <GenerateWithAiAction
-        colors={colors}
-        isBusy={isBusy}
-        isOnline={isOnline}
-        styles={styles}
-        onGenerate={onGenerate}
-      />
+      {isEditable ? (
+        <GenerateWithAiAction
+          colors={colors}
+          isBusy={isBusy}
+          isGenerating={isGenerating}
+          isOnline={isOnline}
+          loadingLabel="Naming your series…"
+          onGenerate={onGenerate}
+        />
+      ) : null}
     </>
   );
 }

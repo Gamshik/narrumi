@@ -3,6 +3,7 @@ import {
   normalizeCharacterProfiles,
   type SeriesCharacterProfile,
 } from '@domain/index';
+import type { SeriesSetupGenerationTarget } from '@application/ports';
 
 import type { SeriesSetupFormState } from '../../../seriesSetupForm';
 
@@ -51,6 +52,25 @@ export function getSeriesSetupStepTitle(step: SeriesSetupStep): string {
   }
 
   return 'Name your series';
+}
+
+// getSeriesSetupStepGenerationTarget links each creative card to its AI request target.
+export function getSeriesSetupStepGenerationTarget(
+  step: SeriesSetupStep,
+): SeriesSetupGenerationTarget | undefined {
+  if (step === 'idea') {
+    return 'premise';
+  }
+
+  if (step === 'characters') {
+    return 'characterProfiles';
+  }
+
+  if (step === 'title') {
+    return 'title';
+  }
+
+  return undefined;
 }
 
 // getInitialSeriesSetupStep resumes a saved draft at its earliest unfinished card.
