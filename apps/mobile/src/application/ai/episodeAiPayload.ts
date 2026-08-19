@@ -8,6 +8,9 @@ import {
   type Episode,
   type EpisodeSentenceFrame,
   type EpisodeInteractionKind,
+  type EpisodeLanguageFeedback,
+  type EpisodeReplyGuidance,
+  type FreeReplyIntent,
   type LearningGenre,
   type SeriesCharacterProfile,
   type SeriesMemory,
@@ -144,6 +147,8 @@ export type EpisodeAiPayload = {
 
 // SubmitInteractionRequest is the application contract for submit-interaction.
 export type SubmitInteractionRequest = {
+  // submissionId identifies one logical answer and every transport retry.
+  readonly submissionId: string;
   // episodeId identifies the saved local episode being answered.
   readonly episodeId: string;
   // interactionId identifies the current unanswered turn.
@@ -178,6 +183,8 @@ export type SubmitInteractionRequest = {
   readonly selectedChoiceLabel?: string;
   // userReply stores free-form learner text when used.
   readonly userReply?: string;
+  // replyIntent disambiguates spoken text, physical action, and producer direction.
+  readonly replyIntent?: FreeReplyIntent;
   // safetyAndCopyrightConstraints are explicit server-enforced continuation rules.
   readonly safetyAndCopyrightConstraints: readonly string[];
 };
@@ -194,8 +201,12 @@ export type EpisodeDecisionPayload = {
 
 // InteractionAiPayload is the validated structured JSON returned after learner input.
 export type InteractionAiPayload = {
+  // status confirms that the answer consumed the current story turn.
+  readonly status?: 'accepted';
   // feedback is concise correction or support for the learner answer.
   readonly feedback: string;
+  // languageFeedback gives structured coaching only for learner-authored free text.
+  readonly languageFeedback?: EpisodeLanguageFeedback;
   // continuationText extends the same episode after the learner answer.
   readonly continuationText: string;
   // continuationSentences are appended to the same reader timeline.
@@ -215,6 +226,19 @@ export type InteractionAiPayload = {
   // memoryUpdate is a structured patch for compact SeriesMemory.
   readonly memoryUpdate: SeriesMemoryUpdatePayload;
 };
+
+// InteractionRevisionPayload returns editable guidance without consuming a story turn.
+export type InteractionRevisionPayload = {
+  // status keeps recoverable validation separate from transport or policy failures.
+  readonly status: 'needs-revision';
+  // guidance explains how the learner can make the same draft actionable.
+  readonly guidance: EpisodeReplyGuidance;
+};
+
+// InteractionGatewayPayload is every successful submit-interaction response shape.
+export type InteractionGatewayPayload =
+  | InteractionAiPayload
+  | InteractionRevisionPayload;
 
 // SeriesMemoryUpdatePayload is the only AI-written memory patch accepted by the client.
 export type SeriesMemoryUpdatePayload = {
@@ -275,12 +299,43 @@ export function parseEpisodeAiPayload(value: unknown): EpisodeAiPayload {
   };
 }
 
-// parseInteractionAiPayload validates untrusted interaction output before storage.
-export function parseInteractionAiPayload(value: unknown): InteractionAiPayload {
-  const parsed = interactionAiPayloadSchema.parse(value);
+// parseInteractionGatewayPayload validates accepted and recoverable interaction output.
+export function parseInteractionGatewayPayload(
+  value: unknown,
+): InteractionGatewayPayload {
+  const parsed = interactionGatewayPayloadSchema.parse(value);
+
+  if (parsed.status === 'needs-revision') {
+    return {
+      status: 'needs-revision',
+      guidance: {
+        reason: parsed.guidance.reason,
+        message: parsed.guidance.message,
+        ...(parsed.guidance.suggestedText
+          ? { suggestedText: parsed.guidance.suggestedText }
+          : {}),
+      },
+    };
+  }
 
   return {
+    status: 'accepted',
     feedback: parsed.feedback,
+    ...(parsed.languageFeedback
+      ? {
+          languageFeedback:
+            parsed.languageFeedback.status === 'corrected'
+              ? {
+                  status: 'corrected' as const,
+                  correctedText: parsed.languageFeedback.correctedText,
+                  note: parsed.languageFeedback.note,
+                }
+              : {
+                  status: 'natural' as const,
+                  note: parsed.languageFeedback.note,
+                },
+        }
+      : {}),
     continuationText: parsed.continuationText,
     continuationSentences: parsed.continuationSentences,
     continuationSentenceFrames: parsed.continuationSentenceFrames,
@@ -314,6 +369,17 @@ export function parseInteractionAiPayload(value: unknown): InteractionAiPayload 
     summaryUpdate: parsed.summaryUpdate,
     memoryUpdate: normalizeMemoryUpdate(parsed.memoryUpdate),
   };
+}
+
+// parseInteractionAiPayload keeps the accepted-only helper for older callers and tests.
+export function parseInteractionAiPayload(value: unknown): InteractionAiPayload {
+  const payload: InteractionGatewayPayload = parseInteractionGatewayPayload(value);
+
+  if (payload.status !== 'accepted') {
+    throw new Error('Interaction response did not continue the story.');
+  }
+
+  return payload;
 }
 
 // normalizeMemoryUpdate removes undefined optionals to match exact domain contracts.
@@ -461,9 +527,24 @@ const episodeAiPayloadSchema = z
   });
 
 // interactionAiPayloadSchema mirrors the future submit-interaction structured JSON.
-const interactionAiPayloadSchema = z
+const languageFeedbackPayloadSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('natural'),
+    note: z.string().trim().min(1).max(500),
+  }),
+  z.object({
+    status: z.literal('corrected'),
+    correctedText: z.string().trim().min(1).max(500),
+    note: z.string().trim().min(1).max(500),
+  }),
+]);
+
+// interactionAcceptedPayloadSchema validates a continuation that consumed the turn.
+const interactionAcceptedPayloadSchema = z
   .object({
+    status: z.literal('accepted').default('accepted'),
     feedback: z.string().trim().min(1),
+    languageFeedback: languageFeedbackPayloadSchema.optional(),
     continuationText: z.string().trim().min(1),
     continuationSentences: z.array(z.string().trim().min(1)).min(1),
     continuationSentenceFrames: z.array(sentenceFramePayloadSchema).min(1),
@@ -563,6 +644,22 @@ const interactionAiPayloadSchema = z
       });
     }
   });
+
+// interactionRevisionPayloadSchema validates recoverable free-reply guidance.
+const interactionRevisionPayloadSchema = z.object({
+  status: z.literal('needs-revision'),
+  guidance: z.object({
+    reason: z.enum(['unclear', 'not-english', 'off-topic']),
+    message: z.string().trim().min(1).max(500),
+    suggestedText: z.string().trim().min(1).max(500).optional(),
+  }),
+});
+
+// interactionGatewayPayloadSchema separates accepted turns from editable replies.
+const interactionGatewayPayloadSchema = z.union([
+  interactionAcceptedPayloadSchema,
+  interactionRevisionPayloadSchema,
+]);
 
 // seriesMemoryUpdatePayloadSchema accepts only bounded compact memory fields.
 const seriesMemoryUpdatePayloadSchema = z.object({

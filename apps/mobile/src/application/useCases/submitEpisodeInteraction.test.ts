@@ -184,6 +184,7 @@ describe('submitEpisodeInteraction', () => {
     const gateway: InteractionGateway = {
       submitInteraction: async (request) => {
         assert.equal(request.seriesTitle, 'The Blue Door');
+        assert.equal(request.submissionId.startsWith('submission:'), true);
         assert.equal(request.cefrLevel, 'A2');
         assert.equal(request.genre, 'cozy-mystery');
         assert.equal(request.participationMode, 'director');
@@ -511,6 +512,173 @@ describe('submitEpisodeInteraction', () => {
 
     assert.equal(result.episode, answeredEpisode);
     assert.equal(gatewayCallCount, 0);
+  });
+
+  it('persists structured language feedback for an accepted free reply', async () => {
+    // savedEpisodes captures both the pending original text and accepted continuation.
+    const savedEpisodes: Episode[] = [];
+    const useCase = createSubmitEpisodeInteraction(
+      createTestStore(episode, (savedEpisode: Episode): void => {
+        savedEpisodes.push(savedEpisode);
+      }),
+      createTestCatalog(),
+      createOnlineNetworkStatus(),
+      {
+        submitInteraction: async (request) => {
+          assert.equal(request.selectedChoiceId, undefined);
+          assert.equal(request.userReply, 'Mira open the door quietly.');
+          assert.equal(request.replyIntent, 'direction');
+
+          return {
+            status: 'accepted',
+            feedback: 'Use "opens" with Mira.',
+            languageFeedback: {
+              status: 'corrected',
+              correctedText: 'Mira opens the door quietly.',
+              note: 'Use "opens" with Mira.',
+            },
+            continuationText: 'Mira opens the door and sees a narrow hall.',
+            continuationSentences: [
+              'Mira opens the door and sees a narrow hall.',
+            ],
+            continuationSentenceFrames: [
+              {
+                kind: 'narration',
+                text: 'Mira opens the door and sees a narrow hall.',
+              },
+            ],
+            continuationAnnotations: [],
+            isEpisodeComplete: false,
+            nextInteraction: {
+              kind: 'choice',
+              prompt: 'What happens next?',
+              choices: [
+                { id: 'enter', label: 'Mira enters the hall.' },
+                { id: 'wait', label: 'Mira waits outside.' },
+              ],
+            },
+            summaryUpdate: 'Mira opened the door and found a narrow hall.',
+            memoryUpdate: {
+              knownFacts: ['The door leads to a narrow hall.'],
+              openQuestions: ['What is inside the hall?'],
+              importantObjectsOrLocations: ['narrow hall'],
+              lastEpisodeSummary:
+                'Mira opened the door and found a narrow hall.',
+              unresolvedCliffhanger: 'The hall continues into darkness.',
+              recurringStoryWordIds: [],
+            },
+          };
+        },
+      },
+      { now: (): Date => new Date(timestamp) },
+    );
+
+    const result = await useCase.execute({
+      episodeId: episode.id,
+      interactionId: episode.interactions[0]!.id,
+      userReply: 'Mira open the door quietly.',
+      replyIntent: 'direction',
+    });
+
+    assert.equal(result.status, 'continued');
+    assert.equal(savedEpisodes[0]?.interactions[0]?.userReply, 'Mira open the door quietly.');
+    assert.equal(
+      result.episode.interactions[0]?.languageFeedback?.status,
+      'corrected',
+    );
+    assert.equal(
+      result.episode.interactions[0]?.languageFeedback?.status === 'corrected'
+        ? result.episode.interactions[0].languageFeedback.correctedText
+        : undefined,
+      'Mira opens the door quietly.',
+    );
+  });
+
+  it('restores unclear free text as an editable draft without consuming the turn', async () => {
+    // savedEpisodes proves the pending answer is replaced by a non-resumable draft.
+    const savedEpisodes: Episode[] = [];
+    const useCase = createSubmitEpisodeInteraction(
+      createTestStore(episode, (savedEpisode: Episode): void => {
+        savedEpisodes.push(savedEpisode);
+      }),
+      createTestCatalog(),
+      createOnlineNetworkStatus(),
+      {
+        submitInteraction: async () => ({
+          status: 'needs-revision',
+          guidance: {
+            reason: 'unclear',
+            message: 'Say what Mira should do with the door.',
+            suggestedText: 'Mira listens at the door.',
+          },
+        }),
+      },
+      { now: (): Date => new Date(timestamp) },
+    );
+
+    const result = await useCase.execute({
+      episodeId: episode.id,
+      interactionId: episode.interactions[0]!.id,
+      userReply: 'Something maybe',
+      replyIntent: 'direction',
+    });
+
+    assert.equal(result.status, 'needs-revision');
+    assert.equal(result.episode.interactions[0]?.userReply, undefined);
+    assert.equal(result.episode.interactions[0]?.submissionId, undefined);
+    assert.equal(result.episode.interactions[0]?.replyDraft, 'Something maybe');
+    assert.equal(result.episode.interactions[0]?.replyGuidance?.reason, 'unclear');
+    assert.equal(savedEpisodes.length, 2);
+  });
+
+  it('persists a free reply before reporting that continuation is offline', async () => {
+    // savedEpisodes protects freshly typed text when connectivity disappears at submit time.
+    const savedEpisodes: Episode[] = [];
+    let gatewayCallCount: number = 0;
+    const offlineNetworkStatus: NetworkStatus = {
+      getCurrentState: async () => ({ isOnline: false }),
+    };
+    const useCase = createSubmitEpisodeInteraction(
+      createTestStore(episode, (savedEpisode: Episode): void => {
+        savedEpisodes.push(savedEpisode);
+      }),
+      createTestCatalog(),
+      offlineNetworkStatus,
+      {
+        submitInteraction: async () => {
+          gatewayCallCount += 1;
+          throw new Error('The gateway must not run while offline.');
+        },
+      },
+      { now: (): Date => new Date(timestamp) },
+    );
+
+    await assert.rejects(
+      useCase.execute({
+        episodeId: episode.id,
+        interactionId: episode.interactions[0]!.id,
+        userReply: 'Mira listens at the door.',
+        replyIntent: 'direction',
+      }),
+      /available only when online/,
+    );
+
+    assert.equal(gatewayCallCount, 0);
+    assert.equal(savedEpisodes.length, 1);
+    assert.equal(
+      savedEpisodes[0]?.interactions[0]?.userReply,
+      'Mira listens at the door.',
+    );
+    assert.equal(
+      savedEpisodes[0]?.interactions[0]?.replyIntent,
+      'direction',
+    );
+    assert.equal(
+      savedEpisodes[0]?.interactions[0]?.submissionId?.startsWith(
+        'submission:',
+      ),
+      true,
+    );
   });
 });
 

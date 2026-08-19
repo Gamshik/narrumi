@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  parseInteractionAiPayload,
-  type InteractionAiPayload,
+  parseInteractionGatewayPayload,
+  type InteractionGatewayPayload,
   type SubmitInteractionRequest,
 } from '@application/ai/episodeAiPayload';
 import type { InteractionGateway } from '@application/ports';
@@ -25,7 +25,7 @@ export class SupabaseInteractionGateway implements InteractionGateway {
   // submitInteraction calls the Edge Function and validates its structured JSON response.
   async submitInteraction(
     request: SubmitInteractionRequest,
-  ): Promise<InteractionAiPayload> {
+  ): Promise<InteractionGatewayPayload> {
     const { data, error, response } = await this.client.functions.invoke<unknown>(
       'submit-interaction',
       {
@@ -43,6 +43,6 @@ export class SupabaseInteractionGateway implements InteractionGateway {
       );
     }
 
-    return parseInteractionAiPayload(data);
+    return parseInteractionGatewayPayload(data);
   }
 }

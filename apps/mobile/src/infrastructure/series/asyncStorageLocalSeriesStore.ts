@@ -14,13 +14,16 @@ import {
   createProfilesFromCharacterNames,
   defaultLearningGenre,
   type Episode,
+  freeReplyIntents,
   interactionKinds,
+  languageFeedbackStatuses,
   type LearningGenre,
   type LearningPreferences,
   type LearningSignal,
   type LocalSeriesSetupDraft,
   learningGenres,
   learningSignalKinds,
+  replyRevisionReasons,
   seriesParticipationModes,
   seriesCastSizes,
   type Series,
@@ -925,7 +928,12 @@ function parseEpisodeInteraction(
   const kind = readString(value, 'kind');
   const selectedChoiceId = readOptionalString(value, 'selectedChoiceId');
   const userReply = readOptionalString(value, 'userReply');
+  const replyDraft = readOptionalString(value, 'replyDraft');
+  const replyIntent = readOptionalString(value, 'replyIntent');
+  const submissionId = readOptionalString(value, 'submissionId');
+  const replyGuidance = parseReplyGuidance(value.replyGuidance);
   const feedback = readOptionalString(value, 'feedback');
+  const languageFeedback = parseLanguageFeedback(value.languageFeedback);
   const sentenceEndIndex =
     readOptionalNumber(value, 'sentenceEndIndex') ?? fallbackSentenceEndIndex;
 
@@ -946,10 +954,79 @@ function parseEpisodeInteraction(
     sentenceEndIndex,
     ...(selectedChoiceId ? { selectedChoiceId } : {}),
     ...(userReply ? { userReply } : {}),
+    ...(replyDraft ? { replyDraft } : {}),
+    ...(replyIntent && freeReplyIntents.includes(
+      replyIntent as NonNullable<
+        Episode['interactions'][number]['replyIntent']
+      >,
+    )
+      ? {
+          replyIntent:
+            replyIntent as NonNullable<
+              Episode['interactions'][number]['replyIntent']
+            >,
+        }
+      : {}),
+    ...(submissionId ? { submissionId } : {}),
+    ...(replyGuidance ? { replyGuidance } : {}),
     ...(feedback ? { feedback } : {}),
+    ...(languageFeedback ? { languageFeedback } : {}),
     createdAt: readString(value, 'createdAt'),
     updatedAt: readString(value, 'updatedAt'),
   };
+}
+
+// parseReplyGuidance validates recoverable learner-input guidance from local storage.
+function parseReplyGuidance(
+  value: unknown,
+): Episode['interactions'][number]['replyGuidance'] {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const reason = readString(value, 'reason');
+  const suggestedText = readOptionalString(value, 'suggestedText');
+
+  if (
+    !replyRevisionReasons.includes(
+      reason as NonNullable<
+        Episode['interactions'][number]['replyGuidance']
+      >['reason'],
+    )
+  ) {
+    return undefined;
+  }
+
+  return {
+    reason: reason as NonNullable<
+      Episode['interactions'][number]['replyGuidance']
+    >['reason'],
+    message: readString(value, 'message'),
+    ...(suggestedText ? { suggestedText } : {}),
+  };
+}
+
+// parseLanguageFeedback validates structured coaching without changing original text.
+function parseLanguageFeedback(
+  value: unknown,
+): Episode['interactions'][number]['languageFeedback'] {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const status = readString(value, 'status');
+  const correctedText = readOptionalString(value, 'correctedText');
+  const note: string = readString(value, 'note');
+
+  if (status === languageFeedbackStatuses[0]) {
+    return { status: 'natural', note };
+  }
+
+  if (status === languageFeedbackStatuses[1] && correctedText) {
+    return { status: 'corrected', correctedText, note };
+  }
+
+  return undefined;
 }
 
 // parseInteractionChoice validates one controlled story option.

@@ -1,5 +1,5 @@
 import type {
-  InteractionAiPayload,
+  InteractionGatewayPayload,
   SubmitInteractionRequest,
 } from '@application/ai/episodeAiPayload';
 
@@ -8,5 +8,5 @@ export type InteractionGateway = {
   // submitInteraction returns validated feedback and same-episode continuation JSON.
   readonly submitInteraction: (
     request: SubmitInteractionRequest,
-  ) => Promise<InteractionAiPayload>;
+  ) => Promise<InteractionGatewayPayload>;
 };

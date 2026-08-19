@@ -15,6 +15,7 @@ export * from './listSeries';
 export * from './manageAuthSession';
 export * from './manageSeriesSetupDraft';
 export * from './recordLearningSignal';
+export * from './saveEpisodeReplyDraft';
 export * from './replaceEpisodeStoryWord';
 export * from './shuffleEpisodeStoryWords';
 export * from './startOrResumeTodaysWordSet';

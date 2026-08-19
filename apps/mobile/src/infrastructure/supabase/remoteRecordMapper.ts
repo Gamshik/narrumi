@@ -9,9 +9,12 @@ import {
   createDefaultSeriesCreativeBrief,
   createProfilesFromCharacterNames,
   defaultLearningGenre,
+  freeReplyIntents,
   interactionKinds,
+  languageFeedbackStatuses,
   learningGenres,
   learningSignalKinds,
+  replyRevisionReasons,
   seriesParticipationModes,
   wordSetKinds,
   type Episode,
@@ -87,7 +90,30 @@ const interactionSchema = z.object({
   sentenceEndIndex: z.number().int().nonnegative(),
   selectedChoiceId: z.string().min(1).optional(),
   userReply: z.string().min(1).optional(),
+  replyDraft: z.string().min(1).optional(),
+  replyIntent: z.enum(freeReplyIntents).optional(),
+  submissionId: z.string().min(1).optional(),
+  replyGuidance: z
+    .object({
+      reason: z.enum(replyRevisionReasons),
+      message: z.string().min(1),
+      suggestedText: z.string().min(1).optional(),
+    })
+    .optional(),
   feedback: z.string().min(1).optional(),
+  languageFeedback: z
+    .discriminatedUnion('status', [
+      z.object({
+        status: z.literal(languageFeedbackStatuses[0]),
+        note: z.string().min(1),
+      }),
+      z.object({
+        status: z.literal(languageFeedbackStatuses[1]),
+        correctedText: z.string().min(1),
+        note: z.string().min(1),
+      }),
+    ])
+    .optional(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
 });
@@ -676,7 +702,38 @@ function mapInteraction(
       ? { selectedChoiceId: interaction.selectedChoiceId }
       : {}),
     ...(interaction.userReply ? { userReply: interaction.userReply } : {}),
+    ...(interaction.replyDraft ? { replyDraft: interaction.replyDraft } : {}),
+    ...(interaction.replyIntent ? { replyIntent: interaction.replyIntent } : {}),
+    ...(interaction.submissionId
+      ? { submissionId: interaction.submissionId }
+      : {}),
+    ...(interaction.replyGuidance
+      ? {
+          replyGuidance: {
+            reason: interaction.replyGuidance.reason,
+            message: interaction.replyGuidance.message,
+            ...(interaction.replyGuidance.suggestedText
+              ? { suggestedText: interaction.replyGuidance.suggestedText }
+              : {}),
+          },
+        }
+      : {}),
     ...(interaction.feedback ? { feedback: interaction.feedback } : {}),
+    ...(interaction.languageFeedback
+      ? {
+          languageFeedback:
+            interaction.languageFeedback.status === 'corrected'
+              ? {
+                  status: 'corrected' as const,
+                  correctedText: interaction.languageFeedback.correctedText,
+                  note: interaction.languageFeedback.note,
+                }
+              : {
+                  status: 'natural' as const,
+                  note: interaction.languageFeedback.note,
+                },
+        }
+      : {}),
     createdAt: interaction.createdAt,
     updatedAt: interaction.updatedAt,
   };
