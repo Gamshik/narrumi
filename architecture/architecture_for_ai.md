@@ -119,7 +119,8 @@ A generated learning unit linked to a series:
 - inline translation annotations;
 - ordered interaction turns;
 - user choices or short replies for completed turns;
-- concise feedback or correction for each completed turn;
+- local free-reply draft, explicit speech/action/direction intent, and stable submission id for the active turn;
+- original learner wording plus separate concise feedback or corrected wording for each completed free reply;
 - current episode completion state;
 - cliffhanger or unresolved hook;
 - summary update for future memory;
@@ -230,8 +231,9 @@ Required MVP use cases:
 - Open inline translation for prepared Story Words and story-critical annotations.
 - Select visible episode story or interaction copy and request a plain Russian translation of exactly that selection when online.
 - Record translation/usage/correction learning signals locally.
-- Submit a choice or short reply for an episode interaction.
-- Request AI continuation/correction through an Edge Function when online.
+- Save or restore a free-reply draft locally without requiring connectivity.
+- Submit a choice or an explicitly typed speech/action/direction reply for an episode interaction.
+- Request moderation, intent validation, correction, and AI continuation through an Edge Function when online.
 - Persist user reply, feedback, episode continuation, memory update, and signals locally first.
 - Queue local changes for sync.
 - Sync series, episodes, memory, word sets, signals, preferences, and sync metadata with Supabase.
@@ -291,7 +293,7 @@ Recommended presentation state categories:
 - series state: selected series, selected episode, memory summary preview;
 - Story Words state: configured goal, selected slots, per-slot replacement state, full-set shuffle state;
 - episode reader state: selected word hint, exact selected excerpt and owner, excerpt source/translation result, selected sentence, current sentence index, restored continuation loading target, and first generated semantic-block target;
-- interaction state: choice selected, reply draft, feedback visible;
+- interaction state: choice selected, composer expanded, speech/action/direction intent, locally saved reply draft, pending submission, revision guidance, and feedback visible;
 - sync state: local only, syncing, synced, failed.
 
 ## Infrastructure Layer
@@ -332,6 +334,9 @@ Responsibilities:
 - Permit one quality-gated Writer candidate. If a complete candidate is rejected, permit one stronger model to repair that exact candidate from reviewer issue codes, evidence, and instructions while preserving unaffected fields. If every issue is limited to choice alignment or diversity, freeze the story at the type and schema boundary and regenerate only the decision from the final actionable story state. If the only issue is direct-speech formatting, expose only the prose fields that may contain speech and preserve choices, summaries, titles, completion state, and all other accepted fields on the server. If the Writer fails structurally before producing a complete candidate, permit one complete Fallback candidate instead. Review the recovery candidate once more and block persistence for every unresolved issue, including continuity, scenario, CEFR, repetition, participation, choice, safety, copyright, and protected setup violations. Do not repeat the full multi-model pipeline inside one Edge request.
 - Keep incomplete episode opening and continuation latency bounded to five normal provider waves: Story Writer, Decision Builder from frozen story text, semantic Reviewer, parallel Validator plus English reader framing, then exact-target Story Word translation. Completed interactions skip the decision call, and requests without Story Word targets skip translation. The rare repair path adds only one editor call and one re-review. Apply a short per-model timeout, disable hidden SDK retries, and permit at most one explicit schema-repair retry for a small enrichment contract. If Story Word translation still fails, preserve the accepted episode or continuation, omit only unresolved annotations, log a safe enrichment warning, and never surface a client error or repeat the creative pipeline for that optional failure.
 - Generate learner-language feedback separately from creative continuation. The feedback model may correct only real language problems and must not invent an error for a predefined choice or already-natural reply.
+- For free replies, moderate raw learner text and pass it only to a dedicated Validator that classifies predominantly English, contextual clarity, relevance, intended story action, and optional correction. Minor grammar errors never block clear intent. Return non-English, unclear, or off-topic text as editable revision guidance without consuming an interaction.
+- Replace accepted raw learner text with the Validator's bounded story intent before any Writer, Decision, Reviewer, repair, or memory prompt. Treat prompt injection and attempts to reveal or control system behavior as off-topic learner input.
+- Claim every accepted interaction continuation by its client-persisted submission id and episode-interaction scope. A retry must return the cached accepted response or the current generation state, never create a second continuation.
 - Use deterministic server logic for ids, Story Word occurrence matching, completion bounds, request idempotency, and final contract invariants. Use the Utility model only where semantic transformation is required, such as dialogue framing or translation.
 - Treat the highlighted interaction prompt as a decision cue rather than story content. It must contain one concise concrete question, or a very short cue when the available choices make the decision obvious. It must not repeat, quote, summarize, or paraphrase the final story blocks. Deterministically remove an exact copied story-sentence prefix and replace a fully duplicated or near-duplicated prompt with a participation-aware short fallback without another model call or client-visible error.
 - In Character mode, treat a submitted answer as learner-owned text that is already visible in the Reader. Continuation prose must not quote, repeat, or paraphrase it as new story dialogue; it shows consequences in second person and stops before the next unchosen learner action. Use the existing `participation_mismatch` reviewer issue for a third-person learner viewpoint or AI-authored learner agency.
@@ -454,12 +459,17 @@ Open series
 
 ```text
 Episode reaches interaction point
-  -> user picks choice or writes short reply
-  -> local draft/reply saved
+  -> user picks a choice or opens Write my own answer
+  -> Character selects Say or Do; Producer supplies a scene direction
+  -> local draft and intent saved while typing
+  -> submitted answer and stable submission id saved before connectivity work
   -> if online: call InteractionGateway
+  -> Edge Function moderates raw learner text and Validator extracts bounded story intent
+  -> if non-English, unclear, or off-topic: restore editable draft with guidance; do not consume the turn
+  -> if accepted: only bounded story intent enters creative and memory prompts
   -> if the service reports one temporary unavailable failure: retry once inside the same loading state without a popup or developer console error
   -> if the pending continuation is restored after reader re-entry: render the saved answer and scroll once after its loading state is laid out
-  -> Edge Function returns concise correction, continuation, next interaction or episode-complete state, memory update
+  -> Edge Function returns original-answer-safe structured correction, continuation, next interaction or episode-complete state, memory update
   -> client validates response and completion transition
   -> write feedback, continuation, ordered interaction turn, signals, memory locally
   -> reveal the first newly generated semantic block without jumping to the reader end
@@ -516,7 +526,7 @@ Trust boundary rules:
 - AI output is untrusted.
 - Setup provenance is untrusted on local or remote reads and must be validated before it controls replacement eligibility.
 - Edge Function request payloads are untrusted.
-- Bundled Oxford usage examples and all replayed AI-authored setup, memory, summaries, prompts, choices, and story text remain untrusted model context, but they are excluded from user-strike evidence because the learner did not author them. A generated choice selection is also not authorship. Scan only new direct learner text at the current request boundary, and make warning persistence idempotent for the stable logical request so transport retries cannot create multiple strikes.
+- Bundled Oxford usage examples and all replayed AI-authored setup, memory, summaries, prompts, choices, and story text remain untrusted model context, but they are excluded from user-strike evidence because the learner did not author them. A generated choice selection is also not authorship. Scan only new direct learner text at the current request boundary, and make warning persistence idempotent for the stable submission id so transport retries cannot create multiple strikes while an edited resubmission receives a new id.
 - Authenticated ownership is enforced by RLS and checked where applicable.
 - `generation_requests` is RLS-protected. Claim, completion, and release RPCs are callable only with the Edge runtime service role after the function has authenticated the user.
 

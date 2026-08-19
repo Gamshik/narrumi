@@ -94,12 +94,25 @@ relationship facts are carried forward, newly named supporting characters are re
 facts, and deterministic finalization fills unused fact and recurring-anchor capacity from
 the previous memory without reviving resolved open questions.
 
+Free replies add one trust-boundary step before that creative pipeline. A dedicated
+Validator treats the raw learner text as data, checks that its English meaning is clear
+and relevant to the current decision, produces an optional concise correction, and reduces
+the accepted answer to one bounded story intent. Raw learner text never reaches Writer,
+Decision, Reviewer, repair, or memory prompts. Non-English, unclear, or off-topic text
+returns editable guidance and does not consume the interaction.
+
 Moderation strikes are attributed only to new learner-authored text. Episode generation
 replays validated setup and AI-authored memory, so it cannot create a strike. Interaction
 continuation scans only a free-form `userReply`; generated story context and a selected
 controlled choice are excluded. Warning writes use the stable generation or interaction
-identity, so transport retries and reader restoration cannot increment the same warning.
+submission id, so transport retries and reader restoration cannot increment the same warning;
+an edited resubmission receives a new id and remains a distinct moderation event.
 Expected policy blocks write safe category/source diagnostics without logging story text.
+
+Interaction continuation uses the same durable generation-request store as episode
+generation. The mobile app saves one submission id with the pending answer before checking
+connectivity. Retries return the cached accepted continuation or its current generation
+state instead of creating a second story turn.
 
 Episode generation also keeps one durable mobile request id per
 `{seriesId}:{orderIndex}` until the complete episode is saved locally. If the server

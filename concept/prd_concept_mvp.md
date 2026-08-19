@@ -174,6 +174,11 @@ The product should feel like creating and watching a personal English series, no
   - ask a character a question;
   - explain a theory or plan;
   - discuss the scene with the AI in a constrained context.
+- Every interaction presents two or three generated choices and one optional `Write my own answer` path. Character mode requires the learner to mark free text as `Say` or `Do`; Producer mode treats it as a direction for the scene.
+- Free-reply drafts are saved locally while the learner types. Submission and AI checking are online-only, but an answer submitted during a connectivity change must remain durable and resume safely later.
+- The learner's original wording remains visible and is never silently replaced. When useful, the app shows one separate corrected version and one concise note; clear intent continues the story even when grammar needs correction.
+- Predominantly non-English, unclear, or off-topic text does not consume the story turn. The same draft returns with calm, specific guidance and an optional editable suggestion. Policy-blocked content follows the existing warning and ban rules.
+- A stable submission identity makes retries, route restoration, and process restarts idempotent: one logical answer can produce at most one accepted continuation.
 - Every submitted interaction continues the same episode.
 - The continuation should lead to another meaningful interaction until the AI marks the current episode complete.
 - The AI should end an episode only after a coherent local story arc has developed, the learner's decisions have had visible consequences, and a closing beat or hook has been established.
