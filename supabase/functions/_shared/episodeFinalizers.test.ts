@@ -90,6 +90,7 @@ const episodeSentenceFrames = episodeSentences.map((sentence) => ({
 
 // submitRequest is bounded context used by interaction finalizer tests.
 const submitRequest: SubmitInteractionRequest = {
+  submissionId: 'submission:test:1',
   episodeId: 'episode:test',
   interactionId: 'interaction:test:1',
   seriesId: 'series:test',

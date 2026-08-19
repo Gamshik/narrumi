@@ -26,6 +26,9 @@ const interactionKinds = [
   'theory-or-plan',
 ] as const;
 
+// freeReplyIntents disambiguate learner-authored text before creative generation.
+const freeReplyIntents = ['speech', 'action', 'direction'] as const;
+
 // cefrLevels is the Edge-side copy of accepted learner levels.
 const cefrLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 
@@ -220,6 +223,43 @@ export const interactionPayloadSchema = z.object({
   }
 });
 
+// interactionRevisionPayloadSchema returns editable guidance without story mutation.
+export const interactionRevisionPayloadSchema = z.object({
+  status: z.literal('needs-revision'),
+  guidance: z.object({
+    reason: z.enum(['unclear', 'not-english', 'off-topic']),
+    message: feedbackTextSchema.pipe(z.string().max(500)),
+    suggestedText: readableTextSchema.pipe(z.string().max(500)).optional(),
+  }),
+});
+
+// interactionAcceptedPayloadSchema adds public status and structured language coaching.
+export const interactionAcceptedPayloadSchema = z.intersection(
+  interactionPayloadSchema,
+  z.object({
+    status: z.literal('accepted'),
+    languageFeedback: z
+      .discriminatedUnion('status', [
+        z.object({
+          status: z.literal('natural'),
+          note: feedbackTextSchema.pipe(z.string().max(500)),
+        }),
+        z.object({
+          status: z.literal('corrected'),
+          correctedText: readableTextSchema.pipe(z.string().max(500)),
+          note: feedbackTextSchema.pipe(z.string().max(500)),
+        }),
+      ])
+      .optional(),
+  }),
+);
+
+// interactionGatewayPayloadSchema validates cached accepted and recoverable responses.
+export const interactionGatewayPayloadSchema = z.union([
+  interactionAcceptedPayloadSchema,
+  interactionRevisionPayloadSchema,
+]);
+
 // generateEpisodeRequestSchema validates untrusted mobile generation requests.
 export const generateEpisodeRequestSchema = z.object({
   generationRequestId: z.string().trim().min(1).max(240),
@@ -257,6 +297,7 @@ export const generateEpisodeRequestSchema = z.object({
 
 // submitInteractionRequestSchema validates untrusted mobile interaction requests.
 export const submitInteractionRequestSchema = z.object({
+  submissionId: z.string().trim().min(1).max(300).optional(),
   episodeId: z.string().trim().min(1),
   interactionId: z.string().trim().min(1),
   seriesId: z.string().trim().min(1),
@@ -282,6 +323,7 @@ export const submitInteractionRequestSchema = z.object({
   selectedChoiceId: z.string().trim().min(1).optional(),
   selectedChoiceLabel: z.string().trim().min(1).max(120).optional(),
   userReply: z.string().trim().min(1).max(500).optional(),
+  replyIntent: z.enum(freeReplyIntents).optional(),
   safetyAndCopyrightConstraints: z.array(z.string().trim().min(1)).min(1),
 }).superRefine((payload, context) => {
   if (payload.participationMode !== payload.compactSeriesMemory.participationMode) {
@@ -299,7 +341,52 @@ export const submitInteractionRequestSchema = z.object({
       path: ['compactSeriesMemory', 'userRole'],
     });
   }
-});
+
+  const hasChoice: boolean =
+    payload.selectedChoiceId !== undefined &&
+    payload.selectedChoiceLabel !== undefined;
+  const hasFreeReply: boolean =
+    payload.userReply !== undefined && payload.replyIntent !== undefined;
+
+  if (hasChoice === hasFreeReply) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Submit exactly one controlled choice or one free reply.',
+      path: ['userReply'],
+    });
+  }
+
+  if (
+    payload.participationMode === 'character' &&
+    hasFreeReply &&
+    payload.replyIntent === 'direction'
+  ) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Character mode free replies must be speech or action.',
+      path: ['replyIntent'],
+    });
+  }
+
+  if (
+    payload.participationMode === 'director' &&
+    hasFreeReply &&
+    payload.replyIntent !== 'direction'
+  ) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Producer mode free replies must direct the scene.',
+      path: ['replyIntent'],
+    });
+  }
+}).transform((payload) => ({
+  ...payload,
+  // Older choice-only clients had no submission id; the interaction scope is
+  // already single-use and provides a deterministic compatibility identity.
+  submissionId:
+    payload.submissionId ??
+    `legacy-submission:${payload.episodeId}:${payload.interactionId}`,
+}));
 
 // GenerateEpisodeRequest is the parsed Edge request contract.
 export type GenerateEpisodeRequest = z.infer<typeof generateEpisodeRequestSchema>;
@@ -312,6 +399,11 @@ export type EpisodePayload = z.infer<typeof episodePayloadSchema>;
 
 // InteractionPayload is the validated server response before cross-field finalization.
 export type InteractionPayload = z.infer<typeof interactionPayloadSchema>;
+
+// InteractionGatewayPayload includes accepted continuation and editable guidance.
+export type InteractionGatewayPayload = z.infer<
+  typeof interactionGatewayPayloadSchema
+>;
 
 // normalizeReadableText removes markdown emphasis and typography that often breaks terminals/TTS.
 function normalizeReadableText(value: string): string {

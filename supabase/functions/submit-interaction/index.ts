@@ -1,8 +1,11 @@
 import { z } from 'npm:zod@4.4.3';
 
 import {
+  type InteractionGatewayPayload,
   type InteractionPayload,
   type SubmitInteractionRequest,
+  interactionGatewayPayloadSchema,
+  interactionRevisionPayloadSchema,
   submitInteractionRequestSchema,
 } from '../_shared/episodeContracts.ts';
 import { finalizeInteractionPayload } from '../_shared/episodeFinalizers.ts';
@@ -22,6 +25,7 @@ import {
 } from '../_shared/generatedLanguage.ts';
 import {
   corsHeaders,
+  generationStateResponse,
   jsonResponse,
   logSafeError,
   logSafeWarning,
@@ -36,6 +40,7 @@ import {
   scanModerationEntries,
 } from '../_shared/moderation.ts';
 import { collectInteractionModerationEntries } from '../_shared/moderationInput.ts';
+import { runIdempotentGeneration } from '../_shared/generationIdempotency.ts';
 import {
   type AiModelRole,
   generateStructuredObject,
@@ -59,6 +64,12 @@ import {
 import {
   STORY_WORD_USAGE_RULES,
 } from '../_shared/storyWordPolicy.ts';
+import {
+  buildReplyAnalysisPrompt,
+  buildReplyAnalysisSystemPrompt,
+  type ReplyAnalysis,
+  replyAnalysisSchema,
+} from '../_shared/replyAnalysis.ts';
 import { buildStoryDecisionHistory } from '../_shared/storyContextPolicy.ts';
 import {
   reviewDeterministicStoryIntegrity,
@@ -318,7 +329,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
       const warningResult = await moderationStore.recordWarning(
         authResult.user.userId,
         'submit-interaction',
-        `${payload.episodeId}:${payload.interactionId}`,
+        payload.submissionId,
         review,
       );
       // categories exposes policy buckets in logs without retaining matched text.
@@ -347,9 +358,73 @@ Deno.serve(async (request: Request): Promise<Response> => {
       );
     }
 
-    const validatedPayload = await generateValidatedInteraction(payload);
+    const replyAnalysis: ReplyAnalysis | undefined = payload.userReply
+      ? await analyzeLearnerReply(payload)
+      : undefined;
 
-    return jsonResponse(validatedPayload);
+    if (replyAnalysis?.status === 'needs-revision') {
+      const revisionPayload = interactionRevisionPayloadSchema.parse({
+        status: 'needs-revision',
+        guidance: {
+          reason: replyAnalysis.reason,
+          message: replyAnalysis.message,
+          ...(replyAnalysis.suggestedText
+            ? { suggestedText: replyAnalysis.suggestedText }
+            : {}),
+        },
+      });
+
+      return jsonResponse(revisionPayload);
+    }
+
+    // safePayload replaces raw learner text with a bounded semantic intent before creativity.
+    const safePayload: SubmitInteractionRequest = replyAnalysis
+      ? { ...payload, userReply: replyAnalysis.storyIntent }
+      : payload;
+    const { submissionId: _submissionId, ...fingerprintPayload } = payload;
+    const generationResult = await runIdempotentGeneration({
+      generate: async (): Promise<InteractionGatewayPayload> => {
+        const validatedPayload = await generateValidatedInteraction(safePayload);
+
+        return interactionGatewayPayloadSchema.parse({
+          ...validatedPayload,
+          status: 'accepted',
+          ...(replyAnalysis
+            ? {
+                feedback: replyAnalysis.feedback,
+                languageFeedback:
+                  replyAnalysis.languageStatus === 'corrected'
+                    ? {
+                        status: 'corrected',
+                        correctedText: replyAnalysis.correctedText,
+                        note: replyAnalysis.feedback,
+                      }
+                    : {
+                        status: 'natural',
+                        note: replyAnalysis.feedback,
+                      },
+              }
+            : {}),
+        });
+      },
+      operation: 'submit-interaction',
+      parseResponse: (value): InteractionGatewayPayload =>
+        interactionGatewayPayloadSchema.parse(value),
+      requestId: payload.submissionId,
+      requestPayload: fingerprintPayload,
+      scopeId: `${payload.episodeId}:${payload.interactionId}`,
+      userId: authResult.user.userId,
+    });
+
+    if (generationResult.kind !== 'completed') {
+      return generationStateResponse(
+        generationResult.kind === 'in_progress'
+          ? 'generation_in_progress'
+          : 'generation_conflict',
+      );
+    }
+
+    return jsonResponse(generationResult.response);
   } catch (error) {
     logSafeError('submit-interaction AI generation failed', error, {
       operation: 'submit-interaction',
@@ -358,6 +433,22 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return safeErrorResponse('unavailable', 502);
   }
 });
+
+// analyzeLearnerReply checks English and extracts one safe story action before Writer access.
+async function analyzeLearnerReply(
+  payload: SubmitInteractionRequest,
+): Promise<ReplyAnalysis> {
+  return await generateJsonWithSchema({
+    prompt: buildReplyAnalysisPrompt(payload),
+    role: 'validator',
+    schema: replyAnalysisSchema,
+    taskName: 'interaction_reply_analysis',
+    system: buildReplyAnalysisSystemPrompt(),
+    temperature: 0,
+    maxOutputTokens: 900,
+    maxAttempts: 2,
+  });
+}
 
 // generateValidatedInteraction builds the final app payload from smaller AI drafts.
 async function generateValidatedInteraction(

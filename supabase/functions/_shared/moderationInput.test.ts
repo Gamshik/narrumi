@@ -11,6 +11,7 @@ function createRequest(
   overrides: Partial<SubmitInteractionRequest> = {},
 ): SubmitInteractionRequest {
   return {
+    submissionId: 'submission:1',
     episodeId: 'episode:1',
     interactionId: 'interaction:1',
     seriesId: 'series:1',

@@ -3,7 +3,8 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js';
 // GenerationOperation lists AI boundaries protected by the shared request cache.
 export type GenerationOperation =
   | 'generate-episode'
-  | 'generate-series-setup';
+  | 'generate-series-setup'
+  | 'submit-interaction';
 
 // IdempotentGenerationResult describes cache admission without leaking database rows.
 export type IdempotentGenerationResult<TResponse> =
