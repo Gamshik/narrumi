@@ -1,4 +1,8 @@
-import type { Episode, EpisodeInteraction } from '@domain/index';
+import type {
+  Episode,
+  EpisodeInteraction,
+  FreeReplyIntent,
+} from '@domain/index';
 
 // PendingEpisodeContinuation carries the persisted answer needed to resume one interrupted request.
 export type PendingEpisodeContinuation = {
@@ -12,6 +16,8 @@ export type PendingEpisodeContinuation = {
   readonly choiceId?: string;
   // userReply restores the persisted visible answer for free-form and choice interactions.
   readonly userReply?: string;
+  // replyIntent restores how learner-authored text should affect the story.
+  readonly replyIntent?: FreeReplyIntent;
 };
 
 // findPendingEpisodeContinuation returns the newest saved answer whose continuation never completed.
@@ -48,6 +54,9 @@ export function findPendingEpisodeContinuation(
         : {}),
       ...(interaction.userReply?.trim()
         ? { userReply: interaction.userReply.trim() }
+        : {}),
+      ...(interaction.replyIntent
+        ? { replyIntent: interaction.replyIntent }
         : {}),
     };
   }

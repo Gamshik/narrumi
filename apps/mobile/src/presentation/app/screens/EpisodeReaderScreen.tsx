@@ -27,7 +27,9 @@ import type {
   Episode,
   EpisodeSentenceFrame,
   EpisodeInteraction,
+  FreeReplyIntent,
   Series,
+  SeriesParticipationMode,
   TranslationAnnotation,
 } from '@domain/index';
 
@@ -36,6 +38,7 @@ import type { AppStyles } from '../types';
 import {
   EpisodeSentence,
   ExcerptTranslationSheet,
+  FreeTextAnswerComposer,
   SelectableReaderText,
   SelectionActionBar,
   StoryContinuationPrelude,
@@ -316,6 +319,16 @@ export function EpisodeReaderScreen({
         return;
       }
 
+      if (
+        error instanceof SupabaseFunctionError &&
+        error.kind === 'validation'
+      ) {
+        setInteractionErrorMessage(
+          'Your answer could not be checked. Review the saved draft and try again.',
+        );
+        return;
+      }
+
       setInteractionErrorMessage(
         `${message} Your answer is saved and can continue when the service recovers.`,
       );
@@ -367,11 +380,26 @@ export function EpisodeReaderScreen({
             ...(pendingContinuation.userReply
               ? { userReply: pendingContinuation.userReply }
               : {}),
+            ...(pendingContinuation.replyIntent
+              ? { replyIntent: pendingContinuation.replyIntent }
+              : {}),
           })
         );
         await waitForRemainingLatency(startedAt);
 
         if (!componentMountedRef.current) {
+          return;
+        }
+
+        if (result.status === 'needs-revision') {
+          setEpisodes((currentEpisodes: readonly Episode[]): readonly Episode[] =>
+            currentEpisodes.map((episode: Episode): Episode =>
+              episode.id === pendingContinuation.episodeId
+                ? result.episode
+                : episode,
+            ),
+          );
+          setInteractionErrorMessage(undefined);
           return;
         }
 
@@ -452,6 +480,16 @@ export function EpisodeReaderScreen({
         return;
       }
 
+      if (result.status === 'needs-revision') {
+        setEpisodes((currentEpisodes: readonly Episode[]): readonly Episode[] =>
+          currentEpisodes.map(
+            (episode: Episode, episodeIndex: number): Episode =>
+              episodeIndex === targetEpisodeIndex ? result.episode : episode,
+          ),
+        );
+        return;
+      }
+
       requestScrollToGeneratedContent(
         result.episode,
         targetEpisode.sentences.length,
@@ -465,6 +503,99 @@ export function EpisodeReaderScreen({
       setInteractionErrorMessage(undefined);
     } catch (error) {
       handleInteractionError(error);
+      await loadReader();
+    } finally {
+      if (componentMountedRef.current) {
+        setIsSubmittingInteraction(false);
+      }
+    }
+  };
+
+  // saveReplyDraft persists learner typing locally without waiting for AI or connectivity.
+  const saveReplyDraft = useCallback(
+    (
+      targetEpisodeId: string,
+      interactionId: string,
+      text: string,
+      intent: FreeReplyIntent,
+    ): void => {
+      void localAppServices.saveEpisodeReplyDraft.execute({
+        episodeId: targetEpisodeId,
+        interactionId,
+        text,
+        intent,
+      }).catch((): void => {
+        if (componentMountedRef.current) {
+          setInteractionErrorMessage(
+            'Your reply draft could not be saved on this device.',
+          );
+        }
+      });
+    },
+    [],
+  );
+
+  // submitFreeReply persists the original answer, checks it, and continues only when actionable.
+  const submitFreeReply = async (
+    targetEpisodeIndex: number,
+    interactionId: string,
+    text: string,
+    intent: FreeReplyIntent,
+  ): Promise<void> => {
+    const targetEpisode: Episode | undefined = episodes[targetEpisodeIndex];
+
+    if (!targetEpisode || targetEpisode.isComplete) {
+      return;
+    }
+
+    const startedAt: number = Date.now();
+    const operationKey: string = `${targetEpisode.id}:${interactionId}`;
+
+    resumedInteractionKeysRef.current.add(operationKey);
+    setInteractionErrorMessage(undefined);
+    setIsSubmittingInteraction(true);
+    setEpisodes((currentEpisodes: readonly Episode[]): readonly Episode[] =>
+      applyOptimisticFreeReply({
+        activeEpisodeIndex: targetEpisodeIndex,
+        currentEpisodes,
+        interactionId,
+        intent,
+        submittedText: text,
+      }),
+    );
+
+    try {
+      const result = await submitInteractionWithSilentRetry(() =>
+        localAppServices.submitEpisodeInteraction.execute({
+          episodeId: targetEpisode.id,
+          interactionId,
+          userReply: text,
+          replyIntent: intent,
+        }),
+      );
+      await waitForRemainingLatency(startedAt);
+
+      if (!componentMountedRef.current) {
+        return;
+      }
+
+      setEpisodes((currentEpisodes: readonly Episode[]): readonly Episode[] =>
+        currentEpisodes.map(
+          (episode: Episode, episodeIndex: number): Episode =>
+            episodeIndex === targetEpisodeIndex ? result.episode : episode,
+        ),
+      );
+      setInteractionErrorMessage(undefined);
+
+      if (result.status === 'continued') {
+        requestScrollToGeneratedContent(
+          result.episode,
+          targetEpisode.sentences.length,
+        );
+      }
+    } catch (error: unknown) {
+      handleInteractionError(error);
+      await loadReader();
     } finally {
       if (componentMountedRef.current) {
         setIsSubmittingInteraction(false);
@@ -646,6 +777,28 @@ export function EpisodeReaderScreen({
     });
   };
 
+  // retryPendingContinuation re-arms the normal restoration path for one saved answer.
+  const retryPendingContinuation = (): void => {
+    const pendingContinuation: PendingEpisodeContinuation | undefined =
+      findPendingEpisodeContinuation(episodes);
+
+    if (!pendingContinuation) {
+      return;
+    }
+
+    resumedInteractionKeysRef.current.delete(
+      `${pendingContinuation.episodeId}:${pendingContinuation.interactionId}`,
+    );
+    setInteractionErrorMessage(undefined);
+    setEpisodes((currentEpisodes: readonly Episode[]): readonly Episode[] => [
+      ...currentEpisodes,
+    ]);
+  };
+
+  // hasPendingContinuation exposes a deliberate retry only for durable submissions.
+  const hasPendingContinuation: boolean =
+    findPendingEpisodeContinuation(episodes) !== undefined;
+
   if (errorMessage) {
     return (
       <View style={[styles.screenContent, readerStateInsets]}>
@@ -709,10 +862,23 @@ export function EpisodeReaderScreen({
           ) : null}
 
           {interactionErrorMessage ? (
-            <View style={styles.stateMessage}>
-              <Text style={styles.stateMessageTitle}>
+            <View style={styles.readerInteractionError}>
+              <Text
+                accessibilityLiveRegion="polite"
+                style={styles.readerInteractionErrorText}
+              >
                 {interactionErrorMessage}
               </Text>
+              {hasPendingContinuation ? (
+                <JellyPressable
+                  accessibilityHint="Retries the saved answer without creating a duplicate turn"
+                  accessibilityLabel="Try continuing the saved answer again"
+                  onPress={retryPendingContinuation}
+                  style={styles.readerRetryButton}
+                >
+                  <Text style={styles.readerRetryButtonText}>Try again</Text>
+                </JellyPressable>
+              ) : null}
             </View>
           ) : null}
 
@@ -842,7 +1008,18 @@ export function EpisodeReaderScreen({
                           isReadOnly={isReadOnly}
                           isSubmitting={isSubmittingInteraction}
                           key={interaction.id}
+                          participationMode={
+                            seriesContext?.participationMode ?? 'director'
+                          }
                           styles={styles}
+                          onDraftChange={(text, intent): void =>
+                            saveReplyDraft(
+                              episode.id,
+                              interaction.id,
+                              text,
+                              intent,
+                            )
+                          }
                           onGeneratingLayout={(): void =>
                             handlePendingContinuationLayout(
                               `${episode.id}:${interaction.id}`,
@@ -854,6 +1031,15 @@ export function EpisodeReaderScreen({
                               episodeIndex,
                               interaction.id,
                               choiceId,
+                            );
+                          }}
+                          onSubmitFreeReply={(text, intent): void => {
+                            excerptTranslation.clear();
+                            void submitFreeReply(
+                              episodeIndex,
+                              interaction.id,
+                              text,
+                              intent,
                             );
                           }}
                         />
@@ -1073,6 +1259,45 @@ function applyOptimisticChoice({
   });
 }
 
+// applyOptimisticFreeReply shows learner-authored text once while continuation loads.
+function applyOptimisticFreeReply({
+  activeEpisodeIndex,
+  currentEpisodes,
+  interactionId,
+  intent,
+  submittedText,
+}: {
+  // activeEpisodeIndex identifies the locally visible episode to update.
+  readonly activeEpisodeIndex: number;
+  // currentEpisodes is the immutable reader state before submission.
+  readonly currentEpisodes: readonly Episode[];
+  // interactionId identifies the active turn being answered.
+  readonly interactionId: string;
+  // intent controls outgoing speech versus a narrative action or direction beat.
+  readonly intent: FreeReplyIntent;
+  // submittedText is the learner's original visible wording.
+  readonly submittedText: string;
+}): readonly Episode[] {
+  return currentEpisodes.map((episode, episodeIndex) => {
+    if (episodeIndex !== activeEpisodeIndex) {
+      return episode;
+    }
+
+    return {
+      ...episode,
+      interactions: episode.interactions.map((interaction) =>
+        interaction.id === interactionId
+          ? {
+              ...interaction,
+              userReply: submittedText,
+              replyIntent: intent,
+            }
+          : interaction,
+      ),
+    };
+  });
+}
+
 // EpisodeInteractionBlock chooses read-only, answered, or active interaction UI.
 function EpisodeInteractionBlock({
   canAnswer,
@@ -1080,8 +1305,11 @@ function EpisodeInteractionBlock({
   interaction,
   isReadOnly,
   isSubmitting,
+  onDraftChange,
   onGeneratingLayout,
   onSelectChoice,
+  onSubmitFreeReply,
+  participationMode,
   styles,
 }: {
   // canAnswer permits only the latest pending turn in the current episode.
@@ -1094,10 +1322,19 @@ function EpisodeInteractionBlock({
   readonly isReadOnly: boolean;
   // isSubmitting disables duplicate network requests.
   readonly isSubmitting: boolean;
+  // onDraftChange persists unfinished learner-authored text locally.
+  readonly onDraftChange: (text: string, intent: FreeReplyIntent) => void;
   // onGeneratingLayout reveals a restored pending continuation after layout.
   readonly onGeneratingLayout: () => void;
   // onSelectChoice submits the selected controlled outcome.
   readonly onSelectChoice: (choiceId: string) => void;
+  // onSubmitFreeReply submits one explicit speech, action, or direction answer.
+  readonly onSubmitFreeReply: (
+    text: string,
+    intent: FreeReplyIntent,
+  ) => void;
+  // participationMode determines the valid custom-answer intent controls.
+  readonly participationMode: SeriesParticipationMode;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
 }): ReactElement | null {
@@ -1151,6 +1388,9 @@ function EpisodeInteractionBlock({
           excerptTranslation={excerptTranslation}
           interaction={interaction}
           isSubmitting={isSubmitting}
+          onDraftChange={onDraftChange}
+          onSubmitFreeReply={onSubmitFreeReply}
+          participationMode={participationMode}
           styles={styles}
           onSelectChoice={onSelectChoice}
         />
@@ -1166,8 +1406,11 @@ function EpisodeChoice({
   excerptTranslation,
   interaction,
   isSubmitting,
+  onDraftChange,
   styles,
   onSelectChoice,
+  onSubmitFreeReply,
+  participationMode,
 }: {
   // excerptTranslation makes only the visible story prompt selectable.
   readonly excerptTranslation: EpisodeExcerptTranslationController;
@@ -1175,10 +1418,19 @@ function EpisodeChoice({
   readonly interaction: EpisodeInteraction;
   // isSubmitting disables duplicate local and remote writes.
   readonly isSubmitting: boolean;
+  // onDraftChange persists free-text typing without consuming the story turn.
+  readonly onDraftChange: (text: string, intent: FreeReplyIntent) => void;
   // styles is the current theme StyleSheet contract.
   readonly styles: AppStyles;
   // onSelectChoice persists one learner-controlled outcome.
   readonly onSelectChoice: (choiceId: string) => void;
+  // onSubmitFreeReply routes learner-authored text through validation and continuation.
+  readonly onSubmitFreeReply: (
+    text: string,
+    intent: FreeReplyIntent,
+  ) => void;
+  // participationMode selects Character Say/Do or Producer direction behavior.
+  readonly participationMode: SeriesParticipationMode;
 }): ReactElement {
   // promptOwnerKey distinguishes choice copy from answer and feedback surfaces.
   const promptOwnerKey: string = createSelectionOwnerKey(
@@ -1231,6 +1483,15 @@ function EpisodeChoice({
           );
         })}
       </View>
+      <FreeTextAnswerComposer
+        guidance={interaction.replyGuidance}
+        initialDraft={interaction.replyDraft}
+        initialIntent={interaction.replyIntent}
+        isSubmitting={isSubmitting}
+        participationMode={participationMode}
+        onDraftChange={onDraftChange}
+        onSubmit={onSubmitFreeReply}
+      />
     </>
   );
 }
@@ -1261,13 +1522,24 @@ function SavedEpisodeAnswer({
   const savedChoice = interaction.choices.find(
     (choice) => choice.id === interaction.selectedChoiceId,
   );
-  const isSpeechAnswer = savedChoice?.isSpeech !== false;
+  const isSpeechAnswer: boolean = savedChoice
+    ? savedChoice.isSpeech !== false
+    : interaction.replyIntent === 'speech';
   // answerText is the exact visible answer copy translated from this block.
+  const cleanAnswer: string = cleanSelectedReply(answer);
   const answerText: string = isSpeechAnswer
-    ? cleanSelectedReply(answer) || 'No answer was saved.'
-    : `You decided to: ${cleanSelectedReply(answer) || 'No action was saved.'}`;
+    ? cleanAnswer || 'No answer was saved.'
+    : interaction.replyIntent === 'direction'
+      ? `You directed: ${cleanAnswer || 'No direction was saved.'}`
+      : `You decided to: ${cleanAnswer || 'No action was saved.'}`;
   // feedbackText narrows optional feedback once for rendering and selection callbacks.
-  const feedbackText: string | undefined = interaction.feedback;
+  const feedbackText: string | undefined =
+    interaction.languageFeedback?.note ?? interaction.feedback;
+  // correctedText remains separate so the original learner answer is never overwritten.
+  const correctedText: string | undefined =
+    interaction.languageFeedback?.status === 'corrected'
+      ? interaction.languageFeedback.correctedText
+      : undefined;
   // answerOwnerKey keeps answer selection separate from feedback selection.
   const answerOwnerKey: string = createSelectionOwnerKey(
     interaction.id,
@@ -1277,6 +1549,11 @@ function SavedEpisodeAnswer({
   const feedbackOwnerKey: string = createSelectionOwnerKey(
     interaction.id,
     'feedback',
+  );
+  // correctionOwnerKey keeps suggested wording selectable independently from its note.
+  const correctionOwnerKey: string = createSelectionOwnerKey(
+    interaction.id,
+    'correction',
   );
 
   return (
@@ -1334,7 +1611,30 @@ function SavedEpisodeAnswer({
       ) : null}
       {feedbackText ? (
         <View style={styles.readerFeedback}>
-          <Text style={styles.sectionLabel}>FEEDBACK</Text>
+          <Text style={styles.sectionLabel}>
+            {correctedText ? 'A MORE NATURAL VERSION' : 'FEEDBACK'}
+          </Text>
+          {correctedText ? (
+            <SelectableReaderText
+              isSelectionOwner={
+                excerptTranslation.isSelectionOwner(correctionOwnerKey)
+              }
+              text={correctedText}
+              textStyle={styles.readerSavedAnswerText}
+              onSelectionOwnerTouchStart={
+                excerptTranslation.markSelectionOwnerTouchStart
+              }
+              onSelectionChange={(
+                range: EpisodeSelectionRange | undefined,
+              ): void =>
+                excerptTranslation.selectRange(
+                  correctionOwnerKey,
+                  correctedText,
+                  range,
+                )
+              }
+            />
+          ) : null}
           <SelectableReaderText
             isSelectionOwner={
               excerptTranslation.isSelectionOwner(feedbackOwnerKey)

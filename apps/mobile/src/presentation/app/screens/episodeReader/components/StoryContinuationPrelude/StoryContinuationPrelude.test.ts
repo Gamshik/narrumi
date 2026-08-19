@@ -13,6 +13,11 @@ const readerSource: string = readFileSync(
   resolve(__dirname, '../../../EpisodeReaderScreen.tsx'),
   'utf8',
 );
+// appStylesSource protects the Reader retry action from flex-based full-screen stretching.
+const appStylesSource: string = readFileSync(
+  resolve(__dirname, '../../../../MobileApp.styles.ts'),
+  'utf8',
+);
 
 test('renders the continuation prelude after a saved choice', (): void => {
   assert.match(
@@ -51,6 +56,17 @@ test('reveals a restored pending continuation after its loading state is laid ou
 
 test('keeps the first temporary continuation failure inside the loading state', (): void => {
   assert.match(readerSource, /submitInteractionWithSilentRetry/);
+  assert.match(readerSource, /retryPendingContinuation/);
+  assert.match(readerSource, />Try again</);
+  assert.match(readerSource, /style=\{styles\.readerRetryButton\}/);
+  assert.match(
+    appStylesSource,
+    /readerRetryButton:\s*\{[\s\S]*?alignSelf:\s*"flex-start"/,
+  );
+  assert.doesNotMatch(
+    readerSource,
+    /Try continuing the saved answer again"[\s\S]*?style=\{styles\.secondaryButton\}/,
+  );
   assert.doesNotMatch(readerSource, /console\.error/);
   assert.doesNotMatch(readerSource, /Story interaction stopped/);
 });

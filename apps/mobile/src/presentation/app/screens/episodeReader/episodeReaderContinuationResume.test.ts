@@ -12,16 +12,16 @@ describe('findPendingEpisodeContinuation', (): void => {
   it('restores the newest persisted answer that still lacks feedback', (): void => {
     // pendingEpisode mirrors the local draft saved before the Edge Function resolves.
     const pendingEpisode: Episode = createEpisode({
-      selectedChoiceId: 'open',
-      userReply: 'Open the door carefully',
+      replyIntent: 'direction',
+      userReply: 'Mira opens the door carefully.',
     });
 
     assert.deepEqual(findPendingEpisodeContinuation([pendingEpisode]), {
       episodeId: pendingEpisode.id,
       episodeIndex: 0,
       interactionId: pendingEpisode.interactions[0]?.id,
-      choiceId: 'open',
-      userReply: 'Open the door carefully',
+      replyIntent: 'direction',
+      userReply: 'Mira opens the door carefully.',
     });
   });
 
@@ -49,6 +49,8 @@ function createEpisode(
     readonly feedback?: string;
     // selectedChoiceId stores the learner's controlled answer.
     readonly selectedChoiceId?: string;
+    // replyIntent stores the learner's chosen free-reply interpretation.
+    readonly replyIntent?: 'speech' | 'action' | 'direction';
     // userReply stores the visible answer persisted before generation.
     readonly userReply?: string;
   },

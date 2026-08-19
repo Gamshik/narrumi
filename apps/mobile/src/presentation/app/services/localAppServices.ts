@@ -18,6 +18,7 @@ import {
   createManageAuthSession,
   createDeleteSeriesSetupDraft,
   createRecordLearningSignal,
+  createSaveEpisodeReplyDraft,
   createReplaceEpisodeStoryWord,
   createShuffleEpisodeStoryWords,
   createStartOrResumeEpisodeWordSelection,
@@ -132,6 +133,11 @@ const recordLearningSignal = createRecordLearningSignal(
   localSeriesStore,
   systemClock,
 );
+// saveEpisodeReplyDraft keeps unfinished learner text local and available offline.
+const saveEpisodeReplyDraft = createSaveEpisodeReplyDraft(
+  localSeriesStore,
+  systemClock,
+);
 const replaceEpisodeStoryWord = createReplaceEpisodeStoryWord(
   localSeriesStore,
   vocabularyCatalog,
@@ -213,6 +219,7 @@ export const localAppServices = {
     recordLearningSignal,
     syncLocalChanges,
   ),
+  saveEpisodeReplyDraft,
   replaceEpisodeStoryWord: withBackgroundSync(
     replaceEpisodeStoryWord,
     syncLocalChanges,
